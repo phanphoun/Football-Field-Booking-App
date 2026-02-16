@@ -121,22 +121,248 @@ The Football Field Booking App serves as a centralized platform that bridges fie
 
 ## 📊 Database Schema
 
-### Core Tables
-- **Users** - User authentication and profile information
-- **Teams** - Team details, logos, and member management
-- **Fields** - Field locations, pricing, and availability
-- **Bookings** - Reservation records and status tracking
-- **Match_Results** - Game outcomes, scores, and MVP selections
-- **Ratings** - Team reviews and community feedback
+### Entity Relationship Diagram (ERD)
 
-### Entity Relationships
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string username UK
+        string email UK
+        string password_hash
+        string first_name
+        string last_name
+        string phone
+        string role
+        enum status
+        timestamp created_at
+        timestamp updated_at
+        string profile_image
+        date date_of_birth
+        string gender
+        string address
+    }
+    
+    TEAMS {
+        int id PK
+        string name
+        string logo_url
+        string jersey_color
+        string secondary_color
+        text description
+        int captain_id FK
+        enum status
+        timestamp created_at
+        timestamp updated_at
+        int max_players
+        string home_field_location
+    }
+    
+    TEAM_MEMBERS {
+        int id PK
+        int team_id FK
+        int user_id FK
+        enum role
+        enum status
+        timestamp joined_at
+        boolean is_active
+    }
+    
+    FIELDS {
+        int id PK
+        string name
+        string description
+        string address
+        string city
+        string province
+        double latitude
+        double longitude
+        int owner_id FK
+        decimal price_per_hour
+        string operating_hours
+        enum field_type
+        enum surface_type
+        int capacity
+        enum status
+        timestamp created_at
+        timestamp updated_at
+        json amenities
+        json images
+    }
+    
+    BOOKINGS {
+        int id PK
+        int field_id FK
+        int team_id FK
+        int opponent_team_id FK
+        datetime start_time
+        datetime end_time
+        enum status
+        decimal total_price
+        text special_requests
+        timestamp created_at
+        timestamp updated_at
+        int created_by FK
+        boolean is_matchmaking
+        text notes
+    }
+    
+    MATCH_RESULTS {
+        int id PK
+        int booking_id FK
+        int home_team_id FK
+        int away_team_id FK
+        int home_score
+        int away_score
+        enum match_status
+        int mvp_player_id FK
+        text match_notes
+        timestamp recorded_at
+        int recorded_by FK
+        json match_events
+    }
+    
+    RATINGS {
+        int id PK
+        int team_id_rater FK
+        int team_id_rated FK
+        int booking_id FK
+        int rating
+        text review
+        enum rating_type
+        timestamp created_at
+        timestamp updated_at
+        boolean is_recommended
+    }
+    
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK
+        string title
+        text message
+        enum type
+        boolean is_read
+        timestamp created_at
+        timestamp read_at
+        json metadata
+    }
+    
+    LEAGUE_MATCHES {
+        int id PK
+        string league_name
+        string home_team
+        string away_team
+        datetime match_time
+        enum match_status
+        int home_score
+        int away_score
+        string venue
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    %% Relationships
+    USERS ||--o{ TEAMS : "owns as captain"
+    USERS ||--o{ FIELDS : "owns"
+    USERS ||--o{ TEAM_MEMBERS : "belongs to"
+    TEAMS ||--o{ TEAM_MEMBERS : "has"
+    TEAMS ||--o{ BOOKINGS : "makes"
+    FIELDS ||--o{ BOOKINGS : "booked for"
+    TEAMS ||--o{ BOOKINGS : "opponent in"
+    BOOKINGS ||--|| MATCH_RESULTS : "has result"
+    TEAMS ||--o{ MATCH_RESULTS : "participates in"
+    USERS ||--o{ MATCH_RESULTS : "records MVP"
+    TEAMS ||--o{ RATINGS : "rates"
+    TEAMS ||--o{ RATINGS : "rated by"
+    BOOKINGS ||--o{ RATINGS : "rated for"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    USERS ||--o{ MATCH_RESULTS : "records"
 ```
-Users 1--1 Teams
-Teams M--M Bookings
+
+### Core Tables Description
+
+#### **Users**
+- **Purpose**: Stores user authentication and profile information
+- **Key Fields**: id, username, email, password_hash, role, status
+- **Roles**: Guest, Player/Team Captain, Field Owner/Admin
+
+#### **Teams**
+- **Purpose**: Team details and configuration
+- **Key Fields**: id, name, logo_url, captain_id, jersey_color, status
+- **Features**: Team identity, jersey management, member limits
+
+#### **Team_Members**
+- **Purpose**: Many-to-many relationship between users and teams
+- **Key Fields**: team_id, user_id, role, status, joined_at
+- **Roles**: Captain, Player, Substitute
+
+#### **Fields**
+- **Purpose**: Football field information and management
+- **Key Fields**: id, name, owner_id, price_per_hour, operating_hours, status
+- **Features**: Location data, pricing, amenities, availability
+
+#### **Bookings**
+- **Purpose**: Field reservation records and scheduling
+- **Key Fields**: field_id, team_id, start_time, end_time, status, total_price
+- **Features**: Matchmaking support, opponent assignment, status tracking
+
+#### **Match_Results**
+- **Purpose**: Game outcomes and performance tracking
+- **Key Fields**: booking_id, home_score, away_score, mvp_player_id, match_status
+- **Features**: Score tracking, MVP selection, match events
+
+#### **Ratings**
+- **Purpose**: Team reviews and community feedback system
+- **Key Fields**: team_id_rater, team_id_rated, booking_id, rating, review
+- **Features**: Star ratings, text reviews, recommendations
+
+#### **Notifications**
+- **Purpose**: Real-time alerts and user communication
+- **Key Fields**: user_id, title, message, type, is_read
+- **Features**: Push notifications, read status, metadata storage
+
+#### **League_Matches**
+- **Purpose**: External league data integration
+- **Key Fields**: league_name, home_team, away_team, match_time, scores
+- **Features**: European leagues, live scores, match schedules
+
+### Entity Relationships Summary
+```
+Users 1--1 Teams (as captain)
+Users 1--M Fields (as owner)
+Users M--M Teams (as members)
+Teams M--M Bookings (as booker and opponent)
 Fields 1--M Bookings
 Bookings 1--1 Match_Results
-Teams M--M Ratings
+Teams M--M Ratings (rater and rated)
+Users 1--M Notifications
 ```
+
+### Database Constraints & Indexes
+
+#### **Primary Keys (PK)**
+- All tables have auto-incrementing `id` as primary key
+
+#### **Foreign Keys (FK)**
+- `teams.captain_id` → `users.id`
+- `fields.owner_id` → `users.id`
+- `team_members.team_id` → `teams.id`
+- `team_members.user_id` → `users.id`
+- `bookings.field_id` → `fields.id`
+- `bookings.team_id` → `teams.id`
+- `bookings.opponent_team_id` → `teams.id`
+- `match_results.booking_id` → `bookings.id`
+- `match_results.mvp_player_id` → `users.id`
+
+#### **Unique Constraints**
+- `users.username`, `users.email`
+- `teams.name` (per owner)
+
+#### **Indexes for Performance**
+- `bookings.start_time`, `bookings.end_time` (for availability checks)
+- `users.email` (for login)
+- `fields.status`, `fields.city` (for search and filtering)
+- `teams.status` (for active team listings)
 
 ## 🔐 Security Features
 
