@@ -39,7 +39,6 @@ const Login = () => {
                 />
               </div>
             </div>
-
             <div className="form-group">
               <label>Password</label>
               <div className="input-group">

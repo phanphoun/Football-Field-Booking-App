@@ -2,7 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Home, Booking, Fields, Profile, Login, Register } from './pages'
 import { Navbar } from './components'
-import './index.css'
+// import './index.css'
 
 function App() {
   return (
