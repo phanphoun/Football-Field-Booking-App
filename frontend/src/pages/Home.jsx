@@ -1,134 +1,201 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { Calendar, MapPin, Clock, Users } from 'lucide-react'
+import { Link } from 'react-router-dom';
+import { MapPin, Users, Trophy, Zap, Star, TrendingUp, Shield, Clock } from 'lucide-react';
+import './Home.css';
 
 const Home = () => {
-  return (
-    <>
-    <div className="home">
-      <section className="hero">
-        <div className="hero-content">
-          <h1>Book Your Perfect Football Field</h1>
-          {/* <p>Find and reserve the best football fields in your area</p> */}
-          <div className="hero-buttons">
-            <Link to="/fields" className="btn btn-primary">Browse Fields</Link>
-            <Link to="/booking" className="btn btn-secondary">Quick Booking</Link>
-          </div>
-        </div>
-      </section>
+    const features = [
+        {
+            icon: MapPin,
+            title: 'Find Fields',
+            description: 'Browse and book premium football fields across Cambodia with real-time availability.',
+            color: 'var(--primary-green)',
+        },
+        {
+            icon: Users,
+            title: 'Build Teams',
+            description: 'Create and manage your team, customize jerseys, and track your performance.',
+            color: 'var(--accent-blue)',
+        },
+        {
+            icon: Zap,
+            title: 'Auto Matchmaking',
+            description: 'Find opponents automatically and schedule matches with teams at your skill level.',
+            color: 'var(--accent-orange)',
+        },
+        {
+            icon: Trophy,
+            title: 'Track Stats',
+            description: 'Monitor match results, MVP awards, and climb the leaderboards.',
+            color: 'var(--accent-purple)',
+        },
+    ];
 
-      <section className="features">
-        <div className="container">
-          <h2 className = "reason-title">Why Choose FieldBooking?</h2>
-          <div className="features-grid">
-            <div className="feature-card">
-              <MapPin size={48} />
-              <h3>Find Nearby Fields</h3>
-              <p>Discover football fields in your location with detailed information</p>
-            </div>
-            <div className="feature-card">
-              <Calendar size={48} />
-              <h3>Easy Booking</h3>
-              <p>Reserve your preferred time slot with just a few clicks</p>
-            </div>
-            <div className="feature-card">
-              <Clock size={48} />
-              <h3>Real-time Availability</h3>
-              <p>Check live availability and book instantly</p>
-            </div>
-            <div className="feature-card">
-              <Users size={48} />
-              <h3>Team Management</h3>
-              <p>Organize your team and manage bookings together</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-    <div className='popular-fields'>
-      <div className="container">
-        <h2 className="section-title">Popular Fields</h2>
-        <div className="fields-grid">
-          <div className="field-card">
-            <div className="field-image">
-              <img src="https://img.freepik.com/free-photo/neon-style-american-football-player_23-2151827390.jpg?semt=ais_hybrid&w=740&q=80" alt="Football Field" />
-              <div className="field-badge">Popular</div>
-            </div>
-            <div className="field-content">
-              <h3>Phnom Penh Stadium</h3>
-              <div className="field-info">
-                <span className="location">📍 Phnom Penh</span>
-                <span className="price">$25/hour</span>
-              </div>
-              <div className="field-stats">
-                <span>⭐ 4.8 (124 reviews)</span>
-                <span>🏃 85% booked</span>
-              </div>
-              <div className="field-features">
-                <span className="feature">⚽ Standard</span>
-                <span className="feature">🚿 Shower</span>
-                <span className="feature">🅿️ Parking</span>
-              </div>
-              <button className="btn btn-primary field-btn">View Details</button>
-            </div>
-          </div>
+    const stats = [
+        { value: '1,000+', label: 'Active Users', icon: Users },
+        { value: '50+', label: 'Football Fields', icon: MapPin },
+        { value: '200+', label: 'Daily Matches', icon: Trophy },
+        { value: '4.8', label: 'User Rating', icon: Star },
+    ];
 
-          <div className="field-card">
-            <div className="field-image">
-              <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=400&h=250&fit=crop" alt="Football Field" />
-              <div className="field-badge">Premium</div>
-            </div>
-            <div className="field-content">
-              <h3>Sihanoukville Sports Complex</h3>
-              <div className="field-info">
-                <span className="location">📍 Sihanoukville</span>
-                <span className="price">$35/hour</span>
-              </div>
-              <div className="field-stats">
-                <span>⭐ 4.9 (89 reviews)</span>
-                <span>🏃 92% booked</span>
-              </div>
-              <div className="field-features">
-                <span className="feature">⚽ Premium</span>
-                <span className="feature">🚿 Shower</span>
-                <span className="feature">🅿️ Parking</span>
-                <span className="feature">🏥 Medical</span>
-              </div>
-              <button className="btn btn-primary field-btn">View Details</button>
-            </div>
-          </div>
+    const benefits = [
+        {
+            icon: TrendingUp,
+            title: 'Grow Your Network',
+            description: 'Connect with football enthusiasts and expand your team network.',
+        },
+        {
+            icon: Shield,
+            title: 'Secure Bookings',
+            description: 'Safe and reliable booking system with instant confirmation.',
+        },
+        {
+            icon: Clock,
+            title: '24/7 Support',
+            description: 'Round-the-clock customer support for all your needs.',
+        },
+    ];
 
-          <div className="field-card">
-            <div className="field-image">
-              <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=250&fit=crop" alt="Football Field" />
-              <div className="field-badge">New</div>
-            </div>
-            <div className="field-content">
-              <h3>Siem Reap Arena</h3>
-              <div className="field-info">
-                <span className="location">📍 Siem Reap</span>
-                <span className="price">$20/hour</span>
-              </div>
-              <div className="field-stats">
-                <span>⭐ 4.7 (45 reviews)</span>
-                <span>🏃 78% booked</span>
-              </div>
-              <div className="field-features">
-                <span className="feature">⚽ Standard</span>
-                <span className="feature">🚿 Shower</span>
-                <span className="feature">💡 Lights</span>
-              </div>
-              <button className="btn btn-primary field-btn">View Details</button>
-            </div>
-          </div>
-        </div>
-        <div className="view-all-container">
-          <Link to="/fields" className="btn btn-secondary">View All Fields</Link>
-        </div>
-      </div>
-    </div>
-    </>
-  )
-}
+    return (
+        <div className="home">
+            {/* Hero Section */}
+            <section className="hero">
+                <div className="hero-background"></div>
+                <div className="hero-content container">
+                    <div className="hero-text animate-fadeIn">
+                        <h1 className="hero-title">
+                            Book Your Perfect
+                            <span className="gradient-text"> Football Field</span>
+                        </h1>
+                        <p className="hero-subtitle">
+                            The premier platform for booking football fields and organizing matches in Cambodia.
+                            Find fields, build teams, and compete with the best.
+                        </p>
+                        <div className="hero-actions">
+                            <Link to="/fields" className="btn btn-primary btn-lg">
+                                <MapPin size={20} />
+                                Browse Fields
+                            </Link>
+                            <Link to="/matchmaking" className="btn btn-outline btn-lg">
+                                <Zap size={20} />
+                                Find Opponents
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="hero-image animate-slideInRight">
+                        <div className="hero-card">
+                            <div className="hero-card-glow"></div>
+                            <div className="hero-card-content">
+                                <Trophy size={80} className="hero-icon" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-export default Home
+            {/* Stats Section */}
+            <section className="stats-section">
+                <div className="container">
+                    <div className="stats-grid">
+                        {stats.map((stat, index) => {
+                            const Icon = stat.icon;
+                            return (
+                                <div key={index} className="stat-card animate-fadeIn" style={{ animationDelay: `${index * 0.1}s` }}>
+                                    <Icon size={32} className="stat-icon" />
+                                    <div className="stat-value">{stat.value}</div>
+                                    <div className="stat-label">{stat.label}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {/* Features Section */}
+            <section className="section features-section">
+                <div className="container">
+                    <div className="section-header">
+                        <h2 className="section-title">Everything You Need</h2>
+                        <p className="section-subtitle">
+                            Powerful features to help you book fields, organize matches, and grow your football community.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-4">
+                        {features.map((feature, index) => {
+                            const Icon = feature.icon;
+                            return (
+                                <div key={index} className="feature-card card animate-fadeIn" style={{ animationDelay: `${index * 0.1}s` }}>
+                                    <div className="feature-icon" style={{ background: `linear-gradient(135deg, ${feature.color}, ${feature.color}dd)` }}>
+                                        <Icon size={28} />
+                                    </div>
+                                    <h3 className="feature-title">{feature.title}</h3>
+                                    <p className="feature-description">{feature.description}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </section>
+
+            {/* Benefits Section */}
+            <section className="section benefits-section">
+                <div className="container">
+                    <div className="benefits-content">
+                        <div className="benefits-text">
+                            <h2 className="section-title">Why Choose FieldBook?</h2>
+                            <p className="section-subtitle">
+                                Join Cambodia's fastest-growing football community and experience the future of field booking.
+                            </p>
+                            <div className="benefits-list">
+                                {benefits.map((benefit, index) => {
+                                    const Icon = benefit.icon;
+                                    return (
+                                        <div key={index} className="benefit-item">
+                                            <div className="benefit-icon">
+                                                <Icon size={24} />
+                                            </div>
+                                            <div className="benefit-content">
+                                                <h4 className="benefit-title">{benefit.title}</h4>
+                                                <p className="benefit-description">{benefit.description}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <Link to="/register" className="btn btn-primary btn-lg">
+                                Get Started Now
+                            </Link>
+                        </div>
+                        <div className="benefits-visual">
+                            <div className="visual-card card-glass">
+                                <div className="visual-glow"></div>
+                                <Users size={120} className="visual-icon" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA Section */}
+            <section className="cta-section">
+                <div className="container">
+                    <div className="cta-content">
+                        <h2 className="cta-title">Ready to Play?</h2>
+                        <p className="cta-subtitle">
+                            Join thousands of players and teams already using FieldBook to organize their matches.
+                        </p>
+                        <div className="cta-actions">
+                            <Link to="/register" className="btn btn-accent btn-lg">
+                                Create Account
+                            </Link>
+                            <Link to="/fields" className="btn btn-outline btn-lg">
+                                Explore Fields
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    );
+};
+
+export default Home;

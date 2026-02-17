@@ -1,68 +1,78 @@
-import React, { useState } from 'react'
-import { User, Lock, Mail } from 'lucide-react'
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  })
+    const [showPassword, setShowPassword] = useState(false);
+    const [formData, setFormData] = useState({ email: '', password: '' });
+    const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        // TODO: Implement login logic
+        console.log('Login:', formData);
+        navigate('/');
+    };
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log('Login data:', formData)
-  }
-
-  return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-form">
-          <h2>Login</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Email</label>
-              <div className="input-group">
-                <Mail size={20} />
-                <input 
-                  type="email" 
-                  name="email" 
-                  value={formData.email} 
-                  onChange={handleChange} 
-                  placeholder="Enter your email"
-                  required 
-                />
-              </div>
+    return (
+        <div className="container" style={{ maxWidth: '480px', padding: '4rem 0' }}>
+            <div className="card" style={{ padding: '2rem' }}>
+                <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>Login</h1>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">Email</label>
+                        <div className="input-group">
+                            <Mail className="input-icon" size={18} />
+                            <input
+                                type="email"
+                                className="input"
+                                placeholder="your@email.com"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Password</label>
+                        <div className="input-group">
+                            <Lock className="input-icon" size={18} />
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                className="input"
+                                placeholder="••••••••"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '1rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-muted)',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                        Login
+                    </button>
+                </form>
+                <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-secondary)' }}>
+                    Don't have an account? <Link to="/register">Sign up</Link>
+                </p>
             </div>
-            <div className="form-group">
-              <label>Password</label>
-              <div className="input-group">
-                <Lock size={20} />
-                <input 
-                  type="password" 
-                  name="password" 
-                  value={formData.password} 
-                  onChange={handleChange} 
-                  placeholder="Enter your password"
-                  required 
-                />
-              </div>
-            </div>
-
-            <button type="submit" className="btn btn-primary">Login</button>
-          </form>
-          <p className="auth-link">
-            Don't have an account? <a href="/register">Register</a>
-          </p>
         </div>
-      </div>
-    </div>
-  )
-}
+    );
+};
 
-export default Login
+export default Login;
