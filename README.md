@@ -35,23 +35,230 @@ The Football Field Booking App serves as a centralized platform that bridges fie
 | **Player/Team Captain** | Register teams, book fields, join matches, manage team members |
 | **Field Owner/Admin** | Create fields, manage schedules, confirm bookings, set pricing |
 
-## 🏗️ Technology Stack
+## 🏗️ Complete Technology Stack
 
-### Frontend
-- **React.js** - Fast, interactive UI with reusable components
-- **Tailwind CSS** - Mobile-responsive styling with consistent design
-- **Axios** - API communication with error handling
-- **Socket.io-client** - Real-time updates and notifications
+### **Frontend Technologies**
 
-### Backend
-- **Node.js** - High-performance server-side JavaScript
-- **Express.js** - RESTful API framework with middleware support
-- **Socket.io** - Real-time bidirectional communication
-- **JWT** - Secure token-based authentication
+#### **Core Framework & Libraries**
+- **React 19.2.0** - Modern UI library with hooks and concurrent features
+- **React DOM 19.2.0** - React renderer for web browsers
+- **React Router DOM 7.13.0** - Client-side routing and navigation
 
-### Database
-- **MySQL** - Reliable relational database for booking records
-- **Redis** - High-performance caching and real-time data management
+#### **Build Tools & Development Environment**
+- **Vite 7.3.1** - Fast build tool and development server
+- **@vitejs/plugin-react 5.1.1** - React plugin for Vite
+- **ESLint 9.39.1** - Code linting and quality checks
+- **ESLint Plugins**:
+  - **eslint-plugin-react-hooks 7.0.1** - React hooks linting
+  - **eslint-plugin-react-refresh 0.4.24** - React refresh linting
+- **TypeScript Support**:
+  - **@types/react 19.2.7** - React type definitions
+  - **@types/react-dom 19.2.3** - React DOM type definitions
+- **Globals 16.5.0** - Global variable definitions for ESLint
+
+#### **UI Components & Styling**
+- **Lucide React 0.564.0** - Modern icon library with 400+ icons
+- **CSS3** - Custom styling with CSS variables and responsive design
+- **CSS Grid & Flexbox** - Modern layout systems
+- **CSS Custom Properties** - Theme variables for consistent design
+
+#### **HTTP Client & API Communication**
+- **Axios 1.13.5** - Promise-based HTTP client with interceptors and error handling
+
+#### **Module System**
+- **ES Modules** (`"type": "module"`) - Modern JavaScript module system
+
+---
+
+### **Backend Technologies**
+
+#### **Runtime & Framework**
+- **Node.js 24.11.1** - JavaScript runtime environment with V8 engine
+- **Express.js 5.2.1** - Fast, minimalist web application framework
+- **CommonJS** (`"type": "commonjs"`) - Traditional Node.js module system
+
+#### **Database & Data Management**
+- **MySQL/MariaDB 10.4.32** - Relational database management system
+- **mysql2 3.17.2** - MySQL driver for Node.js with improved performance and prepared statements
+
+#### **Authentication & Security**
+- **jsonwebtoken 9.0.3** - JWT (JSON Web Token) implementation for secure authentication
+- **bcryptjs 3.0.3** - Password hashing and security with salt rounds
+- **Role-Based Access Control** - Middleware for permission management
+
+#### **Middleware & Utilities**
+- **cors 2.8.6** - Cross-Origin Resource Sharing middleware
+- **dotenv 17.3.1** - Environment variable management from .env files
+- **Express JSON Parser** - Built-in JSON request body parsing
+- **Custom Authentication Middleware** - JWT verification and role checking
+
+---
+
+### **Development Tools & Environment**
+
+#### **Package Management**
+- **npm 11.6.2** - Node package manager with dependency locking
+- **package-lock.json** - Dependency locking for reproducible builds
+
+#### **Version Control**
+- **Git** - Distributed version control system
+- **.gitignore** - Git ignore configuration for Node.js projects
+
+#### **Code Quality & Linting**
+- **ESLint Configuration** - Flat config format with React and JavaScript rules
+- **React Refresh** - Fast refresh for development experience
+- **Custom ESLint Rules** - Project-specific linting configurations
+
+---
+
+### **System Architecture**
+
+#### **Architecture Pattern**
+- **MERN Stack Variant** (MongoDB → MySQL, Express, React, Node)
+- **RESTful API** - Standard HTTP methods with proper status codes
+- **Client-Server Architecture** - Separation of concerns between frontend and backend
+- **Service-Oriented Architecture** - Modular controller and route structure
+
+#### **API Design**
+- **JWT Authentication** - Token-based authentication with Bearer tokens
+- **Role-Based Authorization** - Multi-level permission system (guest, player, field_owner, admin)
+- **CORS Enabled** - Cross-origin resource sharing for frontend-backend communication
+- **Error Handling** - Centralized error handling with proper HTTP status codes
+- **Input Validation** - Request body validation and sanitization
+
+#### **Database Architecture**
+- **Relational Model** - Foreign key relationships and constraints
+- **MySQL Features**:
+  - Stored procedures and functions
+  - Database triggers and events
+  - Indexing for performance optimization
+  - ACID compliance for data integrity
+- **Database Schema**:
+  - **Users** - Authentication and profile management
+  - **Fields** - Football field information and management
+  - **Bookings** - Reservation system with scheduling
+  - **Teams** - Team management and member relationships
+  - **Ratings** - Review and rating system
+  - **Notifications** - User communication system
+  - **League Matches** - External league data integration
+
+---
+
+### **Development Environment Setup**
+
+#### **Operating System**
+- **Windows** - Primary development environment
+- **PowerShell** - Command-line interface and scripting
+
+#### **Development Servers**
+- **Frontend Dev Server**: Vite development server (typically port 5173)
+- **Backend API Server**: Express.js server (port 5000)
+- **Database Server**: MySQL/MariaDB (localhost:3306)
+
+#### **Environment Configuration**
+- **.env Files** - Environment-specific configuration
+- **Environment Variables**:
+  - Database connection parameters
+  - JWT secret keys
+  - Server port configuration
+  - CORS settings
+
+---
+
+### **Performance & Optimization**
+
+#### **Frontend Optimization**
+- **Code Splitting** - Vite's automatic code splitting
+- **Tree Shaking** - Dead code elimination
+- **Fast Refresh** - Hot module replacement for development
+- **Asset Optimization** - Automatic image and font optimization
+
+#### **Backend Optimization**
+- **Connection Pooling** - MySQL connection management
+- **Middleware Optimization** - Efficient request processing
+- **Error Handling** - Graceful error recovery
+- **Memory Management** - Proper garbage collection practices
+
+#### **Database Optimization**
+- **Indexing Strategy** - Optimized indexes for common queries
+- **Query Optimization** - Efficient SQL queries with proper joins
+- **Connection Management** - Persistent database connections
+- **Caching Strategy** - Planned Redis integration for future releases
+
+---
+
+### **Security Implementation**
+
+#### **Authentication Security**
+- **JWT Tokens** - Secure token-based authentication with expiration
+- **Password Hashing** - bcrypt with salt rounds for password security
+- **Role-Based Access** - Granular permission control
+- **Token Validation** - Middleware-based token verification
+
+#### **API Security**
+- **CORS Configuration** - Controlled cross-origin access
+- **Input Validation** - Request body validation and sanitization
+- **Error Handling** - Secure error responses without information leakage
+- **Environment Variables** - Secure configuration management
+
+#### **Development Security**
+- **Dependency Management** - Regular security updates via npm
+- **Code Quality** - ESLint rules for secure coding practices
+- **Git Security** - Proper .gitignore for sensitive files
+
+---
+
+### **Testing & Quality Assurance**
+
+#### **Testing Framework Setup**
+- **ESLint** - Code quality and style checking
+- **React Refresh Testing** - Development experience validation
+- **API Testing** - Manual testing via curl and Postman
+- **Database Testing** - SQL query validation and performance testing
+
+#### **Quality Metrics**
+- **Code Linting** - Automated code quality checks
+- **Type Safety** - TypeScript definitions for better development experience
+- **Performance Monitoring** - API response time tracking
+- **Error Tracking** - Comprehensive error logging and monitoring
+
+---
+
+### **Deployment & Production**
+
+#### **Build Process**
+- **Frontend Build** - Vite production build with optimization
+- **Backend Deployment** - Node.js production environment setup
+- **Database Migration** - MySQL schema management
+- **Environment Configuration** - Production environment setup
+
+#### **Production Considerations**
+- **Process Management** - PM2 or similar for process management
+- **Load Balancing** - Scalability considerations
+- **Monitoring** - Application performance monitoring
+- **Backup Strategy** - Database backup and recovery planning
+
+---
+
+### **Technology Version Summary**
+
+| Technology | Version | Purpose |
+|-------------|---------|---------|
+| **Node.js** | 24.11.1 | JavaScript Runtime |
+| **npm** | 11.6.2 | Package Manager |
+| **React** | 19.2.0 | Frontend Framework |
+| **React Router** | 7.13.0 | Client-side Routing |
+| **Vite** | 7.3.1 | Build Tool & Dev Server |
+| **Express** | 5.2.1 | Backend Framework |
+| **MySQL/MariaDB** | 10.4.32 | Database |
+| **mysql2** | 3.17.2 | MySQL Driver |
+| **JWT** | 9.0.3 | Authentication |
+| **bcryptjs** | 3.0.3 | Password Security |
+| **Axios** | 1.13.5 | HTTP Client |
+| **Lucide React** | 0.564.0 | Icon Library |
+| **ESLint** | 9.39.1 | Code Quality |
+| **CORS** | 2.8.6 | Cross-Origin Sharing |
+| **dotenv** | 17.3.1 | Environment Management |
 
 ## 🚀 Getting Started
 
