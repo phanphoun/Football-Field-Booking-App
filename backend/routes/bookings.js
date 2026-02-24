@@ -9,7 +9,10 @@ const {
 } = require('../controllers/bookingController');
 const { authenticateToken } = require('../middleware/auth');
 
-// All booking routes require authentication
+// Public route for testing (should be protected in production)
+router.get('/user/:userId', getUserBookings);
+
+// All other booking routes require authentication
 router.use(authenticateToken);
 
 router.get('/', getUserBookings);

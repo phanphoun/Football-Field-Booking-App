@@ -1,132 +1,147 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Trophy, MapPin, Users, Calendar, Zap, User, LogOut } from 'lucide-react';
-import './Navbar.css';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { User, Menu, X, LogOut, Home, Calendar, Users, Trophy, Settings } from 'lucide-react';
 
-const Navbar = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(false); // TODO: Connect to auth context
-    const location = useLocation();
+const Navbar = ({ user, onLogout }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    const toggleMenu = () => setIsOpen(!isOpen);
+  const isActive = (path) => location.pathname === path;
 
-    const isActive = (path) => location.pathname === path;
+  const handleLogout = () => {
+    onLogout();
+    navigate('/');
+  };
 
-    const navLinks = [
-        { path: '/', label: 'Home', icon: Trophy },
-        { path: '/fields', label: 'Fields', icon: MapPin },
-        { path: '/teams', label: 'Teams', icon: Users },
-        { path: '/matchmaking', label: 'Matchmaking', icon: Zap },
-        { path: '/bookings', label: 'My Bookings', icon: Calendar },
-        { path: '/leagues', label: 'Leagues', icon: Trophy },
+  const getNavItems = () => {
+    if (!user) {
+      return [
+        { path: '/', label: 'Home', icon: Home },
+        { path: '/fields', label: 'Fields', icon: Calendar },
+        { path: '/login', label: 'Login', icon: User },
+        { path: '/register', label: 'Register', icon: User },
+      ];
+    }
+
+    const baseItems = [
+      { path: '/', label: 'Home', icon: Home },
+      { path: '/fields', label: 'Fields', icon: Calendar },
+      { path: '/bookings', label: 'My Bookings', icon: Calendar },
+      { path: '/teams', label: 'Teams', icon: Users },
+      { path: '/matchmaking', label: 'Matchmaking', icon: Trophy },
     ];
 
-    return (
-        <nav className="navbar">
-            <div className="navbar-container container">
-                {/* Logo */}
-                <Link to="/" className="navbar-logo">
-                    <div className="logo-icon">
-                        <Trophy size={32} />
-                    </div>
-                    <div className="logo-text">
-                        <span className="logo-title">FieldBook</span>
-                        <span className="logo-subtitle">Cambodia</span>
-                    </div>
+    const roleSpecificItems = [];
+    
+    if (user.role === 'field_owner') {
+      roleSpecificItems.push({ path: '/field-owner-dashboard', label: 'My Fields', icon: Settings });
+    } else if (user.role === 'team_captain') {
+      roleSpecificItems.push({ path: '/captain-dashboard', label: 'Captain Dashboard', icon: Settings });
+    }
+
+    roleSpecificItems.push({ path: '/profile', label: 'Profile', icon: User });
+
+    return [...baseItems, ...roleSpecificItems];
+  };
+
+  const navItems = getNavItems();
+
+  return (
+    <nav className="bg-white shadow-lg sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">FB</span>
+              </div>
+              <span className="font-bold text-xl text-gray-900">FieldBook Cambodia</span>
+            </Link>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                  isActive(item.path)
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+            
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+              >
+                <LogOut size={18} />
+                <span>Logout</span>
+              </button>
+            )}
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+                    isActive(item.path)
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                  </div>
                 </Link>
-
-                {/* Desktop Navigation */}
-                <div className="navbar-menu">
-                    {navLinks.map((link) => {
-                        const Icon = link.icon;
-                        return (
-                            <Link
-                                key={link.path}
-                                to={link.path}
-                                className={`nav-link ${isActive(link.path) ? 'active' : ''}`}
-                            >
-                                <Icon size={18} />
-                                <span>{link.label}</span>
-                            </Link>
-                        );
-                    })}
-                </div>
-
-                {/* Auth Buttons */}
-                <div className="navbar-actions">
-                    {isLoggedIn ? (
-                        <>
-                            <Link to="/profile" className="btn btn-ghost btn-sm">
-                                <User size={18} />
-                                <span>Profile</span>
-                            </Link>
-                            <button className="btn btn-outline btn-sm" onClick={() => setIsLoggedIn(false)}>
-                                <LogOut size={18} />
-                                <span>Logout</span>
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <Link to="/login" className="btn btn-ghost btn-sm">
-                                Login
-                            </Link>
-                            <Link to="/register" className="btn btn-primary btn-sm">
-                                Sign Up
-                            </Link>
-                        </>
-                    )}
-                </div>
-
-                {/* Mobile Menu Toggle */}
-                <button className="navbar-toggle" onClick={toggleMenu}>
-                    {isOpen ? <X size={24} /> : <Menu size={24} />}
+              ))}
+              
+              {user && (
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  <div className="flex items-center space-x-2">
+                    <LogOut size={18} />
+                    <span>Logout</span>
+                  </div>
                 </button>
+              )}
             </div>
-
-            {/* Mobile Menu */}
-            <div className={`navbar-mobile ${isOpen ? 'open' : ''}`}>
-                <div className="navbar-mobile-menu">
-                    {navLinks.map((link) => {
-                        const Icon = link.icon;
-                        return (
-                            <Link
-                                key={link.path}
-                                to={link.path}
-                                className={`nav-link-mobile ${isActive(link.path) ? 'active' : ''}`}
-                                onClick={() => setIsOpen(false)}
-                            >
-                                <Icon size={20} />
-                                <span>{link.label}</span>
-                            </Link>
-                        );
-                    })}
-                </div>
-                <div className="navbar-mobile-actions">
-                    {isLoggedIn ? (
-                        <>
-                            <Link to="/profile" className="btn btn-ghost" onClick={() => setIsOpen(false)}>
-                                <User size={18} />
-                                <span>Profile</span>
-                            </Link>
-                            <button className="btn btn-outline" onClick={() => { setIsLoggedIn(false); setIsOpen(false); }}>
-                                <LogOut size={18} />
-                                <span>Logout</span>
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <Link to="/login" className="btn btn-ghost" onClick={() => setIsOpen(false)}>
-                                Login
-                            </Link>
-                            <Link to="/register" className="btn btn-primary" onClick={() => setIsOpen(false)}>
-                                Sign Up
-                            </Link>
-                        </>
-                    )}
-                </div>
-            </div>
-        </nav>
-    );
+          </div>
+        )}
+      </div>
+    </nav>
+  );
 };
 
 export default Navbar;

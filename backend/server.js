@@ -5,11 +5,17 @@ const { app, db } = require('./config');
 const authRoutes = require('./routes/auth');
 const fieldRoutes = require('./routes/fields');
 const bookingRoutes = require('./routes/bookings');
+const matchmakingRoutes = require('./routes/matchmaking');
+const teamsRoutes = require('./routes/teams');
+const usersRoutes = require('./routes/users');
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/fields', fieldRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/matchmaking', matchmakingRoutes);
+app.use('/api/teams', teamsRoutes);
+app.use('/api/users', usersRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -19,7 +25,10 @@ app.get('/', (req, res) => {
         endpoints: {
             auth: '/api/auth',
             fields: '/api/fields',
-            bookings: '/api/bookings'
+            bookings: '/api/bookings',
+            matchmaking: '/api/matchmaking',
+            teams: '/api/teams',
+            users: '/api/users'
         }
     });
 });
@@ -43,4 +52,7 @@ app.listen(PORT, () => {
     console.log(`  Auth: http://localhost:${PORT}/api/auth`);
     console.log(`  Fields: http://localhost:${PORT}/api/fields`);
     console.log(`  Bookings: http://localhost:${PORT}/api/bookings`);
+    console.log(`  Matchmaking: http://localhost:${PORT}/api/matchmaking`);
+    console.log(`  Teams: http://localhost:${PORT}/api/teams`);
+    console.log(`  Users: http://localhost:${PORT}/api/users`);
 });

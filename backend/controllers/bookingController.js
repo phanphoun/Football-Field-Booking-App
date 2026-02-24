@@ -1,8 +1,46 @@
-const { db } = require('../config');
+const { db, mockDb } = require('../config');
 
 // Get all bookings for a user
 const getUserBookings = (req, res) => {
-    const userId = req.user.userId;
+    const userId = req.user?.userId || req.params.userId;
+    
+    // Check if using mock database
+    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+        console.log('Using mock database for user bookings');
+        
+        const mockBookings = [
+            {
+                id: 1,
+                field_id: 1,
+                field_name: 'Phnom Penh Football Stadium',
+                team_id: 1,
+                team_name: 'Phnom Penh Warriors',
+                start_time: '2024-02-25T18:00:00Z',
+                end_time: '2024-02-25T20:00:00Z',
+                total_price: 100,
+                status: 'confirmed',
+                special_requests: 'Need extra balls',
+                created_by: userId,
+                created_at: new Date()
+            },
+            {
+                id: 2,
+                field_id: 2,
+                field_name: 'Siem Reap Sports Complex',
+                team_id: 2,
+                team_name: 'Siem Reap United',
+                start_time: '2024-02-26T16:00:00Z',
+                end_time: '2024-02-26T18:00:00Z',
+                total_price: 90,
+                status: 'pending',
+                special_requests: null,
+                created_by: userId,
+                created_at: new Date()
+            }
+        ];
+        
+        return res.json(mockBookings);
+    }
     
     const query = `
         SELECT b.*, f.name as field_name, f.address, f.city,

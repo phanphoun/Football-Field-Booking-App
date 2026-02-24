@@ -1,203 +1,252 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Search, Filter, Star, DollarSign, Clock } from 'lucide-react';
-import './Fields.css';
+import { Search, MapPin, Filter, Star, DollarSign, Clock, Calendar } from 'lucide-react';
+import { fieldsService } from '../services/api';
 
 const Fields = () => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCity, setSelectedCity] = useState('all');
-    const [selectedType, setSelectedType] = useState('all');
+  const [fields, setFields] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedPrice, setSelectedPrice] = useState('all');
 
-    // Mock data - will be replaced with API calls
-    const fields = [
-        {
-            id: 1,
-            name: 'Olympic Stadium Field',
-            address: 'Phnom Penh, Cambodia',
-            city: 'Phnom Penh',
-            type: '11v11',
-            pricePerHour: 50,
-            rating: 4.8,
-            reviews: 124,
-            image: 'https://via.placeholder.com/400x300/22c55e/ffffff?text=Football+Field',
-            amenities: ['Parking', 'Changing Rooms', 'Lights'],
-            status: 'available',
-        },
-        {
-            id: 2,
-            name: 'Riverside Football Arena',
-            address: 'Phnom Penh, Cambodia',
-            city: 'Phnom Penh',
-            type: '7v7',
-            pricePerHour: 35,
-            rating: 4.6,
-            reviews: 89,
-            image: 'https://via.placeholder.com/400x300/3b82f6/ffffff?text=Football+Field',
-            amenities: ['Parking', 'Lights', 'Cafe'],
-            status: 'available',
-        },
-        {
-            id: 3,
-            name: 'Siem Reap Sports Complex',
-            address: 'Siem Reap, Cambodia',
-            city: 'Siem Reap',
-            type: '5v5',
-            pricePerHour: 25,
-            rating: 4.9,
-            reviews: 156,
-            image: 'https://via.placeholder.com/400x300/f97316/ffffff?text=Football+Field',
-            amenities: ['Parking', 'Changing Rooms', 'Lights', 'Shop'],
-            status: 'available',
-        },
-        {
-            id: 4,
-            name: 'Battambang Field Club',
-            address: 'Battambang, Cambodia',
-            city: 'Battambang',
-            type: '11v11',
-            pricePerHour: 40,
-            rating: 4.7,
-            reviews: 67,
-            image: 'https://via.placeholder.com/400x300/8b5cf6/ffffff?text=Football+Field',
-            amenities: ['Parking', 'Changing Rooms'],
-            status: 'available',
-        },
-    ];
+  const cities = ['all', 'Phnom Penh', 'Siem Reap', 'Battambang', 'Sihanoukville'];
+  const fieldTypes = ['all', '5v5', '7v7', '11v11'];
+  const priceRanges = ['all', '0-25', '25-50', '50-100', '100+'];
 
-    const cities = ['all', 'Phnom Penh', 'Siem Reap', 'Battambang', 'Sihanoukville'];
-    const fieldTypes = ['all', '5v5', '7v7', '11v11'];
+  useEffect(() => {
+    const fetchFields = async () => {
+      try {
+        const params = {
+          search: searchTerm,
+          city: selectedCity !== 'all' ? selectedCity : undefined,
+          type: selectedType !== 'all' ? selectedType : undefined,
+          price_range: selectedPrice !== 'all' ? selectedPrice : undefined
+        };
+        
+        const response = await fieldsService.getAll(params);
+        setFields(response.data || []);
+      } catch (error) {
+        console.error('Error fetching fields:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const filteredFields = fields.filter(field => {
-        const matchesSearch = field.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            field.address.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCity = selectedCity === 'all' || field.city === selectedCity;
-        const matchesType = selectedType === 'all' || field.type === selectedType;
-        return matchesSearch && matchesCity && matchesType;
-    });
+    fetchFields();
+  }, [searchTerm, selectedCity, selectedType, selectedPrice]);
 
+  const filteredFields = fields.filter(field => {
+    const matchesSearch = field.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        field.location?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCity = selectedCity === 'all' || field.city === selectedCity;
+    const matchesType = selectedType === 'all' || field.type === selectedType;
+    const matchesPrice = selectedPrice === 'all' || (() => {
+      const price = field.price_per_hour || 0;
+      switch (selectedPrice) {
+        case '0-25': return price >= 0 && price <= 25;
+        case '25-50': return price > 25 && price <= 50;
+        case '50-100': return price > 50 && price <= 100;
+        case '100+': return price > 100;
+        default: return true;
+      }
+    })();
+    
+    return matchesSearch && matchesCity && matchesType && matchesPrice;
+  });
+
+  if (loading) {
     return (
-        <div className="fields-page">
-            <div className="container">
-                {/* Header */}
-                <div className="page-header">
-                    <h1 className="page-title">Browse Football Fields</h1>
-                    <p className="page-subtitle">
-                        Find and book the perfect field for your next match across Cambodia
-                    </p>
-                </div>
-
-                {/* Search and Filters */}
-                <div className="search-section">
-                    <div className="search-bar">
-                        <Search className="search-icon" size={20} />
-                        <input
-                            type="text"
-                            className="input"
-                            placeholder="Search by field name or location..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-
-                    <div className="filters">
-                        <div className="filter-group">
-                            <Filter size={18} />
-                            <select
-                                className="input"
-                                value={selectedCity}
-                                onChange={(e) => setSelectedCity(e.target.value)}
-                            >
-                                {cities.map(city => (
-                                    <option key={city} value={city}>
-                                        {city === 'all' ? 'All Cities' : city}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="filter-group">
-                            <select
-                                className="input"
-                                value={selectedType}
-                                onChange={(e) => setSelectedType(e.target.value)}
-                            >
-                                {fieldTypes.map(type => (
-                                    <option key={type} value={type}>
-                                        {type === 'all' ? 'All Types' : type}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Results Count */}
-                <div className="results-info">
-                    <p>{filteredFields.length} field{filteredFields.length !== 1 ? 's' : ''} found</p>
-                </div>
-
-                {/* Fields Grid */}
-                <div className="fields-grid">
-                    {filteredFields.map((field, index) => (
-                        <div key={field.id} className="field-card card animate-fadeIn" style={{ animationDelay: `${index * 0.1}s` }}>
-                            <div className="field-image">
-                                <img src={field.image} alt={field.name} />
-                                <div className="field-badge badge badge-success">{field.status}</div>
-                                <div className="field-type-badge">{field.type}</div>
-                            </div>
-
-                            <div className="field-content">
-                                <h3 className="field-name">{field.name}</h3>
-
-                                <div className="field-location">
-                                    <MapPin size={16} />
-                                    <span>{field.address}</span>
-                                </div>
-
-                                <div className="field-rating">
-                                    <Star size={16} fill="currentColor" />
-                                    <span className="rating-value">{field.rating}</span>
-                                    <span className="rating-count">({field.reviews} reviews)</span>
-                                </div>
-
-                                <div className="field-amenities">
-                                    {field.amenities.slice(0, 3).map((amenity, i) => (
-                                        <span key={i} className="amenity-tag">{amenity}</span>
-                                    ))}
-                                    {field.amenities.length > 3 && (
-                                        <span className="amenity-tag">+{field.amenities.length - 3}</span>
-                                    )}
-                                </div>
-
-                                <div className="field-footer">
-                                    <div className="field-price">
-                                        <DollarSign size={18} />
-                                        <span className="price-value">${field.pricePerHour}</span>
-                                        <span className="price-unit">/hour</span>
-                                    </div>
-
-                                    <Link to={`/fields/${field.id}`} className="btn btn-primary btn-sm">
-                                        View Details
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Empty State */}
-                {filteredFields.length === 0 && (
-                    <div className="empty-state">
-                        <MapPin className="empty-state-icon" size={80} />
-                        <h3 className="empty-state-title">No fields found</h3>
-                        <p className="empty-state-description">
-                            Try adjusting your search or filters to find more fields
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            Find Your Perfect Football Field
+          </h1>
+          <p className="text-xl md:text-2xl mb-8 text-primary-100">
+            Book the best fields across Cambodia for your next match
+          </p>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <div className="input-group">
+                <Search className="input-icon" size={18} />
+                <input
+                  type="text"
+                  className="input pl-10"
+                  placeholder="Search by field name or location..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <select
+                  className="input"
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                >
+                  {cities.map(city => (
+                    <option key={city} value={city}>
+                      {city === 'all' ? 'All Cities' : city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+                <select
+                  className="input"
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                >
+                  {fieldTypes.map(type => (
+                    <option key={type} value={type}>
+                      {type === 'all' ? 'All Types' : type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                <select
+                  className="input"
+                  value={selectedPrice}
+                  onChange={(e) => setSelectedPrice(e.target.value)}
+                >
+                  {priceRanges.map(range => (
+                    <option key={range} value={range}>
+                      {range === 'all' ? 'All Prices' : `$${range.split('-')[0]}-${range.split('-')[1]}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Results Count */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
+        <p className="text-gray-600">
+          {filteredFields.length} field{filteredFields.length !== 1 ? 's' : ''} found
+        </p>
+      </div>
+
+      {/* Fields Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          {filteredFields.map((field) => (
+            <div key={field.id} className="card hover:shadow-lg transition-shadow duration-300">
+              <div className="h-48 bg-gray-200 rounded-t-lg mb-4 relative overflow-hidden">
+                <img
+                  src={field.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIyNSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIyNSIgZmlsbD0iIzIyYzU1ZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Gb290YmFsbCBGaWVsZDwvdGV4dD48L3N2Zz4='}
+                  alt={field.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-4 right-4">
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    field.status === 'available' ? 'bg-success-100 text-success-800' : 'bg-warning-100 text-warning-800'
+                  }`}>
+                    {field.status || 'Available'}
+                  </span>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="flex items-center mb-2">
+                  <MapPin size={16} className="text-gray-400 mr-2" />
+                  <span className="text-gray-600">{field.location}</span>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{field.name}</h3>
+                <div className="flex items-center mb-4">
+                  <Star size={16} className="text-yellow-400 mr-1" />
+                  <span className="text-gray-600">{field.average_rating || 4.5}</span>
+                  <span className="text-gray-400 ml-2">({field.total_reviews || 100} reviews)</span>
+                </div>
+                <div className="text-sm text-gray-600 mb-4">
+                  <div className="flex items-center mb-2">
+                    <DollarSign size={14} className="mr-1" />
+                    <span className="font-semibold">${field.price_per_hour || 50}</span>
+                    <span className="text-gray-600">/hour</span>
+                  </div>
+                  <div className="flex items-center mb-2">
+                    <Clock size={14} className="mr-1" />
+                    <span>Open: {field.opening_time || '6:00 AM'}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Calendar size={14} className="mr-1" />
+                    <span>Type: {field.type || 'Standard'}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col space-y-3 mt-4">
+                  <Link
+                    to={`/fields/${field.id}`}
+                    className="btn btn-primary btn-sm rounded-lg px-4 py-2 w-full justify-center hover:scale-105 transition-transform"
+                  >
+                    View Details
+                  </Link>
+                  <button
+                    onClick={() => {
+                      // Handle booking
+                    }}
+                    className="btn btn-success btn-sm rounded-lg px-4 py-2 w-full justify-center hover:scale-105 transition-transform font-semibold"
+                  >
+                    Book Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* No Results */}
+      {filteredFields.length === 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center">
+            <MapPin className="mx-auto text-gray-400 mb-4" size={64} />
+            <h3 className="text-2xl font-semibold text-gray-900 mb-4">No fields found</h3>
+            <p className="text-gray-600 mb-8">
+              Try adjusting your search or filters to find more fields
+            </p>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCity('all');
+                setSelectedType('all');
+                setSelectedPrice('all');
+              }}
+              className="btn btn-primary"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Fields;

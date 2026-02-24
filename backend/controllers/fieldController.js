@@ -1,7 +1,13 @@
-const { db } = require('../config');
+const { db, mockDb } = require('../config');
 
 // Get all fields
 const getAllFields = (req, res) => {
+    // Check if using mock database by checking if we replaced the query function
+    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+        console.log('Using mock data for fields');
+        return res.json(mockDb.fields);
+    }
+    
     const query = `
         SELECT f.*, u.username as owner_name
         FROM fields f
@@ -22,6 +28,16 @@ const getAllFields = (req, res) => {
 // Get field by ID
 const getFieldById = (req, res) => {
     const { id } = req.params;
+    
+    // Check if using mock database
+    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+        const field = mockDb.fields.find(f => f.id == id);
+        if (!field) {
+            return res.status(404).json({ error: 'Field not found' });
+        }
+        return res.json(field);
+    }
+    
     const query = `
         SELECT f.*, u.username as owner_name
         FROM fields f
@@ -45,6 +61,22 @@ const getFieldById = (req, res) => {
 const createField = (req, res) => {
     const { name, description, address, city, province, price_per_hour, field_type, surface_type, capacity, amenities } = req.body;
     
+    // Check if using mock database
+    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+        const newField = {
+            id: mockDb.fields.length + 1,
+            name,
+            description,
+            location: `${city}, ${province}`,
+            pricePerHour: price_per_hour,
+            image: 'https://via.placeholder.com/400x225/22c55e/ffffff?text=Football+Field',
+            rating: 4.0,
+            reviews: 0
+        };
+        mockDb.fields.push(newField);
+        return res.status(201).json(newField);
+    }
+    
     const query = `
         INSERT INTO fields (name, description, address, city, province, owner_id, price_per_hour, field_type, surface_type, capacity, amenities)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -64,6 +96,16 @@ const createField = (req, res) => {
 const updateField = (req, res) => {
     const { id } = req.params;
     const updates = req.body;
+    
+    // Check if using mock database
+    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+        const fieldIndex = mockDb.fields.findIndex(f => f.id == id);
+        if (fieldIndex === -1) {
+            return res.status(404).json({ error: 'Field not found' });
+        }
+        mockDb.fields[fieldIndex] = { ...mockDb.fields[fieldIndex], ...updates };
+        return res.json({ message: 'Field updated successfully' });
+    }
     
     const query = `
         UPDATE fields 
@@ -92,6 +134,16 @@ const updateField = (req, res) => {
 // Delete field
 const deleteField = (req, res) => {
     const { id } = req.params;
+    
+    // Check if using mock database
+    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+        const fieldIndex = mockDb.fields.findIndex(f => f.id == id);
+        if (fieldIndex === -1) {
+            return res.status(404).json({ error: 'Field not found' });
+        }
+        mockDb.fields.splice(fieldIndex, 1);
+        return res.json({ message: 'Field deleted successfully' });
+    }
     
     db.query('DELETE FROM fields WHERE id = ?', [id], (err, result) => {
         if (err) {

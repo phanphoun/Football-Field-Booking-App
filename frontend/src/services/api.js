@@ -30,6 +30,7 @@ api.interceptors.response.use(
         if (error.response?.status === 401) {
             // Handle unauthorized access
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
             window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -50,6 +51,7 @@ export const fieldsService = {
     create: (fieldData) => api.post('/fields', fieldData),
     update: (id, fieldData) => api.put(`/fields/${id}`, fieldData),
     delete: (id) => api.delete(`/fields/${id}`),
+    checkAvailability: (id, date, time) => api.get(`/fields/${id}/availability`, { params: { date, time } }),
 };
 
 export const bookingsService = {
@@ -58,6 +60,7 @@ export const bookingsService = {
     create: (bookingData) => api.post('/bookings', bookingData),
     update: (id, bookingData) => api.put(`/bookings/${id}`, bookingData),
     cancel: (id) => api.delete(`/bookings/${id}`),
+    getUserBookings: (userId) => api.get(`/bookings/user/${userId}`),
 };
 
 export const teamsService = {
@@ -68,17 +71,24 @@ export const teamsService = {
     delete: (id) => api.delete(`/teams/${id}`),
     joinTeam: (id) => api.post(`/teams/${id}/join`),
     leaveTeam: (id) => api.post(`/teams/${id}/leave`),
+    getMyTeams: (userId) => api.get(`/teams/user/${userId}`),
 };
 
 export const matchmakingService = {
     findOpponents: (params) => api.get('/matchmaking', { params }),
     createMatchRequest: (requestData) => api.post('/matchmaking', requestData),
+    getAvailableMatches: () => api.get('/matchmaking/available'),
+    getMyRequests: (userId) => api.get('/matchmaking'),
+    createChallenge: (challengeData) => api.post('/matchmaking/challenge', challengeData),
+    cancelRequest: (requestId) => api.delete(`/matchmaking/${requestId}`),
 };
 
-export const leaguesService = {
-    getMatches: (params) => api.get('/leagues/matches', { params }),
-    getStandings: (league) => api.get(`/leagues/${league}/standings`),
-    getTopScorers: (league) => api.get(`/leagues/${league}/scorers`),
+export const userService = {
+    updateProfile: (userData) => api.put('/users/profile', userData),
+    uploadAvatar: (formData) => api.post('/users/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    getStats: (userId) => api.get(`/users/${userId}/stats`),
 };
 
 export default api;
