@@ -12,3 +12,4 @@ router.get('/profile', authenticateToken, getProfile);
 router.put('/profile', authenticateToken, updateProfile);
 
 module.exports = router;
+

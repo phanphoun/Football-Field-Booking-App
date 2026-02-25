@@ -49,10 +49,10 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`API endpoints:`);
-    console.log(`  Auth: http://localhost:${PORT}/api/auth`);
-    console.log(`  Fields: http://localhost:${PORT}/api/fields`);
-    console.log(`  Bookings: http://localhost:${PORT}/api/bookings`);
-    console.log(`  Matchmaking: http://localhost:${PORT}/api/matchmaking`);
-    console.log(`  Teams: http://localhost:${PORT}/api/teams`);
-    console.log(`  Users: http://localhost:${PORT}/api/users`);
+    console.log(`Auth: http://localhost:${PORT}/api/auth`);
+    console.log(`Fields: http://localhost:${PORT}/api/fields`);
+    console.log(`Bookings: http://localhost:${PORT}/api/bookings`);
+    console.log(`Matchmaking: http://localhost:${PORT}/api/matchmaking`);
+    console.log(`Teams: http://localhost:${PORT}/api/teams`);
+    console.log(`Users: http://localhost:${PORT}/api/users`);
 });
