@@ -4,12 +4,48 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const { config } = require('./config/env');
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: config.cors.origin,
+    credentials: config.cors.credentials
+}));
 app.use(express.json());
+
+// Database configuration
+const dbConfig = {
+    host: config.database.host,
+    user: config.database.user,
+    password: config.database.password,
+    database: config.database.name
+};
+
+// Create database connection
+const db = mysql.createConnection(dbConfig);
+
+// Database connection handler
+const connectDatabase = () => {
+    return new Promise((resolve, reject) => {
+        db.connect((err) => {
+            if (err) {
+                console.log('MySQL connection failed, using mock database for development');
+                console.log('Connection details:', {
+                    host: dbConfig.host,
+                    user: dbConfig.user,
+                    database: dbConfig.database,
+                    passwordSet: !!dbConfig.password
+                });
+                resolve(false); // Connection failed
+            } else {
+                console.log('Connected to MySQL database: football_booking');
+                resolve(true); // Connection successful
+            }
+        });
+    });
+};
 
 // Mock database for development
 const mockDb = {
@@ -122,15 +158,7 @@ const mockDb = {
     bookings: []
 };
 
-// Database connection
-const db = mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'football_booking'
-});
-
-// Mock database functions
+// Mock query function
 const mockQuery = (sql, params, callback) => {
     console.log('Mock DB Query:', sql, params);
     
@@ -156,21 +184,24 @@ const mockQuery = (sql, params, callback) => {
     }, 100);
 };
 
-db.connect((err) => {
-    if (err) {
-        console.error('MySQL not available, using mock database for development');
-        console.error('Connection details:', {
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            database: process.env.DB_NAME,
-            passwordSet: !!process.env.DB_PASSWORD
-        });
-        // Replace db.query with mock query
-        db.query = mockQuery;
-        return;
-    }
-    console.log('Connected to MySQL database: football_booking');
-});
+// Initialize database connection and setup
+let isUsingMockDb = false;
 
-module.exports = { app, db, mockDb };
+const initializeDatabase = async () => {
+    const connected = await connectDatabase();
+    if (!connected) {
+        isUsingMockDb = true;
+        db.query = mockQuery;
+    }
+};
+
+// Initialize on module load
+initializeDatabase();
+
+module.exports = { 
+    app, 
+    db, 
+    mockDb, 
+    isUsingMockDb: () => isUsingMockDb 
+};
 

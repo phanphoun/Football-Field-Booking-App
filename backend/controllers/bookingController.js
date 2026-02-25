@@ -1,11 +1,15 @@
-const { db, mockDb } = require('../config');
+const { db, mockDb, isUsingMockDb } = require('../config');
 
 // Get all bookings for a user
 const getUserBookings = (req, res) => {
     const userId = req.user?.userId || req.params.userId;
     
-    // Check if using mock database
-    if (typeof db.query === 'function' && db.query.name === 'mockQuery') {
+    // Validate userId
+    if (!userId || isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
+    if (isUsingMockDb()) {
         console.log('Using mock database for user bookings');
         
         const mockBookings = [
