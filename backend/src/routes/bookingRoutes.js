@@ -1,0 +1,11 @@
+const express = require('express');
+const router = express.Router();
+const bookingController = require('../controllers/bookingController');
+const auth = require('../middleware/auth');
+const checkRole = require('../middleware/role');
+
+router.post('/', auth, checkRole(['player', 'captain', 'admin']), bookingController.createBooking);
+router.get('/', auth, bookingController.getBookings);
+router.put('/:id', auth, bookingController.updateBookingStatus);
+
+module.exports = router;
