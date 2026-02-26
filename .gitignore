@@ -83,3 +83,18 @@ jspm_packages/
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# IDE/Editor specific files
+.windsurf/
+
+# Database files
+*.sqlite
+*.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Lock files (optional - uncomment if you want to ignore them)
+# package-lock.json
+# yarn.lock
