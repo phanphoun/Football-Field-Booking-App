@@ -34,15 +34,61 @@ const getTeamById = asyncHandler(async (req, res) => {
 });
 
 const createTeam = asyncHandler(async (req, res) => {
-  const team = await Team.create({
-    ...req.body,
-    captainId: req.user.id
-  });
-  res.status(201).json({ success: true, data: team });
+  try {
+    const team = await Team.create({
+      ...req.body,
+      captainId: req.user.id
+    });
+    res.status(201).json({ success: true, data: team });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const updateTeam = asyncHandler(async (req, res) => {
+  try {
+    const team = await Team.findByPk(req.params.id);
+    
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+    
+    // Authorization check
+    if (team.captainId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this team' });
+    }
+    
+    const updatedTeam = await team.update(req.body);
+    res.json({ success: true, data: updatedTeam });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const deleteTeam = asyncHandler(async (req, res) => {
+  try {
+    const team = await Team.findByPk(req.params.id);
+    
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+    
+    // Authorization check
+    if (team.captainId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this team' });
+    }
+    
+    await team.destroy();
+    res.json({ success: true, message: 'Team deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
 });
 
 module.exports = {
   getAllTeams,
   getTeamById,
-  createTeam
+  createTeam,
+  updateTeam,
+  deleteTeam
 };

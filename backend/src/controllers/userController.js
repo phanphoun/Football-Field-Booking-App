@@ -33,7 +33,80 @@ const getUserById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
+const createUser = asyncHandler(async (req, res) => {
+  try {
+    const { username, email, password, firstName, lastName, phone, role } = req.body;
+    
+    const user = await User.create({
+      username,
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      role: role || 'player'
+    });
+    
+    res.status(201).json({ success: true, data: user });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  try {
+    const { username, email, firstName, lastName, phone, role } = req.body;
+    const user = await User.findByPk(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Authorization check
+    if (user.id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this user' });
+    }
+    
+    await user.update({
+      username,
+      email,
+      firstName,
+      lastName,
+      phone,
+      role
+    });
+    
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Authorization check
+    if (user.id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this user' });
+    }
+    
+    await user.destroy();
+    
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = {
   getAllUsers,
-  getUserById
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser
 };

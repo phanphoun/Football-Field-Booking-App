@@ -2,9 +2,14 @@ const express = require('express');
 const router = express.Router();
 const notificationController = require('../controllers/notificationController');
 const auth = require('../middleware/auth');
+const checkRole = require('../middleware/role');
+const { idValidation } = require('../middleware/validation');
 
+// Protected routes
 router.get('/', auth, notificationController.getAllNotifications);
-router.get('/:id', auth, notificationController.getNotificationById);
-router.post('/', auth, notificationController.createNotification);
+router.get('/:id', auth, ...idValidation, notificationController.getNotificationById);
+router.post('/', auth, checkRole(['admin']), notificationController.createNotification);
+router.put('/:id', auth, checkRole(['admin']), ...idValidation, notificationController.updateNotification);
+router.delete('/:id', auth, checkRole(['admin']), ...idValidation, notificationController.deleteNotification);
 
 module.exports = router;

@@ -7,8 +7,7 @@ const validateEnvironment = () => {
     'JWT_SECRET',
     'DB_HOST',
     'DB_NAME',
-    'DB_USER',
-    'DB_PASSWORD'
+    'DB_USER'
   ];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -96,7 +95,7 @@ const serverConfig = {
 
   // Logging configuration
   logging: {
-    level: process.env.LOG_LEVEL || (serverConfig.nodeEnv === 'production' ? 'info' : 'dev'),
+    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'dev'),
     format: process.env.NODE_ENV === 'production' ? 'combined' : 'dev'
   },
 

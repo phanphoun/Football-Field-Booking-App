@@ -71,6 +71,40 @@ const getBookings = async (req, res) => {
   }
 };
 
+const getBookingById = async (req, res) => {
+  try {
+    const booking = await Booking.findByPk(req.params.id, {
+      include: [
+        { model: Field, as: 'field', attributes: ['name', 'location'] },
+        { model: User, as: 'booker', attributes: ['username', 'email'] }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Authorization check
+    const isBooker = booking.userId === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    
+    // If field owner, check if they own the field
+    let isOwner = false;
+    if (req.user.role === 'field_owner') {
+      const field = await Field.findByPk(booking.fieldId);
+      isOwner = field && field.ownerId === req.user.id;
+    }
+
+    if (!isBooker && !isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to view this booking.' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -109,5 +143,6 @@ const updateBookingStatus = async (req, res) => {
 module.exports = {
   createBooking,
   getBookings,
+  getBookingById,
   updateBookingStatus
 };

@@ -43,10 +43,6 @@ app.use(morgan(serverConfig.logging.format));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Error handling middleware (must be before routes)
-app.use(notFound);
-app.use(errorHandler);
-
 // ============= API ROUTES =============
 
 // Health check endpoint
@@ -111,6 +107,10 @@ app.use('/api/match-results', matchResultRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Error handling middleware (must be after routes)
+app.use(notFound);
+app.use(errorHandler);
 
 // ============= Start Server =============
 const startServer = async () => {
