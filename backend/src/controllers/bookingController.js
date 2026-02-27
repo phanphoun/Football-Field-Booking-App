@@ -49,7 +49,8 @@ const createBooking = async (req, res) => {
       startTime,
       endTime,
       totalPrice,
-      status: 'pending'
+      status: 'pending',
+      paymentStatus: 'unpaid'
     });
 
     res.status(201).json({ success: true, data: booking });
@@ -58,6 +59,74 @@ const createBooking = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create booking',
+      error: error.message
+    });
+  }
+};
+
+const processBookingPayment = async (req, res) => {
+  try {
+    const { paymentMethod } = req.body;
+    const allowedMethods = ['card', 'cash', 'bank_transfer', 'wallet'];
+
+    if (!allowedMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: `paymentMethod must be one of: ${allowedMethods.join(', ')}`
+      });
+    }
+
+    const booking = await Booking.findByPk(req.params.id, {
+      include: [{ model: Field, as: 'field' }]
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const isBooker = booking.createdBy === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isBooker && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to pay for this booking.'
+      });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot pay for a cancelled booking.'
+      });
+    }
+
+    if (booking.paymentStatus === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is already paid.'
+      });
+    }
+
+    const transactionId = `TXN-${Date.now()}-${booking.id}`;
+
+    await booking.update({
+      paymentStatus: 'paid',
+      paymentMethod,
+      transactionId,
+      paidAt: new Date()
+    });
+
+    return res.json({
+      success: true,
+      message: 'Payment processed successfully.',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Process booking payment error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process payment',
       error: error.message
     });
   }
@@ -202,5 +271,6 @@ module.exports = {
   createBooking,
   getBookings,
   getBookingById,
-  updateBookingStatus
+  updateBookingStatus,
+  processBookingPayment
 };
