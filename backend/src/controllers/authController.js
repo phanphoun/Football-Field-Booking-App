@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 
 const register = async (req, res) => {
   try {
+    console.log('Registration request body:', req.body);
     const { username, email, password, firstName, lastName, phone, role } = req.body;
     
     // Enhanced validation
