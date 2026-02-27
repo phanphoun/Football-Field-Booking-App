@@ -4,7 +4,7 @@ A comprehensive web application for booking football fields and organizing match
 
 ## 📋 Project Overview
 
-The Football Field Booking App serves as a centralized platform that bridges field owners and football teams, offering streamlined booking management, automatic opponent matchmaking, and community engagement features. The application also keeps fans engaged with updates from major European leagues.
+The Football Field Booking App serves as a centralized platform that bridges field owners and football teams, offering streamlined booking management, automatic opponent matchmaking, and community engagement features.
 
 ## 🎯 Key Features
 
@@ -35,244 +35,44 @@ The Football Field Booking App serves as a centralized platform that bridges fie
 | **Player/Team Captain** | Register teams, book fields, join matches, manage team members |
 | **Field Owner/Admin** | Create fields, manage schedules, confirm bookings, set pricing |
 
-## 🏗️ Complete Technology Stack
+## 🏗️ Technology Stack
 
-### **Frontend Technologies**
+### **Backend**
+- **Node.js 24.11.1** - JavaScript runtime environment
+- **Express.js 5.2.1** - Fast, minimalist web framework
+- **MySQL/MariaDB 10.4.32** - Relational database
+- **Sequelize 6.37.7** - ORM for database management
+- **JWT 9.0.3** - Authentication tokens
+- **bcryptjs 3.0.3** - Password hashing
+- **Helmet 8.1.0** - Security headers
+- **CORS 2.8.6** - Cross-origin resource sharing
 
-#### **Core Framework & Libraries**
-- **React 19.2.0** - Modern UI library with hooks and concurrent features
-- **React DOM 19.2.0** - React renderer for web browsers
-- **React Router DOM 7.13.0** - Client-side routing and navigation
+### **Frontend**
+- **React 19.2.0** - Modern UI library
+- **Vite 7.3.1** - Fast build tool and dev server
+- **React Router DOM 7.13.0** - Client-side routing
+- **Axios 1.13.5** - HTTP client
+- **Lucide React 0.564.0** - Icon library
+- **Tailwind CSS** - Utility-first CSS framework
 
-#### **Build Tools & Development Environment**
-- **Vite 7.3.1** - Fast build tool and development server
-- **@vitejs/plugin-react 5.1.1** - React plugin for Vite
-- **ESLint 9.39.1** - Code linting and quality checks
-- **ESLint Plugins**:
-  - **eslint-plugin-react-hooks 7.0.1** - React hooks linting
-  - **eslint-plugin-react-refresh 0.4.24** - React refresh linting
-- **TypeScript Support**:
-  - **@types/react 19.2.7** - React type definitions
-  - **@types/react-dom 19.2.3** - React DOM type definitions
-- **Globals 16.5.0** - Global variable definitions for ESLint
-
-#### **UI Components & Styling**
-- **Lucide React 0.564.0** - Modern icon library with 400+ icons
-- **CSS3** - Custom styling with CSS variables and responsive design
-- **CSS Grid & Flexbox** - Modern layout systems
-- **CSS Custom Properties** - Theme variables for consistent design
-
-#### **HTTP Client & API Communication**
-- **Axios 1.13.5** - Promise-based HTTP client with interceptors and error handling
-
-#### **Module System**
-- **ES Modules** (`"type": "module"`) - Modern JavaScript module system
-
----
-
-### **Backend Technologies**
-
-#### **Runtime & Framework**
-- **Node.js 24.11.1** - JavaScript runtime environment with V8 engine
-- **Express.js 5.2.1** - Fast, minimalist web application framework
-- **CommonJS** (`"type": "commonjs"`) - Traditional Node.js module system
-
-#### **Database & Data Management**
-- **MySQL/MariaDB 10.4.32** - Relational database management system
-- **mysql2 3.17.2** - MySQL driver for Node.js with improved performance and prepared statements
-
-#### **Authentication & Security**
-- **jsonwebtoken 9.0.3** - JWT (JSON Web Token) implementation for secure authentication
-- **bcryptjs 3.0.3** - Password hashing and security with salt rounds
-- **Role-Based Access Control** - Middleware for permission management
-
-#### **Middleware & Utilities**
-- **cors 2.8.6** - Cross-Origin Resource Sharing middleware
-- **dotenv 17.3.1** - Environment variable management from .env files
-- **Express JSON Parser** - Built-in JSON request body parsing
-- **Custom Authentication Middleware** - JWT verification and role checking
-
----
-
-### **Development Tools & Environment**
-
-#### **Package Management**
-- **npm 11.6.2** - Node package manager with dependency locking
-- **package-lock.json** - Dependency locking for reproducible builds
-
-#### **Version Control**
-- **Git** - Distributed version control system
-- **.gitignore** - Git ignore configuration for Node.js projects
-
-#### **Code Quality & Linting**
-- **ESLint Configuration** - Flat config format with React and JavaScript rules
-- **React Refresh** - Fast refresh for development experience
-- **Custom ESLint Rules** - Project-specific linting configurations
-
----
-
-### **System Architecture**
-
-#### **Architecture Pattern**
-- **MERN Stack Variant** (MongoDB → MySQL, Express, React, Node)
-- **RESTful API** - Standard HTTP methods with proper status codes
-- **Client-Server Architecture** - Separation of concerns between frontend and backend
-- **Service-Oriented Architecture** - Modular controller and route structure
-
-#### **API Design**
-- **JWT Authentication** - Token-based authentication with Bearer tokens
-- **Role-Based Authorization** - Multi-level permission system (guest, player, field_owner, admin)
-- **CORS Enabled** - Cross-origin resource sharing for frontend-backend communication
-- **Error Handling** - Centralized error handling with proper HTTP status codes
-- **Input Validation** - Request body validation and sanitization
-
-#### **Database Architecture**
-- **Relational Model** - Foreign key relationships and constraints
-- **MySQL Features**:
-  - Stored procedures and functions
-  - Database triggers and events
-  - Indexing for performance optimization
-  - ACID compliance for data integrity
-- **Database Schema**:
-  - **Users** - Authentication and profile management
-  - **Fields** - Football field information and management
-  - **Bookings** - Reservation system with scheduling
-  - **Teams** - Team management and member relationships
-  - **Ratings** - Review and rating system
-  - **Notifications** - User communication system
-  - **League Matches** - External league data integration
-
----
-
-### **Development Environment Setup**
-
-#### **Operating System**
-- **Windows** - Primary development environment
-- **PowerShell** - Command-line interface and scripting
-
-#### **Development Servers**
-- **Frontend Dev Server**: Vite development server (typically port 5173)
-- **Backend API Server**: Express.js server (port 5000)
-- **Database Server**: MySQL/MariaDB (localhost:3306)
-
-#### **Environment Configuration**
-- **.env Files** - Environment-specific configuration
-- **Environment Variables**:
-  - Database connection parameters
-  - JWT secret keys
-  - Server port configuration
-  - CORS settings
-
----
-
-### **Performance & Optimization**
-
-#### **Frontend Optimization**
-- **Code Splitting** - Vite's automatic code splitting
-- **Tree Shaking** - Dead code elimination
-- **Fast Refresh** - Hot module replacement for development
-- **Asset Optimization** - Automatic image and font optimization
-
-#### **Backend Optimization**
-- **Connection Pooling** - MySQL connection management
-- **Middleware Optimization** - Efficient request processing
-- **Error Handling** - Graceful error recovery
-- **Memory Management** - Proper garbage collection practices
-
-#### **Database Optimization**
-- **Indexing Strategy** - Optimized indexes for common queries
-- **Query Optimization** - Efficient SQL queries with proper joins
-- **Connection Management** - Persistent database connections
-- **Caching Strategy** - Planned Redis integration for future releases
-
----
-
-### **Security Implementation**
-
-#### **Authentication Security**
-- **JWT Tokens** - Secure token-based authentication with expiration
-- **Password Hashing** - bcrypt with salt rounds for password security
-- **Role-Based Access** - Granular permission control
-- **Token Validation** - Middleware-based token verification
-
-#### **API Security**
-- **CORS Configuration** - Controlled cross-origin access
-- **Input Validation** - Request body validation and sanitization
-- **Error Handling** - Secure error responses without information leakage
-- **Environment Variables** - Secure configuration management
-
-#### **Development Security**
-- **Dependency Management** - Regular security updates via npm
-- **Code Quality** - ESLint rules for secure coding practices
-- **Git Security** - Proper .gitignore for sensitive files
-
----
-
-### **Testing & Quality Assurance**
-
-#### **Testing Framework Setup**
-- **ESLint** - Code quality and style checking
-- **React Refresh Testing** - Development experience validation
-- **API Testing** - Manual testing via curl and Postman
-- **Database Testing** - SQL query validation and performance testing
-
-#### **Quality Metrics**
-- **Code Linting** - Automated code quality checks
-- **Type Safety** - TypeScript definitions for better development experience
-- **Performance Monitoring** - API response time tracking
-- **Error Tracking** - Comprehensive error logging and monitoring
-
----
-
-### **Deployment & Production**
-
-#### **Build Process**
-- **Frontend Build** - Vite production build with optimization
-- **Backend Deployment** - Node.js production environment setup
-- **Database Migration** - MySQL schema management
-- **Environment Configuration** - Production environment setup
-
-#### **Production Considerations**
-- **Process Management** - PM2 or similar for process management
-- **Load Balancing** - Scalability considerations
-- **Monitoring** - Application performance monitoring
-- **Backup Strategy** - Database backup and recovery planning
-
----
-
-### **Technology Version Summary**
-
-| Technology | Version | Purpose |
-|-------------|---------|---------|
-| **Node.js** | 24.11.1 | JavaScript Runtime |
-| **npm** | 11.6.2 | Package Manager |
-| **React** | 19.2.0 | Frontend Framework |
-| **React Router** | 7.13.0 | Client-side Routing |
-| **Vite** | 7.3.1 | Build Tool & Dev Server |
-| **Express** | 5.2.1 | Backend Framework |
-| **MySQL/MariaDB** | 10.4.32 | Database |
-| **mysql2** | 3.17.2 | MySQL Driver |
-| **JWT** | 9.0.3 | Authentication |
-| **bcryptjs** | 3.0.3 | Password Security |
-| **Axios** | 1.13.5 | HTTP Client |
-| **Lucide React** | 0.564.0 | Icon Library |
-| **ESLint** | 9.39.1 | Code Quality |
-| **CORS** | 2.8.6 | Cross-Origin Sharing |
-| **dotenv** | 17.3.1 | Environment Management |
+### **Development Tools**
+- **ESLint 9.39.1** - Code linting
+- **Postman** - API testing
+- **Git** - Version control
+- **npm** - Package management
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
-- Redis (v6.0 or higher)
+- MySQL/MariaDB (v8.0 or higher)
 - Git
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/Football-Field-Booking-App.git
+   git clone https://github.com/phanphoun/Football-Field-Booking-App.git
    cd Football-Field-Booking-App
    ```
 
@@ -292,22 +92,17 @@ The Football Field Booking App serves as a centralized platform that bridges fie
    # Create MySQL database
    mysql -u root -p
    CREATE DATABASE football_booking;
-   
-   # Import database schema
-   mysql -u root -p football_booking < database/schema.sql
    ```
 
 4. **Environment Configuration**
    ```bash
-   # Backend environment variables
+   # Backend environment variables (already configured)
    cd backend
-   cp .env.example .env
-   # Edit .env with your database credentials and JWT secret
+   # .env file contains database credentials and JWT secret
    
    # Frontend environment variables
    cd ../frontend
-   cp .env.example .env
-   # Edit .env with API endpoints
+   # Configure API endpoints in your components
    ```
 
 5. **Start the application**
@@ -322,368 +117,233 @@ The Football Field Booking App serves as a centralized platform that bridges fie
    ```
 
 6. **Access the application**
-   - Frontend: http://localhost:3000
+   - Frontend: http://localhost:5173
    - Backend API: http://localhost:5000
-   - API Documentation: http://localhost:5000/api-docs
+   - API Documentation: http://localhost:5000/
 
 ## 📊 Database Schema
 
-### Entity Relationship Diagram (ERD)
-
-```mermaid
-erDiagram
-    USERS {
-        int id PK
-        string username UK
-        string email UK
-        string password_hash
-        string first_name
-        string last_name
-        string phone
-        string role
-        enum status
-        timestamp created_at
-        timestamp updated_at
-        string profile_image
-        date date_of_birth
-        string gender
-        string address
-    }
-    
-    TEAMS {
-        int id PK
-        string name
-        string logo_url
-        string jersey_color
-        string secondary_color
-        text description
-        int captain_id FK
-        enum status
-        timestamp created_at
-        timestamp updated_at
-        int max_players
-        string home_field_location
-    }
-    
-    TEAM_MEMBERS {
-        int id PK
-        int team_id FK
-        int user_id FK
-        enum role
-        enum status
-        timestamp joined_at
-        boolean is_active
-    }
-    
-    FIELDS {
-        int id PK
-        string name
-        string description
-        string address
-        string city
-        string province
-        double latitude
-        double longitude
-        int owner_id FK
-        decimal price_per_hour
-        string operating_hours
-        enum field_type
-        enum surface_type
-        int capacity
-        enum status
-        timestamp created_at
-        timestamp updated_at
-        json amenities
-        json images
-    }
-    
-    BOOKINGS {
-        int id PK
-        int field_id FK
-        int team_id FK
-        int opponent_team_id FK
-        datetime start_time
-        datetime end_time
-        enum status
-        decimal total_price
-        text special_requests
-        timestamp created_at
-        timestamp updated_at
-        int created_by FK
-        boolean is_matchmaking
-        text notes
-    }
-    
-    MATCH_RESULTS {
-        int id PK
-        int booking_id FK
-        int home_team_id FK
-        int away_team_id FK
-        int home_score
-        int away_score
-        enum match_status
-        int mvp_player_id FK
-        text match_notes
-        timestamp recorded_at
-        int recorded_by FK
-        json match_events
-    }
-    
-    RATINGS {
-        int id PK
-        int team_id_rater FK
-        int team_id_rated FK
-        int booking_id FK
-        int rating
-        text review
-        enum rating_type
-        timestamp created_at
-        timestamp updated_at
-        boolean is_recommended
-    }
-    
-    NOTIFICATIONS {
-        int id PK
-        int user_id FK
-        string title
-        text message
-        enum type
-        boolean is_read
-        timestamp created_at
-        timestamp read_at
-        json metadata
-    }
-    
-    LEAGUE_MATCHES {
-        int id PK
-        string league_name
-        string home_team
-        string away_team
-        datetime match_time
-        enum match_status
-        int home_score
-        int away_score
-        string venue
-        timestamp created_at
-        timestamp updated_at
-    }
-    
-    %% Relationships
-    USERS ||--o{ TEAMS : "owns as captain"
-    USERS ||--o{ FIELDS : "owns"
-    USERS ||--o{ TEAM_MEMBERS : "belongs to"
-    TEAMS ||--o{ TEAM_MEMBERS : "has"
-    TEAMS ||--o{ BOOKINGS : "makes"
-    FIELDS ||--o{ BOOKINGS : "booked for"
-    TEAMS ||--o{ BOOKINGS : "opponent in"
-    BOOKINGS ||--|| MATCH_RESULTS : "has result"
-    TEAMS ||--o{ MATCH_RESULTS : "participates in"
-    USERS ||--o{ MATCH_RESULTS : "records MVP"
-    TEAMS ||--o{ RATINGS : "rates"
-    TEAMS ||--o{ RATINGS : "rated by"
-    BOOKINGS ||--o{ RATINGS : "rated for"
-    USERS ||--o{ NOTIFICATIONS : "receives"
-    USERS ||--o{ MATCH_RESULTS : "records"
-```
-
-### Core Tables Description
+### Core Tables
 
 #### **Users**
-- **Purpose**: Stores user authentication and profile information
-- **Key Fields**: id, username, email, password_hash, role, status
-- **Roles**: Guest, Player/Team Captain, Field Owner/Admin
-
-#### **Teams**
-- **Purpose**: Team details and configuration
-- **Key Fields**: id, name, logo_url, captain_id, jersey_color, status
-- **Features**: Team identity, jersey management, member limits
-
-#### **Team_Members**
-- **Purpose**: Many-to-many relationship between users and teams
-- **Key Fields**: team_id, user_id, role, status, joined_at
-- **Roles**: Captain, Player, Substitute
+- Authentication and profile management
+- Roles: guest, player, captain, field_owner, admin
+- Fields: username, email, password, firstName, lastName, phone, role, status
 
 #### **Fields**
-- **Purpose**: Football field information and management
-- **Key Fields**: id, name, owner_id, price_per_hour, operating_hours, status
-- **Features**: Location data, pricing, amenities, availability
+- Football field information and management
+- Fields: name, description, address, pricePerHour, capacity, surfaceType, amenities
+- Relationships: Owner (User), Bookings
+
+#### **Teams**
+- Team details and configuration
+- Fields: name, description, captainId, maxPlayers, status, logoUrl
+- Relationships: Captain (User), Players (Users), Bookings
 
 #### **Bookings**
-- **Purpose**: Field reservation records and scheduling
-- **Key Fields**: field_id, team_id, start_time, end_time, status, total_price
-- **Features**: Matchmaking support, opponent assignment, status tracking
+- Field reservation records and scheduling
+- Fields: startTime, endTime, totalPrice, status, notes
+- Relationships: Field, Team, Creator (User)
 
-#### **Match_Results**
-- **Purpose**: Game outcomes and performance tracking
-- **Key Fields**: booking_id, home_score, away_score, mvp_player_id, match_status
-- **Features**: Score tracking, MVP selection, match events
+#### **Team Members**
+- Many-to-many relationship between users and teams
+- Fields: role, status, joinedAt, isActive
+- Relationships: Team, User
 
-#### **Ratings**
-- **Purpose**: Team reviews and community feedback system
-- **Key Fields**: team_id_rater, team_id_rated, booking_id, rating, review
-- **Features**: Star ratings, text reviews, recommendations
+#### **Match Results**
+- Game outcomes and performance tracking
+- Fields: homeScore, awayScore, matchStatus, mvpPlayerId
+- Relationships: Booking, Teams, MVP Player
 
 #### **Notifications**
-- **Purpose**: Real-time alerts and user communication
-- **Key Fields**: user_id, title, message, type, is_read
-- **Features**: Push notifications, read status, metadata storage
+- Real-time alerts and user communication
+- Fields: title, message, type, isRead
+- Relationships: User
 
-#### **League_Matches**
-- **Purpose**: External league data integration
-- **Key Fields**: league_name, home_team, away_team, match_time, scores
-- **Features**: European leagues, live scores, match schedules
-
-### Entity Relationships Summary
-```
-Users 1--1 Teams (as captain)
-Users 1--M Fields (as owner)
-Users M--M Teams (as members)
-Teams M--M Bookings (as booker and opponent)
-Fields 1--M Bookings
-Bookings 1--1 Match_Results
-Teams M--M Ratings (rater and rated)
-Users 1--M Notifications
-```
-
-### Database Constraints & Indexes
-
-#### **Primary Keys (PK)**
-- All tables have auto-incrementing `id` as primary key
-
-#### **Foreign Keys (FK)**
-- `teams.captain_id` → `users.id`
-- `fields.owner_id` → `users.id`
-- `team_members.team_id` → `teams.id`
-- `team_members.user_id` → `users.id`
-- `bookings.field_id` → `fields.id`
-- `bookings.team_id` → `teams.id`
-- `bookings.opponent_team_id` → `teams.id`
-- `match_results.booking_id` → `bookings.id`
-- `match_results.mvp_player_id` → `users.id`
-
-#### **Unique Constraints**
-- `users.username`, `users.email`
-- `teams.name` (per owner)
-
-#### **Indexes for Performance**
-- `bookings.start_time`, `bookings.end_time` (for availability checks)
-- `users.email` (for login)
-- `fields.status`, `fields.city` (for search and filtering)
-- `teams.status` (for active team listings)
+#### **Ratings**
+- Team reviews and community feedback
+- Fields: rating, comment, ratingType
+- Relationships: Teams, Booking
 
 ## 🔐 Security Features
 
 - **JWT Authentication** - Secure token-based API access
 - **Role-Based Access Control** - Strict permission enforcement
 - **Password Encryption** - bcrypt hashing for password security
-- **HTTPS/TLS 1.3** - Encrypted data transmission
-- **Input Validation** - Sanitization against XSS and SQL injection
-- **Rate Limiting** - Protection against abuse and DDoS attacks
-
-## 📈 Performance Metrics
-
-- **Page Load Time**: < 2 seconds
-- **API Response Time**: < 500ms for 95% of requests
-- **Concurrent Users**: Support for 200+ daily matches
-- **Uptime**: 99.9% availability target
+- **Helmet.js** - Security headers protection
+- **Input Validation** - Request body validation and sanitization
+- **CORS Configuration** - Controlled cross-origin access
 
 ## 🌐 API Endpoints
 
-### Authentication
+### Authentication (Public)
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
 
-### Fields
-- `GET /api/fields` - List all available fields
-- `POST /api/fields` - Create new field (Owner only)
-- `PUT /api/fields/:id` - Update field details
-- `DELETE /api/fields/:id` - Remove field
+### User Profile (Protected)
+- `GET /api/auth/profile` - Get user profile
+- `PUT /api/auth/profile` - Update user profile
 
-### Bookings
-- `GET /api/bookings` - List user bookings
+### Fields (Protected)
+- `GET /api/fields` - List all fields
+- `GET /api/fields/:id` - Get field details
+- `POST /api/fields` - Create new field
+
+### Bookings (Protected)
+- `GET /api/bookings` - List bookings
+- `GET /api/bookings/:id` - Get booking details
 - `POST /api/bookings` - Create new booking
-- `PUT /api/bookings/:id` - Update booking
-- `DELETE /api/bookings/:id` - Cancel booking
 
-### Teams
+### Teams (Protected)
 - `GET /api/teams` - List teams
-- `POST /api/teams` - Create team
-- `PUT /api/teams/:id` - Update team details
-- `POST /api/teams/:id/join` - Join team as member
+- `GET /api/teams/:id` - Get team details
+- `POST /api/teams` - Create new team
 
-## 🔧 Development Tools
+### Team Members (Protected)
+- `GET /api/team-members` - List team members
+- `POST /api/team-members` - Add team member
 
-- **VS Code** - Primary code editor
-- **Postman** - API testing and documentation
-- **MySQL Workbench** - Database management
-- **GitHub** - Version control and collaboration
-- **Figma** - UI/UX design prototyping
+### Match Results (Protected)
+- `GET /api/match-results` - List match results
+- `GET /api/match-results/:id` - Get match result details
+- `POST /api/match-results` - Create match result
 
-## 📱 Mobile Responsiveness
+### Notifications (Protected)
+- `GET /api/notifications` - List notifications
+- `GET /api/notifications/:id` - Get notification details
+- `POST /api/notifications` - Create notification
 
-The application is fully responsive and works seamlessly across:
-- Desktop computers (1920x1080 and above)
-- Tablets (768px - 1024px)
-- Mobile devices (320px - 768px)
+### Ratings (Protected)
+- `GET /api/ratings` - List ratings
+- `GET /api/ratings/:id` - Get rating details
+- `POST /api/ratings` - Create rating
 
-## 🌍 Internationalization
+### Utilities (Protected)
+- `GET /api/dashboard/stats` - Get dashboard statistics
+- `GET /api/search` - Search across resources
 
-- **Primary Language**: English
-- **Secondary Language**: Khmer (Cambodian)
-- **RTL Support**: Planned for future releases
+## 📝 API Usage Examples
+
+### Register a User
+```bash
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "john_doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+```
+
+### Login
+```bash
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+### Create a Field (with Authentication)
+```bash
+POST http://localhost:5000/api/fields
+Content-Type: application/json
+Authorization: Bearer <your_jwt_token>
+
+{
+  "name": "Green Field Football Stadium",
+  "description": "Professional football field with premium grass",
+  "address": "123 Sports Street, Phnom Penh",
+  "pricePerHour": 50,
+  "capacity": 22,
+  "surfaceType": "grass",
+  "hasLighting": true,
+  "hasChangingRoom": true,
+  "hasParking": true
+}
+```
 
 ## 🧪 Testing
 
-### Running Tests
+### Manual Testing with Postman
+1. Import the provided Postman collection
+2. Set environment variables:
+   - `base_url`: http://localhost:5000
+   - `token`: Your JWT token from login
+3. Test endpoints in order:
+   - Register user
+   - Login to get token
+   - Create resources using token
+
+### Database Testing
 ```bash
-# Backend tests
+# Test database connection
 cd backend
-npm test
-
-# Frontend tests
-cd frontend
-npm test
-
-# Integration tests
-npm run test:integration
-
-# Coverage report
-npm run test:coverage
+node -e "const { sequelize } = require('./src/models'); sequelize.authenticate().then(() => console.log('✅ Connected')).catch(err => console.error('❌ Failed:', err.message));"
 ```
 
-### Test Categories
-- **Unit Tests** - Individual component and function testing
-- **Integration Tests** - API endpoint and database interaction testing
-- **E2E Tests** - Complete user workflow testing
+## 📦 Project Structure
 
-## 📦 Deployment
+```
+Football-Field-Booking-App/
+├── backend/
+│   ├── src/
+│   │   ├── controllers/     # Route handlers
+│   │   ├── models/          # Database models
+│   │   ├── middleware/      # Authentication and validation
+│   │   ├── config/          # Database configuration
+│   │   └── utils/           # Helper functions
+│   ├── .env                 # Environment variables
+│   ├── package.json         # Dependencies
+│   └── server.js            # Main application file
+├── frontend/
+│   ├── public/              # Static assets
+│   ├── src/                # React components
+│   ├── package.json        # Dependencies
+│   └── vite.config.js      # Build configuration
+├── .gitignore              # Git ignore rules
+└── README.md               # This file
+```
 
-### Production Deployment
-1. **Build the application**
-   ```bash
-   # Frontend build
-   cd frontend
-   npm run build
-   
-   # Backend production setup
-   cd backend
-   npm run build
-   ```
+## 🔧 Development Workflow
 
-2. **Environment Setup**
-   - Configure production environment variables
-   - Set up SSL certificates
-   - Configure database connections
+### Making Changes
+1. Make code changes
+2. Test with Postman
+3. Commit changes with descriptive messages
+4. Push to GitHub
 
-3. **Server Deployment**
-   ```bash
-   # Using PM2 for process management
-   pm2 start ecosystem.config.js
-   
-   # Or using Docker
-   docker-compose up -d
-   ```
+### Code Quality
+- Use ESLint for code formatting
+- Follow RESTful API conventions
+- Write meaningful commit messages
+- Test all endpoints before deployment
+
+## 🚀 Deployment
+
+### Production Setup
+1. Configure production environment variables
+2. Build frontend: `npm run build`
+3. Start backend with process manager (PM2)
+4. Set up reverse proxy (Nginx)
+5. Configure SSL certificates
+
+### Environment Variables
+```bash
+# Backend .env
+PORT=5000
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=football_booking
+JWT_SECRET=your_jwt_secret_key
+NODE_ENV=production
+```
 
 ## 🤝 Contributing
 
@@ -694,10 +354,10 @@ npm run test:coverage
 5. Open a Pull Request
 
 ### Code Style Guidelines
-- Use ESLint for JavaScript/TypeScript linting
-- Follow Prettier formatting rules
+- Use ESLint for JavaScript linting
+- Follow RESTful API conventions
 - Write meaningful commit messages
-- Include tests for new features
+- Test all endpoints before submitting
 
 ## 📄 License
 
@@ -705,45 +365,45 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Development Team
 
-- **Scrum Master**: Phan Phoun
-- **QA Testers**: Luch Samart, Pon Makara
-- **Developers**: Soeng Chamrourn, Rose Rourn
-- **Mentor**: Rady
+- **Backend Developer**: Phan Phoun
+- **Database Design**: Phan Phoun
+- **API Documentation**: Phan Phoun
 
 ## 📞 Support
 
 For support and inquiries:
-- **Email**: support@footballbooking.app
-- **Documentation**: [Project Wiki](https://github.com/your-username/Football-Field-Booking-App/wiki)
-- **Issues**: [GitHub Issues](https://github.com/your-username/Football-Field-Booking-App/issues)
+- **GitHub Issues**: [Create an issue](https://github.com/phanphoun/Football-Field-Booking-App/issues)
+- **Email**: phanphoun@example.com
 
 ## 🗺️ Roadmap
 
-### Phase 1 (Current Release)
+### Phase 1 (Current Release ✅)
 - [x] Basic field booking system
 - [x] User authentication and roles
 - [x] Team management
 - [x] Match results tracking
+- [x] JWT authentication
+- [x] RESTful API
 
 ### Phase 2 (Future Release)
-- [ ] Mobile applications (iOS/Android)
+- [ ] Frontend React application
 - [ ] Payment gateway integration
 - [ ] Advanced analytics dashboard
-- [ ] Live streaming capabilities
+- [ ] Mobile applications (iOS/Android)
 
 ### Phase 3 (Long-term)
 - [ ] AI-powered team recommendations
 - [ ] Virtual field tours
-- [ ] Integration with sports equipment providers
 - [ ] Tournament organization features
+- [ ] Live streaming capabilities
 
-## 📊 Success Metrics
+## 📊 Current Status
 
-- **User Adoption**: 1000+ registered users in first 3 months
-- **Daily Bookings**: 200+ matches per day
-- **User Engagement**: 70% monthly active users
-- **Match Completion**: 90% of bookings result in completed matches
-- **User Satisfaction**: 4.5+ star rating
+- ✅ **Backend API**: Complete with authentication and CRUD operations
+- ✅ **Database**: Fully designed and implemented with Sequelize
+- ✅ **Authentication**: JWT-based with role-based access control
+- ✅ **API Documentation**: Comprehensive endpoint documentation
+- 🔄 **Frontend**: Basic React setup (in development)
 
 ---
 
