@@ -43,25 +43,35 @@ const Home = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-green-600 to-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <section className="relative bg-gradient-to-r from-green-600 to-blue-600 text-white overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img
+            src="https://i.pinimg.com/1200x/ae/76/c8/ae76c84ebb3856677d5e04ed5048bf05.jpg"
+            alt="Football Field"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/70"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">
               Book Football Fields Across Cambodia
             </h1>
-            <p className="text-xl md:text-2xl mb-8 text-primary-100">
+            <p className="text-xl md:text-2xl mb-8 text-primary-100 drop-shadow-md">
               Connect with players, organize matches, and enjoy the beautiful game
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/fields"
-                className="btn bg-white text-primary-600 hover:bg-gray-100 btn-lg font-semibold rounded-lg px-8 py-3"
+                className="btn bg-white text-primary-600 hover:bg-gray-100 btn-lg font-semibold rounded-lg px-8 py-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
                 Browse Fields
               </Link>
               <Link
                 to="/register"
-                className="btn border-2 border-white text-white hover:bg-white hover:text-primary-600 btn-lg font-semibold rounded-lg px-8 py-3"
+                className="btn border-2 border-white text-white hover:bg-white hover:text-primary-600 btn-lg font-semibold rounded-lg px-8 py-3 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
               >
                 Get Started
               </Link>
