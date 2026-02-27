@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
 const FieldsPage = () => {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ const FieldsPage = () => {
   }, [fields, searchTerm, fieldTypeFilter, surfaceTypeFilter, maxPriceFilter]);
 
   const handleBookField = (fieldId) => {
-    navigate(`/bookings/new?fieldId=${fieldId}`);
+    navigate(`/app/bookings/new?fieldId=${fieldId}`);
   };
 
   const handleViewDetails = (fieldId) => {
@@ -84,18 +85,19 @@ const FieldsPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Football Fields</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Browse and book football fields in your area
-        </p>
+      <div className="mb-8 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Fields</h1>
+          <p className="mt-1 text-sm text-gray-600">Browse and book football fields in your area.</p>
+        </div>
+        <Badge tone="gray">{filteredFields.length} results</Badge>
       </div>
 
       {error && (
@@ -105,7 +107,8 @@ const FieldsPage = () => {
       )}
 
       {/* Search and Filters */}
-      <div className="bg-white shadow rounded-lg p-6 mb-6">
+      <Card className="mb-6">
+        <CardBody className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
@@ -156,18 +159,34 @@ const FieldsPage = () => {
             />
           </div>
         </div>
-      </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSearchTerm('');
+              setFieldTypeFilter('');
+              setSurfaceTypeFilter('');
+              setMaxPriceFilter('');
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
+        </CardBody>
+      </Card>
 
       {/* Fields Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFields.length > 0 ? (
           filteredFields.map((field) => (
-            <div key={field.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="h-48 bg-gray-200">
+            <div key={field.id} className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+              <div className="h-48 bg-gray-200 overflow-hidden">
                 <img
                   src={field.images?.[0] || 'https://via.placeholder.com/400x200'}
                   alt={field.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover hover:scale-[1.02] transition-transform"
                 />
               </div>
               <div className="p-6">
@@ -188,7 +207,7 @@ const FieldsPage = () => {
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <BuildingOfficeIcon className="h-4 w-4 mr-1" />
-                    {field.fieldType} • {field.surfaceType.replace('_', ' ')}
+                    {field.fieldType} • {String(field.surfaceType || '').replace('_', ' ')}
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <CurrencyDollarIcon className="h-4 w-4 mr-1" />
@@ -214,8 +233,19 @@ const FieldsPage = () => {
             </div>
           ))
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No fields found matching your criteria.</p>
+          <div className="col-span-full">
+            <EmptyState
+              icon={BuildingOfficeIcon}
+              title="No fields found"
+              description="Try adjusting your search or filters."
+              actionLabel="Clear filters"
+              onAction={() => {
+                setSearchTerm('');
+                setFieldTypeFilter('');
+                setSurfaceTypeFilter('');
+                setMaxPriceFilter('');
+              }}
+            />
           </div>
         )}
       </div>

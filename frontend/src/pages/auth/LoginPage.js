@@ -14,7 +14,13 @@ const LoginPage = () => {
     password: ''
   });
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  const fromState = location.state?.from;
+  const from =
+    typeof fromState === 'string'
+      ? fromState
+      : fromState?.pathname
+        ? `${fromState.pathname}${fromState.search || ''}`
+        : null;
 
   const handleChange = (e) => {
     setFormData({
@@ -28,7 +34,9 @@ const LoginPage = () => {
     
     const result = await login(formData);
     if (result.success) {
-      navigate(from, { replace: true });
+      const role = result.data?.user?.role;
+      const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+      navigate(from || defaultPath, { replace: true });
     }
   };
 
@@ -124,9 +132,13 @@ const LoginPage = () => {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-green-600 hover:text-green-500">
+                <button
+                  type="button"
+                  className="font-medium text-green-600 hover:text-green-500"
+                  onClick={() => alert('Forgot password is not implemented yet.')}
+                >
                   Forgot your password?
-                </a>
+                </button>
               </div>
             </div>
 

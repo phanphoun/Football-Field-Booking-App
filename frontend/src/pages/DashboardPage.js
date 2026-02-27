@@ -9,10 +9,11 @@ import {
   TrophyIcon as AwardIcon,
   StarIcon as SparklesIcon
 } from '@heroicons/react/24/outline';
+import { Card, CardBody, CardHeader, Spinner } from '../components/ui';
 
 const DashboardPage = () => {
-  const { user, isAdmin, isFieldOwner, isCaptain } = useAuth();
-  const [stats, setStats] = useState([]);
+  const { user } = useAuth();
+  const [stats, setStats] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
   const [upcomingMatches, setUpcomingMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +29,7 @@ const DashboardPage = () => {
         const response = await dashboardService.getAllDashboardData();
 
         if (response.success) {
-          setStats(response.data.stats || []);
+          setStats(response.data.stats || {});
           setRecentActivity(response.data.recentActivity || []);
           setUpcomingMatches(response.data.upcomingMatches || []);
         } else {
@@ -39,12 +40,7 @@ const DashboardPage = () => {
         setError('Failed to load dashboard data');
         
         // Fallback to mock data if API fails
-        setStats([
-          { name: 'Total Fields', value: '1', icon: BuildingOfficeIcon, color: 'bg-blue-500' },
-          { name: 'Active Teams', value: '2', icon: UsersIcon, color: 'bg-green-500' },
-          { name: 'This Month Bookings', value: '2', icon: CalendarIcon, color: 'bg-yellow-500' },
-          { name: 'Revenue', value: '$100', icon: CurrencyDollarIcon, color: 'bg-purple-500' },
-        ]);
+        setStats({ fields: 1, teams: 2, bookings: 2, activeBookings: 1 });
         setRecentActivity([
           { id: 1, action: 'New booking created', field: 'Downtown Arena', time: '2 hours ago', type: 'booking' },
           { id: 2, action: 'Team created', team: 'Test Team', time: '4 hours ago', type: 'team' },
@@ -70,10 +66,17 @@ const DashboardPage = () => {
     return colors[type] || 'bg-gray-100 text-gray-800';
   };
 
+  const statCards = [
+    { name: 'Total Fields', value: stats.fields ?? 0, icon: BuildingOfficeIcon, color: 'bg-blue-500' },
+    { name: 'Total Teams', value: stats.teams ?? 0, icon: UsersIcon, color: 'bg-green-500' },
+    { name: 'Total Bookings', value: stats.bookings ?? 0, icon: CalendarIcon, color: 'bg-yellow-500' },
+    { name: 'Active Bookings', value: stats.activeBookings ?? 0, icon: CurrencyDollarIcon, color: 'bg-purple-500' }
+  ];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }
@@ -95,31 +98,31 @@ const DashboardPage = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        {stats.map((stat) => (
-          <div key={stat.name} className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+        {statCards.map((stat) => (
+          <Card key={stat.name}>
+            <CardBody className="p-5">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <stat.icon className={`h-6 w-6 text-white ${stat.color}`} />
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.color}`}>
+                  <stat.icon className="h-6 w-6 text-white" />
                 </div>
-                <div className="ml-5 w-0 flex-1">
+                <div className="ml-4 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">{stat.name}</dt>
-                    <dd className="text-lg font-medium text-gray-900">{stat.value}</dd>
+                    <dd className="text-lg font-semibold text-gray-900">{stat.value}</dd>
                   </dl>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:px-6">
+        <Card>
+          <CardHeader className="px-4 py-5 sm:px-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Activity</h3>
-          </div>
+          </CardHeader>
           <div className="border-t border-gray-200">
             <div className="divide-y divide-gray-200">
               {recentActivity.length > 0 ? (
@@ -147,13 +150,13 @@ const DashboardPage = () => {
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Upcoming Matches */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:px-6">
+        <Card>
+          <CardHeader className="px-4 py-5 sm:px-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900">Upcoming Matches</h3>
-          </div>
+          </CardHeader>
           <div className="border-t border-gray-200">
             <div className="divide-y divide-gray-200">
               {upcomingMatches.length > 0 ? (
@@ -181,7 +184,7 @@ const DashboardPage = () => {
               )}
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

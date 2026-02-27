@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     teamId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'teams',
         key: 'id'
@@ -22,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'users',
         key: 'id'

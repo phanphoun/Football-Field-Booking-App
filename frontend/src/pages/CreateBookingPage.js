@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { CalendarIcon, ClockIcon, BuildingOfficeIcon, UsersIcon, CurrencyDollarIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, BuildingOfficeIcon, UsersIcon, CurrencyDollarIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 
 const CreateBookingPage = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
@@ -31,7 +29,7 @@ const CreateBookingPage = () => {
         setLoading(true);
         const [fieldsResponse, teamsResponse] = await Promise.all([
           fieldService.getAllFields(),
-          teamService.getAllTeams()
+          teamService.getMyTeams()
         ]);
         
         // Ensure we always set arrays, even if response.data is not an array
@@ -97,7 +95,7 @@ const CreateBookingPage = () => {
       const response = await bookingService.createBooking(bookingData);
       
       if (response.success) {
-        navigate('/bookings', { 
+        navigate('/app/bookings', { 
           state: { successMessage: 'Booking created successfully!' }
         });
       } else {
@@ -126,7 +124,7 @@ const CreateBookingPage = () => {
     <div>
       <div className="mb-8">
         <button
-          onClick={() => navigate('/bookings')}
+          onClick={() => navigate('/app/bookings')}
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeftIcon className="h-4 w-4 mr-2" />
@@ -247,11 +245,11 @@ const CreateBookingPage = () => {
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => navigate('/bookings')}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  Cancel
-                </button>
+          onClick={() => navigate('/app/bookings')}
+          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+        >
+          Cancel
+        </button>
                 <button
                   type="submit"
                   disabled={submitting}

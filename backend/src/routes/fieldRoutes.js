@@ -7,6 +7,9 @@ const { fieldValidation, idValidation } = require('../middleware/validation');
 
 // Public routes
 router.get('/', fieldController.getFields);
+
+// Field Owner/Admin convenience route
+router.get('/my-fields', auth, checkRole(['field_owner', 'admin']), fieldController.getMyFields);
 router.get('/:id', ...idValidation, fieldController.getField);
 
 // Protected routes (Field Owner, Admin)

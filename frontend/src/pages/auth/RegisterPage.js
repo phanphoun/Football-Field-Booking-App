@@ -46,7 +46,9 @@ const RegisterPage = () => {
     console.log('Submitting registration data:', cleanedData);
     const result = await register(cleanedData);
     if (result.success) {
-      navigate('/dashboard');
+      const role = result.data?.user?.role;
+      const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+      navigate(defaultPath);
     }
   };
 

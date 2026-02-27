@@ -1,6 +1,17 @@
 import apiService from './api';
 
 const teamService = {
+  // Public (guest) browsing
+  getPublicTeams: async () => {
+    const response = await apiService.get('/public/teams');
+    return response;
+  },
+
+  getPublicTeamById: async (teamId) => {
+    const response = await apiService.get(`/public/teams/${teamId}`);
+    return response;
+  },
+
   // Get all teams
   getAllTeams: async (filters = {}) => {
     const params = {
@@ -85,6 +96,18 @@ const teamService = {
   // Get team members
   getTeamMembers: async (teamId) => {
     const response = await apiService.get(`/teams/${teamId}/members`);
+    return response;
+  },
+
+  // Get pending join requests (captain/admin)
+  getJoinRequests: async (teamId) => {
+    const response = await apiService.get(`/teams/${teamId}/requests`);
+    return response;
+  },
+
+  // Approve/Deny join request (captain/admin)
+  updateMember: async (teamId, userId, update) => {
+    const response = await apiService.put(`/teams/${teamId}/members/${userId}`, update);
     return response;
   },
 
