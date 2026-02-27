@@ -1,36 +1,115 @@
-const { User, Field, Booking, Team, MatchResult } = require('../models');
+const { User, Field, Booking, Team, MatchResult, TeamMember } = require('../models');
+const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 const getDashboardStats = asyncHandler(async (req, res) => {
-  const [
-    totalUsers,
-    totalFields,
-    totalBookings,
-    totalTeams,
-    activeBookings,
-    completedMatches
-  ] = await Promise.all([
-    User.count(),
-    Field.count(),
-    Booking.count(),
-    Team.count(),
-    Booking.count({ where: { status: 'confirmed' } }),
-    MatchResult.count({ where: { matchStatus: 'completed' } })
-  ]);
+  const role = req.user?.role;
+  const userId = req.user?.id;
 
-  const stats = {
-    users: totalUsers,
-    fields: totalFields,
-    bookings: totalBookings,
-    teams: totalTeams,
-    activeBookings,
-    completedMatches
-  };
+  // Admin: platform-wide stats
+  if (role === 'admin') {
+    const [
+      totalUsers,
+      totalFields,
+      totalBookings,
+      totalTeams,
+      activeBookings,
+      completedMatches
+    ] = await Promise.all([
+      User.count(),
+      Field.count(),
+      Booking.count(),
+      Team.count(),
+      Booking.count({ where: { status: 'confirmed' } }),
+      MatchResult.count({ where: { matchStatus: 'completed' } })
+    ]);
 
-  res.json({ success: true, data: stats });
+    return res.json({
+      success: true,
+      data: {
+        role,
+        users: totalUsers,
+        fields: totalFields,
+        bookings: totalBookings,
+        teams: totalTeams,
+        activeBookings,
+        completedMatches
+      }
+    });
+  }
+
+  // Field owner: only own fields + bookings for those fields
+  if (role === 'field_owner') {
+    const myFields = await Field.findAll({ where: { ownerId: userId }, attributes: ['id'], raw: true });
+    const fieldIds = myFields.map((f) => f.id);
+
+    const [fieldCount, bookingCount, activeBookings] = await Promise.all([
+      Field.count({ where: { ownerId: userId } }),
+      fieldIds.length ? Booking.count({ where: { fieldId: { [Op.in]: fieldIds } } }) : 0,
+      fieldIds.length
+        ? Booking.count({ where: { fieldId: { [Op.in]: fieldIds }, status: { [Op.in]: ['pending', 'confirmed'] } } })
+        : 0
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        role,
+        fields: fieldCount,
+        teams: 0,
+        bookings: bookingCount,
+        activeBookings
+      }
+    });
+  }
+
+  // Player/Captain: personal stats
+  if (role === 'player' || role === 'captain') {
+    const [totalFields, bookingCount, activeBookings] = await Promise.all([
+      Field.count(),
+      Booking.count({ where: { createdBy: userId } }),
+      Booking.count({ where: { createdBy: userId, status: { [Op.in]: ['pending', 'confirmed'] } } })
+    ]);
+
+    const activeMembershipTeams = await TeamMember.findAll({
+      where: { userId, status: 'active', isActive: true },
+      attributes: ['teamId'],
+      group: ['teamId'],
+      raw: true
+    });
+
+    let pendingJoinRequests = 0;
+    if (role === 'captain') {
+      const captainedTeams = await Team.findAll({ where: { captainId: userId }, attributes: ['id'], raw: true });
+      const captainedTeamIds = captainedTeams.map((t) => t.id);
+      pendingJoinRequests = captainedTeamIds.length
+        ? await TeamMember.count({
+            where: { teamId: { [Op.in]: captainedTeamIds }, status: 'pending', isActive: true }
+          })
+        : 0;
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        role,
+        fields: totalFields,
+        teams: activeMembershipTeams.length,
+        bookings: bookingCount,
+        activeBookings,
+        ...(role === 'captain' ? { pendingJoinRequests } : {})
+      }
+    });
+  }
+
+  // Default fallback
+  return res.json({
+    success: true,
+    data: { role: role || 'unknown', fields: 0, teams: 0, bookings: 0, activeBookings: 0 }
+  });
 });
 
 const searchResources = asyncHandler(async (req, res) => {

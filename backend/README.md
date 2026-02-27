@@ -9,6 +9,10 @@ Backend API for the Football Field Booking Application.
 ✅ **Comprehensive error handling**  
 ✅ **Security features implemented**  
 ✅ **Database models and associations**  
+✅ **Team management with member operations**  
+✅ **Public team access endpoints**  
+✅ **Database seeding utility**  
+✅ **Enhanced validation and security**  
 
 ---
 
@@ -34,9 +38,10 @@ backend/
 │   │   ├── userController.js      # User management
 │   │   ├── fieldController.js     # Field management
 │   │   ├── bookingController.js   # Booking operations
-│   │   ├── teamController.js       # Team management
+│   │   ├── teamController.js       # Team management & member operations
+│   │   ├── publicTeamController.js  # Public team access
 │   │   ├── ratingController.js     # Rating system
-│   │   └── dashboardController.js  # Dashboard statistics
+│   │   ├── dashboardController.js  # Dashboard statistics
 │   ├── routes/              # API routes
 │   ├── middleware/          # Custom middleware
 │   ├── models/              # Sequelize models
