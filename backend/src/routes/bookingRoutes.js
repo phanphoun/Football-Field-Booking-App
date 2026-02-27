@@ -10,5 +10,6 @@ router.post('/', auth, checkRole(['player', 'captain', 'admin']), ...bookingVali
 router.get('/', auth, bookingController.getBookings);
 router.get('/:id', auth, ...idValidation, bookingController.getBookingById);
 router.put('/:id', auth, ...idValidation, bookingController.updateBookingStatus);
+router.post('/:id/pay', auth, ...idValidation, bookingController.processBookingPayment);
 
 module.exports = router;

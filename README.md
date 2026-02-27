@@ -15,6 +15,7 @@ A comprehensive web application for booking football fields and organizing match
 ✅ **Public team access and member management**  
 ✅ **Database seeding with sample data**  
 ✅ **Enhanced API consistency and error handling**  
+✅ **Payment workflow integration for bookings (API + UI)**  
 
 ---
 
@@ -252,6 +253,7 @@ REACT_APP_API_URL=http://localhost:5000/api
 - `GET /api/bookings/:id` - Get booking details
 - `POST /api/bookings` - Create booking
 - `PUT /api/bookings/:id` - Update booking status
+- `POST /api/bookings/:id/pay` - Process booking payment (booker/admin)
 
 ### **👥 Teams**
 - `GET /api/teams` - List teams (Protected)

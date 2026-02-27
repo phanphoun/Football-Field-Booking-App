@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -83,6 +83,19 @@ const BookingsPage = () => {
     }
   };
 
+
+  const handlePayBooking = async (bookingId) => {
+    try {
+      await bookingService.payBooking(bookingId, 'card');
+      const response = await bookingService.getAllBookings();
+      const bookingsData = Array.isArray(response.data) ? response.data : [];
+      setBookings(bookingsData);
+    } catch (err) {
+      console.error('Failed to process payment:', err);
+      setError(err?.error || 'Failed to process payment');
+    }
+  };
+
   // Booking details page not implemented yet.
 
   const getStatusTone = (status) => {
@@ -93,6 +106,17 @@ const BookingsPage = () => {
       completed: 'blue'
     };
     return tones[status] || 'gray';
+  };
+
+  const getPaymentTone = (paymentStatus) => {
+    const tones = {
+      unpaid: 'yellow',
+      paid: 'green',
+      failed: 'red',
+      refunded: 'blue'
+    };
+
+    return tones[paymentStatus] || 'gray';
   };
 
   const getStatusActions = (booking) => {
@@ -134,6 +158,19 @@ const BookingsPage = () => {
           onClick={() => handleUpdateStatus(booking.id, 'completed')}
         >
           Complete
+        </Button>
+      );
+    }
+
+    if (booking.paymentStatus !== 'paid' && (booking.createdBy === user?.id || isAdmin())) {
+      actions.push(
+        <Button
+          key="pay"
+          size="sm"
+          variant="primary"
+          onClick={() => handlePayBooking(booking.id)}
+        >
+          Pay Now
         </Button>
       );
     }
@@ -228,6 +265,9 @@ const BookingsPage = () => {
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
                         {booking.status}
                       </Badge>
+                      <Badge tone={getPaymentTone(booking.paymentStatus)} className="capitalize">
+                        Payment: {booking.paymentStatus || 'unpaid'}
+                      </Badge>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
@@ -246,6 +286,10 @@ const BookingsPage = () => {
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-4 w-4 mr-1" />
                         ${booking.totalPrice} ({calculateDuration(booking.startTime, booking.endTime)}h)
+                      </div>
+                      <div className="flex items-center">
+                        <CreditCardIcon className="h-4 w-4 mr-1" />
+                        {booking.paymentMethod ? `${booking.paymentMethod} • ` : ''}{booking.transactionId || 'No transaction'}
                       </div>
                     </div>
 

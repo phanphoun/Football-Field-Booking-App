@@ -101,6 +101,12 @@ const bookingService = {
     return response;
   },
 
+
+  // Pay for booking
+  payBooking: async (bookingId, paymentMethod = 'card') => {
+    const response = await apiService.post(`/bookings/${bookingId}/pay`, { paymentMethod });
+    return response;
+  },
   // Confirm booking
   confirmBooking: async (bookingId) => {
     const response = await apiService.put(`/bookings/${bookingId}`, { status: 'confirmed' });
