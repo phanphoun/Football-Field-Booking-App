@@ -8,7 +8,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
     include: [
       { model: Field, as: 'fields' },
-      { model: Booking, as: 'bookings' },
+      { model: Booking, as: 'createdBookings' },
       { model: Team, as: 'teams', through: { attributes: [] } },
       { model: Notification, as: 'notifications' }
     ]
@@ -20,7 +20,7 @@ const getUserById = asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.params.id, {
     include: [
       { model: Field, as: 'fields' },
-      { model: Booking, as: 'bookings' },
+      { model: Booking, as: 'createdBookings' },
       { model: Team, as: 'teams', through: { attributes: [] } },
       { model: Notification, as: 'notifications' }
     ]

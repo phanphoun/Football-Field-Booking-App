@@ -18,8 +18,7 @@ const getAllRatings = asyncHandler(async (req, res) => {
     include: [
       { model: Team, as: 'raterTeam' },
       { model: Team, as: 'ratedTeam' },
-      { model: Booking, as: 'booking' },
-      { model: User, as: 'rater', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
+      { model: Booking, as: 'booking' }
     ],
     order: [['createdAt', 'DESC']]
   });
@@ -31,8 +30,7 @@ const getRatingById = asyncHandler(async (req, res) => {
     include: [
       { model: Team, as: 'raterTeam' },
       { model: Team, as: 'ratedTeam' },
-      { model: Booking, as: 'booking' },
-      { model: User, as: 'rater', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
+      { model: Booking, as: 'booking' }
     ]
   });
   
@@ -45,10 +43,7 @@ const getRatingById = asyncHandler(async (req, res) => {
 
 const createRating = asyncHandler(async (req, res) => {
   try {
-    const rating = await Rating.create({
-      ...req.body,
-      raterId: req.user.id
-    });
+    const rating = await Rating.create(req.body);
     res.status(201).json({ success: true, data: rating });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -63,8 +58,8 @@ const updateRating = asyncHandler(async (req, res) => {
       return res.status(404).json({ success: false, message: 'Rating not found' });
     }
     
-    // Authorization check
-    if (rating.raterId !== req.user.id && req.user.role !== 'admin') {
+    // Authorization check - only admin can update for now
+    if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized to update this rating' });
     }
     
@@ -83,8 +78,8 @@ const deleteRating = asyncHandler(async (req, res) => {
       return res.status(404).json({ success: false, message: 'Rating not found' });
     }
     
-    // Authorization check
-    if (rating.raterId !== req.user.id && req.user.role !== 'admin') {
+    // Authorization check - only admin can delete for now
+    if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this rating' });
     }
     

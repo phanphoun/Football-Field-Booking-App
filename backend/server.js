@@ -82,8 +82,7 @@ app.get('/', (req, res) => {
         stats: 'GET /api/dashboard/stats',
         search: 'GET /api/dashboard/search'
       }
-    },
-    documentation: 'https://github.com/your-repo/docs'
+    }
   });
 });
 
@@ -124,9 +123,9 @@ const startServer = async () => {
     const isTest = serverConfig.nodeEnv === 'test';
     
     if (isDevelopment) {
-      // In development, sync without force to preserve data
+      // In development, sync without alter to prevent index accumulation
       console.log('🔄 Development mode: Synchronizing database schema...');
-      await sequelize.sync({ alter: true });
+      await sequelize.sync();
       console.log('✅ Database schema synchronized successfully.');
     } else if (isTest) {
       // In test mode, force recreate for clean state
@@ -143,7 +142,6 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`\n🚀 Server is running on port ${PORT}`);
       console.log(`📝 Environment: ${serverConfig.nodeEnv}`);
-      console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/`);
       console.log(`⏰ Started at: ${new Date().toISOString()}`);
     });

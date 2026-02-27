@@ -11,6 +11,7 @@ import DashboardPage from './pages/DashboardPage';
 import FieldsPage from './pages/FieldsPage';
 import TeamsPage from './pages/TeamsPage';
 import BookingsPage from './pages/BookingsPage';
+import CreateBookingPage from './pages/CreateBookingPage';
 import ProfilePage from './pages/ProfilePage';
 
 // Import layout components
@@ -37,6 +38,7 @@ function App() {
               <Route path="fields" element={<FieldsPage />} />
               <Route path="teams" element={<TeamsPage />} />
               <Route path="bookings" element={<BookingsPage />} />
+              <Route path="bookings/new" element={<CreateBookingPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
 
