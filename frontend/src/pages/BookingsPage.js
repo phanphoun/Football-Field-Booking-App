@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarIcon, ClockIcon, BuildingOfficeIcon, UserGroupIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, BuildingOfficeIcon, UsersIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 const BookingsPage = () => {
   const bookings = [
@@ -138,7 +138,7 @@ const BookingsPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center">
-                      <UserGroupIcon className="h-5 w-5 text-gray-400 mr-2" />
+                      <UsersIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-900">{booking.team}</span>
                     </div>
                   </div>

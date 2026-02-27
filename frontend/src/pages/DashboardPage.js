@@ -2,11 +2,11 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   BuildingOfficeIcon, 
-  UserGroupIcon, 
+  UsersIcon, 
   CalendarIcon,
   CurrencyDollarIcon,
-  TrophyIcon,
-  StarIcon
+  TrophyIcon as AwardIcon,
+  StarIcon as SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const DashboardPage = () => {
@@ -14,7 +14,7 @@ const DashboardPage = () => {
 
   const stats = [
     { name: 'Total Fields', value: '12', icon: BuildingOfficeIcon, color: 'bg-blue-500' },
-    { name: 'Active Teams', value: '8', icon: UserGroupIcon, color: 'bg-green-500' },
+    { name: 'Active Teams', value: '8', icon: UsersIcon, color: 'bg-green-500' },
     { name: 'This Month Bookings', value: '24', icon: CalendarIcon, color: 'bg-yellow-500' },
     { name: 'Revenue', value: '$1,240', icon: CurrencyDollarIcon, color: 'bg-purple-500' },
   ];
@@ -95,8 +95,8 @@ const DashboardPage = () => {
                               className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${getActivityColor(activity.type)}`}
                             >
                               {activity.type === 'booking' && <CalendarIcon className="h-4 w-4" />}
-                              {activity.type === 'team' && <UserGroupIcon className="h-4 w-4" />}
-                              {activity.type === 'match' && <TrophyIcon className="h-4 w-4" />}
+                              {activity.type === 'team' && <UsersIcon className="h-4 w-4" />}
+                              {activity.type === 'match' && <AwardIcon className="h-4 w-4" />}
                               {activity.type === 'field' && <BuildingOfficeIcon className="h-4 w-4" />}
                             </span>
                           </div>
@@ -160,12 +160,12 @@ const DashboardPage = () => {
               )}
               {(isCaptain || isAdmin) && (
                 <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                  <UserGroupIcon className="h-4 w-4 mr-2" />
+                  <UsersIcon className="h-4 w-4 mr-2" />
                   Create Team
                 </button>
               )}
               <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                <StarIcon className="h-4 w-4 mr-2" />
+                <SparklesIcon className="h-4 w-4 mr-2" />
                 View Stats
               </button>
             </div>

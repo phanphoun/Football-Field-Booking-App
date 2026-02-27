@@ -1,5 +1,5 @@
 import React from 'react';
-import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon } from '@heroicons/react/24/outline';
+import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 
 const FieldsPage = () => {
   const fields = [
@@ -99,7 +99,7 @@ const FieldsPage = () => {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-medium text-gray-900">{field.name}</h3>
                 <div className="flex items-center">
-                  <StarIcon className="h-4 w-4 text-yellow-400" />
+                  <SparklesIcon className="h-4 w-4 text-yellow-400" />
                   <span className="ml-1 text-sm text-gray-600">{field.rating}</span>
                 </div>
               </div>

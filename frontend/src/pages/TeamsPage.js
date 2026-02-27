@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserGroupIcon, TrophyIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, TrophyIcon as AwardIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 const TeamsPage = () => {
   const teams = [
@@ -127,7 +127,7 @@ const TeamsPage = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center">
                   <div className="h-12 w-12 rounded-full bg-green-600 flex items-center justify-center">
-                    <UserGroupIcon className="h-6 w-6 text-white" />
+                    <UsersIcon className="h-6 w-6 text-white" />
                   </div>
                   <div className="ml-3">
                     <h3 className="text-lg font-medium text-gray-900">{team.name}</h3>

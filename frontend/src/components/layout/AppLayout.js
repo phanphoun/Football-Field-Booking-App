@@ -4,9 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   HomeIcon, 
   BuildingOfficeIcon, 
-  UserGroupIcon, 
+  UsersIcon, 
   CalendarIcon, 
-  UserIcon,
+  UserCircleIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon
@@ -27,13 +27,13 @@ const AppLayout = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, current: location.pathname === '/dashboard' },
     { name: 'Fields', href: '/fields', icon: BuildingOfficeIcon, current: location.pathname.startsWith('/fields') },
-    { name: 'Teams', href: '/teams', icon: UserGroupIcon, current: location.pathname.startsWith('/teams') },
+    { name: 'Teams', href: '/teams', icon: UsersIcon, current: location.pathname.startsWith('/teams') },
     { name: 'Bookings', href: '/bookings', icon: CalendarIcon, current: location.pathname.startsWith('/bookings') },
-    { name: 'Profile', href: '/profile', icon: UserIcon, current: location.pathname === '/profile' },
+    { name: 'Profile', href: '/profile', icon: UserCircleIcon, current: location.pathname === '/profile' },
   ];
 
   const adminNavigation = [
-    { name: 'Manage Users', href: '/admin/users', icon: UserGroupIcon, current: location.pathname === '/admin/users' },
+    { name: 'Manage Users', href: '/admin/users', icon: UsersIcon, current: location.pathname === '/admin/users' },
     { name: 'Settings', href: '/admin/settings', icon: HomeIcon, current: location.pathname === '/admin/settings' },
   ];
 
