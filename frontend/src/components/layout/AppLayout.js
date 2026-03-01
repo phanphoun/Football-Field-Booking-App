@@ -9,7 +9,8 @@ import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
@@ -36,6 +37,12 @@ const AppLayout = () => {
       href: '/app/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/app/fields')
+    },
+    {
+      name: 'League',
+      href: '/app/league',
+      icon: TrophyIcon,
+      current: location.pathname.startsWith('/app/league')
     },
     {
       name: 'Teams',

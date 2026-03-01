@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
+const axios = require("axios");
 const { sequelize } = require('./src/models');
 const serverConfig = require('./src/config/serverConfig');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
@@ -20,6 +21,79 @@ const matchResultRoutes = require('./src/routes/matchResultRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
+
+const API_KEY = "88aaa20e57db47deb4847097dcf9c6a4"; // Using API key directly for now
+const BASE_URL = "https://api.football-data.org/v4";
+const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Bangkok";
+
+const leagues = [
+  { code: "PL", name: "Premier League" },
+  { code: "PD", name: "La Liga" },
+  { code: "SA", name: "Serie A" },
+  { code: "BL1", name: "Bundesliga" },
+  { code: "FL1", name: "Ligue 1" }
+];
+
+const leagueCache = {
+  matches: new Map(),
+  standings: new Map()
+};
+
+const getCachedValue = (bucket, key) => {
+  const entry = bucket.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    bucket.delete(key);
+    return null;
+  }
+  return entry.value;
+};
+
+const setCachedValue = (bucket, key, value, ttlMs) => {
+  bucket.set(key, {
+    value,
+    expiresAt: Date.now() + ttlMs
+  });
+};
+
+const formatDateHeader = (utcDate) => {
+  return new Date(utcDate).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric"
+  });
+};
+
+const formatMatchTime = (utcDate) => {
+  return new Date(utcDate).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
+const getDatePartsInTimezone = (value, timeZone) => {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  const parts = formatter.formatToParts(new Date(value));
+  const year = Number(parts.find(part => part.type === "year")?.value);
+  const month = Number(parts.find(part => part.type === "month")?.value);
+  const day = Number(parts.find(part => part.type === "day")?.value);
+  return { year, month, day };
+};
+
+const formatDateKeyInTimezone = (value, timeZone) => {
+  const { year, month, day } = getDatePartsInTimezone(value, timeZone);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
+
+const getTodayAnchorInTimezone = (timeZone) => {
+  const { year, month, day } = getDatePartsInTimezone(new Date(), timeZone);
+  return new Date(Date.UTC(year, month - 1, day));
+};
 
 const app = express();
 const PORT = serverConfig.port;
@@ -109,6 +183,139 @@ app.use('/api/match-results', matchResultRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// League API Routes
+app.get("/api/matches", async (req, res) => {
+  try {
+    const { league } = req.query; // Get league filter from query params
+    const cacheKey = `matches:${league || "ALL"}`;
+    const cachedMatches = getCachedValue(leagueCache.matches, cacheKey);
+    if (cachedMatches) {
+      return res.json(cachedMatches);
+    }
+    const matchesByDate = {};
+    
+    let matchCount = 0;
+    const maxMatches = 100;
+    const todayAnchor = getTodayAnchorInTimezone(APP_TIMEZONE);
+    const startDate = new Date(todayAnchor);
+    startDate.setUTCDate(todayAnchor.getUTCDate() - 1); // yesterday
+    const validDates = Array.from({ length: 7 }, (_, offset) => {
+      const date = new Date(startDate);
+      date.setUTCDate(startDate.getUTCDate() + offset);
+      return formatDateKeyInTimezone(date, APP_TIMEZONE);
+    });
+    
+    // Filter leagues if specific league is requested
+    const leaguesToFetch = league ? [leagues.find(l => l.code === league)] : leagues;
+    
+    for (const leagueData of leaguesToFetch) {
+      if (!leagueData) continue; // Skip if league not found
+      
+      const response = await axios.get(
+        `${BASE_URL}/competitions/${leagueData.code}/matches`,
+        { headers: { "X-Auth-Token": API_KEY } }
+      );
+      const leagueMatches = response.data.matches || [];
+      for (const match of leagueMatches) {
+        if (matchCount >= maxMatches) break;
+        const matchDate = new Date(match.utcDate);
+        const dateKey = formatDateKeyInTimezone(matchDate, APP_TIMEZONE);
+        if (!validDates.includes(dateKey)) continue;
+        if (!matchesByDate[dateKey]) {
+          matchesByDate[dateKey] = {
+            date: formatDateHeader(match.utcDate),
+            dateISO: dateKey,
+            matches: []
+          };
+        }
+        matchesByDate[dateKey].matches.push({
+          id: match.id,
+          competition: leagueData.name,
+          dateTime: match.utcDate,
+          time: formatMatchTime(match.utcDate),
+          homeTeam: {
+            name: match.homeTeam.name,
+            logo: match.homeTeam.crest || null,
+            score: match.score.fullTime.home !== null ? match.score.fullTime.home : null
+          },
+          awayTeam: {
+            name: match.awayTeam.name,
+            logo: match.awayTeam.crest || null,
+            score: match.score.fullTime.away !== null ? match.score.fullTime.away : null
+          },
+          status: match.status,
+          matchDay: match.matchday
+        });
+        matchCount++;
+        if (matchCount >= maxMatches) break;
+      }
+      if (matchCount >= maxMatches) break;
+    }
+    // Sort by date and return as array
+    const sortedMatches = Object.keys(matchesByDate)
+      .sort()
+      .map(date => matchesByDate[date]);
+    setCachedValue(leagueCache.matches, cacheKey, sortedMatches, 60 * 1000);
+    res.json(sortedMatches);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/leagues/standings", async (req, res) => {
+  try {
+    const { league } = req.query;
+    const selectedLeagues = league
+      ? leagues.filter(item => item.code === league)
+      : leagues;
+
+    if (selectedLeagues.length === 0) {
+      return res.status(400).json({ error: "Invalid league code" });
+    }
+
+    const standingsByLeague = {};
+    
+    for (const leagueData of selectedLeagues) {
+      const cacheKey = `standings:${leagueData.code}`;
+      const cachedStandings = getCachedValue(leagueCache.standings, cacheKey);
+      if (cachedStandings) {
+        standingsByLeague[leagueData.code] = cachedStandings;
+        continue;
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/competitions/${leagueData.code}/standings`,
+        { headers: { "X-Auth-Token": API_KEY } }
+      );
+      
+      const standings = response.data.standings?.[0]?.table || [];
+      
+      const formattedStandings = {
+        league: leagueData.name,
+        code: leagueData.code,
+        table: standings.map(team => ({
+          position: team.position,
+          team: team.team.name,
+          logo: team.team.crest,
+          playedGames: team.playedGames,
+          won: team.won,
+          draw: team.draw,
+          lost: team.lost,
+          points: team.points,
+          form: team.form || ""
+        }))
+      };
+
+      standingsByLeague[leagueData.code] = formattedStandings;
+      setCachedValue(leagueCache.standings, cacheKey, formattedStandings, 5 * 60 * 1000);
+    }
+    
+    res.json(standingsByLeague);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Error handling middleware (must be after routes)
 app.use(notFound);

@@ -21,6 +21,7 @@ const PublicLayout = () => {
     () => [
       { to: '/', label: 'Home' },
       { to: '/fields', label: 'Fields' },
+      { to: '/league', label: 'League' },
       { to: '/teams', label: 'Teams' }
     ],
     []

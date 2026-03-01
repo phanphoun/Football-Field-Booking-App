@@ -23,6 +23,7 @@ import TeamManagePage from './pages/TeamManagePage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
 import OwnerBookingsPage from './pages/OwnerBookingsPage';
+import LeaguePage from './pages/League';
 
 // Import layout components
 import AppLayout from './components/layout/AppLayout';
@@ -40,6 +41,7 @@ function App() {
               <Route index element={<LandingPage />} />
               <Route path="fields" element={<FieldsPage />} />
               <Route path="fields/:id" element={<FieldDetailsPage />} />
+              <Route path="league" element={<LeaguePage />} />
               <Route path="teams" element={<PublicTeamsPage />} />
               <Route path="teams/:id" element={<PublicTeamDetailsPage />} />
               <Route path="login" element={<LoginPage />} />
@@ -58,6 +60,7 @@ function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="fields" element={<FieldsPage />} />
+              <Route path="league" element={<LeaguePage />} />
               <Route path="teams" element={<TeamsPage />} />
               <Route
                 path="teams/create"
