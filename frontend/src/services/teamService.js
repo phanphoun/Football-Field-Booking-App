@@ -140,9 +140,13 @@ const teamService = {
     return response;
   },
 
-  // Get team statistics
-  getTeamStats: async (teamId) => {
-    const response = await apiService.get(`/teams/${teamId}/stats`);
+  // Upload team logo (captain only)
+  uploadTeamLogo: async (teamId, formData) => {
+    const response = await apiService.post(`/teams/${teamId}/logo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response;
   },
 
@@ -155,15 +159,6 @@ const teamService = {
     };
 
     const response = await apiService.get(`/teams/${teamId}/matches`, params);
-    return response;
-  },
-
-  // Upload team logo
-  uploadTeamLogo: async (teamId, imageFile) => {
-    const formData = new FormData();
-    formData.append('logo', imageFile);
-
-    const response = await apiService.upload(`/teams/${teamId}/logo`, formData);
     return response;
   },
 

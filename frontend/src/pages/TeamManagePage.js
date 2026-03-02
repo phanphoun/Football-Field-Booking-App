@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { UserPlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 
@@ -182,13 +183,14 @@ const TeamManagePage = () => {
                 value={inviteUsername}
                 onChange={(e) => setInviteUsername(e.target.value)}
                 placeholder="Player username"
-                className="flex-1 px-3 py-2 border rounded-md text-sm"
+                className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
               <button
                 onClick={handleInvite}
                 disabled={actionLoading}
-                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow disabled:opacity-50"
               >
+                <UserPlusIcon className="h-4 w-4" />
                 {actionLoading ? 'Sending...' : 'Invite'}
               </button>
             </div>
