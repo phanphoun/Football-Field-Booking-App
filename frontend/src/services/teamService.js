@@ -70,6 +70,16 @@ const teamService = {
     return response;
   },
 
+  // Invite member to team (captain only)
+  inviteMember: async (teamId, userId, role = 'player') => {
+    const response = await apiService.post('/team-members', {
+      teamId,
+      userId,
+      role
+    });
+    return response;
+  },
+
   // Remove member from team (captain only)
   removeMember: async (teamId, userId) => {
     const response = await apiService.delete(`/teams/${teamId}/members/${userId}`);
@@ -85,6 +95,18 @@ const teamService = {
   // Get team members
   getTeamMembers: async (teamId) => {
     const response = await apiService.get(`/teams/${teamId}/members`);
+    return response;
+  },
+
+  // Get invitations for current user
+  getMyInvitations: async (userId) => {
+    const response = await apiService.get('/team-members', { userId });
+    return response;
+  },
+
+  // Accept or decline invitation
+  respondToInvitation: async (invitationId, status) => {
+    const response = await apiService.patch(`/team-members/${invitationId}`, { status });
     return response;
   },
 

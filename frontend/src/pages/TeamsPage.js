@@ -8,6 +8,7 @@ const TeamsPage = () => {
   const { user, isCaptain, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -15,10 +16,18 @@ const TeamsPage = () => {
     const fetchTeams = async () => {
       try {
         setLoading(true);
-        const response = await teamService.getAllTeams();
-        // Ensure we always set an array, even if response.data is not an array
-        const teamsData = Array.isArray(response.data) ? response.data : [];
+        const [teamsResponse, invitationsResponse] = await Promise.all([
+          teamService.getAllTeams(),
+          user?.id ? teamService.getMyInvitations(user.id) : Promise.resolve({ data: [] })
+        ]);
+
+        const teamsData = extractApiArray(teamsResponse);
+        const invitationsData = extractApiArray(invitationsResponse).filter(
+          (invitation) => invitation.status === 'pending'
+        );
+
         setTeams(teamsData);
+        setInvitations(invitationsData);
       } catch (err) {
         console.error('Failed to fetch teams:', err);
         setError('Failed to load teams');
@@ -66,7 +75,7 @@ const TeamsPage = () => {
     };
 
     fetchTeams();
-  }, []);
+  }, [user?.id]);
 
   const handleCreateTeam = () => {
     navigate('/teams/create');
@@ -77,11 +86,25 @@ const TeamsPage = () => {
       await teamService.joinTeam(teamId);
       // Refresh teams list
       const response = await teamService.getAllTeams();
-      const teamsData = Array.isArray(response.data) ? response.data : [];
+      const teamsData = extractApiArray(response);
       setTeams(teamsData);
     } catch (err) {
       console.error('Failed to join team:', err);
       setError('Failed to join team');
+    }
+  };
+
+  const handleInvitationDecision = async (invitationId, status) => {
+    try {
+      await teamService.respondToInvitation(invitationId, status);
+      setInvitations((prev) => prev.filter((invitation) => invitation.id !== invitationId));
+
+      const response = await teamService.getAllTeams();
+      const teamsData = extractApiArray(response);
+      setTeams(teamsData);
+    } catch (err) {
+      console.error('Failed to process invitation:', err);
+      setError(`Failed to ${status === 'accepted' ? 'accept' : 'decline'} invitation`);
     }
   };
 
@@ -114,13 +137,21 @@ const TeamsPage = () => {
   };
 
   const getMemberCount = (team) => {
-    return team.TeamMembers?.filter(member => member.status === 'active').length || 0;
+    const members = team.TeamMembers || team.teamMembers || [];
+    return members.filter(member => ['accepted', 'active'].includes(member.status)).length || 0;
   };
 
   const isUserInTeam = (team) => {
-    return team.TeamMembers?.some(member => 
-      member.userId === user?.id && member.status === 'active'
-    );
+    const members = team.TeamMembers || team.teamMembers || [];
+    return members.some(member => member.userId === user?.id && ['accepted', 'active'].includes(member.status));
+  };
+
+  const extractApiArray = (response) => {
+    if (!response) return [];
+    if (Array.isArray(response.data)) return response.data;
+    if (Array.isArray(response.data?.data)) return response.data.data;
+    if (Array.isArray(response.data?.data?.data)) return response.data.data.data;
+    return [];
   };
 
   if (loading) {
@@ -154,6 +185,32 @@ const TeamsPage = () => {
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
           {error}
+        </div>
+      )}
+
+      {invitations.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {invitations.map((invitation) => (
+            <div key={invitation.id} className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <p className="text-sm text-blue-900">
+                You&apos;ve been invited to join <strong>{invitation.team?.name || 'a team'}</strong>.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => handleInvitationDecision(invitation.id, 'accepted')}
+                  className="bg-green-600 text-white px-4 py-1 rounded text-sm font-medium hover:bg-green-700"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => handleInvitationDecision(invitation.id, 'declined')}
+                  className="bg-red-600 text-white px-4 py-1 rounded text-sm font-medium hover:bg-red-700"
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
