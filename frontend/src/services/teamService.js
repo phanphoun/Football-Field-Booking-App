@@ -81,6 +81,16 @@ const teamService = {
     return response;
   },
 
+  // Invite member to team (captain only)
+  inviteMember: async (teamId, userId, role = 'player') => {
+    const response = await apiService.post('/team-members', {
+      teamId,
+      userId,
+      role
+    });
+    return response;
+  },
+
   // Remove member from team (captain only)
   removeMember: async (teamId, userId) => {
     const response = await apiService.delete(`/teams/${teamId}/members/${userId}`);
@@ -96,18 +106,6 @@ const teamService = {
   // Get team members
   getTeamMembers: async (teamId) => {
     const response = await apiService.get(`/teams/${teamId}/members`);
-    return response;
-  },
-
-  // Get pending join requests (captain/admin)
-  getJoinRequests: async (teamId) => {
-    const response = await apiService.get(`/teams/${teamId}/requests`);
-    return response;
-  },
-
-  // Approve/Deny join request (captain/admin)
-  updateMember: async (teamId, userId, update) => {
-    const response = await apiService.put(`/teams/${teamId}/members/${userId}`, update);
     return response;
   },
 
