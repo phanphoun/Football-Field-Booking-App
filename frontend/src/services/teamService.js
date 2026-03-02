@@ -105,6 +105,24 @@ const teamService = {
     return response;
   },
 
+  // Invite a player (captain/admin)
+  inviteMember: async (teamId, inviteData) => {
+    const response = await apiService.post(`/teams/${teamId}/invite`, inviteData);
+    return response;
+  },
+
+  // Accept an invitation (invited user)
+  acceptInvite: async (teamId) => {
+    const response = await apiService.post(`/teams/${teamId}/invite/accept`);
+    return response;
+  },
+
+  // Decline an invitation (invited user)
+  declineInvite: async (teamId) => {
+    const response = await apiService.post(`/teams/${teamId}/invite/decline`);
+    return response;
+  },
+
   // Approve/Deny join request (captain/admin)
   updateMember: async (teamId, userId, update) => {
     const response = await apiService.put(`/teams/${teamId}/members/${userId}`, update);

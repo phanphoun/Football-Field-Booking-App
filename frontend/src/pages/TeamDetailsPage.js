@@ -14,6 +14,8 @@ const TeamDetailsPage = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [inviteError, setInviteError] = useState(null);
+  const [inviteSuccess, setInviteSuccess] = useState(null);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -25,6 +27,10 @@ const TeamDetailsPage = () => {
     const members = Array.isArray(team.teamMembers) ? team.teamMembers : [];
     return members.find((m) => m.userId === user.id) || null;
   }, [team, user]);
+
+  const isInvited = useMemo(() => {
+    return membership && membership.status === 'pending' && membership.isActive === false;
+  }, [membership]);
 
   const refreshTeam = useCallback(async () => {
     const response = await teamService.getTeamById(id);
@@ -77,6 +83,40 @@ const TeamDetailsPage = () => {
       }
     } catch (err) {
       setError(err?.error || 'Failed to leave team');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    try {
+      setActionLoading(true);
+      setInviteError(null);
+      setInviteSuccess(null);
+      const response = await teamService.acceptInvite(id);
+      if (response.success) {
+        setInviteSuccess('You have joined the team');
+        await refreshTeam();
+      }
+    } catch (err) {
+      setInviteError(err?.error || 'Failed to accept invitation');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDecline = async () => {
+    try {
+      setActionLoading(true);
+      setInviteError(null);
+      setInviteSuccess(null);
+      const response = await teamService.declineInvite(id);
+      if (response.success) {
+        setInviteSuccess('Invitation declined');
+        await refreshTeam();
+      }
+    } catch (err) {
+      setInviteError(err?.error || 'Failed to decline invitation');
     } finally {
       setActionLoading(false);
     }
@@ -144,6 +184,18 @@ const TeamDetailsPage = () => {
         </div>
       )}
 
+      {inviteSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
+          {inviteSuccess}
+        </div>
+      )}
+
+      {inviteError && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
+          {inviteError}
+        </div>
+      )}
+
       <div className="bg-white shadow rounded-lg p-6 space-y-6">
         {team.description && <p className="text-gray-700">{team.description}</p>}
 
@@ -169,6 +221,24 @@ const TeamDetailsPage = () => {
         <div className="flex flex-wrap gap-3">
           {isCaptainOfTeam ? (
             <div className="text-sm text-gray-700">You are the captain of this team.</div>
+          ) : isInvited ? (
+            <div className="flex flex-wrap gap-3">
+              <div className="text-sm text-gray-700">You have been invited to join this team.</div>
+              <button
+                onClick={handleAccept}
+                disabled={actionLoading}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              >
+                {actionLoading ? '...' : 'Accept'}
+              </button>
+              <button
+                onClick={handleDecline}
+                disabled={actionLoading}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading ? '...' : 'Decline'}
+              </button>
+            </div>
           ) : membership?.status === 'pending' ? (
             <div className="text-sm text-gray-700">Join request pending approval.</div>
           ) : membership?.status === 'active' ? (

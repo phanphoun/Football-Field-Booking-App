@@ -24,4 +24,9 @@ router.post('/:id/members', auth, checkRole(['captain', 'admin']), ...idValidati
 router.put('/:id/members/:userId', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.updateTeamMember);
 router.delete('/:id/members/:userId', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.removeTeamMember);
 
+// Invitation endpoints
+router.post('/:id/invite', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.invitePlayer);
+router.post('/:id/invite/accept', auth, ...idValidation, teamController.acceptInvite);
+router.post('/:id/invite/decline', auth, ...idValidation, teamController.declineInvite);
+
 module.exports = router;
