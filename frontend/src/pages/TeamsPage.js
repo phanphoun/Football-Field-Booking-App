@@ -35,6 +35,7 @@ const TeamsPage = () => {
     navigate('/teams/create');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleJoinTeam = async (teamId) => {
     try {
       await teamService.joinTeam(teamId);
@@ -84,6 +85,7 @@ const TeamsPage = () => {
     return colors[level] || 'bg-gray-100 text-gray-800';
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getPreferredTimeColor = (time) => {
     const colors = {
       morning: 'bg-blue-100 text-blue-800',
@@ -93,16 +95,19 @@ const TeamsPage = () => {
     return colors[time] || 'bg-gray-100 text-gray-800';
   };
 
+  // eslint-disable-next-line no-unused-vars
   const calculateWinRate = (wins, losses, draws) => {
     const total = wins + losses + draws;
     if (total === 0) return 0;
     return ((wins / total) * 100).toFixed(1);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getMemberCount = (team) => {
     return team.TeamMembers?.filter(member => member.status === 'active').length || 0;
   };
 
+  // eslint-disable-next-line no-unused-vars
   const isUserInTeam = (team) => {
     return team.TeamMembers?.some(member => 
       member.userId === user?.id && member.status === 'active'
