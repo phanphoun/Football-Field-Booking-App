@@ -3,7 +3,13 @@ const bcrypt = require('bcryptjs');
 
 const seedDatabase = async () => {
   try {
+    // Disable foreign key checks temporarily
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+    
     await sequelize.sync({ force: true }); // Reset DB
+    
+    // Re-enable foreign key checks
+    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
 
     const hashedPassword = await bcrypt.hash('Password123', 12);
 

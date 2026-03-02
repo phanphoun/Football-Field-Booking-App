@@ -44,6 +44,9 @@ app.use(morgan(serverConfig.logging.format));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve static files (including uploaded avatars)
+app.use('/uploads', express.static('uploads'));
+
 // ============= API ROUTES =============
 
 // Health check endpoint
