@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
 
       // Booking can have an opponent team
 
-      Booking.belongsTo(models.Team, { foreignKey: 'opponentTeamId', as: 'opponent' });
+      Booking.belongsTo(models.Team, { foreignKey: 'opponentTeamId', as: 'opponentTeam' });
 
       // Booking belongs to a user (creator)
 

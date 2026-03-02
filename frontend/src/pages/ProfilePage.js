@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserIcon, EnvelopeIcon, PhoneIcon, MapPinIcon, CalendarIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import authService from '../services/authService';
 
 const ProfilePage = () => {
-  const { user, updateProfile, loading, error } = useAuth();
+  const { user, updateProfile, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);

@@ -1,134 +1,111 @@
-const { DataTypes } = require('sequelize');
+const { Model } = require('sequelize');
 
-module.exports = (sequelize) => {
-  const Team = sequelize.define('Team', {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
-    name: {
-      type: DataTypes.STRING(100),
-      allowNull: false,
-      validate: {
-        notEmpty: true,
-        len: [2, 100]
-      }
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    captain_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id'
-      }
-    },
-    max_players: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 11,
-      validate: {
-        min: 1,
-        max: 50
-      }
-    },
-    skill_level: {
-      type: DataTypes.ENUM('beginner', 'intermediate', 'advanced', 'professional'),
-      allowNull: false,
-      defaultValue: 'intermediate'
-    },
-    home_field_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'fields',
-        key: 'id'
-      }
-    },
-    logo_url: {
-      type: DataTypes.STRING(500),
-      allowNull: true,
-      validate: {
-        isUrl: true
-      }
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: true
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
+module.exports = (sequelize, DataTypes) => {
+  class Team extends Model {
+    static associate(models) {
+      Team.belongsTo(models.User, {
+        foreignKey: 'captainId',
+        as: 'captain'
+      });
+
+      Team.belongsTo(models.Field, {
+        foreignKey: 'homeFieldId',
+        as: 'homeField'
+      });
+
+      Team.hasMany(models.TeamMember, {
+        foreignKey: 'teamId',
+        as: 'teamMembers'
+      });
+
+      Team.hasMany(models.Booking, {
+        foreignKey: 'teamId',
+        as: 'bookings'
+      });
+
+      Team.hasMany(models.MatchResult, {
+        foreignKey: 'homeTeamId',
+        as: 'homeMatches'
+      });
+
+      Team.hasMany(models.MatchResult, {
+        foreignKey: 'awayTeamId',
+        as: 'awayMatches'
+      });
     }
-  }, {
-    tableName: 'teams',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at',
-    indexes: [
-      {
-        fields: ['captain_id']
+  }
+
+  Team.init(
+    {
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        validate: {
+          notEmpty: true,
+          len: [2, 100]
+        }
       },
-      {
-        fields: ['home_field_id']
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: true
       },
-      {
-        fields: ['skill_level']
+      captainId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'users',
+          key: 'id'
+        }
       },
-      {
-        fields: ['is_active']
+      maxPlayers: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 11,
+        validate: {
+          min: 1,
+          max: 50
+        }
+      },
+      skillLevel: {
+        type: DataTypes.ENUM('beginner', 'intermediate', 'advanced', 'professional'),
+        allowNull: false,
+        defaultValue: 'intermediate'
+      },
+      homeFieldId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'fields',
+          key: 'id'
+        }
+      },
+      logoUrl: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        validate: {
+          isUrl: true
+        }
+      },
+      isActive: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
       }
-    ]
-  });
-
-  Team.associate = (models) => {
-    // Team belongs to a captain (User)
-    Team.belongsTo(models.User, {
-      foreignKey: 'captain_id',
-      as: 'captain'
-    });
-
-    // Team can have a home field
-    Team.belongsTo(models.Field, {
-      foreignKey: 'home_field_id',
-      as: 'homeField'
-    });
-
-    // Team has many team members
-    Team.hasMany(models.TeamMember, {
-      foreignKey: 'team_id',
-      as: 'teamMembers'
-    });
-
-    // Team has many bookings
-    Team.hasMany(models.Booking, {
-      foreignKey: 'team_id',
-      as: 'bookings'
-    });
-
-    // Team has many match results (as home team)
-    Team.hasMany(models.MatchResult, {
-      foreignKey: 'home_team_id',
-      as: 'homeMatches'
-    });
-
-    // Team has many match results (as away team)
-    Team.hasMany(models.MatchResult, {
-      foreignKey: 'away_team_id',
-      as: 'awayMatches'
-    });
-  };
+    },
+    {
+      sequelize,
+      modelName: 'Team',
+      tableName: 'teams',
+      timestamps: true,
+      underscored: true,
+      indexes: [
+        { fields: ['captain_id'] },
+        { fields: ['home_field_id'] },
+        { fields: ['skill_level'] },
+        { fields: ['is_active'] }
+      ]
+    }
+  );
 
   return Team;
 };

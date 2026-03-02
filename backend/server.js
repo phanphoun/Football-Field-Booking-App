@@ -15,6 +15,7 @@ const fieldRoutes = require('./src/routes/fieldRoutes');
 const bookingRoutes = require('./src/routes/bookingRoutes');
 const teamRoutes = require('./src/routes/teamRoutes');
 const teamMemberRoutes = require('./src/routes/teamMemberRoutes');
+const publicTeamRoutes = require('./src/routes/publicTeamRoutes');
 const matchResultRoutes = require('./src/routes/matchResultRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
@@ -74,6 +75,7 @@ app.get('/', (req, res) => {
       fields: '/api/fields',
       bookings: '/api/bookings',
       teams: '/api/teams',
+      publicTeams: '/api/public/teams',
       teamMembers: '/api/team-members',
       matchResults: '/api/match-results',
       notifications: '/api/notifications',
@@ -101,6 +103,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/fields', fieldRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/public/teams', publicTeamRoutes);
 app.use('/api/team-members', teamMemberRoutes);
 app.use('/api/match-results', matchResultRoutes);
 app.use('/api/notifications', notificationRoutes);

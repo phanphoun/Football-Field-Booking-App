@@ -45,7 +45,7 @@ const dashboardService = {
       return {
         success: true,
         data: {
-          stats: Array.isArray(statsResponse.data) ? statsResponse.data : [],
+          stats: statsResponse.data && typeof statsResponse.data === 'object' ? statsResponse.data : {},
           recentActivity: activities,
           upcomingMatches: upcomingMatches
         }

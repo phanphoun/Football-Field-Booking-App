@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { UsersIcon, TrophyIcon as AwardIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 
 const TeamsPage = () => {
@@ -16,59 +16,13 @@ const TeamsPage = () => {
     const fetchTeams = async () => {
       try {
         setLoading(true);
-        const [teamsResponse, invitationsResponse] = await Promise.all([
-          teamService.getAllTeams(),
-          user?.id ? teamService.getMyInvitations(user.id) : Promise.resolve({ data: [] })
-        ]);
-
-        const teamsData = extractApiArray(teamsResponse);
-        const invitationsData = extractApiArray(invitationsResponse).filter(
-          (invitation) => invitation.status === 'pending'
-        );
-
+        const response = await teamService.getAllTeams();
+        // Ensure we always set an array, even if response.data is not an array
+        const teamsData = Array.isArray(response.data) ? response.data : [];
         setTeams(teamsData);
-        setInvitations(invitationsData);
       } catch (err) {
         console.error('Failed to fetch teams:', err);
-        setError('Failed to load teams');
-        
-        // Fallback to mock data if API fails
-        const mockTeams = [
-          {
-            id: 1,
-            name: 'Test Team',
-            captain_id: 1,
-            captain: {
-              username: 'admin',
-              firstName: 'Admin',
-              lastName: 'User'
-            },
-            home_field_id: 1,
-            homeField: {
-              name: 'Downtown Arena',
-              address: '123 Main St'
-            },
-            skillLevel: 'intermediate',
-            preferredTime: 'evening',
-            description: 'A test team for demonstration',
-            maxPlayers: 15,
-            TeamMembers: [
-              {
-                id: 1,
-                userId: 1,
-                role: 'captain',
-                status: 'active',
-                User: {
-                  username: 'admin',
-                  firstName: 'Admin',
-                  lastName: 'User'
-                }
-              }
-            ],
-            createdAt: new Date().toISOString()
-          }
-        ];
-        setTeams(mockTeams);
+        setError(err?.error || 'Failed to load teams');
       } finally {
         setLoading(false);
       }
@@ -86,12 +40,20 @@ const TeamsPage = () => {
       await teamService.joinTeam(teamId);
       // Refresh teams list
       const response = await teamService.getAllTeams();
-      const teamsData = extractApiArray(response);
+      const teamsData = Array.isArray(response.data) ? response.data : [];
       setTeams(teamsData);
     } catch (err) {
       console.error('Failed to join team:', err);
       setError('Failed to join team');
     }
+  };
+
+  const extractApiArray = (response) => {
+    if (!response) return [];
+    if (Array.isArray(response.data)) return response.data;
+    if (Array.isArray(response.data?.data)) return response.data.data;
+    if (Array.isArray(response.data?.data?.data)) return response.data.data.data;
+    return [];
   };
 
   const handleInvitationDecision = async (invitationId, status) => {
@@ -109,14 +71,15 @@ const TeamsPage = () => {
   };
 
   const handleViewTeam = (teamId) => {
-    navigate(`/teams/${teamId}`);
+    navigate(`/app/teams/${teamId}`);
   };
 
   const getSkillLevelColor = (level) => {
     const colors = {
       beginner: 'bg-green-100 text-green-800',
       intermediate: 'bg-yellow-100 text-yellow-800',
-      advanced: 'bg-red-100 text-red-800'
+      advanced: 'bg-red-100 text-red-800',
+      professional: 'bg-purple-100 text-purple-800'
     };
     return colors[level] || 'bg-gray-100 text-gray-800';
   };
@@ -137,21 +100,13 @@ const TeamsPage = () => {
   };
 
   const getMemberCount = (team) => {
-    const members = team.TeamMembers || team.teamMembers || [];
-    return members.filter(member => ['accepted', 'active'].includes(member.status)).length || 0;
+    return team.TeamMembers?.filter(member => member.status === 'active').length || 0;
   };
 
   const isUserInTeam = (team) => {
-    const members = team.TeamMembers || team.teamMembers || [];
-    return members.some(member => member.userId === user?.id && ['accepted', 'active'].includes(member.status));
-  };
-
-  const extractApiArray = (response) => {
-    if (!response) return [];
-    if (Array.isArray(response.data)) return response.data;
-    if (Array.isArray(response.data?.data)) return response.data.data;
-    if (Array.isArray(response.data?.data?.data)) return response.data.data.data;
-    return [];
+    return team.TeamMembers?.some(member => 
+      member.userId === user?.id && member.status === 'active'
+    );
   };
 
   if (loading) {
@@ -166,20 +121,28 @@ const TeamsPage = () => {
     <div>
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teams</h1>
+          <h1 className="text-2xl font-bold text-gray-900">My Teams</h1>
           <p className="mt-1 text-sm text-gray-600">
-            Discover and join football teams in your area
+            View your active teams and manage membership requests if you are a captain
           </p>
         </div>
-        {(isCaptain() || isAdmin()) && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleCreateTeam}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            onClick={() => navigate('/teams')}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Create Team
+            Browse Teams
           </button>
-        )}
+          {(isCaptain() || isAdmin()) && (
+            <button
+              onClick={handleCreateTeam}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <PlusIcon className="h-4 w-4 mr-2" />
+              Create Team
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -226,9 +189,6 @@ const TeamsPage = () => {
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSkillLevelColor(team.skillLevel)}`}>
                       {team.skillLevel}
                     </span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPreferredTimeColor(team.preferredTime)}`}>
-                      {team.preferredTime}
-                    </span>
                   </div>
                 </div>
                 
@@ -243,10 +203,6 @@ const TeamsPage = () => {
                       {team.homeField.name}
                     </div>
                   )}
-                  <div className="flex items-center text-sm text-gray-600">
-                    <UsersIcon className="h-4 w-4 mr-1" />
-                    {getMemberCount(team)}/{team.maxPlayers} members
-                  </div>
                 </div>
 
                 {team.description && (
@@ -255,39 +211,13 @@ const TeamsPage = () => {
                   </p>
                 )}
 
-                {/* Match Statistics (mock data for now) */}
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center">
-                      <AwardIcon className="h-4 w-4 text-green-500 mr-1" />
-                      <span className="font-medium text-gray-900">Win Rate</span>
-                    </div>
-                    <span className="text-green-600 font-medium">
-                      {calculateWinRate(team.wins || 0, team.losses || 0, team.draws || 0)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>{team.wins || 0}W</span>
-                    <span>{team.draws || 0}D</span>
-                    <span>{team.losses || 0}L</span>
-                  </div>
-                </div>
-
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleViewTeam(team.id)}
                     className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
                   >
-                    View Details
+                    Open
                   </button>
-                  {!isUserInTeam(team) && user && (
-                    <button
-                      onClick={() => handleJoinTeam(team.id)}
-                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-                    >
-                      Join Team
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -297,10 +227,16 @@ const TeamsPage = () => {
             <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No teams found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by creating a new team or check back later.
+              Browse teams to request to join, or create your own team if you are a captain.
             </p>
-            {(isCaptain() || isAdmin()) && (
-              <div className="mt-6">
+            <div className="mt-6 flex items-center justify-center gap-2">
+              <button
+                onClick={() => navigate('/teams')}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Browse Teams
+              </button>
+              {(isCaptain() || isAdmin()) && (
                 <button
                   onClick={handleCreateTeam}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -308,8 +244,8 @@ const TeamsPage = () => {
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Create Team
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>

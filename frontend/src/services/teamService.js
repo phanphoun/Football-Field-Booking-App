@@ -1,6 +1,17 @@
 import apiService from './api';
 
 const teamService = {
+  // Public (guest) browsing
+  getPublicTeams: async () => {
+    const response = await apiService.get('/public/teams');
+    return response;
+  },
+
+  getPublicTeamById: async (teamId) => {
+    const response = await apiService.get(`/public/teams/${teamId}`);
+    return response;
+  },
+
   // Get all teams
   getAllTeams: async (filters = {}) => {
     const params = {
@@ -95,18 +106,6 @@ const teamService = {
   // Get team members
   getTeamMembers: async (teamId) => {
     const response = await apiService.get(`/teams/${teamId}/members`);
-    return response;
-  },
-
-  // Get invitations for current user
-  getMyInvitations: async (userId) => {
-    const response = await apiService.get('/team-members', { userId });
-    return response;
-  },
-
-  // Accept or decline invitation
-  respondToInvitation: async (invitationId, status) => {
-    const response = await apiService.patch(`/team-members/${invitationId}`, { status });
     return response;
   },
 

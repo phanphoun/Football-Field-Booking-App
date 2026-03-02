@@ -1,4 +1,4 @@
-const { Booking, Field, User } = require('../models');
+const { Booking, Field, User, Team } = require('../models');
 const { Op } = require('sequelize');
 
 const createBooking = async (req, res) => {
@@ -7,13 +7,16 @@ const createBooking = async (req, res) => {
     
     // Validate required fields
     if (!fieldId || !startTime || !endTime || !teamId) {
-      return res.status(400).json({ error: 'fieldId, startTime, endTime, and teamId are required' });
+      return res.status(400).json({
+        success: false,
+        message: 'fieldId, startTime, endTime, and teamId are required'
+      });
     }
     
     // Check if field exists
     const field = await Field.findByPk(fieldId);
     if (!field) {
-      return res.status(404).json({ error: 'Field not found' });
+      return res.status(404).json({ success: false, message: 'Field not found' });
     }
 
     // Calculate duration and price
@@ -33,7 +36,10 @@ const createBooking = async (req, res) => {
     });
 
     if (existingBooking) {
-      return res.status(400).json({ error: 'Field is already booked for this time slot.' });
+      return res.status(400).json({
+        success: false,
+        message: 'Field is already booked for this time slot.'
+      });
     }
 
     const booking = await Booking.create({
@@ -49,7 +55,11 @@ const createBooking = async (req, res) => {
     res.status(201).json({ success: true, data: booking });
   } catch (error) {
     console.error('Create booking error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create booking',
+      error: error.message
+    });
   }
 };
 
@@ -73,14 +83,20 @@ const getBookings = async (req, res) => {
       where,
       include: [
         { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour'] },
-        { model: User, as: 'creator', attributes: ['username', 'email', 'firstName', 'lastName'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'skillLevel', 'maxPlayers'], required: false },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name'], required: false },
+        { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
       ],
       order: [['createdAt', 'DESC']]
     });
     res.json({ success: true, data: bookings });
   } catch (error) {
     console.error('Get bookings error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch bookings',
+      error: error.message
+    });
   }
 };
 
@@ -89,12 +105,14 @@ const getBookingById = async (req, res) => {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
         { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour'] },
-        { model: User, as: 'creator', attributes: ['username', 'email', 'firstName', 'lastName'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'skillLevel', 'maxPlayers'], required: false },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name'], required: false },
+        { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
       ]
     });
 
     if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
     // Authorization check
@@ -109,25 +127,41 @@ const getBookingById = async (req, res) => {
     }
 
     if (!isBooker && !isOwner && !isAdmin) {
-      return res.status(403).json({ error: 'Not authorized to view this booking.' });
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view this booking.'
+      });
     }
 
     res.json({ success: true, data: booking });
   } catch (error) {
     console.error('Get booking by ID error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch booking',
+      error: error.message
+    });
   }
 };
 
 const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
+
+    const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `status must be one of: ${allowedStatuses.join(', ')}`
+      });
+    }
+
     const booking = await Booking.findByPk(req.params.id, {
       include: [{ model: Field, as: 'field' }]
     });
 
     if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+      return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
     // Authorization logic
@@ -138,19 +172,29 @@ const updateBookingStatus = async (req, res) => {
     if (isBooker && status === 'cancelled') {
         // Booker can only cancel
         if (booking.status !== 'pending') {
-             return res.status(400).json({ error: 'Can only cancel pending bookings.' });
+             return res.status(400).json({
+               success: false,
+               message: 'Can only cancel pending bookings.'
+             });
         }
     } else if (isOwner || isAdmin) {
         // Owner/Admin can set any status
     } else {
-        return res.status(403).json({ error: 'Not authorized to update this booking.' });
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to update this booking.'
+        });
     }
 
     await booking.update({ status });
     res.json({ success: true, data: booking });
   } catch (error) {
     console.error('Update booking status error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update booking status',
+      error: error.message
+    });
   }
 };
 

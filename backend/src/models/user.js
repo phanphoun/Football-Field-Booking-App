@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
 
       // User can be captain of a team
 
-      User.hasMany(models.Team, { foreignKey: 'captain_id', as: 'captainedTeams' });
+      User.hasMany(models.Team, { foreignKey: 'captainId', as: 'captainedTeams' });
 
       // User can belong to teams
 

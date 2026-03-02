@@ -1,4 +1,5 @@
 const { User, Field, Booking, Team, Notification } = require('../models');
+const bcrypt = require('bcryptjs');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -6,6 +7,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
+    attributes: { exclude: ['password'] },
     include: [
       { model: Field, as: 'fields' },
       { model: Booking, as: 'createdBookings' },
@@ -18,6 +20,7 @@ const getAllUsers = asyncHandler(async (req, res) => {
 
 const getUserById = asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.params.id, {
+    attributes: { exclude: ['password'] },
     include: [
       { model: Field, as: 'fields' },
       { model: Booking, as: 'createdBookings' },
@@ -36,18 +39,22 @@ const getUserById = asyncHandler(async (req, res) => {
 const createUser = asyncHandler(async (req, res) => {
   try {
     const { username, email, password, firstName, lastName, phone, role } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 12);
     
     const user = await User.create({
       username,
       email,
-      password,
+      password: hashedPassword,
       firstName,
       lastName,
       phone,
       role: role || 'player'
     });
     
-    res.status(201).json({ success: true, data: user });
+    const userJson = user.toJSON();
+    delete userJson.password;
+
+    res.status(201).json({ success: true, data: userJson });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
