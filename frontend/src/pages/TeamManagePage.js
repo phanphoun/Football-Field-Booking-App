@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { UserPlusIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 
@@ -14,6 +15,11 @@ const TeamManagePage = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+
+  // invite form state
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [inviteError, setInviteError] = useState(null);
+  const [inviteSuccess, setInviteSuccess] = useState(null);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -108,6 +114,28 @@ const TeamManagePage = () => {
   const activeMembers = Array.isArray(members)
     ? members.filter((m) => m.status === 'active' && m.isActive !== false)
     : [];
+  
+  const handleInvite = async () => {
+    if (!inviteUsername.trim()) {
+      setInviteError('Username is required');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setInviteError(null);
+      setInviteSuccess(null);
+      const response = await teamService.inviteMember(id, { username: inviteUsername.trim() });
+      if (response.success) {
+        setInviteSuccess('Invitation sent');
+        setInviteUsername('');
+        await refresh();
+      }
+    } catch (err) {
+      setInviteError(err?.error || 'Failed to send invitation');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -137,6 +165,38 @@ const TeamManagePage = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* invite form column */}
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-900">Invite Player</h2>
+          </div>
+          <div className="p-6 space-y-3">
+            {inviteSuccess && (
+              <div className="text-sm text-green-700">{inviteSuccess}</div>
+            )}
+            {inviteError && (
+              <div className="text-sm text-red-700">{inviteError}</div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inviteUsername}
+                onChange={(e) => setInviteUsername(e.target.value)}
+                placeholder="Player username"
+                className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              />
+              <button
+                onClick={handleInvite}
+                disabled={actionLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow disabled:opacity-50"
+              >
+                <UserPlusIcon className="h-4 w-4" />
+                {actionLoading ? 'Sending...' : 'Invite'}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-sm font-semibold text-gray-900">Pending Requests</h2>

@@ -14,8 +14,13 @@ const PublicTeamDetailsPage = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  const canRequestJoin =
-    isAuthenticated && ['player', 'captain', 'admin'].includes(user?.role || '');
+  const canRequestJoin = () => {
+    if (!isAuthenticated) return false;
+    if (!['player', 'captain', 'admin'].includes(user?.role || '')) return false;
+    // Prevent captains from joining their own teams
+    if (team?.captainId === user.id) return false;
+    return true;
+  };
 
   useEffect(() => {
     const fetchTeam = async () => {
@@ -76,11 +81,28 @@ const PublicTeamDetailsPage = () => {
     <div className="space-y-6">
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
-            </p>
+          <div className="flex items-start space-x-6">
+            {team.logoUrl ? (
+              <img 
+                src={team.logoUrl.startsWith('http') ? team.logoUrl : `http://localhost:5000${team.logoUrl}`}
+                alt={`${team.name} logo`}
+                className="w-20 h-20 object-contain rounded-lg border border-gray-200"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex">
+                <UsersIcon className="h-10 w-10 text-gray-400" />
+              </div>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
+              </p>
+            </div>
           </div>
           <div className="text-sm text-gray-600 flex items-center">
             <UsersIcon className="h-5 w-5 mr-1 text-gray-400" />
@@ -132,12 +154,19 @@ const PublicTeamDetailsPage = () => {
             Back to Teams
           </Link>
 
-          {canRequestJoin ? (
+          {canRequestJoin() ? (
             <button
               onClick={handleRequestJoin}
               className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
             >
               Request to Join
+            </button>
+          ) : team?.captainId === user.id ? (
+            <button
+              disabled
+              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-gray-500 bg-gray-300"
+            >
+              Your Team
             </button>
           ) : (
             <button

@@ -152,6 +152,29 @@ const teamValidation = {
       .isLength({ max: 500 })
       .withMessage('Description must be less than 500 characters'),
     handleValidationErrors
+  ],
+  invite: [
+    // either userId, username, or email must be provided; validation of each component
+    body('userId')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('userId must be a positive integer'),
+    body('username')
+      .optional()
+      .isLength({ min: 3 })
+      .withMessage('username must be at least 3 characters'),
+    body('email')
+      .optional()
+      .isEmail()
+      .withMessage('email must be valid')
+      .normalizeEmail(),
+    body().custom((value) => {
+      if (!value.userId && !value.username && !value.email) {
+        throw new Error('Must provide userId, username or email');
+      }
+      return true;
+    }),
+    handleValidationErrors
   ]
 };
 
