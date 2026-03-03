@@ -83,7 +83,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(500),
         allowNull: true,
         validate: {
-          isUrl: true
+          isValidLogoUrl(value) {
+            if (!value) return;
+            const isAbsoluteUrl = /^https?:\/\/.+/i.test(value);
+            const isLocalUploadPath = /^\/uploads\/.+/i.test(value);
+            if (!isAbsoluteUrl && !isLocalUploadPath) {
+              throw new Error('logoUrl must be an absolute URL or /uploads path');
+            }
+          }
         }
       },
       isActive: {

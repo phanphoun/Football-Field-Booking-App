@@ -142,10 +142,8 @@ const teamService = {
 
   // Upload team logo (captain only)
   uploadTeamLogo: async (teamId, formData) => {
-    const response = await apiService.post(`/teams/${teamId}/logo`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await apiService.upload(`/teams/${teamId}/logo`, formData, {
+      timeout: 30000
     });
     return response;
   },

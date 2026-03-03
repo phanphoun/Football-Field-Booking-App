@@ -24,6 +24,9 @@ router.post('/:id/members', auth, checkRole(['captain', 'admin']), ...idValidati
 router.put('/:id/members/:userId', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.updateTeamMember);
 router.delete('/:id/members/:userId', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.removeTeamMember);
 
+// Upload team logo
+router.post('/:id/logo', auth, checkRole(['captain']), ...idValidation, teamController.uploadTeamLogo);
+
 // Invitation endpoints
 router.post('/:id/invite', auth, checkRole(['captain', 'admin']), ...idValidation, ...require('../middleware/validation').teamValidation.invite, teamController.invitePlayer);
 router.post('/:id/invite/accept', auth, ...idValidation, teamController.acceptInvite);

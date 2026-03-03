@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
-import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon, PhotoIcon, ArrowUpTrayIcon, ArrowLeftIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
+
+const MAX_TEAM_LOGO_SIZE_MB = 5;
+const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
 const TeamDetailsPage = () => {
   const { id } = useParams();
@@ -16,6 +21,7 @@ const TeamDetailsPage = () => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [inviteError, setInviteError] = useState(null);
   const [inviteSuccess, setInviteSuccess] = useState(null);
+  const [logoCandidateIndex, setLogoCandidateIndex] = useState(0);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -32,9 +38,50 @@ const TeamDetailsPage = () => {
     return membership && membership.status === 'pending' && membership.isActive === false;
   }, [membership]);
 
+  const rawTeamLogo = useMemo(() => {
+    const rawLogo = team?.logoUrl || team?.logo_url;
+    if (!rawLogo) return null;
+    return rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
+  }, [team]);
+
+  const logoCandidates = useMemo(() => {
+    if (!rawTeamLogo) return [];
+    if (/^https?:\/\//i.test(rawTeamLogo)) return [rawTeamLogo];
+
+    const localHostApiOrigin = 'http://localhost:5000';
+    const loopbackApiOrigin = 'http://127.0.0.1:5000';
+    const browserApiOrigin =
+      typeof window !== 'undefined' ? window.location.origin.replace(':3000', ':5000') : API_ORIGIN;
+
+    return Array.from(
+      new Set([
+        `${API_ORIGIN}${rawTeamLogo}`,
+        `${browserApiOrigin}${rawTeamLogo}`,
+        `${localHostApiOrigin}${rawTeamLogo}`,
+        `${loopbackApiOrigin}${rawTeamLogo}`
+      ])
+    );
+  }, [rawTeamLogo]);
+
+  const teamLogoUrl = logoCandidates[logoCandidateIndex] || null;
+
+  useEffect(() => {
+    setLogoCandidateIndex(0);
+  }, [rawTeamLogo]);
+
   const refreshTeam = useCallback(async () => {
     const response = await teamService.getTeamById(id);
-    setTeam(response.data || null);
+    const teamData = response.data || null;
+    if (!teamData) {
+      setTeam(null);
+      return;
+    }
+
+    setTeam((prev) => ({
+      ...teamData,
+      // Preserve known logo when API payload does not include it consistently.
+      logoUrl: teamData.logoUrl || teamData.logo_url || prev?.logoUrl || prev?.logo_url || null
+    }));
   }, [id]);
 
   useEffect(() => {
@@ -126,9 +173,9 @@ const TeamDetailsPage = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file size (2MB max)
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Logo file size must be less than 2MB');
+    // Validate file size
+    if (file.size > MAX_TEAM_LOGO_SIZE_BYTES) {
+      setError(`Logo file size must be less than ${MAX_TEAM_LOGO_SIZE_MB}MB`);
       return;
     }
 
@@ -147,6 +194,10 @@ const TeamDetailsPage = () => {
 
       const response = await teamService.uploadTeamLogo(id, formData);
       if (response.success) {
+        const uploadedLogoUrl = response.data?.logoUrl || response.data?.logo_url || null;
+        if (uploadedLogoUrl) {
+          setTeam((prev) => (prev ? { ...prev, logoUrl: uploadedLogoUrl } : prev));
+        }
         setSuccessMessage('Team logo updated successfully!');
         await refreshTeam();
       }
@@ -184,25 +235,32 @@ const TeamDetailsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
           <p className="mt-1 text-sm text-gray-600">
             Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
           </p>
+          {isCaptainOfTeam && (
+            <span className="mt-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+              Captain Mode
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/app/teams')}
-            className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
+            <ArrowLeftIcon className="h-4 w-4" />
             Back
           </button>
           {(isCaptainOfTeam || isAdmin()) && (
             <Link
               to={`/app/teams/${team.id}/manage`}
-              className="px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
             >
+              <WrenchScrewdriverIcon className="h-4 w-4" />
               Manage
             </Link>
           )}
@@ -234,39 +292,60 @@ const TeamDetailsPage = () => {
       )}
 
       {/* Team Logo Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Team Logo</h2>
-          {isCaptainOfTeam && (
-            <button
-              onClick={() => document.getElementById('logo-upload').click()}
-              className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-300 rounded-md hover:bg-blue-50"
-            >
-              Change Logo
-            </button>
-          )}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Team Logo</h2>
+            <p className="text-sm text-gray-500 mt-1">Used across team pages and member views.</p>
+          </div>
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+            Max {MAX_TEAM_LOGO_SIZE_MB}MB
+          </span>
         </div>
-        <div className="flex items-center justify-center">
-          {team.logoUrl ? (
-            <img 
-              src={team.logoUrl.startsWith('http') ? team.logoUrl : `http://localhost:5000${team.logoUrl}`}
-              alt={`${team.name} logo`}
-              className="h-24 w-24 object-contain rounded-lg border border-gray-200"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div className={`${team.logoUrl ? 'hidden' : 'flex'} h-24 w-24 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50`}>
-            <div className="text-center">
-              <ShieldCheckIcon className="h-8 w-8 text-gray-400 mx-auto mb-1" />
-              <p className="text-xs text-gray-500">No logo</p>
+
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 items-center">
+          <div className="mx-auto md:mx-0">
+            <div className="h-40 w-40 rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 shadow-inner flex items-center justify-center overflow-hidden">
+              {teamLogoUrl ? (
+                <img
+                  src={teamLogoUrl}
+                  alt={`${team.name} logo`}
+                  className="h-full w-full object-cover"
+                  onError={() => {
+                    setLogoCandidateIndex((prev) => prev + 1);
+                  }}
+                />
+              ) : (
+                <div className="text-center">
+                  <PhotoIcon className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">No logo</p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-        {isCaptainOfTeam && (
-          <div className="mt-4">
+
+          <div>
+            <p className="text-sm text-gray-700">
+              Use a square image for the best result. Supported formats: JPG, PNG, GIF, WEBP.
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Recommended size: 512x512 px
+            </p>
+
+            {isCaptainOfTeam && (
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  onClick={() => document.getElementById('logo-upload').click()}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
+                >
+                  <ArrowUpTrayIcon className="h-4 w-4" />
+                  {actionLoading ? 'Uploading...' : 'Upload Logo'}
+                </button>
+                <span className="text-xs text-gray-500">Captain only</span>
+              </div>
+            )}
+
             <input
               id="logo-upload"
               type="file"
@@ -274,11 +353,8 @@ const TeamDetailsPage = () => {
               className="hidden"
               onChange={handleLogoUpload}
             />
-            <p className="text-xs text-gray-500 text-center">
-              Upload a team logo (JPG, PNG, GIF - Max 2MB)
-            </p>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="bg-white shadow rounded-lg p-6 space-y-6">

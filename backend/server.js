@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -117,6 +118,9 @@ app.use(morgan(serverConfig.logging.format));
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============= API ROUTES =============
 
@@ -332,21 +336,34 @@ const startServer = async () => {
     const isDevelopment = serverConfig.nodeEnv === 'development';
     const isTest = serverConfig.nodeEnv === 'test';
     
+    // Attempt to synchronize schema, but don't crash the server if sync fails.
     if (isDevelopment) {
-      // In development, sync without alter to prevent index accumulation
-      console.log('🔄 Development mode: Synchronizing database schema...');
-      await sequelize.sync();
-      console.log('✅ Database schema synchronized successfully.');
+      console.log('🔄 Development mode: Synchronizing database schema (alter)...');
+      try {
+        await sequelize.sync({ alter: true });
+        console.log('✅ Database schema synchronized successfully (alter applied).');
+      } catch (syncErr) {
+        console.warn('⚠️ Schema sync (alter) failed:', syncErr.message);
+        console.warn('⚠️ Continuing to start server without completing schema alterations.');
+      }
     } else if (isTest) {
-      // In test mode, force recreate for clean state
       console.log('🧪 Test mode: Recreating database...');
-      await sequelize.sync({ force: true });
-      console.log('✅ Test database recreated successfully.');
+      try {
+        await sequelize.sync({ force: true });
+        console.log('✅ Test database recreated successfully.');
+      } catch (syncErr) {
+        console.warn('⚠️ Test DB sync (force) failed:', syncErr.message);
+        console.warn('⚠️ Continuing to start server despite test DB sync failure.');
+      }
     } else {
-      // In production, only sync without alterations
       console.log('🚀 Production mode: Synchronizing database safely...');
-      await sequelize.sync();
-      console.log('✅ Database synchronized safely.');
+      try {
+        await sequelize.sync();
+        console.log('✅ Database synchronized safely.');
+      } catch (syncErr) {
+        console.warn('⚠️ Production DB sync failed:', syncErr.message);
+        console.warn('⚠️ Continuing to start server despite sync failure.');
+      }
     }
 
     app.listen(PORT, () => {

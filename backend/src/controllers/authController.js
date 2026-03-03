@@ -71,6 +71,10 @@ const register = async (req, res) => {
       lastName: user.lastName,
       role: user.role,
       phone: user.phone,
+      address: user.address,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      avatarUrl: user.avatarUrl,
       status: user.status,
       emailVerified: user.emailVerified,
       createdAt: user.createdAt
@@ -130,9 +134,14 @@ const login = async (req, res) => {
       lastName: user.lastName,
       role: user.role,
       phone: user.phone,
+      address: user.address,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      avatarUrl: user.avatarUrl,
       status: user.status,
       emailVerified: user.emailVerified,
-      lastLogin: user.lastLogin
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt
     };
 
     res.json({ user: userResponse, token });
@@ -162,7 +171,7 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, phone, address, dateOfBirth, gender, avatarUrl } = req.body;
+    const { email, firstName, lastName, phone, address, dateOfBirth, gender, avatarUrl } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -171,12 +180,19 @@ const updateProfile = async (req, res) => {
 
     // Update user with provided fields
     const updateData = {};
+    if (email !== undefined && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ error: 'Email is already in use.' });
+      }
+      updateData.email = email;
+    }
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) updateData.phone = phone;
-    if (address !== undefined) updateData.address = address;
-    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
-    if (gender !== undefined) updateData.gender = gender;
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (address !== undefined) updateData.address = address || null;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth || null;
+    if (gender !== undefined) updateData.gender = gender || null;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
     await user.update(updateData);
@@ -196,6 +212,7 @@ const updateProfile = async (req, res) => {
       avatarUrl: user.avatarUrl,
       status: user.status,
       emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
 
