@@ -29,6 +29,8 @@ const PublicLayout = () => {
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
+  const isHomePage = location.pathname === '/';
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-20">
@@ -130,7 +132,7 @@ const PublicLayout = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isHomePage ? 'py-0' : 'py-8'}`}>
         <Outlet />
       </main>
     </div>

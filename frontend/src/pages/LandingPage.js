@@ -24,6 +24,12 @@ const HERO_IMAGE =
 const FIELD_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=900&q=80';
 
+const FEATURED_CARD_IMAGES = [
+  'https://t4.ftcdn.net/jpg/16/91/00/61/360_F_1691006146_6VhSMVJeZlVx6tcEuIz1IHsD29R9nWZL.jpg',
+  'https://t4.ftcdn.net/jpg/16/09/75/97/360_F_1609759781_Z1BZLZs9h9Ac3PbUNqbaQH3RIVhl57x0.jpg',
+  'https://images.unsplash.com/photo-1628891890467-b79de9b4fce8?auto=format&fit=crop&w=1200&q=80'
+];
+
 const FEATURED_FALLBACK_FIELDS = [
   {
     id: 'fallback-1',
@@ -35,7 +41,7 @@ const FEATURED_FALLBACK_FIELDS = [
     pricePerHour: 80,
     status: 'available',
     images: [
-      'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1200&q=80'
+      '../assets/fallback-field-1.jpg'
     ]
   },
   {
@@ -48,7 +54,7 @@ const FEATURED_FALLBACK_FIELDS = [
     pricePerHour: 120,
     status: 'available',
     images: [
-      'https://images.unsplash.com/photo-1560272564-c83b66b1ad12?auto=format&fit=crop&w=1200&q=80'
+      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
     ]
   },
   {
@@ -61,7 +67,7 @@ const FEATURED_FALLBACK_FIELDS = [
     pricePerHour: 100,
     status: 'booked',
     images: [
-      'https://images.unsplash.com/photo-1628891890467-b79de9b4fce8?auto=format&fit=crop&w=1200&q=80'
+      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
     ]
   }
 ];
@@ -142,6 +148,26 @@ const LandingPage = () => {
     return merged.slice(0, 3);
   }, [popularFields]);
 
+  const resolveFieldImage = (images) => {
+    if (Array.isArray(images) && images.length > 0) return images[0];
+
+    if (typeof images === 'string') {
+      // Handle JSON string values saved by backend like: '["https://..."]'
+      if (images.trim().startsWith('[')) {
+        try {
+          const parsed = JSON.parse(images);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+        } catch (_e) {
+          // fall through
+        }
+      }
+      // Handle direct URL string values
+      if (images.startsWith('http://') || images.startsWith('https://')) return images;
+    }
+
+    return FIELD_FALLBACK_IMAGE;
+  };
+
   return (
     <div className="space-y-14">
       <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
@@ -196,11 +222,13 @@ const LandingPage = () => {
             </div>
           ) : featuredFields.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              {featuredFields.map((field) => {
+            {featuredFields.map((field, index) => {
               const isAvailable = (field.status || 'available') === 'available';
               const players = field.capacity || 22;
               const duration = field.sessionDuration || 90;
               const price = Number(field.pricePerHour || 0);
+              const preferredImage = FEATURED_CARD_IMAGES[index % FEATURED_CARD_IMAGES.length];
+              const initialImage = resolveFieldImage(field.images) || preferredImage;
 
               return (
                 <Link
@@ -210,9 +238,13 @@ const LandingPage = () => {
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
                     <img
-                      src={field.images?.[0] || FIELD_FALLBACK_IMAGE}
+                      src={initialImage}
                       alt={field.name}
                       className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = preferredImage || FIELD_FALLBACK_IMAGE;
+                      }}
                     />
                     <span
                       className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold ${
