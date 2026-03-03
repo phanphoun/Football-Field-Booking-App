@@ -106,6 +106,30 @@ const getCaptainedTeams = asyncHandler(async (req, res) => {
   res.json({ success: true, data: teams });
 });
 
+const getMyInvitations = asyncHandler(async (req, res) => {
+  const invitations = await TeamMember.findAll({
+    where: {
+      userId: req.user.id,
+      status: 'pending',
+      isActive: false
+    },
+    include: [
+      {
+        model: Team,
+        as: 'team',
+        include: getTeamBaseIncludes()
+      }
+    ],
+    order: [['createdAt', 'DESC']]
+  });
+
+  const inviteTeams = invitations
+    .map((invitation) => invitation.team)
+    .filter(Boolean);
+
+  res.json({ success: true, data: inviteTeams });
+});
+
 const createTeam = asyncHandler(async (req, res) => {
   try {
     const { name, description, skillLevel, maxPlayers, homeFieldId, logoUrl, isActive } = req.body;
@@ -200,7 +224,7 @@ const deleteTeam = asyncHandler(async (req, res) => {
 });
 
 const requestJoinTeam = asyncHandler(async (req, res) => {
-  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId'] });
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
 
   if (!team) {
     return res.status(404).json({ success: false, message: 'Team not found' });
@@ -224,9 +248,14 @@ const requestJoinTeam = asyncHandler(async (req, res) => {
     if (existing.status === 'pending') {
       return res.status(400).json({ success: false, message: 'Join request is already pending' });
     }
-
-    await existing.update({ status: 'pending', isActive: true });
-    return res.json({ success: true, data: existing, message: 'Join request submitted' });
+    // A player who was previously removed/declined cannot self-request again.
+    // Captain must explicitly re-invite this player.
+    if (existing.status === 'inactive') {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot request to join this team again. Wait for a new captain invitation.'
+      });
+    }
   }
 
   const request = await TeamMember.create({
@@ -237,11 +266,19 @@ const requestJoinTeam = asyncHandler(async (req, res) => {
     isActive: true
   });
 
+  await Notification.create({
+    userId: team.captainId,
+    title: `Join request for ${team.name}`,
+    message: `${req.user.firstName || req.user.username} requested to join your team "${team.name}".`,
+    type: 'system',
+    metadata: { teamId: team.id, requesterId: req.user.id, event: 'team_join_request' }
+  });
+
   res.status(201).json({ success: true, data: request, message: 'Join request submitted' });
 });
 
 const leaveTeam = asyncHandler(async (req, res) => {
-  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId'] });
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
 
   if (!team) {
     return res.status(404).json({ success: false, message: 'Team not found' });
@@ -310,7 +347,9 @@ const getJoinRequests = asyncHandler(async (req, res) => {
   }
 
   const requests = await TeamMember.findAll({
-    where: { teamId: team.id, status: 'pending' },
+    // Join requests are pending + isActive=true.
+    // Invitations are pending + isActive=false and should not be captain-approvable here.
+    where: { teamId: team.id, status: 'pending', isActive: true },
     include: [
       {
         model: User,
@@ -410,6 +449,14 @@ const updateTeamMember = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: `status must be one of: ${allowedStatuses.join(', ')}` });
   }
 
+  // Invitation pending (isActive=false) must be accepted/declined by invited player only.
+  if (status === 'active' && membership.status === 'pending' && membership.isActive === false) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only the invited player can accept this invitation'
+    });
+  }
+
   const allowedRoles = ['player', 'substitute'];
   if (role !== undefined && !allowedRoles.includes(role)) {
     return res.status(400).json({ success: false, message: `role must be one of: ${allowedRoles.join(', ')}` });
@@ -422,7 +469,22 @@ const updateTeamMember = asyncHandler(async (req, res) => {
   }
   if (role !== undefined) updateData.role = role;
 
+  const previousStatus = membership.status;
   const updated = await membership.update(updateData);
+
+  if (status !== undefined && previousStatus === 'pending' && ['active', 'inactive'].includes(status)) {
+    await Notification.create({
+      userId: membership.userId,
+      title: `Join request ${status === 'active' ? 'approved' : 'declined'}`,
+      message:
+        status === 'active'
+          ? `Your request to join "${team.name}" was approved.`
+          : `Your request to join "${team.name}" was declined.`,
+      type: 'system',
+      metadata: { teamId: team.id, event: 'team_join_request_result', status }
+    });
+  }
+
   res.json({ success: true, data: updated, message: 'Team member updated successfully' });
 });
 
@@ -597,7 +659,7 @@ const invitePlayer = asyncHandler(async (req, res) => {
 
 // invitee can accept the invitation
 const acceptInvite = asyncHandler(async (req, res) => {
-  const team = await Team.findByPk(req.params.id, { attributes: ['id'] });
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
   if (!team) {
     return res.status(404).json({ success: false, message: 'Team not found' });
   }
@@ -609,12 +671,19 @@ const acceptInvite = asyncHandler(async (req, res) => {
   }
 
   await membership.update({ status: 'active', isActive: true });
+  await Notification.create({
+    userId: team.captainId,
+    title: `Invitation accepted`,
+    message: `${req.user.firstName || req.user.username} accepted your invitation to join "${team.name}".`,
+    type: 'system',
+    metadata: { teamId: team.id, inviteeId: req.user.id, event: 'team_invite_accepted' }
+  });
   res.json({ success: true, data: membership, message: 'Invitation accepted' });
 });
 
 // invitee can decline the invitation
 const declineInvite = asyncHandler(async (req, res) => {
-  const team = await Team.findByPk(req.params.id, { attributes: ['id'] });
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
   if (!team) {
     return res.status(404).json({ success: false, message: 'Team not found' });
   }
@@ -626,6 +695,13 @@ const declineInvite = asyncHandler(async (req, res) => {
   }
 
   await membership.update({ status: 'inactive', isActive: false });
+  await Notification.create({
+    userId: team.captainId,
+    title: `Invitation declined`,
+    message: `${req.user.firstName || req.user.username} declined your invitation to join "${team.name}".`,
+    type: 'system',
+    metadata: { teamId: team.id, inviteeId: req.user.id, event: 'team_invite_declined' }
+  });
   res.json({ success: true, data: membership, message: 'Invitation declined' });
 });
 
@@ -633,6 +709,7 @@ module.exports = {
   getAllTeams,
   getTeamById,
   getMyTeams,
+  getMyInvitations,
   getCaptainedTeams,
   createTeam,
   updateTeam,

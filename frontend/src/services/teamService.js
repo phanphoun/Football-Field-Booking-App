@@ -57,6 +57,12 @@ const teamService = {
     return response;
   },
 
+  // Get current user's pending invitations
+  getMyInvitations: async () => {
+    const response = await apiService.get('/teams/my-invitations');
+    return response;
+  },
+
   // Get teams where user is captain
   getCaptainedTeams: async () => {
     const response = await apiService.get('/teams/captained');
