@@ -13,13 +13,18 @@ const TeamsPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchTeams = async () => {
+    const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
-        const response = await teamService.getAllTeams();
+        const [teamsResponse, invitationsResponse] = await Promise.all([
+          teamService.getAllTeams(),
+          teamService.getMyInvitations()
+        ]);
         // Ensure we always set an array, even if response.data is not an array
-        const teamsData = Array.isArray(response.data) ? response.data : [];
+        const teamsData = Array.isArray(teamsResponse.data) ? teamsResponse.data : [];
+        const invitationData = Array.isArray(invitationsResponse.data) ? invitationsResponse.data : [];
         setTeams(teamsData);
+        setInvitations(invitationData);
       } catch (err) {
         console.error('Failed to fetch teams:', err);
         setError(err?.error || 'Failed to load teams');
@@ -28,7 +33,7 @@ const TeamsPage = () => {
       }
     };
 
-    fetchTeams();
+    fetchTeamsAndInvitations();
   }, [user?.id]);
 
   const handleCreateTeam = () => {
@@ -163,6 +168,17 @@ const TeamsPage = () => {
               <p className="text-sm text-blue-900">
                 You&apos;ve been invited to join <strong>{invitation.team?.name || 'a team'}</strong>.
               </p>
+              <div className="mt-2 text-xs text-blue-800 space-y-1">
+                <p>
+                  Captain:{' '}
+                  {invitation.team?.captain?.firstName ||
+                    invitation.team?.captain?.username ||
+                    'Unknown'}
+                </p>
+                {invitation.team?.description && (
+                  <p className="line-clamp-2">{invitation.team.description}</p>
+                )}
+              </div>
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => handleInvitationDecision(invitation.id, 'accepted')}

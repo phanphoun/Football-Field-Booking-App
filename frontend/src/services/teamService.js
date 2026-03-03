@@ -91,6 +91,18 @@ const teamService = {
     return response;
   },
 
+  // Get invitations for current user
+  getMyInvitations: async () => {
+    const response = await apiService.get('/team-members/invitations/mine');
+    return response;
+  },
+
+  // Accept or decline invitation
+  respondToInvitation: async (invitationId, status) => {
+    const response = await apiService.patch(`/team-members/${invitationId}`, { status });
+    return response;
+  },
+
   // Remove member from team (captain only)
   removeMember: async (teamId, userId) => {
     const response = await apiService.delete(`/teams/${teamId}/members/${userId}`);
