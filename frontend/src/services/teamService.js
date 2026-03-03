@@ -1,6 +1,17 @@
 import apiService from './api';
 
 const teamService = {
+  // Public (guest) browsing
+  getPublicTeams: async () => {
+    const response = await apiService.get('/public/teams');
+    return response;
+  },
+
+  getPublicTeamById: async (teamId) => {
+    const response = await apiService.get(`/public/teams/${teamId}`);
+    return response;
+  },
+
   // Get all teams
   getAllTeams: async (filters = {}) => {
     const params = {
@@ -67,6 +78,16 @@ const teamService = {
   // Add member to team (captain only)
   addMember: async (teamId, memberData) => {
     const response = await apiService.post(`/teams/${teamId}/members`, memberData);
+    return response;
+  },
+
+  // Invite member to team (captain only)
+  inviteMember: async (teamId, userId, role = 'player') => {
+    const response = await apiService.post('/team-members', {
+      teamId,
+      userId,
+      role
+    });
     return response;
   },
 

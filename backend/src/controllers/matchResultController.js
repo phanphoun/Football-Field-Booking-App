@@ -45,15 +45,61 @@ const getMatchResultById = asyncHandler(async (req, res) => {
 });
 
 const createMatchResult = asyncHandler(async (req, res) => {
-  const matchResult = await MatchResult.create({
-    ...req.body,
-    recordedBy: req.user.id
-  });
-  res.status(201).json({ success: true, data: matchResult });
+  try {
+    const matchResult = await MatchResult.create({
+      ...req.body,
+      recordedBy: req.user.id
+    });
+    res.status(201).json({ success: true, data: matchResult });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const updateMatchResult = asyncHandler(async (req, res) => {
+  try {
+    const matchResult = await MatchResult.findByPk(req.params.id);
+    
+    if (!matchResult) {
+      return res.status(404).json({ success: false, message: 'Match result not found' });
+    }
+    
+    // Authorization check
+    if (matchResult.recordedBy !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this match result' });
+    }
+    
+    const updatedMatchResult = await matchResult.update(req.body);
+    res.json({ success: true, data: updatedMatchResult });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const deleteMatchResult = asyncHandler(async (req, res) => {
+  try {
+    const matchResult = await MatchResult.findByPk(req.params.id);
+    
+    if (!matchResult) {
+      return res.status(404).json({ success: false, message: 'Match result not found' });
+    }
+    
+    // Authorization check
+    if (matchResult.recordedBy !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this match result' });
+    }
+    
+    await matchResult.destroy();
+    res.json({ success: true, message: 'Match result deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
 });
 
 module.exports = {
   getAllMatchResults,
   getMatchResultById,
-  createMatchResult
+  createMatchResult,
+  updateMatchResult,
+  deleteMatchResult
 };

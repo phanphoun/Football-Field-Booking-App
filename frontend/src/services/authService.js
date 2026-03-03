@@ -23,7 +23,6 @@ const authService = {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
-    
     return response;
   },
 
@@ -33,7 +32,8 @@ const authService = {
     
     // Update stored user data
     if (response.success) {
-      localStorage.setItem('user', JSON.stringify(response.data));
+      const resolvedUser = response.data?.user || response.data;
+      localStorage.setItem('user', JSON.stringify(resolvedUser));
     }
     
     return response;
@@ -45,7 +45,8 @@ const authService = {
     
     // Update stored user data
     if (response.success) {
-      localStorage.setItem('user', JSON.stringify(response.data));
+      const resolvedUser = response.data?.user || response.data;
+      localStorage.setItem('user', JSON.stringify(resolvedUser));
     }
     
     return response;

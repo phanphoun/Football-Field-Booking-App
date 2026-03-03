@@ -1,4 +1,5 @@
 const { User, Field, Booking, Team, Notification } = require('../models');
+const bcrypt = require('bcryptjs');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -6,9 +7,10 @@ const asyncHandler = (fn) => (req, res, next) => {
 
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
+    attributes: { exclude: ['password'] },
     include: [
       { model: Field, as: 'fields' },
-      { model: Booking, as: 'bookings' },
+      { model: Booking, as: 'createdBookings' },
       { model: Team, as: 'teams', through: { attributes: [] } },
       { model: Notification, as: 'notifications' }
     ]
@@ -18,9 +20,10 @@ const getAllUsers = asyncHandler(async (req, res) => {
 
 const getUserById = asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.params.id, {
+    attributes: { exclude: ['password'] },
     include: [
       { model: Field, as: 'fields' },
-      { model: Booking, as: 'bookings' },
+      { model: Booking, as: 'createdBookings' },
       { model: Team, as: 'teams', through: { attributes: [] } },
       { model: Notification, as: 'notifications' }
     ]
@@ -33,7 +36,84 @@ const getUserById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
+const createUser = asyncHandler(async (req, res) => {
+  try {
+    const { username, email, password, firstName, lastName, phone, role } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+      firstName,
+      lastName,
+      phone,
+      role: role || 'player'
+    });
+    
+    const userJson = user.toJSON();
+    delete userJson.password;
+
+    res.status(201).json({ success: true, data: userJson });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  try {
+    const { username, email, firstName, lastName, phone, role } = req.body;
+    const user = await User.findByPk(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Authorization check
+    if (user.id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this user' });
+    }
+    
+    await user.update({
+      username,
+      email,
+      firstName,
+      lastName,
+      phone,
+      role
+    });
+    
+    res.json({ success: true, data: user });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    // Authorization check
+    if (user.id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this user' });
+    }
+    
+    await user.destroy();
+    
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = {
   getAllUsers,
-  getUserById
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser
 };

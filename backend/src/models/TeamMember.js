@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     teamId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'teams',
         key: 'id'
@@ -22,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'users',
         key: 'id'
@@ -33,14 +35,14 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'player'
     },
     status: {
-      type: DataTypes.ENUM('active', 'inactive', 'pending'),
+      type: DataTypes.ENUM('pending', 'accepted', 'declined'),
       defaultValue: 'pending',
       allowNull: false
     },
     joinedAt: {
       type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
+      allowNull: true,
+      defaultValue: null
     },
     isActive: {
       type: DataTypes.BOOLEAN,

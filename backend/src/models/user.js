@@ -12,9 +12,9 @@ module.exports = (sequelize, DataTypes) => {
 
       User.hasMany(models.Field, { foreignKey: 'ownerId', as: 'fields' });
 
-      // User can make bookings
+      // User can make bookings as creator
 
-      User.hasMany(models.Booking, { foreignKey: 'userId', as: 'bookings' });
+      User.hasMany(models.Booking, { foreignKey: 'createdBy', as: 'createdBookings' });
 
       // User can be captain of a team
 

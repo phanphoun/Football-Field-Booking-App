@@ -4,9 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   HomeIcon, 
   BuildingOfficeIcon, 
-  UserGroupIcon, 
+  UsersIcon, 
   CalendarIcon, 
-  UserIcon,
+  UserCircleIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon
@@ -14,7 +14,7 @@ import {
 import { useState } from 'react';
 
 const AppLayout = () => {
-  const { user, logout, isAdmin, isFieldOwner, isCaptain } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,21 +25,51 @@ const AppLayout = () => {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, current: location.pathname === '/dashboard' },
-    { name: 'Fields', href: '/fields', icon: BuildingOfficeIcon, current: location.pathname.startsWith('/fields') },
-    { name: 'Teams', href: '/teams', icon: UserGroupIcon, current: location.pathname.startsWith('/teams') },
-    { name: 'Bookings', href: '/bookings', icon: CalendarIcon, current: location.pathname.startsWith('/bookings') },
-    { name: 'Profile', href: '/profile', icon: UserIcon, current: location.pathname === '/profile' },
+    {
+      name: 'Dashboard',
+      href: '/app/dashboard',
+      icon: HomeIcon,
+      current: location.pathname === '/app/dashboard'
+    },
+    {
+      name: 'Fields',
+      href: '/app/fields',
+      icon: BuildingOfficeIcon,
+      current: location.pathname.startsWith('/app/fields')
+    },
+    {
+      name: 'Teams',
+      href: '/app/teams',
+      icon: UsersIcon,
+      current: location.pathname.startsWith('/app/teams')
+    },
+    {
+      name: 'Bookings',
+      href: '/app/bookings',
+      icon: CalendarIcon,
+      current: location.pathname.startsWith('/app/bookings')
+    },
+    {
+      name: 'Profile',
+      href: '/app/profile',
+      icon: UserCircleIcon,
+      current: location.pathname === '/app/profile'
+    }
   ];
 
   const adminNavigation = [
-    { name: 'Manage Users', href: '/admin/users', icon: UserGroupIcon, current: location.pathname === '/admin/users' },
-    { name: 'Settings', href: '/admin/settings', icon: HomeIcon, current: location.pathname === '/admin/settings' },
-  ];
-
-  const ownerNavigation = [
-    { name: 'My Fields', href: '/owner/my-fields', icon: BuildingOfficeIcon, current: location.pathname === '/owner/my-fields' },
-    { name: 'Analytics', href: '/owner/field-analytics', icon: HomeIcon, current: location.pathname === '/owner/field-analytics' },
+    {
+      name: 'Manage Users',
+      href: '/app/admin/users',
+      icon: UsersIcon,
+      current: location.pathname === '/app/admin/users'
+    },
+    {
+      name: 'Settings',
+      href: '/app/admin/settings',
+      icon: HomeIcon,
+      current: location.pathname === '/app/admin/settings'
+    }
   ];
 
   const getUserRoleColor = (role) => {
@@ -121,33 +151,7 @@ const AppLayout = () => {
               </>
             )}
 
-            {/* Field owner navigation */}
-            {isFieldOwner && (
-              <>
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Field Owner</p>
-                </div>
-                {ownerNavigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      item.current
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`}
-                    />
-                    {item.name}
-                  </Link>
-                ))}
-              </>
-            )}
+
           </nav>
         </div>
       </div>
@@ -205,32 +209,7 @@ const AppLayout = () => {
               </>
             )}
 
-            {/* Field owner navigation */}
-            {isFieldOwner && (
-              <>
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Field Owner</p>
-                </div>
-                {ownerNavigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      item.current
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`}
-                    />
-                    {item.name}
-                  </Link>
-                ))}
-              </>
-            )}
+
           </nav>
         </div>
       </div>

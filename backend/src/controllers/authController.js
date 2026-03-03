@@ -1,4 +1,4 @@
-const { User } = require('../models');
+const { User, Team } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -145,13 +145,7 @@ const login = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, { 
-      attributes: { exclude: ['password'] },
-      include: [
-        {
-          association: 'captainTeam',
-          attributes: ['id', 'name', 'logoUrl', 'status']
-        }
-      ]
+      attributes: { exclude: ['password'] }
     });
 
     if (!user) {
