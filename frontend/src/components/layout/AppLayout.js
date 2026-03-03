@@ -7,18 +7,26 @@ import {
   UsersIcon, 
   CalendarIcon, 
   UserCircleIcon,
+  BellAlertIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
   TrophyIcon
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import apiService from '../../services/api';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -93,6 +101,30 @@ const AppLayout = () => {
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Player';
   };
+
+  const resolveAvatarUrl = () => {
+    const rawAvatar = user?.avatarUrl || user?.avatar_url;
+    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
+    return `${API_ORIGIN}${normalizedPath}`;
+  };
+
+  useEffect(() => {
+    const loadUnreadNotifications = async () => {
+      try {
+        const response = await apiService.get('/notifications', { isRead: false });
+        const list = Array.isArray(response.data) ? response.data : [];
+        setUnreadNotifications(list.length);
+      } catch {
+        setUnreadNotifications(0);
+      }
+    };
+
+    loadUnreadNotifications();
+    const interval = setInterval(loadUnreadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -225,7 +257,7 @@ const AppLayout = () => {
       <div className="md:pl-64">
         {/* Top navigation */}
         <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
-          <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
             <button
               onClick={() => setSidebarOpen(true)}
               className="text-gray-500 hover:text-gray-700 md:hidden"
@@ -233,32 +265,76 @@ const AppLayout = () => {
               <Bars3Icon className="h-6 w-6" />
             </button>
 
-            <div className="flex items-center space-x-4">
-              {/* User info */}
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUserRoleColor(user?.role)}`}>
-                    {formatRole(user?.role)}
-                  </span>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-green-600 flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
-                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                  </span>
-                </div>
-              </div>
-
-              {/* Logout button */}
+            <div className="ml-auto flex items-center space-x-4">
+              {/* Notifications button on left of user/logout */}
               <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
+                onClick={() => navigate('/app/notifications')}
+                className="relative p-2 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+                aria-label="Notifications"
               >
-                <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">Logout</span>
+                <BellAlertIcon className="h-6 w-6" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </span>
+                )}
               </button>
+
+              {/* User menu */}
+              <div
+                className="relative"
+                onMouseEnter={() => setProfileMenuOpen(true)}
+                onMouseLeave={() => setProfileMenuOpen(false)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center space-x-3 rounded-md px-2 py-1 hover:bg-gray-50"
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                >
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUserRoleColor(user?.role)}`}>
+                      {formatRole(user?.role)}
+                    </span>
+                  </div>
+                  <img
+                    src={resolveAvatarUrl()}
+                    alt={`${user?.firstName || user?.username || 'User'} avatar`}
+                    className="h-8 w-8 rounded-full object-cover border border-gray-200 bg-gray-100"
+                    onError={(e) => {
+                      const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                      if (e.currentTarget.src !== fallbackUrl) {
+                        e.currentTarget.src = fallbackUrl;
+                      }
+                    }}
+                  />
+                </button>
+
+                {profileMenuOpen && (
+                  <div className="absolute right-0 top-full pt-2 z-20">
+                    <div className="w-44 rounded-md border border-gray-200 bg-white shadow-lg py-1">
+                      <Link
+                        to="/app/profile"
+                        onClick={() => setProfileMenuOpen(false)}
+                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                      >
+                        <UserCircleIcon className="h-4 w-4" />
+                        Profile
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                      >
+                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

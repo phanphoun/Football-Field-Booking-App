@@ -20,6 +20,7 @@ import FieldDetailsPage from './pages/FieldDetailsPage';
 import TeamCreatePage from './pages/TeamCreatePage';
 import TeamDetailsPage from './pages/TeamDetailsPage';
 import TeamManagePage from './pages/TeamManagePage';
+import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
 import OwnerBookingsPage from './pages/OwnerBookingsPage';
@@ -81,6 +82,7 @@ function App() {
               />
               <Route path="bookings" element={<BookingsPage />} />
               <Route path="bookings/new" element={<CreateBookingPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="profile" element={<ProfilePage />} />
 
               {/* Admin-only (optional/minimal) */}

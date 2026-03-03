@@ -7,8 +7,14 @@ const asyncHandler = (fn) => (req, res, next) => {
 const getAllNotifications = asyncHandler(async (req, res) => {
   const { userId, isRead, type } = req.query;
   const whereClause = {};
+  const isAdmin = req.user.role === 'admin';
   
-  if (userId) whereClause.userId = userId;
+  // Non-admin users can only access their own notifications.
+  if (isAdmin && userId) {
+    whereClause.userId = userId;
+  } else {
+    whereClause.userId = req.user.id;
+  }
   if (isRead !== undefined) whereClause.isRead = isRead === 'true';
   if (type) whereClause.type = type;
   
@@ -31,6 +37,10 @@ const getNotificationById = asyncHandler(async (req, res) => {
   
   if (!notification) {
     return res.status(404).json({ success: false, message: 'Notification not found' });
+  }
+
+  if (notification.userId !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Not authorized to view this notification' });
   }
   
   res.json({ success: true, data: notification });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { UsersIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, MapPinIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -18,15 +18,21 @@ const TeamsPage = () => {
   const { isCaptain, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchTeams = async () => {
       try {
         setLoading(true);
-        const response = await teamService.getMyTeams();
-        setTeams(Array.isArray(response.data) ? response.data : []);
+        const [teamsRes, invitationsRes] = await Promise.all([
+          teamService.getMyTeams(),
+          teamService.getMyInvitations()
+        ]);
+        setTeams(Array.isArray(teamsRes.data) ? teamsRes.data : []);
+        setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
       } catch (err) {
         console.error('Failed to fetch teams:', err);
         setError(err?.error || 'Failed to load teams');
@@ -44,6 +50,38 @@ const TeamsPage = () => {
 
   const handleViewTeam = (teamId) => {
     navigate(`/app/teams/${teamId}`);
+  };
+
+  const handleAcceptInvite = async (teamId) => {
+    try {
+      setActionLoading(true);
+      setError(null);
+      await teamService.acceptInvite(teamId);
+      const [teamsRes, invitationsRes] = await Promise.all([
+        teamService.getMyTeams(),
+        teamService.getMyInvitations()
+      ]);
+      setTeams(Array.isArray(teamsRes.data) ? teamsRes.data : []);
+      setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
+    } catch (err) {
+      setError(err?.error || 'Failed to accept invitation');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeclineInvite = async (teamId) => {
+    try {
+      setActionLoading(true);
+      setError(null);
+      await teamService.declineInvite(teamId);
+      const invitationsRes = await teamService.getMyInvitations();
+      setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
+    } catch (err) {
+      setError(err?.error || 'Failed to decline invitation');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const getSkillLevelColor = (level) => {
@@ -95,6 +133,54 @@ const TeamsPage = () => {
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
           {error}
+        </div>
+      )}
+
+      {invitations.length > 0 && (
+        <div className="mb-8 bg-white border border-amber-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/70 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-amber-900 inline-flex items-center gap-2">
+              <BellAlertIcon className="h-4 w-4" />
+              Team Invitations
+            </h2>
+            <span className="text-xs text-amber-700">{invitations.length} pending</span>
+          </div>
+          <div className="p-4 space-y-3">
+            {invitations.map((team) => (
+              <div key={team.id} className="border border-gray-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">{team.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Invited by: {team.captain?.firstName || team.captain?.username || 'Captain'}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleAcceptInvite(team.id)}
+                    disabled={actionLoading}
+                    className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <CheckIcon className="h-4 w-4" />
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleDeclineInvite(team.id)}
+                    disabled={actionLoading}
+                    className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => handleViewTeam(team.id)}
+                    className="px-3 py-2 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    View Team
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

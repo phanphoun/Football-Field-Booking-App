@@ -7,6 +7,7 @@ const { teamValidation, idValidation } = require('../middleware/validation');
 
 // Protected routes
 router.get('/my-teams', auth, teamController.getMyTeams);
+router.get('/my-invitations', auth, teamController.getMyInvitations);
 router.get('/captained', auth, checkRole(['captain', 'admin']), teamController.getCaptainedTeams);
 
 router.get('/', auth, teamController.getAllTeams);

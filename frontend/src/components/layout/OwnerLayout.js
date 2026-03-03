@@ -11,11 +11,16 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
+
 const OwnerLayout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -62,6 +67,14 @@ const OwnerLayout = () => {
 
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : 'Field Owner';
+  };
+
+  const resolveAvatarUrl = () => {
+    const rawAvatar = user?.avatarUrl || user?.avatar_url;
+    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
+    return `${API_ORIGIN}${normalizedPath}`;
   };
 
   return (
@@ -148,7 +161,16 @@ const OwnerLayout = () => {
             </button>
 
             <div className="flex items-center space-x-4 ml-auto">
-              <div className="flex items-center space-x-3">
+              <div
+                className="relative"
+                onMouseEnter={() => setProfileMenuOpen(true)}
+                onMouseLeave={() => setProfileMenuOpen(false)}
+              >
+                <button
+                  type="button"
+                  className="flex items-center space-x-3 rounded-md px-2 py-1 hover:bg-gray-50"
+                  onClick={() => setProfileMenuOpen((prev) => !prev)}
+                >
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
                     {user?.firstName} {user?.lastName}
@@ -161,21 +183,42 @@ const OwnerLayout = () => {
                     {formatRole(user?.role)}
                   </span>
                 </div>
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
-                    {user?.firstName?.[0]}
-                    {user?.lastName?.[0]}
-                  </span>
-                </div>
-              </div>
+                <img
+                  src={resolveAvatarUrl()}
+                  alt={`${user?.firstName || user?.username || 'User'} avatar`}
+                  className="h-8 w-8 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  onError={(e) => {
+                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    if (e.currentTarget.src !== fallbackUrl) {
+                      e.currentTarget.src = fallbackUrl;
+                    }
+                  }}
+                />
+                </button>
 
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
+                {profileMenuOpen && (
+                  <div className="absolute right-0 top-full pt-2 z-20">
+                    <div className="w-44 rounded-md border border-gray-200 bg-white shadow-lg py-1">
+                      <Link
+                        to="/owner/profile"
+                        onClick={() => setProfileMenuOpen(false)}
+                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                      >
+                        <UserCircleIcon className="h-4 w-4" />
+                        Profile
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                      >
+                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
