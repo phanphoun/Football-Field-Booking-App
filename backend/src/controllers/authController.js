@@ -1,6 +1,13 @@
 const { User, Team } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const serverConfig = require('../config/serverConfig');
+
+const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
+const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
 
 const register = async (req, res) => {
   try {
@@ -226,9 +233,184 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const uploadProfileAvatar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const maxAvatarSize = serverConfig.upload.maxSize;
+    const projectRoot = path.resolve(__dirname, '..', '..', '..');
+    const uploadDir = path.resolve(projectRoot, 'frontend', 'public', 'uploads', 'profile');
+    fs.mkdirSync(uploadDir, { recursive: true });
+
+    const storage = multer.diskStorage({
+      destination: (innerReq, file, cb) => cb(null, uploadDir),
+      filename: (innerReq, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        cb(null, `user_${userId}_${Date.now()}${ext}`);
+      }
+    });
+
+    const upload = multer({
+      storage,
+      limits: { fileSize: maxAvatarSize },
+      fileFilter: (innerReq, file, cb) => {
+        const allowed = serverConfig.upload.allowedTypes;
+        if (!allowed.includes(file.mimetype)) {
+          return cb(new Error('Invalid file type'));
+        }
+        cb(null, true);
+      }
+    }).single('avatar');
+
+    upload(req, res, async (err) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          const maxMb = Math.round(maxAvatarSize / (1024 * 1024));
+          return res.status(400).json({ error: `Avatar image must be ${maxMb}MB or smaller` });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      try {
+        if (
+          user.avatarUrl &&
+          typeof user.avatarUrl === 'string' &&
+          user.avatarUrl.startsWith('/uploads/') &&
+          user.avatarUrl !== DEFAULT_AVATAR_PATH &&
+          user.avatarUrl !== LEGACY_DEFAULT_AVATAR_PATH
+        ) {
+          const previousPath = user.avatarUrl.replace(/^\//, '');
+          let previousAbsolutePath = null;
+
+          if (user.avatarUrl.startsWith('/uploads/profile/')) {
+            previousAbsolutePath = path.resolve(projectRoot, 'frontend', 'public', previousPath);
+          } else {
+            previousAbsolutePath = path.resolve(__dirname, '..', '..', previousPath);
+          }
+
+          if (fs.existsSync(previousAbsolutePath)) {
+            fs.unlinkSync(previousAbsolutePath);
+          }
+        }
+      } catch (unlinkError) {
+        // Ignore unlink errors
+      }
+
+      const avatarUrl = `/uploads/profile/${req.file.filename}`;
+      await user.update({ avatarUrl });
+
+      const userResponse = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
+        avatarUrl: user.avatarUrl,
+        status: user.status,
+        emailVerified: user.emailVerified,
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
+
+      res.json({
+        message: 'Avatar uploaded successfully.',
+        avatarUrl,
+        user: userResponse
+      });
+    });
+  } catch (error) {
+    console.error('Upload profile avatar error:', error);
+    res.status(500).json({ error: 'Internal server error while uploading avatar.' });
+  }
+};
+
+const deleteProfileAvatar = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const projectRoot = path.resolve(__dirname, '..', '..', '..');
+
+    try {
+      if (
+        user.avatarUrl &&
+        typeof user.avatarUrl === 'string' &&
+        user.avatarUrl.startsWith('/uploads/') &&
+        user.avatarUrl !== DEFAULT_AVATAR_PATH &&
+        user.avatarUrl !== LEGACY_DEFAULT_AVATAR_PATH
+      ) {
+        const previousPath = user.avatarUrl.replace(/^\//, '');
+        let previousAbsolutePath = null;
+
+        if (user.avatarUrl.startsWith('/uploads/profile/')) {
+          previousAbsolutePath = path.resolve(projectRoot, 'frontend', 'public', previousPath);
+        } else {
+          previousAbsolutePath = path.resolve(__dirname, '..', '..', previousPath);
+        }
+
+        if (fs.existsSync(previousAbsolutePath)) {
+          fs.unlinkSync(previousAbsolutePath);
+        }
+      }
+    } catch (unlinkError) {
+      // Ignore unlink errors
+    }
+
+    await user.update({ avatarUrl: null });
+
+    const userResponse = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      phone: user.phone,
+      address: user.address,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      avatarUrl: user.avatarUrl,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    res.json({
+      message: 'Avatar removed successfully.',
+      user: userResponse
+    });
+  } catch (error) {
+    console.error('Delete profile avatar error:', error);
+    res.status(500).json({ error: 'Internal server error while deleting avatar.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
-  updateProfile
+  updateProfile,
+  uploadProfileAvatar,
+  deleteProfileAvatar
 };

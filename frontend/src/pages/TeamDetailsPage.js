@@ -8,6 +8,7 @@ const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const TeamDetailsPage = () => {
   const { id } = useParams();
@@ -22,6 +23,7 @@ const TeamDetailsPage = () => {
   const [inviteError, setInviteError] = useState(null);
   const [inviteSuccess, setInviteSuccess] = useState(null);
   const [logoCandidateIndex, setLogoCandidateIndex] = useState(0);
+  const [pendingLogoPreview, setPendingLogoPreview] = useState(null);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -39,8 +41,9 @@ const TeamDetailsPage = () => {
   }, [membership]);
 
   const rawTeamLogo = useMemo(() => {
-    const rawLogo = team?.logoUrl || team?.logo_url;
+    const rawLogo = team?.logoUrl || team?.logo_url || team?.logo;
     if (!rawLogo) return null;
+    if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
     return rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
   }, [team]);
 
@@ -63,7 +66,15 @@ const TeamDetailsPage = () => {
     );
   }, [rawTeamLogo]);
 
-  const teamLogoUrl = logoCandidates[logoCandidateIndex] || null;
+  const teamLogoUrl = pendingLogoPreview || logoCandidates[logoCandidateIndex] || null;
+
+  useEffect(() => {
+    return () => {
+      if (pendingLogoPreview) {
+        URL.revokeObjectURL(pendingLogoPreview);
+      }
+    };
+  }, [pendingLogoPreview]);
 
   useEffect(() => {
     setLogoCandidateIndex(0);
@@ -80,7 +91,7 @@ const TeamDetailsPage = () => {
     setTeam((prev) => ({
       ...teamData,
       // Preserve known logo when API payload does not include it consistently.
-      logoUrl: teamData.logoUrl || teamData.logo_url || prev?.logoUrl || prev?.logo_url || null
+      logoUrl: teamData.logoUrl || teamData.logo_url || teamData.logo || prev?.logoUrl || prev?.logo_url || prev?.logo || null
     }));
   }, [id]);
 
@@ -188,16 +199,22 @@ const TeamDetailsPage = () => {
     try {
       setActionLoading(true);
       setError(null);
+
+      if (pendingLogoPreview) {
+        URL.revokeObjectURL(pendingLogoPreview);
+      }
+      setPendingLogoPreview(URL.createObjectURL(file));
       
       const formData = new FormData();
       formData.append('logo', file);
 
       const response = await teamService.uploadTeamLogo(id, formData);
       if (response.success) {
-        const uploadedLogoUrl = response.data?.logoUrl || response.data?.logo_url || null;
+        const uploadedLogoUrl = response.data?.logoUrl || response.data?.logo_url || response.data?.logo || null;
         if (uploadedLogoUrl) {
           setTeam((prev) => (prev ? { ...prev, logoUrl: uploadedLogoUrl } : prev));
         }
+        setPendingLogoPreview(null);
         setSuccessMessage('Team logo updated successfully!');
         await refreshTeam();
       }
@@ -232,6 +249,21 @@ const TeamDetailsPage = () => {
   const activeMembers = Array.isArray(team.teamMembers)
     ? team.teamMembers.filter((m) => m.status === 'active')
     : [];
+
+  const resolveUserAvatarUrl = (memberUser) => {
+    const rawAvatar = memberUser?.avatarUrl || memberUser?.avatar_url || null;
+    const normalizedPath = rawAvatar
+      ? rawAvatar.startsWith('/')
+        ? rawAvatar
+        : `/${rawAvatar}`
+      : DEFAULT_PROFILE_PATH;
+
+    if (/^https?:\/\//i.test(normalizedPath)) {
+      return normalizedPath;
+    }
+
+    return `${API_ORIGIN}${normalizedPath}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -436,11 +468,17 @@ const TeamDetailsPage = () => {
                 <div key={m.userId} className="px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">
-                          {(m.user?.firstName || m.user?.username || 'U').charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <img
+                        src={resolveUserAvatarUrl(m.user)}
+                        alt={`${m.user?.firstName || m.user?.username || 'User'} avatar`}
+                        className="w-8 h-8 rounded-full object-cover border border-gray-200 bg-gray-100"
+                        onError={(e) => {
+                          const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                          if (e.currentTarget.src !== fallbackUrl) {
+                            e.currentTarget.src = fallbackUrl;
+                          }
+                        }}
+                      />
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {m.user?.firstName || m.user?.username || 'User'} {m.user?.lastName || ''}

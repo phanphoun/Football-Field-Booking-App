@@ -15,6 +15,10 @@ import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
+
 const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -180,6 +184,21 @@ const TeamManagePage = () => {
     ? members.filter((m) => m.status === 'active' && m.isActive !== false)
     : [];
   const pendingCount = Array.isArray(requests) ? requests.length : 0;
+
+  const resolveUserAvatarUrl = (memberUser) => {
+    const rawAvatar = memberUser?.avatarUrl || memberUser?.avatar_url || null;
+    const normalizedPath = rawAvatar
+      ? rawAvatar.startsWith('/')
+        ? rawAvatar
+        : `/${rawAvatar}`
+      : DEFAULT_PROFILE_PATH;
+
+    if (/^https?:\/\//i.test(normalizedPath)) {
+      return normalizedPath;
+    }
+
+    return `${API_ORIGIN}${normalizedPath}`;
+  };
   
   const handleInvite = async () => {
     const normalizedEmail = inviteEmail.trim().toLowerCase();
@@ -436,9 +455,17 @@ const TeamManagePage = () => {
                 {activeMembers.map((m) => (
                   <div key={m.userId} className="flex items-center justify-between border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
                     <div className="text-sm text-gray-900 flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-100 to-emerald-100 flex items-center justify-center text-xs font-semibold text-gray-700">
-                        {(m.user?.firstName || m.user?.username || 'U').charAt(0).toUpperCase()}
-                      </div>
+                      <img
+                        src={resolveUserAvatarUrl(m.user)}
+                        alt={`${m.user?.firstName || m.user?.username || 'User'} avatar`}
+                        className="h-9 w-9 rounded-full object-cover border border-gray-200 bg-gray-100"
+                        onError={(e) => {
+                          const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                          if (e.currentTarget.src !== fallbackUrl) {
+                            e.currentTarget.src = fallbackUrl;
+                          }
+                        }}
+                      />
                       <button onClick={() => openMemberDetails(m)} className="text-left">
                         <div className="font-medium">{m.user?.firstName || m.user?.username || 'User'}</div>
                         <div className="text-xs text-gray-500">{m.user?.username}</div>

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   UserIcon,
+  CameraIcon,
+  TrashIcon,
   EnvelopeIcon,
   PhoneIcon,
   MapPinIcon,
@@ -14,17 +16,24 @@ import {
 } from '@heroicons/react/24/outline';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
+const MAX_AVATAR_SIZE_MB = 5;
+const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
+
 const inputClass =
   'mt-1 block w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500';
 
 const ProfilePage = () => {
-  const { user, updateProfile, loading } = useAuth();
+  const { user, updateProfile, uploadAvatar, deleteAvatar, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profileError, setProfileError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -52,6 +61,23 @@ const ProfilePage = () => {
       }));
     }
   }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
+
+  const resolvedAvatarUrl = (() => {
+    if (avatarPreview) return avatarPreview;
+    const rawAvatar = user?.avatarUrl || user?.avatar_url;
+    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
+    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
+    return `${API_ORIGIN}${normalizedPath}`;
+  })();
 
   const handleChange = (e) => {
     setFormData({
@@ -115,6 +141,67 @@ const ProfilePage = () => {
     }
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setProfileError(null);
+    setSuccessMessage(null);
+
+    if (!file.type.startsWith('image/')) {
+      setProfileError('Please select an image file');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      setProfileError(`Avatar file size must be less than ${MAX_AVATAR_SIZE_MB}MB`);
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+      setAvatarPreview(URL.createObjectURL(file));
+
+      const formDataUpload = new FormData();
+      formDataUpload.append('avatar', file);
+
+      const result = await uploadAvatar(formDataUpload);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to upload avatar');
+      }
+
+      setAvatarPreview(null);
+      setSuccessMessage('Profile picture updated successfully!');
+    } catch (err) {
+      setProfileError(err.message || err.error || 'Failed to upload avatar');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    setProfileError(null);
+    setSuccessMessage(null);
+
+    try {
+      const result = await deleteAvatar();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to remove avatar');
+      }
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+        setAvatarPreview(null);
+      }
+      setSuccessMessage('Profile picture removed successfully!');
+    } catch (err) {
+      setProfileError(err.message || err.error || 'Failed to remove avatar');
+    }
+  };
+
   const getRoleBadgeColor = (role) => {
     const colors = {
       admin: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
@@ -166,8 +253,46 @@ const ProfilePage = () => {
         <div className="lg:col-span-1">
           <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-6">
             <div className="text-center">
-              <div className="mx-auto h-20 w-20 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 flex items-center justify-center">
-                <UserIcon className="h-10 w-10 text-emerald-700" />
+              <div className="mx-auto h-28 w-28 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 flex items-center justify-center overflow-hidden border-2 border-emerald-100 shadow-sm">
+                {resolvedAvatarUrl ? (
+                  <img
+                    src={resolvedAvatarUrl}
+                    alt={`${user?.firstName || user?.username || 'User'} avatar`}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <UserIcon className="h-14 w-14 text-emerald-700" />
+                )}
+              </div>
+              <div className="mt-4">
+                <div className="inline-flex items-center gap-3">
+                  <label
+                    title="Upload photo"
+                    aria-label="Upload photo"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors"
+                  >
+                    <CameraIcon className="h-5 w-5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAvatarDelete}
+                    disabled={loading}
+                    title="Remove photo"
+                    aria-label="Remove photo"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
               <h2 className="mt-4 text-lg font-medium text-gray-900">
                 {user?.firstName && user?.lastName

@@ -120,6 +120,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve uploaded files
+app.use('/uploads', (req, res, next) => {
+  // Allow frontend (different origin in development) to render uploaded images.
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
+app.use('/uploads', express.static(path.join(__dirname, '..', 'frontend', 'public', 'uploads')));
+// Backward compatibility for previously uploaded files in backend/uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============= API ROUTES =============

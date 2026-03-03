@@ -28,7 +28,7 @@ const getTeamDetailsIncludes = () => [
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'firstName', 'lastName']
+        attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
       }
     ],
     required: false
@@ -282,7 +282,7 @@ const getTeamMembers = asyncHandler(async (req, res) => {
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'firstName', 'lastName']
+        attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
       }
     ],
     order: [
@@ -315,7 +315,7 @@ const getJoinRequests = asyncHandler(async (req, res) => {
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'firstName', 'lastName']
+        attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
       }
     ],
     order: [['createdAt', 'DESC']]
@@ -473,7 +473,8 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Not authorized to update team logo' });
   }
 
-  const uploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'teams');
+  const projectRoot = path.resolve(__dirname, '..', '..', '..');
+  const uploadDir = path.resolve(projectRoot, 'frontend', 'public', 'uploads', 'team-logo');
   fs.mkdirSync(uploadDir, { recursive: true });
 
   const storage = multer.diskStorage({
@@ -510,14 +511,24 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
     // delete previous logo file if exists (optional)
     try {
       if (team.logoUrl && typeof team.logoUrl === 'string' && team.logoUrl.startsWith('/uploads')) {
-        const prevPath = path.resolve(__dirname, '..', '..', team.logoUrl.replace(/^\//, ''));
-        if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+        let previousLogoAbsolutePath = null;
+
+        if (team.logoUrl.startsWith('/uploads/team-logo/')) {
+          previousLogoAbsolutePath = path.resolve(projectRoot, 'frontend', 'public', team.logoUrl.replace(/^\//, ''));
+        } else {
+          // Backward compatibility for previously uploaded files in backend/uploads/*
+          previousLogoAbsolutePath = path.resolve(__dirname, '..', '..', team.logoUrl.replace(/^\//, ''));
+        }
+
+        if (fs.existsSync(previousLogoAbsolutePath)) {
+          fs.unlinkSync(previousLogoAbsolutePath);
+        }
       }
     } catch (unlinkErr) {
       // ignore unlink errors
     }
 
-    const publicPath = `/uploads/teams/${req.file.filename}`;
+    const publicPath = `/uploads/team-logo/${req.file.filename}`;
     await team.update({ logoUrl: publicPath });
 
     res.json({ success: true, data: { logoUrl: publicPath }, message: 'Logo uploaded successfully' });

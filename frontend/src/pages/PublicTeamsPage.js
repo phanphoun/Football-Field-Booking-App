@@ -5,6 +5,16 @@ import teamService from '../services/teamService';
 import { UsersIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, EmptyState, Spinner } from '../components/ui';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+const resolveTeamLogoUrl = (rawLogo) => {
+  if (!rawLogo) return null;
+  if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
+  const normalizedLogoPath = rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
+  return `${API_ORIGIN}${normalizedLogoPath}`;
+};
+
 const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -90,25 +100,28 @@ const PublicTeamsPage = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teams.length > 0 ? (
-          teams.map((team) => (
+          teams.map((team) => {
+            const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+
+            return (
             <div key={team.id} className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-4">
-                  {team.logoUrl ? (
-                    <img 
-                      src={team.logoUrl.startsWith('http') ? team.logoUrl : `http://localhost:5000${team.logoUrl}`}
-                      alt={`${team.name} logo`}
-                      className="w-12 h-12 object-contain rounded-lg border border-gray-200"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex">
+                  <div className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex relative overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center">
                       <UsersIcon className="h-6 w-6 text-gray-400" />
                     </div>
-                  )}
+                    {teamLogoUrl && (
+                      <img 
+                        src={teamLogoUrl}
+                        alt={`${team.name} logo`}
+                        className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white relative z-10"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{team.name}</h3>
                     <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description}</p>
@@ -164,7 +177,7 @@ const PublicTeamsPage = () => {
                 )}
               </div>
             </div>
-          ))
+          )})
         ) : (
           <div className="col-span-full">
             <EmptyState icon={UsersIcon} title="No teams found" description="Check back later, or register as a captain to create a team." />

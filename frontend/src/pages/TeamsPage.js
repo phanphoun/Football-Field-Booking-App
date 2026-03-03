@@ -4,6 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { UsersIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
+const resolveTeamLogoUrl = (rawLogo) => {
+  if (!rawLogo) return null;
+  if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
+  const normalizedLogoPath = rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
+  return `${API_ORIGIN}${normalizedLogoPath}`;
+};
+
 const TeamsPage = () => {
   const { isCaptain, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -91,11 +101,31 @@ const TeamsPage = () => {
       {/* Teams Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teams.length > 0 ? (
-          teams.map((team) => (
+          teams.map((team) => {
+            const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+
+            return (
             <div key={team.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">{team.name}</h3>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex relative overflow-hidden shrink-0">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <UsersIcon className="h-5 w-5 text-gray-400" />
+                      </div>
+                      {teamLogoUrl && (
+                        <img
+                          src={teamLogoUrl}
+                          alt={`${team.name} logo`}
+                          className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white relative z-10"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 truncate">{team.name}</h3>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSkillLevelColor(team.skillLevel)}`}>
                       {team.skillLevel}
@@ -132,7 +162,7 @@ const TeamsPage = () => {
                 </div>
               </div>
             </div>
-          ))
+          )})
         ) : (
           <div className="text-center py-12">
             <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
