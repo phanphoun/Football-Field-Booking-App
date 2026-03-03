@@ -174,8 +174,25 @@ const deleteTeam = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this team' });
     }
 
+    // Delete all team members (they auto-leave when team is deleted)
+    await TeamMember.destroy({
+      where: { teamId: team.id }
+    });
+
+    // Delete all notifications related to this team
+    await Notification.destroy({
+      where: {
+        type: 'team_invite',
+        metadata: {
+          teamId: team.id
+        }
+      }
+    });
+
+    // Delete the team
     await team.destroy();
-    res.json({ success: true, data: { id: team.id }, message: 'Team deleted successfully' });
+    
+    res.json({ success: true, data: { id: team.id }, message: 'Team deleted successfully. All members have been removed from the team.' });
   } catch (error) {
     console.error('Delete team error:', error);
     res.status(400).json({ success: false, message: error.message });
@@ -440,6 +457,73 @@ const removeTeamMember = asyncHandler(async (req, res) => {
   res.json({ success: true, data: membership, message: 'Member removed successfully' });
 });
 
+// Upload team logo (captain only)
+const uploadTeamLogo = asyncHandler(async (req, res) => {
+  const multer = require('multer');
+  const fs = require('fs');
+  const path = require('path');
+  const serverConfig = require('../config/serverConfig');
+  const maxLogoSize = serverConfig.upload.maxSize;
+
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'logoUrl'] });
+  if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+  const isCaptainOfTeam = team.captainId === req.user.id;
+  if (!isCaptainOfTeam) {
+    return res.status(403).json({ success: false, message: 'Not authorized to update team logo' });
+  }
+
+  const uploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'teams');
+  fs.mkdirSync(uploadDir, { recursive: true });
+
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const filename = `team_${team.id}_${Date.now()}${ext}`;
+      cb(null, filename);
+    }
+  });
+
+  const upload = multer({
+    storage,
+    limits: { fileSize: maxLogoSize },
+    fileFilter: (req, file, cb) => {
+      const allowed = serverConfig.upload.allowedTypes;
+      if (!allowed.includes(file.mimetype)) {
+        return cb(new Error('Invalid file type'));
+      }
+      cb(null, true);
+    }
+  }).single('logo');
+
+  upload(req, res, async (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        const maxMb = Math.round(maxLogoSize / (1024 * 1024));
+        return res.status(400).json({ success: false, message: `Logo image must be ${maxMb}MB or smaller` });
+      }
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+    // delete previous logo file if exists (optional)
+    try {
+      if (team.logoUrl && typeof team.logoUrl === 'string' && team.logoUrl.startsWith('/uploads')) {
+        const prevPath = path.resolve(__dirname, '..', '..', team.logoUrl.replace(/^\//, ''));
+        if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+      }
+    } catch (unlinkErr) {
+      // ignore unlink errors
+    }
+
+    const publicPath = `/uploads/teams/${req.file.filename}`;
+    await team.update({ logoUrl: publicPath });
+
+    res.json({ success: true, data: { logoUrl: publicPath }, message: 'Logo uploaded successfully' });
+  });
+});
+
 // captain/admin can invite a player by creating a pending membership and notifying them
 const invitePlayer = asyncHandler(async (req, res) => {
   const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
@@ -455,28 +539,18 @@ const invitePlayer = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Not authorized to invite players to this team' });
   }
 
-  const { userId, username, email } = req.body;
-  let parsedUserId = null;
-  let targetUser = null;
+  const { email } = req.body;
+  const normalizedEmail = String(email || '').trim().toLowerCase();
 
-  if (userId !== undefined) {
-    parsedUserId = Number(userId);
-    if (!Number.isInteger(parsedUserId) || parsedUserId <= 0) {
-      return res.status(400).json({ success: false, message: 'userId must be a positive integer' });
-    }
-    targetUser = await User.findByPk(parsedUserId);
-  } else if (username) {
-    targetUser = await User.findOne({ where: { username } });
-    parsedUserId = targetUser ? targetUser.id : null;
-  } else if (email) {
-    targetUser = await User.findOne({ where: { email } });
-    parsedUserId = targetUser ? targetUser.id : null;
-  } else {
-    return res.status(400).json({ success: false, message: 'Must provide userId, username or email to invite' });
-  }
+  const targetUser = await User.findOne({ where: { email: normalizedEmail } });
+  const parsedUserId = targetUser ? targetUser.id : null;
 
   if (!targetUser) {
-    return res.status(404).json({ success: false, message: 'User not found' });
+    return res.status(404).json({ success: false, message: 'No player account found with this email' });
+  }
+
+  if (targetUser.role !== 'player') {
+    return res.status(400).json({ success: false, message: 'Only users with player role can be invited' });
   }
 
   if (parsedUserId === team.captainId) {
@@ -493,13 +567,22 @@ const invitePlayer = asyncHandler(async (req, res) => {
     }
   }
 
-  const membership = await TeamMember.create({
-    teamId: team.id,
-    userId: parsedUserId,
-    role: 'player',
-    status: 'pending',
-    isActive: false
-  });
+  let membership;
+  if (existing) {
+    membership = await existing.update({
+      role: 'player',
+      status: 'pending',
+      isActive: false
+    });
+  } else {
+    membership = await TeamMember.create({
+      teamId: team.id,
+      userId: parsedUserId,
+      role: 'player',
+      status: 'pending',
+      isActive: false
+    });
+  }
 
   await Notification.create({
     userId: parsedUserId,
@@ -564,4 +647,6 @@ module.exports = {
   invitePlayer,
   acceptInvite,
   declineInvite
+  ,
+  uploadTeamLogo
 };

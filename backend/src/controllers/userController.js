@@ -1,4 +1,5 @@
-const { User, Field, Booking, Team, Notification } = require('../models');
+const { Op } = require('sequelize');
+const { User, Field, Booking, Team, Notification, TeamMember } = require('../models');
 const bcrypt = require('bcryptjs');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -110,10 +111,73 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
+// Search users by username or email (partial match)
+const searchUsers = asyncHandler(async (req, res) => {
+  const q = req.query.q;
+  if (!q || q.trim().length === 0) {
+    return res.status(400).json({ success: false, message: 'Query parameter q is required' });
+  }
+
+  const role = req.query.role;
+  const teamId = req.query.teamId ? Number(req.query.teamId) : null;
+
+  const where = {
+    [Op.or]: [
+      { username: { [Op.like]: `%${q}%` } },
+      { email: { [Op.like]: `%${q}%` } },
+      { firstName: { [Op.like]: `%${q}%` } },
+      { lastName: { [Op.like]: `%${q}%` } }
+    ]
+  };
+
+  if (role) {
+    where.role = role;
+  }
+
+  if (teamId) {
+    if (!Number.isInteger(teamId) || teamId <= 0) {
+      return res.status(400).json({ success: false, message: 'teamId must be a positive integer' });
+    }
+
+    const team = await Team.findByPk(teamId, { attributes: ['id', 'captainId'] });
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+
+    const isAdmin = req.user.role === 'admin';
+    const isCaptainOfTeam = team.captainId === req.user.id;
+    if (!isAdmin && !isCaptainOfTeam) {
+      return res.status(403).json({ success: false, message: 'Not authorized to search invite candidates for this team' });
+    }
+
+    const existingMembers = await TeamMember.findAll({
+      where: {
+        teamId,
+        status: { [Op.in]: ['active', 'pending'] }
+      },
+      attributes: ['userId']
+    });
+
+    const blockedUserIds = Array.from(new Set([team.captainId, ...existingMembers.map((m) => m.userId)]));
+    if (blockedUserIds.length > 0) {
+      where.id = { [Op.notIn]: blockedUserIds };
+    }
+  }
+
+  const users = await User.findAll({
+    where,
+    attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+    limit: 10
+  });
+
+  res.json({ success: true, data: users });
+});
+
 module.exports = {
   getAllUsers,
   getUserById,
   createUser,
   updateUser,
-  deleteUser
+  deleteUser,
+  searchUsers
 };

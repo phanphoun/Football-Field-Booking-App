@@ -57,7 +57,6 @@ const authReducer = (state, action) => {
     case AUTH_ACTIONS.LOGIN_FAILURE:
     case AUTH_ACTIONS.REGISTER_FAILURE:
     case AUTH_ACTIONS.LOAD_USER_FAILURE:
-    case AUTH_ACTIONS.UPDATE_PROFILE_FAILURE:
       return {
         ...state,
         user: null,
@@ -65,6 +64,13 @@ const authReducer = (state, action) => {
         loading: false,
         error: action.payload,
         permissions: []
+      };
+
+    case AUTH_ACTIONS.UPDATE_PROFILE_FAILURE:
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
       };
 
     case AUTH_ACTIONS.LOGOUT:
@@ -102,7 +108,10 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.LOAD_USER_START });
         
         try {
-          const user = authService.getCurrentUser();
+          const profileResponse = await authService.getProfile();
+          const user =
+            (profileResponse.success && (profileResponse.data?.user || profileResponse.data)) ||
+            authService.getCurrentUser();
           const permissions = authService.getPermissions();
           
           dispatch({
