@@ -109,6 +109,24 @@ const AppLayout = () => {
     }
   ];
 
+  const pageInfo = useMemo(() => {
+    const path = location.pathname;
+    const entries = [
+      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
+      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
+      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
+      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
+      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
+      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
+      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
+      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
+      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
+      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
+    ];
+    const current = entries.find((entry) => path.startsWith(entry.match));
+    return current || { title: 'Football Booking', subtitle: 'Welcome to your workspace' };
+  }, [location.pathname]);
+
   const getUserRoleColor = (role) => {
     const colors = {
       admin: 'bg-red-100 text-red-800',
@@ -215,7 +233,6 @@ const AppLayout = () => {
   };
 
   const canRespondToJoinRequest = (notification) => {
-<<<<<<< HEAD
     const title = String(notification?.title || '').toLowerCase();
     const message = String(notification?.message || '').toLowerCase();
     const isBookingJoinLike =
@@ -228,18 +245,6 @@ const AppLayout = () => {
         notification?.metadata?.event === 'team_join_request' ||
         title.startsWith('join request for ')
       )
-=======
-    return !notification?.isRead && notification?.metadata?.event === 'team_join_request';
-  };
-
-  const canRespondToBookingJoinRequest = (notification) => {
-    const eventName = notification?.metadata?.event;
-    return (
-      !notification?.isRead &&
-      (eventName === 'booking_join_request' || eventName === 'open_match_join_request') &&
-      !!notification?.metadata?.bookingId &&
-      !!notification?.metadata?.requestId
->>>>>>> 09597abcc6118a192be106eae4ad34b10efa838d
     );
   };
 
@@ -505,25 +510,6 @@ const AppLayout = () => {
   const handleBookingJoinRequestAction = async (notification, action) => {
     try {
       setNotificationActionLoading(true);
-      const bookingId = notification?.metadata?.bookingId;
-      const requestId = notification?.metadata?.requestId;
-      if (!bookingId || !requestId) return;
-      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
-      await markNotificationRead(notification.id);
-      await loadNotifications();
-    } catch (err) {
-      setFlash({
-        type: 'error',
-        message: err?.error || 'Failed to process opponent join request'
-      });
-    } finally {
-      setNotificationActionLoading(false);
-    }
-  };
-
-  const handleBookingJoinRequestAction = async (notification, action) => {
-    try {
-      setNotificationActionLoading(true);
       const { bookingId, requestId } = await resolveBookingJoinRequestContext(notification);
       if (!bookingId || !requestId) {
         setFlash({
@@ -553,6 +539,18 @@ const AppLayout = () => {
     try {
       setNotificationActionLoading(true);
       await markNotificationRead(notificationId);
+      await loadNotifications();
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      setNotificationActionLoading(true);
+      const unread = latestNotifications.filter((item) => !item.isRead);
+      if (unread.length === 0) return;
+      await Promise.all(unread.map((item) => markNotificationRead(item.id)));
       await loadNotifications();
     } finally {
       setNotificationActionLoading(false);
@@ -715,6 +713,14 @@ const AppLayout = () => {
               <Bars3Icon className="h-6 w-6" />
             </button>
 
+            <div className="ml-3 min-w-0 md:hidden">
+              <p className="text-sm font-semibold text-gray-900 truncate">{pageInfo.title}</p>
+              <p className="text-xs text-gray-500 truncate hidden sm:block">
+                {pageInfo.subtitle}
+                {user?.firstName ? ` | Welcome back, ${user.firstName}` : ''}
+              </p>
+            </div>
+
             <div className="ml-auto flex items-center space-x-4">
               {/* Notifications dropdown */}
               <div
@@ -740,12 +746,21 @@ const AppLayout = () => {
                     <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-900">Notifications</p>
-                        <button
-                          onClick={() => navigate('/app/notifications')}
-                          className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
-                        >
-                          View all
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            disabled={notificationActionLoading || unreadNotifications === 0}
+                            className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                          >
+                            Mark all read
+                          </button>
+                          <button
+                            onClick={() => navigate('/app/notifications')}
+                            className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                          >
+                            View all
+                          </button>
+                        </div>
                       </div>
 
                       <div className="max-h-[420px] overflow-y-auto">
