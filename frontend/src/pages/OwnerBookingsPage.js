@@ -27,6 +27,7 @@ const OwnerBookingsPage = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [expandedMembers, setExpandedMembers] = useState({});
 
   const refresh = async () => {
     const res = await bookingService.getAllBookings({ limit: 200 });
@@ -66,9 +67,17 @@ const OwnerBookingsPage = () => {
       setUpdatingId(bookingId);
       setError(null);
 
-      if (nextStatus === 'confirmed') await bookingService.confirmBooking(bookingId);
+      if (nextStatus === 'confirmed') {
+        const confirmed = window.confirm('Do you want to confirm booking?');
+        if (!confirmed) return;
+        await bookingService.confirmBooking(bookingId);
+      }
       if (nextStatus === 'completed') await bookingService.completeBooking(bookingId);
-      if (nextStatus === 'cancelled') await bookingService.cancelBooking(bookingId);
+      if (nextStatus === 'cancelled') {
+        const confirmed = window.confirm('Do you want to cancel booking?');
+        if (!confirmed) return;
+        await bookingService.cancelBooking(bookingId);
+      }
 
       await refresh();
     } catch (err) {
@@ -76,6 +85,13 @@ const OwnerBookingsPage = () => {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const toggleMembers = (bookingId) => {
+    setExpandedMembers((prev) => ({
+      ...prev,
+      [bookingId]: !prev[bookingId]
+    }));
   };
 
   if (loading) {
@@ -113,9 +129,7 @@ const OwnerBookingsPage = () => {
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
 
       <div className="flex flex-wrap gap-2">
         {tabs.map((t) => (
@@ -147,11 +161,7 @@ const OwnerBookingsPage = () => {
         <div className="border-t border-gray-200">
           {filtered.length === 0 ? (
             <div className="p-6">
-              <EmptyState
-                icon={ClockIcon}
-                title="No bookings"
-                description="Try another filter, or wait for new booking requests."
-              />
+              <EmptyState icon={ClockIcon} title="No bookings" description="Try another filter, or wait for new booking requests." />
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
@@ -159,43 +169,75 @@ const OwnerBookingsPage = () => {
                 const isUpdating = updatingId === b.id;
                 const start = b?.startTime ? new Date(b.startTime) : null;
                 const end = b?.endTime ? new Date(b.endTime) : null;
+                const captainName =
+                  b?.team?.captain?.firstName || b?.team?.captain?.lastName
+                    ? `${b.team?.captain?.firstName || ''} ${b.team?.captain?.lastName || ''}`.trim()
+                    : b?.team?.captain?.username || 'Unknown';
+                const members = Array.isArray(b?.team?.teamMembers) ? b.team.teamMembers : [];
+                const isMembersExpanded = !!expandedMembers[b.id];
 
                 return (
-                  <div key={b.id} className="px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={b.id} className="px-6 py-4 flex flex-col gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
                         <Badge tone={statusTone(b.status)} className="capitalize">
                           {b.status}
                         </Badge>
-                        {(b.status === 'confirmed' || b.status === 'completed') && (
-                          <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
-                        )}
+                        <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
                         <span className="inline-flex items-center gap-1">
                           <CalendarIcon className="h-4 w-4 text-gray-400" />
-                          {start ? start.toLocaleString() : '—'}
-                          {end ? ` – ${end.toLocaleTimeString()}` : ''}
+                          {start ? start.toLocaleString() : '-'}
+                          {end ? ` - ${end.toLocaleTimeString()}` : ''}
                         </span>
-                        <span className="text-gray-300">•</span>
-                        <span className="truncate">{b.team?.name || 'Team'}</span>
+                        <span className="text-gray-300">|</span>
+                        <span className="truncate">Team: {b.team?.name || 'Team'}</span>
                       </div>
+                      <div className="mt-1 text-xs text-gray-600">
+                        Captain: <span className="font-medium text-gray-800">{captainName}</span>
+                      </div>
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleMembers(b.id)}
+                          className="text-xs font-medium text-blue-700 hover:text-blue-800 underline"
+                        >
+                          {isMembersExpanded ? 'Hide team members' : `View all members (${members.length})`}
+                        </button>
+                      </div>
+                      {isMembersExpanded && (
+                        <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+                          {members.length > 0 ? (
+                            <div className="space-y-1">
+                              {members.map((member) => {
+                                const userName =
+                                  member?.user?.firstName || member?.user?.lastName
+                                    ? `${member.user?.firstName || ''} ${member.user?.lastName || ''}`.trim()
+                                    : member?.user?.username || `User #${member.userId}`;
+                                return (
+                                  <div key={`${b.id}-${member.userId}`} className="text-xs text-gray-700">
+                                    {userName} ({member.role}, {member.status})
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500">No members found.</div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
                       {b.status === 'pending' && (
                         <>
                           <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirmed')}>
                             <CheckCircleIcon className="h-4 w-4" />
                             Confirm
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            disabled={isUpdating}
-                            onClick={() => handleStatus(b.id, 'cancelled')}
-                          >
+                          <Button size="sm" variant="danger" disabled={isUpdating} onClick={() => handleStatus(b.id, 'cancelled')}>
                             <XCircleIcon className="h-4 w-4" />
                             Cancel
                           </Button>
@@ -207,9 +249,7 @@ const OwnerBookingsPage = () => {
                           Complete
                         </Button>
                       )}
-                      {(b.status === 'completed' || b.status === 'cancelled') && (
-                        <Badge tone="gray">No actions</Badge>
-                      )}
+                      {(b.status === 'completed' || b.status === 'cancelled') && <Badge tone="gray">No actions</Badge>}
                     </div>
                   </div>
                 );
@@ -219,7 +259,7 @@ const OwnerBookingsPage = () => {
         </div>
 
         <CardBody className="px-6 py-4 text-xs text-gray-500">
-          Tip: Confirm pending requests quickly to improve your field’s booking rate.
+          Tip: Confirm pending requests quickly to improve your field booking rate.
         </CardBody>
       </Card>
     </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BellAlertIcon,
@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../services/api';
 import teamService from '../services/teamService';
+import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
 
 const NotificationsPage = () => {
@@ -21,10 +22,29 @@ const NotificationsPage = () => {
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  const loadNotifications = async () => {
-    const response = await apiService.get('/notifications');
-    setNotifications(Array.isArray(response.data) ? response.data : []);
+  const parseMetadata = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object') return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
   };
+
+  const loadNotifications = useCallback(async () => {
+    const response = await apiService.get('/notifications');
+    const list = Array.isArray(response.data) ? response.data : [];
+    const normalized = list.map((notification) => ({
+      ...notification,
+      metadata: parseMetadata(notification.metadata)
+    }));
+    setNotifications(normalized);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -39,13 +59,13 @@ const NotificationsPage = () => {
       }
     };
     load();
-  }, []);
+  }, [loadNotifications]);
 
   const filteredNotifications = useMemo(() => {
     const byType = {
       all: () => true,
       invites: (n) => n.type === 'team_invite',
-      requests: (n) => n.metadata?.event === 'team_join_request'
+      requests: (n) => ['team_join_request', 'booking_join_request', 'booking_request'].includes(n.metadata?.event)
     };
     return notifications.filter(byType[activeFilter] || byType.all);
   }, [notifications, activeFilter]);
@@ -90,8 +110,80 @@ const NotificationsPage = () => {
     }
   };
 
+  const handleBookingJoinRequestAction = async (notification, action) => {
+    const bookingId = notification?.metadata?.bookingId;
+    const requestId = notification?.metadata?.requestId;
+    if (!bookingId || !requestId) return;
+
+    try {
+      setActionLoading(true);
+      setError(null);
+      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
+      await markAsRead(notification.id);
+      await loadNotifications();
+    } catch (err) {
+      setError(err?.error || `Failed to ${action === 'accept' ? 'allow' : 'reject'} join request`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOwnerBookingRequestAction = async (notification, action) => {
+    const bookingId = notification?.metadata?.bookingId;
+    if (!bookingId) return;
+
+    try {
+      setActionLoading(true);
+      setError(null);
+
+      if (action === 'confirm') {
+        const confirmed = window.confirm('Do you want to confirm booking?');
+        if (!confirmed) return;
+        await bookingService.confirmBooking(bookingId);
+      } else {
+        const confirmed = window.confirm('Do you want to cancel booking?');
+        if (!confirmed) return;
+        await bookingService.cancelBooking(bookingId);
+      }
+
+      await markAsRead(notification.id);
+      await loadNotifications();
+    } catch (err) {
+      setError(err?.error || `Failed to ${action} booking request`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const canRespondToInvite = (notification) => {
     return user?.role === 'player' && notification.type === 'team_invite' && !notification.isRead;
+  };
+
+  const canRespondToBookingJoinRequest = (notification) => {
+    const eventName = notification?.metadata?.event;
+    return (
+      user?.role === 'captain' &&
+      (eventName === 'booking_join_request' || eventName === 'open_match_join_request') &&
+      !notification.isRead &&
+      !!notification?.metadata?.bookingId &&
+      !!notification?.metadata?.requestId
+    );
+  };
+
+  const canRespondToOwnerBookingRequest = (notification) => {
+    return (
+      user?.role === 'field_owner' &&
+      notification?.metadata?.event === 'booking_request' &&
+      !notification.isRead &&
+      !!notification?.metadata?.bookingId
+    );
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return null;
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return null;
+    return dt.toLocaleString();
   };
 
   if (loading) {
@@ -164,6 +256,37 @@ const NotificationsPage = () => {
                         {notification.title}
                       </div>
                       <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                      {notification.metadata?.event === 'booking_join_request' && (
+                        <div className="mt-2 text-[12px] text-gray-600 space-y-1">
+                          {notification.metadata?.requesterTeamName && (
+                            <p>Team: {notification.metadata.requesterTeamName}</p>
+                          )}
+                          {notification.metadata?.requesterCaptainName && (
+                            <p>Captain: {notification.metadata.requesterCaptainName}</p>
+                          )}
+                          {notification.metadata?.requesterTeamSkillLevel && (
+                            <p>Skill: {notification.metadata.requesterTeamSkillLevel}</p>
+                          )}
+                          {notification.metadata?.requestMessage && (
+                            <p className="italic text-gray-700">Message: "{notification.metadata.requestMessage}"</p>
+                          )}
+                        </div>
+                      )}
+                      {notification.metadata?.event === 'booking_request' && (
+                        <div className="mt-2 text-[12px] text-gray-600 space-y-1">
+                          {notification.metadata?.fieldName && <p>Field: {notification.metadata.fieldName}</p>}
+                          {notification.metadata?.teamName && <p>Team: {notification.metadata.teamName}</p>}
+                          {(notification.metadata?.startTime || notification.metadata?.endTime) && (
+                            <p>
+                              Time: {formatDateTime(notification.metadata?.startTime) || '-'} -{' '}
+                              {formatDateTime(notification.metadata?.endTime) || '-'}
+                            </p>
+                          )}
+                          {notification.metadata?.totalPrice !== undefined && (
+                            <p>Price: ${Number(notification.metadata.totalPrice || 0).toFixed(2)}</p>
+                          )}
+                        </div>
+                      )}
                       <p className="text-[11px] text-gray-400 mt-2">
                         {new Date(notification.createdAt).toLocaleString()}
                       </p>
@@ -197,12 +320,68 @@ const NotificationsPage = () => {
                       </>
                     )}
 
+                    {canRespondToBookingJoinRequest(notification) && (
+                      <>
+                        <button
+                          onClick={() => handleBookingJoinRequestAction(notification, 'accept')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        >
+                          <CheckIcon className="h-4 w-4" />
+                          Allow
+                        </button>
+                        <button
+                          onClick={() => handleBookingJoinRequestAction(notification, 'reject')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                          Reject
+                        </button>
+                      </>
+                    )}
+
+                    {canRespondToOwnerBookingRequest(notification) && (
+                      <>
+                        <button
+                          onClick={() => handleOwnerBookingRequestAction(notification, 'confirm')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        >
+                          <CheckIcon className="h-4 w-4" />
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleOwnerBookingRequestAction(notification, 'cancel')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => navigate('/owner/bookings')}
+                          className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          View Booking
+                        </button>
+                      </>
+                    )}
+
                     {notification.metadata?.teamId && (
                       <button
                         onClick={() => navigate(`/app/teams/${notification.metadata.teamId}`)}
                         className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         View Team
+                      </button>
+                    )}
+                    {notification.metadata?.requesterTeamId && (
+                      <button
+                        onClick={() => navigate(`/app/teams/${notification.metadata.requesterTeamId}`)}
+                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                      >
+                        View Requester Team
                       </button>
                     )}
 

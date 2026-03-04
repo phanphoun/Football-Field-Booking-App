@@ -84,8 +84,16 @@ const OwnerDashboardPage = () => {
       setUpdatingId(bookingId);
       setError(null);
 
-      if (nextStatus === 'confirmed') await bookingService.confirmBooking(bookingId);
-      if (nextStatus === 'cancelled') await bookingService.cancelBooking(bookingId);
+      if (nextStatus === 'confirmed') {
+        const confirmed = window.confirm('Do you want to confirm booking?');
+        if (!confirmed) return;
+        await bookingService.confirmBooking(bookingId);
+      }
+      if (nextStatus === 'cancelled') {
+        const confirmed = window.confirm('Do you want to cancel booking?');
+        if (!confirmed) return;
+        await bookingService.cancelBooking(bookingId);
+      }
       if (nextStatus === 'completed') await bookingService.completeBooking(bookingId);
 
       const bookingsRes = await bookingService.getAllBookings({ limit: 200 });

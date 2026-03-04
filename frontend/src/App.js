@@ -25,6 +25,7 @@ import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
 import OwnerBookingsPage from './pages/OwnerBookingsPage';
 import LeaguePage from './pages/League';
+import OpenMatchesPage from './pages/OpenMatchesPage';
 
 // Import layout components
 import AppLayout from './components/layout/AppLayout';
@@ -82,6 +83,14 @@ function App() {
               />
               <Route path="bookings" element={<BookingsPage />} />
               <Route path="bookings/new" element={<CreateBookingPage />} />
+              <Route
+                path="open-matches"
+                element={
+                  <ProtectedRoute allowedRoles={['captain']}>
+                    <OpenMatchesPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="profile" element={<ProfilePage />} />
 

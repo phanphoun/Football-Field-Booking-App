@@ -27,8 +27,11 @@ const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [flash, setFlash] = useState(null);
 
   const handleLogout = () => {
+    const confirmed = window.confirm('Do you want to logout?');
+    if (!confirmed) return;
     logout();
     navigate('/login');
   };
@@ -64,6 +67,16 @@ const AppLayout = () => {
       icon: CalendarIcon,
       current: location.pathname.startsWith('/app/bookings')
     },
+    ...(user?.role === 'captain'
+      ? [
+          {
+            name: 'Open Matches',
+            href: '/app/open-matches',
+            icon: UsersIcon,
+            current: location.pathname.startsWith('/app/open-matches')
+          }
+        ]
+      : []),
     {
       name: 'Profile',
       href: '/app/profile',
@@ -125,6 +138,23 @@ const AppLayout = () => {
     const interval = setInterval(loadUnreadNotifications, 30000);
     return () => clearInterval(interval);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const successMessage = location.state?.successMessage;
+    const errorMessage = location.state?.errorMessage;
+
+    if (!successMessage && !errorMessage) return;
+
+    setFlash({
+      type: successMessage ? 'success' : 'error',
+      message: successMessage || errorMessage
+    });
+
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: {}
+    });
+  }, [location, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -343,6 +373,26 @@ const AppLayout = () => {
         <main className="flex-1">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              {flash && (
+                <div
+                  className={`mb-4 px-4 py-3 rounded-md text-sm border ${
+                    flash.type === 'success'
+                      ? 'bg-green-50 border-green-200 text-green-800'
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{flash.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFlash(null)}
+                      className="text-xs font-medium underline"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
               <Outlet />
             </div>
           </div>
