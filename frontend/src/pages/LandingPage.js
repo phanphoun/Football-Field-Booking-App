@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  BoltIcon,
+  ArrowTrendingUpIcon,
   BuildingOfficeIcon,
   CalendarIcon,
   ChevronLeftIcon,
@@ -9,10 +11,13 @@ import {
   ClockIcon,
   CreditCardIcon,
   EnvelopeIcon,
+  GiftIcon,
   GlobeAltIcon,
   MapPinIcon,
   MagnifyingGlassIcon,
   PhoneIcon,
+  SparklesIcon,
+  StarIcon,
   TrophyIcon,
   UsersIcon
 } from '@heroicons/react/24/outline';
@@ -118,16 +123,159 @@ const FEATURED_FALLBACK_FIELDS = [
 ];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+const POPULAR_TIME_SLOTS = [
+  { time: '18:00 - 20:00', label: 'Evening Prime Time', rate: 95, status: 'Limited', tone: 'limited' },
+  { time: '08:00 - 10:00', label: 'Morning Session', rate: 65, status: 'Available', tone: 'available' },
+  { time: '12:00 - 14:00', label: 'Lunch Break', rate: 75, status: 'Moderate', tone: 'moderate' },
+  { time: '20:00 - 22:00', label: 'Night Session', rate: 55, status: 'Available', tone: 'cool' }
+];
+const PRICING_PLANS = [
+  {
+    name: 'Basic',
+    subtitle: 'Perfect for casual games',
+    price: 50,
+    highlight: false,
+    features: ['Standard outdoor field', 'Basic facilities', 'Up to 14 players', 'Regular maintenance', 'Free parking']
+  },
+  {
+    name: 'Premium',
+    subtitle: 'Most popular choice',
+    price: 80,
+    highlight: true,
+    badge: 'Most Popular',
+    features: [
+      'Premium outdoor field',
+      'Enhanced facilities',
+      'Up to 22 players',
+      'Daily maintenance',
+      'Free parking',
+      'Changing rooms',
+      'Shower facilities'
+    ]
+  },
+  {
+    name: 'Elite',
+    subtitle: 'Professional experience',
+    price: 120,
+    highlight: false,
+    features: [
+      'Stadium-quality pitch',
+      'Premium facilities',
+      'Up to 22 players',
+      'Professional maintenance',
+      'VIP parking',
+      'Luxury changing rooms',
+      'Premium showers',
+      'Equipment storage',
+      'Live streaming setup'
+    ]
+  }
+];
+const LIVE_AVAILABILITY_TIMES = ['18:00', '20:00', '09:00', '19:00'];
+const LIVE_AVAILABILITY_LABELS = ['Today 6:00 PM', 'Today 8:00 PM', 'Tomorrow 9:00 AM', 'Today 7:00 PM'];
+const LIVE_AVAILABILITY_SLOTS = [3, 1, 5, 4];
+const SPECIAL_OFFERS = [
+  {
+    title: 'Early Bird Special',
+    description: 'Book morning slots (6AM - 10AM) and save big!',
+    discount: '30% OFF',
+    validity: 'Valid Mon-Fri',
+    code: 'EARLY30',
+    icon: ClockIcon,
+    time: '08:00'
+  },
+  {
+    title: 'Weekend Warrior',
+    description: 'Book 3+ hours on weekends and get instant discount.',
+    discount: '20% OFF',
+    validity: 'Sat-Sun Only',
+    code: 'WEEKEND20',
+    icon: UsersIcon,
+    time: '18:00'
+  },
+  {
+    title: 'First-Time Bonus',
+    description: 'New customer? Get 25% off your first booking!',
+    discount: '25% OFF',
+    validity: 'New Users Only',
+    code: 'WELCOME25',
+    icon: GiftIcon,
+    time: '19:00'
+  },
+  {
+    title: 'Monthly Member',
+    description: 'Subscribe to monthly plans and enjoy exclusive rates.',
+    discount: 'Up to 40% OFF',
+    validity: 'Subscription',
+    code: 'MEMBER40',
+    icon: SparklesIcon,
+    time: '20:00'
+  }
+];
+const WORLD_CLASS_FACILITIES = [
+  { title: 'Free WiFi', description: 'High-speed internet available', icon: GlobeAltIcon, iconBg: 'bg-blue-100', iconTone: 'text-blue-600' },
+  { title: 'Free Parking', description: 'Ample parking space', icon: MapPinIcon, iconBg: 'bg-emerald-100', iconTone: 'text-emerald-600' },
+  { title: 'Shower Rooms', description: 'Clean changing facilities', icon: SparklesIcon, iconBg: 'bg-violet-100', iconTone: 'text-violet-600' },
+  { title: 'CCTV Security', description: '24/7 surveillance', icon: BuildingOfficeIcon, iconBg: 'bg-red-100', iconTone: 'text-red-600' },
+  { title: 'LED Floodlights', description: 'Professional lighting', icon: StarIcon, iconBg: 'bg-amber-100', iconTone: 'text-amber-600' },
+  { title: 'Cafeteria', description: 'Snacks & beverages', icon: CreditCardIcon, iconBg: 'bg-orange-100', iconTone: 'text-orange-600' },
+  { title: 'First Aid', description: 'Medical assistance ready', icon: CheckCircleIcon, iconBg: 'bg-teal-100', iconTone: 'text-teal-600' },
+  { title: 'Air Conditioned', description: 'Climate controlled rooms', icon: BoltIcon, iconBg: 'bg-cyan-100', iconTone: 'text-cyan-600' },
+  { title: 'Water Stations', description: 'Free drinking water', icon: TrophyIcon, iconBg: 'bg-indigo-100', iconTone: 'text-indigo-600' },
+  { title: 'Spectator Area', description: 'Seating for supporters', icon: UsersIcon, iconBg: 'bg-indigo-100', iconTone: 'text-indigo-600' },
+  { title: 'Equipment Rental', description: 'Balls, bibs & gear', icon: BuildingOfficeIcon, iconBg: 'bg-pink-100', iconTone: 'text-pink-600' },
+  { title: 'Lounge Area', description: 'Comfortable waiting space', icon: CalendarIcon, iconBg: 'bg-yellow-100', iconTone: 'text-yellow-700' }
+];
+const PREMIUM_GUARANTEE_ITEMS = [
+  { label: 'Daily Maintenance', className: 'bg-emerald-100 text-emerald-700' },
+  { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
+  { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
+  { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
+];
+const HOME_STATS = [
+  {
+    value: '50+',
+    label: 'Football Fields',
+    icon: MapPinIcon,
+    iconTone: 'text-emerald-600',
+    iconBg: 'bg-emerald-100'
+  },
+  {
+    value: '10,000+',
+    label: 'Active Users',
+    icon: UsersIcon,
+    iconTone: 'text-blue-600',
+    iconBg: 'bg-blue-100'
+  },
+  {
+    value: '25,000+',
+    label: 'Bookings Completed',
+    icon: TrophyIcon,
+    iconTone: 'text-violet-600',
+    iconBg: 'bg-violet-100'
+  },
+  {
+    value: '4.9/5',
+    label: 'Customer Rating',
+    icon: StarIcon,
+    iconTone: 'text-amber-500',
+    iconBg: 'bg-amber-100'
+  }
+];
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSocial, setActiveSocial] = useState('facebook');
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
+  const [quickLocation, setQuickLocation] = useState('');
+  const [quickDate, setQuickDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickTimeSlot, setQuickTimeSlot] = useState('Afternoon (12PM - 5PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
@@ -268,6 +416,20 @@ const LandingPage = () => {
     return featuredFields.slice(0, 3);
   }, [scheduleFieldsData, featuredFields]);
 
+  const quickLocationOptions = useMemo(() => {
+    const source = scheduleFields.length > 0 ? scheduleFields : featuredFields;
+    return source
+      .map((field) => field?.name)
+      .filter(Boolean)
+      .slice(0, 8);
+  }, [scheduleFields, featuredFields]);
+
+  useEffect(() => {
+    if (!quickLocation && quickLocationOptions.length > 0) {
+      setQuickLocation(quickLocationOptions[0]);
+    }
+  }, [quickLocation, quickLocationOptions]);
+
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
@@ -288,6 +450,21 @@ const LandingPage = () => {
       tone: toneByStatus[booking.status] || 'bg-slate-600'
     }));
   }, [scheduleBookingsData]);
+
+  const availableNowCards = useMemo(() => {
+    const source = scheduleFields.length > 0 ? scheduleFields : featuredFields;
+    return source.slice(0, 4).map((field, index) => ({
+      id: field.id,
+      name: field.name || `Field ${index + 1}`,
+      location: field.address || field.city || 'Sports Complex',
+      fieldType: field.fieldType || '11v11',
+      surfaceType: String(field.surfaceType || 'artificial_turf').replace('_', ' '),
+      pricePerHour: Number(field.pricePerHour || 0),
+      nextTime: LIVE_AVAILABILITY_TIMES[index] || '18:00',
+      nextLabel: LIVE_AVAILABILITY_LABELS[index] || 'Today 6:00 PM',
+      slotsLeft: LIVE_AVAILABILITY_SLOTS[index] || 2
+    }));
+  }, [scheduleFields, featuredFields]);
 
   const toMinutes = (time) => {
     const [h, m] = time.split(':').map(Number);
@@ -348,6 +525,62 @@ const LandingPage = () => {
     handleBookNow(field, selectedDay, slot);
   };
 
+  const handleQuickSearch = () => {
+    const params = new URLSearchParams({
+      focus: 'search',
+      location: quickLocation || '',
+      day: quickDate || '',
+      timeSlot: quickTimeSlot || ''
+    });
+    navigate(`/fields?${params.toString()}`);
+  };
+
+  const slotToneClass = (tone) => {
+    if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
+    if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
+    if (tone === 'moderate') return 'border-amber-300 bg-amber-50 text-amber-600';
+    return 'border-blue-300 bg-blue-50 text-blue-600';
+  };
+
+  const getSlotStart = (range) => String(range || '').split(' - ')[0] || '18:00';
+
+  const handlePopularViewSchedule = (slot) => {
+    const day = quickDate || new Date().toISOString().slice(0, 10);
+    setSelectedDay(day);
+    scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    navigate(`/fields?day=${day}&time=${getSlotStart(slot.time)}`);
+  };
+
+  const handlePopularBook = (slot) => {
+    const day = quickDate || new Date().toISOString().slice(0, 10);
+    const preferredField = scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
+
+    if (preferredField) {
+      handleBookNow(preferredField, day, getSlotStart(slot.time));
+      return;
+    }
+
+    navigate(`/fields?focus=search&day=${day}&time=${getSlotStart(slot.time)}`);
+  };
+
+  const handleClaimOffer = (code, preferredTime = '18:00') => {
+    const day = quickDate || selectedDay || new Date().toISOString().slice(0, 10);
+    const preferredField = scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
+
+    if (preferredField) {
+      handleBookNow(preferredField, day, preferredTime);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      focus: 'search',
+      promo: code,
+      day,
+      time: preferredTime
+    });
+    navigate(`/fields?${params.toString()}`);
+  };
+
 
   return (
     <div className="space-y-14">
@@ -385,7 +618,369 @@ const LandingPage = () => {
         </div>
       )}
 
-      <section className="p-6 sm:p-8">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-100 py-12">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
+            <p className="mt-3 text-2xl text-slate-600">Find and book your perfect field in seconds</p>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <MapPinIcon className="h-5 w-5 text-emerald-600" />
+                  Location
+                </label>
+                <select
+                  value={quickLocation}
+                  onChange={(e) => setQuickLocation(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {quickLocationOptions.length > 0 ? (
+                    quickLocationOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Select location</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <CalendarIcon className="h-5 w-5 text-emerald-600" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={quickDate}
+                  onChange={(e) => setQuickDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <ClockIcon className="h-5 w-5 text-emerald-600" />
+                  Time Slot
+                </label>
+                <select
+                  value={quickTimeSlot}
+                  onChange={(e) => setQuickTimeSlot(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option>Morning (8AM - 12PM)</option>
+                  <option>Afternoon (12PM - 5PM)</option>
+                  <option>Evening (5PM - 9PM)</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={handleQuickSearch}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-lg font-semibold text-white shadow-sm hover:bg-slate-900"
+                >
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                  Search Fields
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 py-12 text-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 text-center sm:grid-cols-2 sm:px-10 lg:grid-cols-4 lg:px-16">
+          {HOME_STATS.map((item) => (
+            <div key={item.label} className="flex flex-col items-center">
+              <div className={`flex h-20 w-20 items-center justify-center rounded-full ${item.iconBg}`}>
+                <item.icon className={`h-10 w-10 ${item.iconTone}`} />
+              </div>
+              <div className="mt-5 text-5xl font-extrabold leading-none">{item.value}</div>
+              <div className="mt-3 text-3xl font-medium text-white/90">{item.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-violet-50 py-14">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
+              <ArrowTrendingUpIcon className="h-4 w-4" />
+              Popular Times
+            </span>
+            <h2 className="mt-4 text-4xl font-bold text-slate-900">Most Booked Time Slots</h2>
+            <p className="mt-2 text-2xl text-slate-600">See when others are playing and find the best time for your team</p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {POPULAR_TIME_SLOTS.map((slot) => (
+              <div key={slot.time} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-3xl font-bold text-slate-900">
+                  <ClockIcon className="h-6 w-6 text-violet-600" />
+                  <span>{slot.time}</span>
+                </div>
+                <p className="mt-5 text-2xl font-medium text-slate-700">{slot.label}</p>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-xl text-slate-600">Booking Rate:</span>
+                  <span className="rounded-full bg-violet-100 px-3 py-1 text-base font-semibold text-violet-600">{slot.rate}%</span>
+                </div>
+
+                <div className={`mt-4 rounded-xl border px-4 py-2 text-center text-lg font-semibold ${slotToneClass(slot.tone)}`}>
+                  {slot.status}
+                </div>
+
+                <div className="mt-4 h-3 w-full rounded-full bg-slate-200">
+                  <div
+                    className="h-3 rounded-full bg-violet-600"
+                    style={{ width: `${Math.max(10, Math.min(slot.rate, 100))}%` }}
+                  />
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handlePopularViewSchedule(slot)}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    View Schedule
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePopularBook(slot)}
+                    className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900"
+                  >
+                    Book This Time
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-8 text-center text-xl text-slate-600">
+            Pro Tip: Book morning or night sessions for better availability and special rates.
+          </p>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-emerald-50 py-16">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
+              <TrophyIcon className="h-4 w-4" />
+              Limited Time Offers
+            </span>
+            <h2 className="mt-4 text-4xl font-bold text-slate-900">Special Deals & Discounts</h2>
+            <p className="mt-2 text-xl text-slate-600">Save more with football-friendly offers and promotional deals.</p>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 className="text-5xl font-extrabold">Flash Deal: 50% OFF Tonight!</h3>
+                <p className="mt-2 text-xl text-emerald-50">Limited slots available for tonight&apos;s bookings (8PM - 10PM)</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
+                  <span className="rounded-full bg-white/20 px-3 py-1">Ends in 4h 23m</span>
+                  <span className="rounded-full bg-white/20 px-3 py-1">Premium Fields Only</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleClaimOffer('FLASH50', '20:00')}
+                className="rounded-xl bg-white px-6 py-3 text-lg font-bold text-emerald-700 shadow-sm hover:bg-emerald-100"
+              >
+                Grab This Deal
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {SPECIAL_OFFERS.map((offer) => (
+              <div key={offer.code} className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="rounded-2xl bg-emerald-100 p-3">
+                    <offer.icon className="h-6 w-6 text-emerald-700" />
+                  </div>
+                  <span className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">{offer.discount}</span>
+                </div>
+
+                <h3 className="mt-4 text-3xl font-bold text-slate-900">{offer.title}</h3>
+                <p className="mt-2 text-base text-slate-600">{offer.description}</p>
+
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Validity:</span>
+                  <span className="font-semibold text-slate-800">{offer.validity}</span>
+                </div>
+                <div className="mt-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-center">
+                  <p className="text-xs text-slate-500">Promo Code:</p>
+                  <p className="text-base font-bold tracking-wider text-emerald-700">{offer.code}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleClaimOffer(offer.code, offer.time)}
+                  className="mt-4 w-full rounded-xl bg-slate-950 py-2.5 text-base font-semibold text-white hover:bg-slate-900"
+                >
+                  Claim Offer
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white px-5 py-4 text-center text-lg text-slate-700 shadow-sm">
+            Pro Tip: Combine offers with loyalty plans to maximize your football savings.
+          </div>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-50 py-16">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-slate-900">Flexible Pricing Plans</h2>
+            <p className="mt-3 text-xl text-slate-600">Choose the perfect field for your team - all with transparent pricing</p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {PRICING_PLANS.map((plan) => (
+              <div
+                key={plan.name}
+                className={`relative rounded-2xl border bg-white p-6 shadow-sm ${
+                  plan.highlight ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-slate-200'
+                }`}
+              >
+                {plan.badge && (
+                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-emerald-600 px-4 py-1 text-sm font-semibold text-white">
+                    {plan.badge}
+                  </div>
+                )}
+
+                <div className="text-center">
+                  <h3 className="text-4xl font-bold text-slate-900">{plan.name}</h3>
+                  <p className="mt-2 text-lg text-slate-600">{plan.subtitle}</p>
+                  <div className="mt-5">
+                    <span className="text-6xl font-extrabold text-emerald-600">${plan.price}</span>
+                    <span className="ml-1 text-xl text-slate-600">/per hour</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  {plan.features.map((feature) => (
+                    <div key={`${plan.name}-${feature}`} className="flex items-center gap-2 text-base text-slate-700">
+                      <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/fields?focus=search')}
+                  className={`mt-7 w-full rounded-xl border px-4 py-2.5 text-base font-semibold transition ${
+                    plan.highlight
+                      ? 'border-slate-950 bg-slate-950 text-white hover:bg-slate-900'
+                      : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  Book Now
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
+              <BoltIcon className="h-4 w-4" />
+              Live Updates
+            </span>
+            <h2 className="mt-4 text-4xl font-bold text-slate-900">Available Right Now</h2>
+            <p className="mt-2 text-xl text-slate-600">Real-time availability - book instantly before slots fill up!</p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {availableNowCards.map((field, index) => (
+              <div
+                key={`live-${field.id}-${index}`}
+                className={`rounded-2xl border bg-white p-6 shadow-sm ${
+                  index === 1 ? 'border-emerald-500 ring-1 ring-emerald-300' : 'border-slate-200'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-3xl font-bold text-slate-900">{field.name}</h3>
+                    <p className="mt-1 flex items-center gap-1 text-base text-slate-500">
+                      <MapPinIcon className="h-4 w-4" />
+                      {field.location}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-4xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
+                    {field.slotsLeft <= 1 && (
+                      <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
+                        Filling Fast
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-4 border-b border-slate-200 pb-4">
+                  <div>
+                    <p className="text-sm text-slate-500">Field Size</p>
+                    <p className="mt-1 flex items-center gap-1 text-lg font-semibold text-slate-900">
+                      <UsersIcon className="h-4 w-4 text-blue-600" />
+                      {field.fieldType}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Surface Type</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-900">{field.surfaceType}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-500">Next Available</p>
+                    <p className="text-2xl font-semibold text-emerald-600">{field.nextLabel}</p>
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+                    {field.slotsLeft} slots left
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                  className="mt-5 w-full rounded-xl bg-slate-950 py-2.5 text-base font-semibold text-white hover:bg-slate-900"
+                >
+                  Quick Book
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/fields?focus=search')}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+            >
+              View All Available Fields
+              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">24 more</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section ref={scheduleSectionRef} className="p-6 sm:p-8">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-slate-900">Live Booking Schedule</h2>
           <p className="mt-2 text-lg text-slate-600">Visual timeline of all field bookings - see who&apos;s playing when</p>
@@ -709,6 +1304,48 @@ const LandingPage = () => {
             onAction={() => (window.location.href = '/teams')}
           />
         )}
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-100 py-14">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-slate-900">World-Class Facilities</h2>
+            <p className="mx-auto mt-3 max-w-3xl text-xl text-slate-600">
+              Every field comes equipped with premium amenities to enhance your playing experience
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {WORLD_CLASS_FACILITIES.map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+                <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${item.iconBg}`}>
+                  <item.icon className={`h-7 w-7 ${item.iconTone}`} />
+                </div>
+                <h3 className="mt-4 text-2xl font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-2 text-base text-slate-600">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-100 py-8">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
+            <h2 className="text-4xl font-bold text-slate-900">Premium Experience Guaranteed</h2>
+            <p className="mx-auto mt-3 max-w-4xl text-lg text-slate-600">
+              All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and
+              safety for all our customers. Every field is inspected daily and meets professional football standards.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+              {PREMIUM_GUARANTEE_ITEMS.map((item) => (
+                <span key={item.label} className={`rounded-md px-4 py-2 text-sm font-semibold ${item.className}`}>
+                  {`✓ ${item.label}`}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <footer className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-950 text-slate-100">
