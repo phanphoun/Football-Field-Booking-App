@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
@@ -19,13 +19,57 @@ const BookingsPage = () => {
   const [joinRequestsLoadingMap, setJoinRequestsLoadingMap] = useState({});
   const [joinActionLoadingMap, setJoinActionLoadingMap] = useState({});
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await bookingService.getAllBookings();
       const bookingsData = Array.isArray(response.data) ? response.data : [];
       setBookings(bookingsData);
+
+      if (user?.role === 'captain') {
+        const targetBookings = bookingsData.filter(
+          (booking) =>
+            booking?.team?.captainId === user?.id &&
+            booking?.openForOpponents &&
+            !booking?.opponentTeam?.name &&
+            booking?.status !== 'cancelled' &&
+            booking?.status !== 'completed'
+        );
+
+        if (targetBookings.length > 0) {
+          setJoinRequestsLoadingMap((prev) => {
+            const next = { ...prev };
+            for (const booking of targetBookings) next[booking.id] = true;
+            return next;
+          });
+
+          const results = await Promise.all(
+            targetBookings.map(async (booking) => {
+              try {
+                const res = await bookingService.getBookingJoinRequests(booking.id);
+                return { bookingId: booking.id, requests: Array.isArray(res.data) ? res.data : [] };
+              } catch {
+                return { bookingId: booking.id, requests: [] };
+              }
+            })
+          );
+
+          setJoinRequestsByBooking((prev) => {
+            const next = { ...prev };
+            for (const result of results) {
+              next[result.bookingId] = result.requests;
+            }
+            return next;
+          });
+
+          setJoinRequestsLoadingMap((prev) => {
+            const next = { ...prev };
+            for (const booking of targetBookings) next[booking.id] = false;
+            return next;
+          });
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
       setError('Failed to load bookings');
@@ -33,11 +77,11 @@ const BookingsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     loadBookings();
-  }, []);
+  }, [loadBookings]);
 
   const handleCreateBooking = () => {
     navigate('/app/bookings/new');
@@ -72,9 +116,6 @@ const BookingsPage = () => {
       setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
       await bookingService.setOpenForOpponents(booking.id, !booking.openForOpponents);
       await loadBookings();
-      if (booking.openForOpponents) {
-        setJoinRequestsByBooking((prev) => ({ ...prev, [booking.id]: [] }));
-      }
     } catch (err) {
       console.error('Failed to toggle open for opponents:', err);
       setError(err.error || 'Failed to update Open for Opponents');
@@ -103,28 +144,12 @@ const BookingsPage = () => {
     }
   };
 
-  const loadJoinRequests = async (bookingId) => {
-    try {
-      setJoinRequestsLoadingMap((prev) => ({ ...prev, [bookingId]: true }));
-      const response = await bookingService.getBookingJoinRequests(bookingId);
-      setJoinRequestsByBooking((prev) => ({
-        ...prev,
-        [bookingId]: Array.isArray(response.data) ? response.data : []
-      }));
-    } catch (err) {
-      console.error('Failed to load join requests:', err);
-      setError(err.error || 'Failed to load join requests');
-    } finally {
-      setJoinRequestsLoadingMap((prev) => ({ ...prev, [bookingId]: false }));
-    }
-  };
-
   const handleRespondToJoinRequest = async (bookingId, requestId, action) => {
     const key = `${bookingId}-${requestId}-${action}`;
     try {
       setJoinActionLoadingMap((prev) => ({ ...prev, [key]: true }));
       await bookingService.respondToJoinRequest(bookingId, requestId, action);
-      await Promise.all([loadBookings(), loadJoinRequests(bookingId)]);
+      await loadBookings();
     } catch (err) {
       console.error(`Failed to ${action} join request:`, err);
       setError(err.error || `Failed to ${action} join request`);
@@ -157,7 +182,7 @@ const BookingsPage = () => {
       if (booking.createdBy === user?.id || isAdmin()) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
-            Cancel
+            Cancel Booking
           </Button>
         );
       }
@@ -329,74 +354,74 @@ const BookingsPage = () => {
                           {!booking.opponentTeam?.name && (
                             <Button
                               size="sm"
-                              variant={booking.openForOpponents ? 'outline' : 'primary'}
+                              variant={booking.openForOpponents ? 'warning' : 'primary'}
                               onClick={() => handleToggleOpenForOpponents(booking)}
                               disabled={!!toggleLoadingMap[booking.id]}
                             >
                               {toggleLoadingMap[booking.id]
                                 ? 'Updating...'
                                 : booking.openForOpponents
-                                ? 'Disable Open for Opponents'
-                                : 'Enable Open for Opponents'}
+                                ? 'Close Match'
+                                : 'Open Match'}
                             </Button>
                           )}
 
-                          {!booking.opponentTeam?.name && booking.openForOpponents && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => loadJoinRequests(booking.id)}
-                              disabled={!!joinRequestsLoadingMap[booking.id]}
-                            >
-                              {joinRequestsLoadingMap[booking.id] ? 'Loading Requests...' : 'Load Join Requests'}
-                            </Button>
-                          )}
                         </div>
 
-                        {!booking.opponentTeam?.name &&
-                          booking.openForOpponents &&
-                          Array.isArray(joinRequestsByBooking[booking.id]) && (
+                        {booking.openForOpponents && !booking.opponentTeam?.name && (
                           <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
                             <p className="text-sm font-medium text-gray-800 mb-2">Join Requests</p>
-                            {joinRequestsByBooking[booking.id].length === 0 ? (
-                              <p className="text-sm text-gray-500">No requests yet.</p>
-                            ) : (
+                            {joinRequestsLoadingMap[booking.id] ? (
+                              <p className="text-sm text-gray-500">Loading requests...</p>
+                            ) : Array.isArray(joinRequestsByBooking[booking.id]) &&
+                              joinRequestsByBooking[booking.id].length > 0 ? (
                               <div className="space-y-2">
-                                {joinRequestsByBooking[booking.id].map((request) => (
-                                  <div
-                                    key={request.id}
-                                    className="border border-gray-100 rounded-md p-2 flex items-center justify-between gap-3"
-                                  >
-                                    <div>
-                                      <p className="text-sm text-gray-800">
-                                        {request.requesterTeam?.name || 'Unknown team'} ({request.status})
-                                      </p>
-                                      {request.message && <p className="text-xs text-gray-500 mt-1">{request.message}</p>}
-                                    </div>
-
-                                    {request.status === 'pending' && (
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'accept')}
-                                          disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-accept`]}
-                                        >
-                                          Accept
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="danger"
-                                          onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'reject')}
-                                          disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-reject`]}
-                                        >
-                                          Reject
-                                        </Button>
+                                {joinRequestsByBooking[booking.id].map((request) => {
+                                  const captainName =
+                                    request?.requesterTeam?.captain?.firstName || request?.requesterTeam?.captain?.lastName
+                                      ? `${request.requesterTeam?.captain?.firstName || ''} ${
+                                          request.requesterTeam?.captain?.lastName || ''
+                                        }`.trim()
+                                      : request?.requesterTeam?.captain?.username || 'Unknown captain';
+                                  return (
+                                    <div
+                                      key={request.id}
+                                      className="border border-gray-100 rounded-md p-2 flex items-center justify-between gap-3"
+                                    >
+                                      <div>
+                                        <p className="text-sm text-gray-800">
+                                          {request.requesterTeam?.name || 'Unknown team'} ({request.status})
+                                        </p>
+                                        <p className="text-xs text-gray-600 mt-1">Captain: {captainName}</p>
+                                        {request.message && <p className="text-xs text-gray-500 mt-1">"{request.message}"</p>}
                                       </div>
-                                    )}
-                                  </div>
-                                ))}
+
+                                      {request.status === 'pending' && (
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="primary"
+                                            onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'accept')}
+                                            disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-accept`]}
+                                          >
+                                            Approve Join
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="danger"
+                                            onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'reject')}
+                                            disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-reject`]}
+                                          >
+                                            Decline
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No requests yet.</p>
                             )}
                           </div>
                         )}

@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../../services/api';
 import teamService from '../../services/teamService';
+import bookingService from '../../services/bookingService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -143,6 +144,20 @@ const AppLayout = () => {
     return `${API_ORIGIN}${normalizedPath}`;
   };
 
+  const parseMetadata = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object') return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+
   const latestNotifications = useMemo(() => {
     return [...notifications]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -154,8 +169,12 @@ const AppLayout = () => {
     try {
       const response = await apiService.get('/notifications');
       const list = Array.isArray(response.data) ? response.data : [];
-      setNotifications(list);
-      setUnreadNotifications(list.filter((item) => !item.isRead).length);
+      const normalized = list.map((item) => ({
+        ...item,
+        metadata: parseMetadata(item.metadata)
+      }));
+      setNotifications(normalized);
+      setUnreadNotifications(normalized.filter((item) => !item.isRead).length);
     } catch {
       setNotifications([]);
       setUnreadNotifications(0);
@@ -196,13 +215,16 @@ const AppLayout = () => {
   };
 
   const canRespondToJoinRequest = (notification) => {
-    const title = String(notification?.title || '').toLowerCase();
+    return !notification?.isRead && notification?.metadata?.event === 'team_join_request';
+  };
+
+  const canRespondToBookingJoinRequest = (notification) => {
+    const eventName = notification?.metadata?.event;
     return (
       !notification?.isRead &&
-      (
-        notification?.metadata?.event === 'team_join_request' ||
-        title.startsWith('join request for ')
-      )
+      (eventName === 'booking_join_request' || eventName === 'open_match_join_request') &&
+      !!notification?.metadata?.bookingId &&
+      !!notification?.metadata?.requestId
     );
   };
 
@@ -388,6 +410,30 @@ const AppLayout = () => {
       });
       await markNotificationRead(notification.id);
       await loadNotifications();
+    } catch (err) {
+      setFlash({
+        type: 'error',
+        message: err?.error || 'Failed to process join request'
+      });
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleBookingJoinRequestAction = async (notification, action) => {
+    try {
+      setNotificationActionLoading(true);
+      const bookingId = notification?.metadata?.bookingId;
+      const requestId = notification?.metadata?.requestId;
+      if (!bookingId || !requestId) return;
+      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
+      await markNotificationRead(notification.id);
+      await loadNotifications();
+    } catch (err) {
+      setFlash({
+        type: 'error',
+        message: err?.error || 'Failed to process opponent join request'
+      });
     } finally {
       setNotificationActionLoading(false);
     }
@@ -711,6 +757,27 @@ const AppLayout = () => {
                                       </button>
                                       <button
                                         onClick={() => handleJoinRequestAction(notification, 'decline')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                                      >
+                                        <XMarkIcon className="h-3.5 w-3.5" />
+                                        Decline
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {canRespondToBookingJoinRequest(notification) && (
+                                    <>
+                                      <button
+                                        onClick={() => handleBookingJoinRequestAction(notification, 'accept')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        <CheckIcon className="h-3.5 w-3.5" />
+                                        Approve Join
+                                      </button>
+                                      <button
+                                        onClick={() => handleBookingJoinRequestAction(notification, 'decline')}
                                         disabled={notificationActionLoading}
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
