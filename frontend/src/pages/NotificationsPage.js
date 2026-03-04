@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BellAlertIcon,
@@ -9,15 +9,11 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../services/api';
 import teamService from '../services/teamService';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
-import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,29 +21,10 @@ const NotificationsPage = () => {
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  const parseMetadata = (value) => {
-    if (!value) return {};
-    if (typeof value === 'object') return value;
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  };
-
-  const loadNotifications = useCallback(async () => {
+  const loadNotifications = async () => {
     const response = await apiService.get('/notifications');
-    const list = Array.isArray(response.data) ? response.data : [];
-    const normalized = list.map((notification) => ({
-      ...notification,
-      metadata: parseMetadata(notification.metadata)
-    }));
-    setNotifications(normalized);
-  }, []);
+    setNotifications(Array.isArray(response.data) ? response.data : []);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -62,13 +39,13 @@ const NotificationsPage = () => {
       }
     };
     load();
-  }, [loadNotifications]);
+  }, []);
 
   const filteredNotifications = useMemo(() => {
     const byType = {
       all: () => true,
       invites: (n) => n.type === 'team_invite',
-      requests: (n) => ['team_join_request', 'booking_join_request', 'booking_request'].includes(n.metadata?.event)
+      requests: (n) => n.metadata?.event === 'team_join_request'
     };
     return notifications.filter(byType[activeFilter] || byType.all);
   }, [notifications, activeFilter]);
@@ -80,51 +57,12 @@ const NotificationsPage = () => {
     });
   };
 
-  const extractTeamNameFromNotification = (notification) => {
-    const title = notification?.title || '';
-    const titlePrefix = 'Invitation to join ';
-    if (title.startsWith(titlePrefix)) {
-      return title.slice(titlePrefix.length).trim().toLowerCase();
-    }
-
-    const message = notification?.message || '';
-    const quoted = message.match(/"([^"]+)"/);
-    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
-    return '';
-  };
-
-  const resolveInviteTeamId = async (notification) => {
-    if (notification?.metadata?.teamId) return notification.metadata.teamId;
-
-    const invitationsResponse = await teamService.getMyInvitations();
-    const invitations = Array.isArray(invitationsResponse?.data) ? invitationsResponse.data : [];
-    if (invitations.length === 0) return null;
-
-    const targetTeamName = extractTeamNameFromNotification(notification);
-    const inviterId = notification?.metadata?.inviterId;
-
-    const byName = targetTeamName
-      ? invitations.find((team) => (team?.name || '').trim().toLowerCase() === targetTeamName)
-      : null;
-    if (byName?.id) return byName.id;
-
-    const byInviter = inviterId
-      ? invitations.find((team) => Number(team?.captain?.id) === Number(inviterId))
-      : null;
-    if (byInviter?.id) return byInviter.id;
-
-    if (invitations.length === 1 && invitations[0]?.id) return invitations[0].id;
-    return null;
-  };
-
   const handleInviteAction = async (notification, action) => {
+    const teamId = notification?.metadata?.teamId;
+    if (!teamId) return;
     try {
       setActionLoading(true);
       setError(null);
-      const teamId = await resolveInviteTeamId(notification);
-      if (!teamId) {
-        throw new Error('Cannot find invitation team. Please refresh and try again.');
-      }
       if (action === 'accept') {
         await teamService.acceptInvite(teamId);
       } else {
@@ -152,259 +90,8 @@ const NotificationsPage = () => {
     }
   };
 
-  const handleBookingJoinRequestAction = async (notification, action) => {
-    const bookingId = notification?.metadata?.bookingId;
-    const requestId = notification?.metadata?.requestId;
-    if (!bookingId || !requestId) return;
-
-    try {
-      setActionLoading(true);
-      setError(null);
-      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
-      await markAsRead(notification.id);
-      await loadNotifications();
-    } catch (err) {
-      setError(err?.error || `Failed to ${action === 'accept' ? 'allow' : 'reject'} join request`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleOwnerBookingRequestAction = async (notification, action) => {
-    const bookingId = notification?.metadata?.bookingId;
-    if (!bookingId) return;
-
-    try {
-      setActionLoading(true);
-      setError(null);
-
-      if (action === 'confirm') {
-        const confirmed = window.confirm('Do you want to confirm booking?');
-        if (!confirmed) return;
-        await bookingService.confirmBooking(bookingId);
-      } else {
-        const confirmed = window.confirm('Do you want to cancel booking?');
-        if (!confirmed) return;
-        await bookingService.cancelBooking(bookingId);
-      }
-
-      await markAsRead(notification.id);
-      await loadNotifications();
-    } catch (err) {
-      setError(err?.error || `Failed to ${action} booking request`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const canRespondToInvite = (notification) => {
-    return (
-      !notification?.isRead &&
-      notification?.type === 'team_invite'
-    );
-  };
-
-  const canRespondToLeaveRequest = (notification) => {
-    const title = String(notification?.title || '').toLowerCase();
-    return (
-      !notification?.isRead &&
-      (
-        notification?.metadata?.event === 'team_leave_request' ||
-        title.startsWith('leave request for ')
-      )
-    );
-  };
-
-  const canRespondToJoinRequest = (notification) => {
-    const title = String(notification?.title || '').toLowerCase();
-    return (
-      !notification?.isRead &&
-      (
-        notification?.metadata?.event === 'team_join_request' ||
-        title.startsWith('join request for ')
-      )
-    );
-  };
-
-  const extractLeaveRequestTeamName = (notification) => {
-    const title = String(notification?.title || '');
-    const titlePrefix = 'Leave request for ';
-    if (title.startsWith(titlePrefix)) {
-      return title.slice(titlePrefix.length).trim().toLowerCase();
-    }
-    const message = String(notification?.message || '');
-    const quoted = message.match(/"([^"]+)"/);
-    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
-    return '';
-  };
-
-  const extractLeaveRequesterName = (notification) => {
-    const message = String(notification?.message || '');
-    const match = message.match(/^(.*?)\s+requested to leave/i);
-    return match?.[1]?.trim().toLowerCase() || '';
-  };
-
-  const resolveLeaveRequestContext = async (notification) => {
-    let teamId = notification?.metadata?.teamId || null;
-    let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
-
-    if (!teamId) {
-      const captainedRes = await teamService.getCaptainedTeams();
-      const captainedTeams = Array.isArray(captainedRes?.data) ? captainedRes.data : [];
-      const teamName = extractLeaveRequestTeamName(notification);
-      const byName = teamName
-        ? captainedTeams.find((team) => String(team?.name || '').trim().toLowerCase() === teamName)
-        : null;
-      teamId = byName?.id || (captainedTeams.length === 1 ? captainedTeams[0]?.id : null);
-    }
-
-    if (!requesterId && teamId) {
-      const membersRes = await teamService.getTeamMembers(teamId);
-      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
-      const senderName = String(resolveSenderName(notification) || '').trim().toLowerCase();
-      const requesterName = extractLeaveRequesterName(notification);
-      const byName = members.find((member) => {
-        const userData = member?.user || {};
-        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim().toLowerCase();
-        const username = String(userData.username || '').trim().toLowerCase();
-        return (
-          (senderName && (fullName === senderName || username === senderName)) ||
-          (requesterName && (fullName === requesterName || username === requesterName))
-        );
-      });
-      requesterId = byName?.userId || byName?.user?.id || null;
-    }
-
-    return { teamId, requesterId };
-  };
-
-  const extractJoinRequestTeamName = (notification) => {
-    const title = String(notification?.title || '');
-    const titlePrefix = 'Join request for ';
-    if (title.startsWith(titlePrefix)) {
-      return title.slice(titlePrefix.length).trim().toLowerCase();
-    }
-    const message = String(notification?.message || '');
-    const quoted = message.match(/"([^"]+)"/);
-    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
-    return '';
-  };
-
-  const extractJoinRequesterName = (notification) => {
-    const message = String(notification?.message || '');
-    const match = message.match(/^(.*?)\s+requested to join/i);
-    return match?.[1]?.trim().toLowerCase() || '';
-  };
-
-  const resolveJoinRequestContext = async (notification) => {
-    let teamId = notification?.metadata?.teamId || null;
-    let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
-
-    if (!teamId) {
-      const captainedRes = await teamService.getCaptainedTeams();
-      const captainedTeams = Array.isArray(captainedRes?.data) ? captainedRes.data : [];
-      const teamName = extractJoinRequestTeamName(notification);
-      const byName = teamName
-        ? captainedTeams.find((team) => String(team?.name || '').trim().toLowerCase() === teamName)
-        : null;
-      teamId = byName?.id || (captainedTeams.length === 1 ? captainedTeams[0]?.id : null);
-    }
-
-    if (!requesterId && teamId) {
-      const membersRes = await teamService.getTeamMembers(teamId);
-      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
-      const senderName = String(resolveSenderName(notification) || '').trim().toLowerCase();
-      const requesterName = extractJoinRequesterName(notification);
-      const byName = members.find((member) => {
-        if (member?.status !== 'pending') return false;
-        const userData = member?.user || {};
-        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim().toLowerCase();
-        const username = String(userData.username || '').trim().toLowerCase();
-        return (
-          (senderName && (fullName === senderName || username === senderName)) ||
-          (requesterName && (fullName === requesterName || username === requesterName))
-        );
-      });
-      requesterId = byName?.userId || byName?.user?.id || null;
-    }
-
-    return { teamId, requesterId };
-  };
-
-  const handleLeaveRequestAction = async (notification, action) => {
-    try {
-      setActionLoading(true);
-      setError(null);
-      const { teamId, requesterId } = await resolveLeaveRequestContext(notification);
-      if (!teamId || !requesterId) {
-        throw new Error('Cannot resolve leave request details. Please open the team page and manage members there.');
-      }
-      await teamService.respondLeaveRequest(teamId, requesterId, action);
-      await markAsRead(notification.id);
-      await loadNotifications();
-    } catch (err) {
-      setError(err?.error || `Failed to ${action} leave request`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleJoinRequestAction = async (notification, action) => {
-    try {
-      setActionLoading(true);
-      setError(null);
-      const { teamId, requesterId } = await resolveJoinRequestContext(notification);
-      if (!teamId || !requesterId) {
-        throw new Error('Cannot resolve join request details. Please open the team page and manage requests there.');
-      }
-      await teamService.updateMember(teamId, requesterId, {
-        status: action === 'accept' ? 'active' : 'inactive'
-      });
-      await markAsRead(notification.id);
-      await loadNotifications();
-    } catch (err) {
-      setError(err?.error || `Failed to ${action} join request`);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const resolveSenderName = (notification) => {
-    return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
-  };
-
-  const resolveSenderAvatar = (notification) => {
-    const rawAvatar = notification?.sender?.avatarUrl;
-    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-    return `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`;
-  };
-
-  const canRespondToBookingJoinRequest = (notification) => {
-    const eventName = notification?.metadata?.event;
-    return (
-      user?.role === 'captain' &&
-      (eventName === 'booking_join_request' || eventName === 'open_match_join_request') &&
-      !notification.isRead &&
-      !!notification?.metadata?.bookingId &&
-      !!notification?.metadata?.requestId
-    );
-  };
-
-  const canRespondToOwnerBookingRequest = (notification) => {
-    return (
-      user?.role === 'field_owner' &&
-      notification?.metadata?.event === 'booking_request' &&
-      !notification.isRead &&
-      !!notification?.metadata?.bookingId
-    );
-  };
-
-  const formatDateTime = (value) => {
-    if (!value) return null;
-    const dt = new Date(value);
-    if (Number.isNaN(dt.getTime())) return null;
-    return dt.toLocaleString();
+    return user?.role === 'player' && notification.type === 'team_invite' && !notification.isRead;
   };
 
   if (loading) {
@@ -477,37 +164,6 @@ const NotificationsPage = () => {
                         {notification.title}
                       </div>
                       <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
-                      {notification.metadata?.event === 'booking_join_request' && (
-                        <div className="mt-2 text-[12px] text-gray-600 space-y-1">
-                          {notification.metadata?.requesterTeamName && (
-                            <p>Team: {notification.metadata.requesterTeamName}</p>
-                          )}
-                          {notification.metadata?.requesterCaptainName && (
-                            <p>Captain: {notification.metadata.requesterCaptainName}</p>
-                          )}
-                          {notification.metadata?.requesterTeamSkillLevel && (
-                            <p>Skill: {notification.metadata.requesterTeamSkillLevel}</p>
-                          )}
-                          {notification.metadata?.requestMessage && (
-                            <p className="italic text-gray-700">Message: "{notification.metadata.requestMessage}"</p>
-                          )}
-                        </div>
-                      )}
-                      {notification.metadata?.event === 'booking_request' && (
-                        <div className="mt-2 text-[12px] text-gray-600 space-y-1">
-                          {notification.metadata?.fieldName && <p>Field: {notification.metadata.fieldName}</p>}
-                          {notification.metadata?.teamName && <p>Team: {notification.metadata.teamName}</p>}
-                          {(notification.metadata?.startTime || notification.metadata?.endTime) && (
-                            <p>
-                              Time: {formatDateTime(notification.metadata?.startTime) || '-'} -{' '}
-                              {formatDateTime(notification.metadata?.endTime) || '-'}
-                            </p>
-                          )}
-                          {notification.metadata?.totalPrice !== undefined && (
-                            <p>Price: ${Number(notification.metadata.totalPrice || 0).toFixed(2)}</p>
-                          )}
-                        </div>
-                      )}
                       <p className="text-[11px] text-gray-400 mt-2">
                         {new Date(notification.createdAt).toLocaleString()}
                       </p>
@@ -541,68 +197,12 @@ const NotificationsPage = () => {
                       </>
                     )}
 
-                    {canRespondToBookingJoinRequest(notification) && (
-                      <>
-                        <button
-                          onClick={() => handleBookingJoinRequestAction(notification, 'accept')}
-                          disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                        >
-                          <CheckIcon className="h-4 w-4" />
-                          Allow
-                        </button>
-                        <button
-                          onClick={() => handleBookingJoinRequestAction(notification, 'reject')}
-                          disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                          Reject
-                        </button>
-                      </>
-                    )}
-
-                    {canRespondToOwnerBookingRequest(notification) && (
-                      <>
-                        <button
-                          onClick={() => handleOwnerBookingRequestAction(notification, 'confirm')}
-                          disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                        >
-                          <CheckIcon className="h-4 w-4" />
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleOwnerBookingRequestAction(notification, 'cancel')}
-                          disabled={actionLoading}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => navigate('/owner/bookings')}
-                          className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-                        >
-                          View Booking
-                        </button>
-                      </>
-                    )}
-
                     {notification.metadata?.teamId && (
                       <button
                         onClick={() => navigate(`/app/teams/${notification.metadata.teamId}`)}
                         className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         View Team
-                      </button>
-                    )}
-                    {notification.metadata?.requesterTeamId && (
-                      <button
-                        onClick={() => navigate(`/app/teams/${notification.metadata.requesterTeamId}`)}
-                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-                      >
-                        View Requester Team
                       </button>
                     )}
 
