@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
         as: 'bookings'
       });
 
+      Team.hasMany(models.BookingJoinRequest, {
+        foreignKey: 'requesterTeamId',
+        as: 'bookingJoinRequests'
+      });
+
       Team.hasMany(models.MatchResult, {
         foreignKey: 'homeTeamId',
         as: 'homeMatches'

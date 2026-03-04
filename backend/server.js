@@ -342,16 +342,25 @@ const startServer = async () => {
     // Environment-safe database sync
     const isDevelopment = serverConfig.nodeEnv === 'development';
     const isTest = serverConfig.nodeEnv === 'test';
+    const enableAlterSync = process.env.DB_SYNC_ALTER === 'true';
     
     // Attempt to synchronize schema, but don't crash the server if sync fails.
     if (isDevelopment) {
-      console.log('🔄 Development mode: Synchronizing database schema (alter)...');
+      if (enableAlterSync) {
+        console.log('🔄 Development mode: Synchronizing database schema (alter enabled)...');
+      } else {
+        console.log('🔄 Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
+      }
       try {
-        await sequelize.sync({ alter: true });
-        console.log('✅ Database schema synchronized successfully (alter applied).');
+        await sequelize.sync(enableAlterSync ? { alter: true } : {});
+        if (enableAlterSync) {
+          console.log('✅ Database schema synchronized successfully (alter applied).');
+        } else {
+          console.log('✅ Database schema synchronized safely.');
+        }
       } catch (syncErr) {
-        console.warn('⚠️ Schema sync (alter) failed:', syncErr.message);
-        console.warn('⚠️ Continuing to start server without completing schema alterations.');
+        console.warn('⚠️ Schema sync failed:', syncErr.message);
+        console.warn('⚠️ Continuing to start server despite sync failure.');
       }
     } else if (isTest) {
       console.log('🧪 Test mode: Recreating database...');
