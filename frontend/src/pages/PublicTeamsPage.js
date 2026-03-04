@@ -25,9 +25,10 @@ const PublicTeamsPage = () => {
 
   const canRequestJoin = (team) => {
     if (!isAuthenticated) return false;
+    if (!user) return false;
     if (!['player', 'captain', 'admin'].includes(user?.role || '')) return false;
     // Prevent captains from joining their own teams
-    if (team.captainId === user.id) return false;
+    if (team.captainId === user?.id) return false;
     return true;
   };
 
@@ -160,7 +161,7 @@ const PublicTeamsPage = () => {
                   >
                     Request Join
                   </Button>
-                ) : team.captainId === user.id ? (
+                ) : team.captainId === user?.id ? (
                   <Button
                     disabled
                     className="flex-1"

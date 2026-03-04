@@ -81,6 +81,12 @@ const teamService = {
     return response;
   },
 
+  // Captain/Admin responds to member leave request
+  respondLeaveRequest: async (teamId, userId, action) => {
+    const response = await apiService.post(`/teams/${teamId}/leave-requests/${userId}/respond`, { action });
+    return response;
+  },
+
   // Add member to team (captain only)
   addMember: async (teamId, memberData) => {
     const response = await apiService.post(`/teams/${teamId}/members`, memberData);

@@ -136,11 +136,11 @@ const TeamDetailsPage = () => {
       setSuccessMessage(null);
       const response = await teamService.leaveTeam(id);
       if (response.success) {
-        setSuccessMessage('You left the team.');
+        setSuccessMessage(response.message || 'Leave request sent to captain for approval.');
         await refreshTeam();
       }
     } catch (err) {
-      setError(err?.error || 'Failed to leave team');
+      setError(err?.error || 'Failed to submit leave request');
     } finally {
       setActionLoading(false);
     }

@@ -40,6 +40,17 @@ const getTeamDetailsIncludes = () => [
   }
 ];
 
+const getUserDisplayName = async (userId) => {
+  const actor = await User.findByPk(userId, {
+    attributes: ['username', 'firstName', 'lastName']
+  });
+
+  if (!actor) return 'A user';
+
+  const fullName = `${actor.firstName || ''} ${actor.lastName || ''}`.trim();
+  return fullName || actor.username || 'A user';
+};
+
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
@@ -266,10 +277,11 @@ const requestJoinTeam = asyncHandler(async (req, res) => {
     isActive: true
   });
 
+  const requesterName = await getUserDisplayName(req.user.id);
   await Notification.create({
     userId: team.captainId,
     title: `Join request for ${team.name}`,
-    message: `${req.user.firstName || req.user.username} requested to join your team "${team.name}".`,
+    message: `${requesterName} requested to join your team "${team.name}".`,
     type: 'system',
     metadata: { teamId: team.id, requesterId: req.user.id, event: 'team_join_request' }
   });
@@ -302,8 +314,35 @@ const leaveTeam = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'You are not an active member of this team' });
   }
 
-  await membership.update({ status: 'inactive', isActive: false });
-  res.json({ success: true, data: membership, message: 'Left team successfully' });
+  const captainNotifications = await Notification.findAll({
+    where: { userId: team.captainId, type: 'system', isRead: false },
+    order: [['createdAt', 'DESC']],
+    limit: 100
+  });
+
+  const hasPendingLeaveRequest = captainNotifications.some((item) => {
+    const meta = item.metadata || {};
+    return (
+      meta.event === 'team_leave_request' &&
+      Number(meta.teamId) === Number(team.id) &&
+      Number(meta.requesterId) === Number(req.user.id)
+    );
+  });
+
+  if (hasPendingLeaveRequest) {
+    return res.status(400).json({ success: false, message: 'Leave request is already pending captain approval' });
+  }
+
+  const requesterName = await getUserDisplayName(req.user.id);
+  await Notification.create({
+    userId: team.captainId,
+    title: `Leave request for ${team.name}`,
+    message: `${requesterName} requested to leave "${team.name}".`,
+    type: 'system',
+    metadata: { teamId: team.id, requesterId: req.user.id, event: 'team_leave_request' }
+  });
+
+  res.json({ success: true, data: membership, message: 'Leave request sent to captain for approval' });
 });
 
 const getTeamMembers = asyncHandler(async (req, res) => {
@@ -489,7 +528,7 @@ const updateTeamMember = asyncHandler(async (req, res) => {
 });
 
 const removeTeamMember = asyncHandler(async (req, res) => {
-  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId'] });
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
 
   if (!team) {
     return res.status(404).json({ success: false, message: 'Team not found' });
@@ -515,8 +554,99 @@ const removeTeamMember = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Team member not found' });
   }
 
+  if (targetUserId === team.captainId) {
+    return res.status(400).json({ success: false, message: 'Cannot remove team captain' });
+  }
+
   await membership.update({ status: 'inactive', isActive: false });
+  const actorName = await getUserDisplayName(req.user.id);
+  await Notification.create({
+    userId: targetUserId,
+    title: `Removed from ${team.name}`,
+    message: `${actorName} removed you from "${team.name}".`,
+    type: 'system',
+    metadata: { teamId: team.id, actorId: req.user.id, event: 'team_member_removed' }
+  });
   res.json({ success: true, data: membership, message: 'Member removed successfully' });
+});
+
+const respondLeaveRequest = asyncHandler(async (req, res) => {
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
+
+  if (!team) {
+    return res.status(404).json({ success: false, message: 'Team not found' });
+  }
+
+  const isAdmin = req.user.role === 'admin';
+  const isCaptainOfTeam = team.captainId === req.user.id;
+  if (!isAdmin && !isCaptainOfTeam) {
+    return res.status(403).json({ success: false, message: 'Not authorized to respond to leave requests for this team' });
+  }
+
+  const targetUserId = Number(req.params.userId);
+  if (!Number.isInteger(targetUserId) || targetUserId <= 0) {
+    return res.status(400).json({ success: false, message: 'userId must be a positive integer' });
+  }
+
+  const { action } = req.body || {};
+  if (!['accept', 'decline'].includes(action)) {
+    return res.status(400).json({ success: false, message: 'action must be either accept or decline' });
+  }
+
+  const membership = await TeamMember.findOne({
+    where: { teamId: team.id, userId: targetUserId }
+  });
+
+  if (!membership || membership.status !== 'active' || membership.isActive !== true) {
+    return res.status(400).json({ success: false, message: 'No active member found for this leave request' });
+  }
+
+  if (action === 'accept') {
+    await membership.update({ status: 'inactive', isActive: false });
+  }
+
+  const captainNotifications = await Notification.findAll({
+    where: { userId: req.user.id, type: 'system', isRead: false },
+    order: [['createdAt', 'DESC']],
+    limit: 100
+  });
+
+  await Promise.all(
+    captainNotifications
+      .filter((item) => {
+        const meta = item.metadata || {};
+        return (
+          meta.event === 'team_leave_request' &&
+          Number(meta.teamId) === Number(team.id) &&
+          Number(meta.requesterId) === Number(targetUserId)
+        );
+      })
+      .map((item) =>
+        item.update({
+          isRead: true,
+          readAt: new Date().toISOString(),
+          metadata: { ...(item.metadata || {}), resolvedAction: action, resolvedBy: req.user.id }
+        })
+      )
+  );
+
+  const actorName = await getUserDisplayName(req.user.id);
+  await Notification.create({
+    userId: targetUserId,
+    title: `Leave request ${action === 'accept' ? 'approved' : 'declined'}`,
+    message:
+      action === 'accept'
+        ? `${actorName} approved your request to leave "${team.name}".`
+        : `${actorName} declined your request to leave "${team.name}".`,
+    type: 'system',
+    metadata: { teamId: team.id, actorId: req.user.id, event: 'team_leave_request_result', status: action }
+  });
+
+  res.json({
+    success: true,
+    data: membership,
+    message: action === 'accept' ? 'Leave request approved' : 'Leave request declined'
+  });
 });
 
 // Upload team logo (captain only)
@@ -657,10 +787,11 @@ const invitePlayer = asyncHandler(async (req, res) => {
     });
   }
 
+  const inviterName = await getUserDisplayName(req.user.id);
   await Notification.create({
     userId: parsedUserId,
     title: `Invitation to join ${team.name}`,
-    message: `You have been invited by ${req.user.firstName || req.user.username} to join the team "${team.name}".`,
+    message: `You have been invited by ${inviterName} to join the team "${team.name}".`,
     type: 'team_invite',
     metadata: { teamId: team.id, inviterId: req.user.id }
   });
@@ -682,10 +813,11 @@ const acceptInvite = asyncHandler(async (req, res) => {
   }
 
   await membership.update({ status: 'active', isActive: true });
+  const inviteeName = await getUserDisplayName(req.user.id);
   await Notification.create({
     userId: team.captainId,
     title: `Invitation accepted`,
-    message: `${req.user.firstName || req.user.username} accepted your invitation to join "${team.name}".`,
+    message: `${inviteeName} accepted your invitation to join "${team.name}".`,
     type: 'system',
     metadata: { teamId: team.id, inviteeId: req.user.id, event: 'team_invite_accepted' }
   });
@@ -706,10 +838,11 @@ const declineInvite = asyncHandler(async (req, res) => {
   }
 
   await membership.update({ status: 'inactive', isActive: false });
+  const inviteeName = await getUserDisplayName(req.user.id);
   await Notification.create({
     userId: team.captainId,
     title: `Invitation declined`,
-    message: `${req.user.firstName || req.user.username} declined your invitation to join "${team.name}".`,
+    message: `${inviteeName} declined your invitation to join "${team.name}".`,
     type: 'system',
     metadata: { teamId: team.id, inviteeId: req.user.id, event: 'team_invite_declined' }
   });
@@ -732,6 +865,7 @@ module.exports = {
   addTeamMember,
   updateTeamMember,
   removeTeamMember,
+  respondLeaveRequest,
   invitePlayer,
   acceptInvite,
   declineInvite

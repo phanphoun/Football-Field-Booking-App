@@ -19,6 +19,7 @@ router.delete('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, te
 // Team membership flows
 router.post('/:id/join', auth, checkRole(['player', 'captain', 'admin']), ...idValidation, teamController.requestJoinTeam);
 router.post('/:id/leave', auth, checkRole(['player', 'captain', 'admin']), ...idValidation, teamController.leaveTeam);
+router.post('/:id/leave-requests/:userId/respond', auth, ...idValidation, teamController.respondLeaveRequest);
 router.get('/:id/members', auth, ...idValidation, teamController.getTeamMembers);
 router.get('/:id/requests', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.getJoinRequests);
 router.post('/:id/members', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.addTeamMember);

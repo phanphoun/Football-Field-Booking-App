@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -8,13 +8,17 @@ import {
   CalendarIcon, 
   UserCircleIcon,
   BellAlertIcon,
+  CheckIcon,
+  ClipboardDocumentCheckIcon,
+  EyeIcon,
+  InboxIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
   TrophyIcon
 } from '@heroicons/react/24/outline';
-import { useEffect, useState } from 'react';
 import apiService from '../../services/api';
+import teamService from '../../services/teamService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -25,7 +29,11 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationActionLoading, setNotificationActionLoading] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -110,21 +118,277 @@ const AppLayout = () => {
     return `${API_ORIGIN}${normalizedPath}`;
   };
 
-  useEffect(() => {
-    const loadUnreadNotifications = async () => {
-      try {
-        const response = await apiService.get('/notifications', { isRead: false });
-        const list = Array.isArray(response.data) ? response.data : [];
-        setUnreadNotifications(list.length);
-      } catch {
-        setUnreadNotifications(0);
-      }
-    };
+  const resolveNotificationSenderName = (notification) => {
+    return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
+  };
 
-    loadUnreadNotifications();
-    const interval = setInterval(loadUnreadNotifications, 30000);
+  const resolveNotificationSenderAvatar = (notification) => {
+    const rawAvatar = notification?.sender?.avatarUrl;
+    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
+    return `${API_ORIGIN}${normalizedPath}`;
+  };
+
+  const latestNotifications = useMemo(() => {
+    return [...notifications]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 10);
+  }, [notifications]);
+
+  const loadNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    try {
+      const response = await apiService.get('/notifications');
+      const list = Array.isArray(response.data) ? response.data : [];
+      setNotifications(list);
+      setUnreadNotifications(list.filter((item) => !item.isRead).length);
+    } catch {
+      setNotifications([]);
+      setUnreadNotifications(0);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
-  }, [location.pathname]);
+  }, [location.pathname, loadNotifications]);
+
+  const markNotificationRead = async (notificationId) => {
+    await apiService.put(`/notifications/${notificationId}`, {
+      isRead: true,
+      readAt: new Date().toISOString()
+    });
+  };
+
+  const canRespondToInvite = (notification) => {
+    return (
+      !notification?.isRead &&
+      notification?.type === 'team_invite'
+    );
+  };
+
+  const canRespondToLeaveRequest = (notification) => {
+    const title = String(notification?.title || '').toLowerCase();
+    return (
+      !notification?.isRead &&
+      (
+        notification?.metadata?.event === 'team_leave_request' ||
+        title.startsWith('leave request for ')
+      )
+    );
+  };
+
+  const canRespondToJoinRequest = (notification) => {
+    const title = String(notification?.title || '').toLowerCase();
+    return (
+      !notification?.isRead &&
+      (
+        notification?.metadata?.event === 'team_join_request' ||
+        title.startsWith('join request for ')
+      )
+    );
+  };
+
+  const extractLeaveRequestTeamName = (notification) => {
+    const title = String(notification?.title || '');
+    const titlePrefix = 'Leave request for ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+    const message = String(notification?.message || '');
+    const quoted = message.match(/"([^"]+)"/);
+    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
+    return '';
+  };
+
+  const extractLeaveRequesterName = (notification) => {
+    const message = String(notification?.message || '');
+    const match = message.match(/^(.*?)\s+requested to leave/i);
+    return match?.[1]?.trim().toLowerCase() || '';
+  };
+
+  const resolveLeaveRequestContext = async (notification) => {
+    let teamId = notification?.metadata?.teamId || null;
+    let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
+
+    if (!teamId) {
+      const captainedRes = await teamService.getCaptainedTeams();
+      const captainedTeams = Array.isArray(captainedRes?.data) ? captainedRes.data : [];
+      const teamName = extractLeaveRequestTeamName(notification);
+      const byName = teamName
+        ? captainedTeams.find((team) => String(team?.name || '').trim().toLowerCase() === teamName)
+        : null;
+      teamId = byName?.id || (captainedTeams.length === 1 ? captainedTeams[0]?.id : null);
+    }
+
+    if (!requesterId && teamId) {
+      const membersRes = await teamService.getTeamMembers(teamId);
+      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
+      const senderName = String(resolveNotificationSenderName(notification) || '').trim().toLowerCase();
+      const requesterName = extractLeaveRequesterName(notification);
+      const byName = members.find((member) => {
+        const userData = member?.user || {};
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim().toLowerCase();
+        const username = String(userData.username || '').trim().toLowerCase();
+        return (
+          (senderName && (fullName === senderName || username === senderName)) ||
+          (requesterName && (fullName === requesterName || username === requesterName))
+        );
+      });
+      requesterId = byName?.userId || byName?.user?.id || null;
+    }
+
+    return { teamId, requesterId };
+  };
+
+  const extractJoinRequestTeamName = (notification) => {
+    const title = String(notification?.title || '');
+    const titlePrefix = 'Join request for ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+    const message = String(notification?.message || '');
+    const quoted = message.match(/"([^"]+)"/);
+    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
+    return '';
+  };
+
+  const extractJoinRequesterName = (notification) => {
+    const message = String(notification?.message || '');
+    const match = message.match(/^(.*?)\s+requested to join/i);
+    return match?.[1]?.trim().toLowerCase() || '';
+  };
+
+  const resolveJoinRequestContext = async (notification) => {
+    let teamId = notification?.metadata?.teamId || null;
+    let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
+
+    if (!teamId) {
+      const captainedRes = await teamService.getCaptainedTeams();
+      const captainedTeams = Array.isArray(captainedRes?.data) ? captainedRes.data : [];
+      const teamName = extractJoinRequestTeamName(notification);
+      const byName = teamName
+        ? captainedTeams.find((team) => String(team?.name || '').trim().toLowerCase() === teamName)
+        : null;
+      teamId = byName?.id || (captainedTeams.length === 1 ? captainedTeams[0]?.id : null);
+    }
+
+    if (!requesterId && teamId) {
+      const membersRes = await teamService.getTeamMembers(teamId);
+      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
+      const senderName = String(resolveNotificationSenderName(notification) || '').trim().toLowerCase();
+      const requesterName = extractJoinRequesterName(notification);
+      const byName = members.find((member) => {
+        if (member?.status !== 'pending') return false;
+        const userData = member?.user || {};
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim().toLowerCase();
+        const username = String(userData.username || '').trim().toLowerCase();
+        return (
+          (senderName && (fullName === senderName || username === senderName)) ||
+          (requesterName && (fullName === requesterName || username === requesterName))
+        );
+      });
+      requesterId = byName?.userId || byName?.user?.id || null;
+    }
+
+    return { teamId, requesterId };
+  };
+
+  const extractTeamNameFromNotification = (notification) => {
+    const title = notification?.title || '';
+    const titlePrefix = 'Invitation to join ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+
+    const message = notification?.message || '';
+    const quoted = message.match(/"([^"]+)"/);
+    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
+    return '';
+  };
+
+  const resolveInviteTeamId = async (notification) => {
+    if (notification?.metadata?.teamId) return notification.metadata.teamId;
+
+    const invitationsResponse = await teamService.getMyInvitations();
+    const invitations = Array.isArray(invitationsResponse?.data) ? invitationsResponse.data : [];
+    if (invitations.length === 0) return null;
+
+    const targetTeamName = extractTeamNameFromNotification(notification);
+    const inviterId = notification?.metadata?.inviterId;
+
+    const byName = targetTeamName
+      ? invitations.find((team) => (team?.name || '').trim().toLowerCase() === targetTeamName)
+      : null;
+    if (byName?.id) return byName.id;
+
+    const byInviter = inviterId
+      ? invitations.find((team) => Number(team?.captain?.id) === Number(inviterId))
+      : null;
+    if (byInviter?.id) return byInviter.id;
+
+    if (invitations.length === 1 && invitations[0]?.id) return invitations[0].id;
+    return null;
+  };
+
+  const handleInviteAction = async (notification, action) => {
+    try {
+      setNotificationActionLoading(true);
+      const teamId = await resolveInviteTeamId(notification);
+      if (!teamId) return;
+      if (action === 'accept') {
+        await teamService.acceptInvite(teamId);
+      } else {
+        await teamService.declineInvite(teamId);
+      }
+      await markNotificationRead(notification.id);
+      await loadNotifications();
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleLeaveRequestAction = async (notification, action) => {
+    try {
+      setNotificationActionLoading(true);
+      const { teamId, requesterId } = await resolveLeaveRequestContext(notification);
+      if (!teamId || !requesterId) return;
+      await teamService.respondLeaveRequest(teamId, requesterId, action);
+      await markNotificationRead(notification.id);
+      await loadNotifications();
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleJoinRequestAction = async (notification, action) => {
+    try {
+      setNotificationActionLoading(true);
+      const { teamId, requesterId } = await resolveJoinRequestContext(notification);
+      if (!teamId || !requesterId) return;
+      await teamService.updateMember(teamId, requesterId, {
+        status: action === 'accept' ? 'active' : 'inactive'
+      });
+      await markNotificationRead(notification.id);
+      await loadNotifications();
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      setNotificationActionLoading(true);
+      await markNotificationRead(notificationId);
+      await loadNotifications();
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -266,19 +530,195 @@ const AppLayout = () => {
             </button>
 
             <div className="ml-auto flex items-center space-x-4">
-              {/* Notifications button on left of user/logout */}
-              <button
-                onClick={() => navigate('/app/notifications')}
-                className="relative p-2 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
-                aria-label="Notifications"
+              {/* Notifications dropdown */}
+              <div
+                className="relative"
+                onMouseEnter={() => setNotificationsMenuOpen(true)}
+                onMouseLeave={() => setNotificationsMenuOpen(false)}
               >
-                <BellAlertIcon className="h-6 w-6" />
-                {unreadNotifications > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
-                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                  </span>
+                <button
+                  onClick={() => setNotificationsMenuOpen((prev) => !prev)}
+                  className="relative p-2 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
+                  aria-label="Notifications"
+                >
+                  <BellAlertIcon className="h-6 w-6" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </span>
+                  )}
+                </button>
+
+                {notificationsMenuOpen && (
+                  <div className="absolute right-0 top-full pt-2 z-30 w-[min(92vw,380px)]">
+                    <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                        <button
+                          onClick={() => navigate('/app/notifications')}
+                          className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                        >
+                          View all
+                        </button>
+                      </div>
+
+                      <div className="max-h-[420px] overflow-y-auto">
+                        {notificationsLoading ? (
+                          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading...</div>
+                        ) : latestNotifications.length === 0 ? (
+                          <div className="px-4 py-8 text-center">
+                            <InboxIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No notifications yet.</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-100">
+                            {latestNotifications.map((notification) => (
+                              <div
+                                key={notification.id}
+                                className={`px-4 py-3 ${notification.isRead ? 'bg-white' : 'bg-emerald-50/40'}`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 inline-flex items-center gap-1.5">
+                                      {notification.type === 'team_invite' ? (
+                                        <BellAlertIcon className="h-4 w-4 text-amber-500" />
+                                      ) : (
+                                        <ClipboardDocumentCheckIcon className="h-4 w-4 text-blue-500" />
+                                      )}
+                                      <span className="truncate">{notification.title}</span>
+                                    </p>
+                                    <p
+                                      className="mt-1 text-xs text-gray-600 overflow-hidden"
+                                      style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical'
+                                      }}
+                                    >
+                                      {notification.message}
+                                    </p>
+                                    {notification.sender && (
+                                      <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1">
+                                        <img
+                                          src={resolveNotificationSenderAvatar(notification)}
+                                          alt={`${resolveNotificationSenderName(notification)} avatar`}
+                                          className="h-4 w-4 rounded-full object-cover border border-gray-200 bg-gray-100"
+                                          onError={(e) => {
+                                            const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                                            if (e.currentTarget.src !== fallbackUrl) {
+                                              e.currentTarget.src = fallbackUrl;
+                                            }
+                                          }}
+                                        />
+                                        <span className="text-[10px] text-gray-700">
+                                          {resolveNotificationSenderName(notification)}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <p className="mt-1 text-[11px] text-gray-400">
+                                      {new Date(notification.createdAt).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  {!notification.isRead && (
+                                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+                                      New
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {canRespondToInvite(notification) && (
+                                    <>
+                                      <button
+                                        onClick={() => handleInviteAction(notification, 'accept')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        <CheckIcon className="h-3.5 w-3.5" />
+                                        Accept
+                                      </button>
+                                      <button
+                                        onClick={() => handleInviteAction(notification, 'decline')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                                      >
+                                        <XMarkIcon className="h-3.5 w-3.5" />
+                                        Decline
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {canRespondToLeaveRequest(notification) && (
+                                    <>
+                                      <button
+                                        onClick={() => handleLeaveRequestAction(notification, 'accept')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        <CheckIcon className="h-3.5 w-3.5" />
+                                        Approve Leave
+                                      </button>
+                                      <button
+                                        onClick={() => handleLeaveRequestAction(notification, 'decline')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                                      >
+                                        <XMarkIcon className="h-3.5 w-3.5" />
+                                        Decline
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {canRespondToJoinRequest(notification) && (
+                                    <>
+                                      <button
+                                        onClick={() => handleJoinRequestAction(notification, 'accept')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        <CheckIcon className="h-3.5 w-3.5" />
+                                        Approve Join
+                                      </button>
+                                      <button
+                                        onClick={() => handleJoinRequestAction(notification, 'decline')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                                      >
+                                        <XMarkIcon className="h-3.5 w-3.5" />
+                                        Decline
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {notification.metadata?.teamId && (
+                                    <button
+                                      onClick={() => navigate(`/app/teams/${notification.metadata.teamId}`)}
+                                      className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                      <EyeIcon className="h-3.5 w-3.5" />
+                                      View Team
+                                    </button>
+                                  )}
+
+                                  {!notification.isRead && (
+                                    <button
+                                      onClick={() => handleMarkAsRead(notification.id)}
+                                      disabled={notificationActionLoading}
+                                      className="inline-flex items-center rounded-md border border-emerald-200 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                                    >
+                                      Mark read
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* User menu */}
               <div

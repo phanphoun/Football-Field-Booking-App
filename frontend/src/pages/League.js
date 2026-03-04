@@ -217,9 +217,9 @@ const League = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-2xl font-bold text-gray-900">Football Leagues</h1>
-            <div className="text-sm text-gray-500">Live scores and standings</div>
+          <div className="flex items-center justify-between h-16 gap-3">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Football Leagues</h1>
+            <div className="hidden sm:block text-sm text-gray-500">Live scores and standings</div>
           </div>
         </div>
       </div>
@@ -261,10 +261,10 @@ const League = () => {
       {/* Tab Navigation */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
+          <div className="flex space-x-5 sm:space-x-8">
             <button
               onClick={() => setActiveTab('matches')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm sm:text-base transition-colors ${
                 activeTab === 'matches'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -277,7 +277,7 @@ const League = () => {
             </button>
             <button
               onClick={() => setActiveTab('table')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm sm:text-base transition-colors ${
                 activeTab === 'table'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -293,7 +293,7 @@ const League = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -303,13 +303,13 @@ const League = () => {
           <>
             {activeTab === 'matches' && (
               <div className="space-y-6">
-                <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2">
                   {weekDates.map((item) => (
                     <button
                       key={item.dateISO}
                       onClick={() => setSelectedDateKey(item.dateISO)}
                       disabled={!hasMatchesForDate(item.dateISO)}
-                      className={`min-w-[132px] px-4 py-3 rounded-2xl border text-lg font-semibold tracking-tight transition-all duration-200 ${
+                      className={`min-w-[104px] sm:min-w-[132px] px-2.5 sm:px-4 py-2 sm:py-3 rounded-2xl border text-xs sm:text-base font-semibold tracking-tight transition-all duration-200 ${
                         selectedDateKey === item.dateISO
                           ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
                           : hasMatchesForDate(item.dateISO)
@@ -321,7 +321,7 @@ const League = () => {
                     </button>
                   ))}
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Latest Matches</h2>
+                <h2 className="text-base sm:text-xl font-bold text-gray-900 mb-4">Latest Matches</h2>
                 <div className="space-y-4">
                   {filteredMatches.map((match, index) => {
                     const status = getMatchStatus(match.status);
@@ -329,12 +329,12 @@ const League = () => {
                       match.homeTeam.score !== null && match.awayTeam.score !== null;
                     return (
                       <div key={`${match.id}-${index}`} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start mb-4">
+                          <div className="flex items-center gap-2 text-[11px] sm:text-sm text-gray-500 min-w-0">
                             <CalendarIcon className="w-4 h-4" />
-                            <span>{formatMatchDate(match.dateTime)}</span>
+                            <span className="truncate">{formatMatchDate(match.dateTime)}</span>
                           </div>
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                          <span className={`self-start text-[10px] sm:text-xs font-medium px-2 py-1 rounded-full ${
                             status.color === 'text-red-600' ? 'bg-red-100 text-red-700' :
                             status.color === 'text-green-600' ? 'bg-green-100 text-green-700' :
                             status.color === 'text-blue-600' ? 'bg-blue-100 text-blue-700' :
@@ -344,35 +344,53 @@ const League = () => {
                           </span>
                         </div>
                         
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 flex-1">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-6">
+                          <div className="flex flex-col items-center text-center min-w-0">
                             {match.homeTeam.logo && (
                               <img 
                                 src={match.homeTeam.logo} 
                                 alt={match.homeTeam.name} 
-                                className="w-10 h-10 object-contain"
+                                className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
                               />
                             )}
-                            <span className="font-medium text-gray-900">{match.homeTeam.name}</span>
+                            <span
+                              className="mt-2 font-medium text-gray-900 text-[11px] sm:text-sm md:text-base leading-tight break-words overflow-hidden"
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical'
+                              }}
+                            >
+                              {match.homeTeam.name}
+                            </span>
                           </div>
                           
-                          <div className="px-6 py-3 bg-gray-100 rounded-lg min-w-[100px] text-center">
-                            <span className="text-xl font-bold text-gray-900">
+                          <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-gray-100 rounded-lg min-w-[88px] sm:min-w-[104px] text-center flex-shrink-0">
+                            <span className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 leading-none">
                               {hasResult
                                 ? `${match.homeTeam.score} : ${match.awayTeam.score}`
                                 : '- : -'}
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-4 flex-1 justify-end">
-                            <span className="font-medium text-gray-900 text-right">{match.awayTeam.name}</span>
+                          <div className="flex flex-col items-center text-center min-w-0">
                             {match.awayTeam.logo && (
                               <img 
                                 src={match.awayTeam.logo} 
                                 alt={match.awayTeam.name} 
-                                className="w-10 h-10 object-contain"
+                                className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
                               />
                             )}
+                            <span
+                              className="mt-2 font-medium text-gray-900 text-[11px] sm:text-sm md:text-base leading-tight break-words overflow-hidden"
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical'
+                              }}
+                            >
+                              {match.awayTeam.name}
+                            </span>
                           </div>
                         </div>
                         

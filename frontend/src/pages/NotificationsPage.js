@@ -9,11 +9,13 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../services/api';
 import teamService from '../services/teamService';
-import { useAuth } from '../context/AuthContext';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ const NotificationsPage = () => {
     const byType = {
       all: () => true,
       invites: (n) => n.type === 'team_invite',
-      requests: (n) => n.metadata?.event === 'team_join_request'
+      requests: (n) => ['team_join_request', 'team_leave_request'].includes(n.metadata?.event)
     };
     return notifications.filter(byType[activeFilter] || byType.all);
   }, [notifications, activeFilter]);
@@ -57,12 +59,51 @@ const NotificationsPage = () => {
     });
   };
 
+  const extractTeamNameFromNotification = (notification) => {
+    const title = notification?.title || '';
+    const titlePrefix = 'Invitation to join ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+
+    const message = notification?.message || '';
+    const quoted = message.match(/"([^"]+)"/);
+    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
+    return '';
+  };
+
+  const resolveInviteTeamId = async (notification) => {
+    if (notification?.metadata?.teamId) return notification.metadata.teamId;
+
+    const invitationsResponse = await teamService.getMyInvitations();
+    const invitations = Array.isArray(invitationsResponse?.data) ? invitationsResponse.data : [];
+    if (invitations.length === 0) return null;
+
+    const targetTeamName = extractTeamNameFromNotification(notification);
+    const inviterId = notification?.metadata?.inviterId;
+
+    const byName = targetTeamName
+      ? invitations.find((team) => (team?.name || '').trim().toLowerCase() === targetTeamName)
+      : null;
+    if (byName?.id) return byName.id;
+
+    const byInviter = inviterId
+      ? invitations.find((team) => Number(team?.captain?.id) === Number(inviterId))
+      : null;
+    if (byInviter?.id) return byInviter.id;
+
+    if (invitations.length === 1 && invitations[0]?.id) return invitations[0].id;
+    return null;
+  };
+
   const handleInviteAction = async (notification, action) => {
-    const teamId = notification?.metadata?.teamId;
-    if (!teamId) return;
     try {
       setActionLoading(true);
       setError(null);
+      const teamId = await resolveInviteTeamId(notification);
+      if (!teamId) {
+        throw new Error('Cannot find invitation team. Please refresh and try again.');
+      }
       if (action === 'accept') {
         await teamService.acceptInvite(teamId);
       } else {
@@ -91,7 +132,186 @@ const NotificationsPage = () => {
   };
 
   const canRespondToInvite = (notification) => {
-    return user?.role === 'player' && notification.type === 'team_invite' && !notification.isRead;
+    return (
+      !notification?.isRead &&
+      notification?.type === 'team_invite'
+    );
+  };
+
+  const canRespondToLeaveRequest = (notification) => {
+    const title = String(notification?.title || '').toLowerCase();
+    return (
+      !notification?.isRead &&
+      (
+        notification?.metadata?.event === 'team_leave_request' ||
+        title.startsWith('leave request for ')
+      )
+    );
+  };
+
+  const canRespondToJoinRequest = (notification) => {
+    const title = String(notification?.title || '').toLowerCase();
+    return (
+      !notification?.isRead &&
+      (
+        notification?.metadata?.event === 'team_join_request' ||
+        title.startsWith('join request for ')
+      )
+    );
+  };
+
+  const extractLeaveRequestTeamName = (notification) => {
+    const title = String(notification?.title || '');
+    const titlePrefix = 'Leave request for ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+    const message = String(notification?.message || '');
+    const quoted = message.match(/"([^"]+)"/);
+    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
+    return '';
+  };
+
+  const extractLeaveRequesterName = (notification) => {
+    const message = String(notification?.message || '');
+    const match = message.match(/^(.*?)\s+requested to leave/i);
+    return match?.[1]?.trim().toLowerCase() || '';
+  };
+
+  const resolveLeaveRequestContext = async (notification) => {
+    let teamId = notification?.metadata?.teamId || null;
+    let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
+
+    if (!teamId) {
+      const captainedRes = await teamService.getCaptainedTeams();
+      const captainedTeams = Array.isArray(captainedRes?.data) ? captainedRes.data : [];
+      const teamName = extractLeaveRequestTeamName(notification);
+      const byName = teamName
+        ? captainedTeams.find((team) => String(team?.name || '').trim().toLowerCase() === teamName)
+        : null;
+      teamId = byName?.id || (captainedTeams.length === 1 ? captainedTeams[0]?.id : null);
+    }
+
+    if (!requesterId && teamId) {
+      const membersRes = await teamService.getTeamMembers(teamId);
+      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
+      const senderName = String(resolveSenderName(notification) || '').trim().toLowerCase();
+      const requesterName = extractLeaveRequesterName(notification);
+      const byName = members.find((member) => {
+        const userData = member?.user || {};
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim().toLowerCase();
+        const username = String(userData.username || '').trim().toLowerCase();
+        return (
+          (senderName && (fullName === senderName || username === senderName)) ||
+          (requesterName && (fullName === requesterName || username === requesterName))
+        );
+      });
+      requesterId = byName?.userId || byName?.user?.id || null;
+    }
+
+    return { teamId, requesterId };
+  };
+
+  const extractJoinRequestTeamName = (notification) => {
+    const title = String(notification?.title || '');
+    const titlePrefix = 'Join request for ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+    const message = String(notification?.message || '');
+    const quoted = message.match(/"([^"]+)"/);
+    if (quoted?.[1]) return quoted[1].trim().toLowerCase();
+    return '';
+  };
+
+  const extractJoinRequesterName = (notification) => {
+    const message = String(notification?.message || '');
+    const match = message.match(/^(.*?)\s+requested to join/i);
+    return match?.[1]?.trim().toLowerCase() || '';
+  };
+
+  const resolveJoinRequestContext = async (notification) => {
+    let teamId = notification?.metadata?.teamId || null;
+    let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
+
+    if (!teamId) {
+      const captainedRes = await teamService.getCaptainedTeams();
+      const captainedTeams = Array.isArray(captainedRes?.data) ? captainedRes.data : [];
+      const teamName = extractJoinRequestTeamName(notification);
+      const byName = teamName
+        ? captainedTeams.find((team) => String(team?.name || '').trim().toLowerCase() === teamName)
+        : null;
+      teamId = byName?.id || (captainedTeams.length === 1 ? captainedTeams[0]?.id : null);
+    }
+
+    if (!requesterId && teamId) {
+      const membersRes = await teamService.getTeamMembers(teamId);
+      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
+      const senderName = String(resolveSenderName(notification) || '').trim().toLowerCase();
+      const requesterName = extractJoinRequesterName(notification);
+      const byName = members.find((member) => {
+        if (member?.status !== 'pending') return false;
+        const userData = member?.user || {};
+        const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim().toLowerCase();
+        const username = String(userData.username || '').trim().toLowerCase();
+        return (
+          (senderName && (fullName === senderName || username === senderName)) ||
+          (requesterName && (fullName === requesterName || username === requesterName))
+        );
+      });
+      requesterId = byName?.userId || byName?.user?.id || null;
+    }
+
+    return { teamId, requesterId };
+  };
+
+  const handleLeaveRequestAction = async (notification, action) => {
+    try {
+      setActionLoading(true);
+      setError(null);
+      const { teamId, requesterId } = await resolveLeaveRequestContext(notification);
+      if (!teamId || !requesterId) {
+        throw new Error('Cannot resolve leave request details. Please open the team page and manage members there.');
+      }
+      await teamService.respondLeaveRequest(teamId, requesterId, action);
+      await markAsRead(notification.id);
+      await loadNotifications();
+    } catch (err) {
+      setError(err?.error || `Failed to ${action} leave request`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleJoinRequestAction = async (notification, action) => {
+    try {
+      setActionLoading(true);
+      setError(null);
+      const { teamId, requesterId } = await resolveJoinRequestContext(notification);
+      if (!teamId || !requesterId) {
+        throw new Error('Cannot resolve join request details. Please open the team page and manage requests there.');
+      }
+      await teamService.updateMember(teamId, requesterId, {
+        status: action === 'accept' ? 'active' : 'inactive'
+      });
+      await markAsRead(notification.id);
+      await loadNotifications();
+    } catch (err) {
+      setError(err?.error || `Failed to ${action} join request`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const resolveSenderName = (notification) => {
+    return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
+  };
+
+  const resolveSenderAvatar = (notification) => {
+    const rawAvatar = notification?.sender?.avatarUrl;
+    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+    return `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`;
   };
 
   if (loading) {
@@ -164,6 +384,24 @@ const NotificationsPage = () => {
                         {notification.title}
                       </div>
                       <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                      {notification.sender && (
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-gray-50 px-2 py-1">
+                          <img
+                            src={resolveSenderAvatar(notification)}
+                            alt={`${resolveSenderName(notification)} avatar`}
+                            className="h-5 w-5 rounded-full object-cover border border-gray-200 bg-gray-100"
+                            onError={(e) => {
+                              const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                              if (e.currentTarget.src !== fallbackUrl) {
+                                e.currentTarget.src = fallbackUrl;
+                              }
+                            }}
+                          />
+                          <span className="text-[11px] text-gray-700">
+                            Sender: <span className="font-semibold">{resolveSenderName(notification)}</span>
+                          </span>
+                        </div>
+                      )}
                       <p className="text-[11px] text-gray-400 mt-2">
                         {new Date(notification.createdAt).toLocaleString()}
                       </p>
@@ -188,6 +426,48 @@ const NotificationsPage = () => {
                         </button>
                         <button
                           onClick={() => handleInviteAction(notification, 'decline')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                          Decline
+                        </button>
+                      </>
+                    )}
+
+                    {canRespondToLeaveRequest(notification) && (
+                      <>
+                        <button
+                          onClick={() => handleLeaveRequestAction(notification, 'accept')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        >
+                          <CheckIcon className="h-4 w-4" />
+                          Approve Leave
+                        </button>
+                        <button
+                          onClick={() => handleLeaveRequestAction(notification, 'decline')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                          Decline
+                        </button>
+                      </>
+                    )}
+
+                    {canRespondToJoinRequest(notification) && (
+                      <>
+                        <button
+                          onClick={() => handleJoinRequestAction(notification, 'accept')}
+                          disabled={actionLoading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                        >
+                          <CheckIcon className="h-4 w-4" />
+                          Approve Join
+                        </button>
+                        <button
+                          onClick={() => handleJoinRequestAction(notification, 'decline')}
                           disabled={actionLoading}
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                         >

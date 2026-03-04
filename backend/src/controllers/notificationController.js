@@ -4,6 +4,57 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+const resolveSenderIdFromMetadata = (metadata = {}) => {
+  if (!metadata || typeof metadata !== 'object') return null;
+  return metadata.requesterId || metadata.inviterId || metadata.inviteeId || metadata.actorId || null;
+};
+
+const buildDisplayName = (user) => {
+  if (!user) return null;
+  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  return fullName || user.username || null;
+};
+
+const attachSenderProfiles = async (notifications) => {
+  const senderIds = Array.from(
+    new Set(
+      notifications
+        .map((item) => resolveSenderIdFromMetadata(item.metadata))
+        .filter(Boolean)
+    )
+  );
+
+  if (senderIds.length === 0) {
+    return notifications.map((item) => ({
+      ...item.toJSON(),
+      sender: null
+    }));
+  }
+
+  const senders = await User.findAll({
+    where: { id: senderIds },
+    attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
+  });
+
+  const senderMap = new Map(
+    senders.map((user) => [user.id, {
+      id: user.id,
+      name: buildDisplayName(user),
+      username: user.username || null,
+      avatarUrl: user.avatarUrl || null
+    }])
+  );
+
+  return notifications.map((item) => {
+    const payload = item.toJSON();
+    const senderId = resolveSenderIdFromMetadata(payload.metadata);
+    return {
+      ...payload,
+      sender: senderId ? senderMap.get(senderId) || null : null
+    };
+  });
+};
+
 const getAllNotifications = asyncHandler(async (req, res) => {
   const { userId, isRead, type } = req.query;
   const whereClause = {};
@@ -25,7 +76,8 @@ const getAllNotifications = asyncHandler(async (req, res) => {
     ],
     order: [['createdAt', 'DESC']]
   });
-  res.json({ success: true, data: notifications });
+  const withSender = await attachSenderProfiles(notifications);
+  res.json({ success: true, data: withSender });
 });
 
 const getNotificationById = asyncHandler(async (req, res) => {
@@ -43,7 +95,8 @@ const getNotificationById = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Not authorized to view this notification' });
   }
   
-  res.json({ success: true, data: notification });
+  const [withSender] = await attachSenderProfiles([notification]);
+  res.json({ success: true, data: withSender || notification });
 });
 
 const createNotification = asyncHandler(async (req, res) => {
