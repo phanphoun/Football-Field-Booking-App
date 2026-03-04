@@ -542,27 +542,6 @@ const LandingPage = () => {
     return 'border-blue-300 bg-blue-50 text-blue-600';
   };
 
-  const getSlotStart = (range) => String(range || '').split(' - ')[0] || '18:00';
-
-  const handlePopularViewSchedule = (slot) => {
-    const day = quickDate || new Date().toISOString().slice(0, 10);
-    setSelectedDay(day);
-    scheduleSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    navigate(`/fields?day=${day}&time=${getSlotStart(slot.time)}`);
-  };
-
-  const handlePopularBook = (slot) => {
-    const day = quickDate || new Date().toISOString().slice(0, 10);
-    const preferredField = scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
-
-    if (preferredField) {
-      handleBookNow(preferredField, day, getSlotStart(slot.time));
-      return;
-    }
-
-    navigate(`/fields?focus=search&day=${day}&time=${getSlotStart(slot.time)}`);
-  };
-
   const handleClaimOffer = (code, preferredTime = '18:00') => {
     const day = quickDate || selectedDay || new Date().toISOString().slice(0, 10);
     const preferredField = scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
@@ -593,18 +572,34 @@ const LandingPage = () => {
         <div className="absolute inset-0 bg-black/25" />
         <div className="relative mx-auto max-w-7xl px-6 py-20 sm:px-10 sm:py-28 lg:px-16">
           <div className="mx-auto max-w-3xl text-center">
-            <Badge tone="green" className="bg-green-500/25 text-white ring-1 ring-green-300/40">
-              Guest browsing and role-based dashboards
-            </Badge>
             <h1 className="mt-5 text-3xl font-extrabold tracking-tight sm:text-5xl">Book Your Perfect Football Field</h1>
             <p className="mx-auto mt-5 max-w-2xl text-base text-white/90 sm:text-2xl">
               Find and reserve the best football fields in your area with easy booking and competitive prices.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button as={Link} to="/fields?focus=search" className="bg-green-600 hover:bg-green-700">
+            <div className="mt-8 mx-auto grid w-full max-w-lg grid-cols-1 gap-2 sm:grid-cols-3">
+              <Button
+                as={Link}
+                to="/app/bookings/new"
+                className="justify-center rounded-md border-2 border-emerald-300 bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 hover:bg-emerald-700"
+              >
+                <CalendarIcon className="mr-1 h-3.5 w-3.5" />
+                Book a Field
+              </Button>
+
+              <Button
+                as={Link}
+                to="/fields?focus=search"
+                className="justify-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 hover:bg-emerald-700"
+              >
                 Browse Fields
               </Button>
-              <Button as={Link} to="/register" variant="neutral" className="bg-white/15 text-white hover:bg-white/25">
+
+              <Button
+                as={Link}
+                to="/register"
+                variant="neutral"
+                className="justify-center rounded-md border border-white/30 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/25"
+              >
                 Get Started
               </Button>
             </div>
@@ -618,7 +613,7 @@ const LandingPage = () => {
         </div>
       )}
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-100 py-12">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-12">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
@@ -635,7 +630,7 @@ const LandingPage = () => {
                 <select
                   value={quickLocation}
                   onChange={(e) => setQuickLocation(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   {quickLocationOptions.length > 0 ? (
                     quickLocationOptions.map((name) => (
@@ -658,7 +653,7 @@ const LandingPage = () => {
                   type="date"
                   value={quickDate}
                   onChange={(e) => setQuickDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
@@ -670,7 +665,7 @@ const LandingPage = () => {
                 <select
                   value={quickTimeSlot}
                   onChange={(e) => setQuickTimeSlot(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option>Morning (8AM - 12PM)</option>
                   <option>Afternoon (12PM - 5PM)</option>
@@ -707,7 +702,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-violet-50 py-14">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
@@ -743,22 +738,6 @@ const LandingPage = () => {
                   />
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handlePopularViewSchedule(slot)}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    View Schedule
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePopularBook(slot)}
-                    className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-900"
-                  >
-                    Book This Time
-                  </button>
-                </div>
               </div>
             ))}
           </div>
@@ -769,7 +748,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-emerald-50 py-16">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
@@ -839,7 +818,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-50 py-16">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <h2 className="text-4xl font-bold text-slate-900">Flexible Pricing Plans</h2>
@@ -1220,7 +1199,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-transparent py-10">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
         <div className="mx-auto max-w-7xl px-6 sm:px-10">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
@@ -1306,7 +1285,7 @@ const LandingPage = () => {
         )}
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-100 py-14">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <h2 className="text-4xl font-bold text-slate-900">World-Class Facilities</h2>
@@ -1329,7 +1308,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-100 py-8">
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
             <h2 className="text-4xl font-bold text-slate-900">Premium Experience Guaranteed</h2>
@@ -1348,7 +1327,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <footer className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-950 text-slate-100">
+      <footer className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-black text-slate-100">
         <div className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
             <div>
