@@ -5,6 +5,11 @@ import fieldService from '../services/fieldService';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_FIELD_IMAGE =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400"><rect width="100%25" height="100%25" fill="%23e5e7eb"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="30">No Field Image</text></svg>';
+
 const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
@@ -46,6 +51,26 @@ const FieldDetailsPage = () => {
     navigate(`/app/bookings/new?fieldId=${id}`);
   };
 
+  const resolveFieldImageUrl = (rawImage) => {
+    if (!rawImage) return DEFAULT_FIELD_IMAGE;
+    if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
+    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+    return rawImage;
+  };
+
+  const normalizeImages = (imagesValue) => {
+    if (Array.isArray(imagesValue)) return imagesValue;
+    if (typeof imagesValue === 'string') {
+      try {
+        const parsed = JSON.parse(imagesValue);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -77,9 +102,14 @@ const FieldDetailsPage = () => {
       <Card className="overflow-hidden">
         <div className="h-64 bg-gray-200 overflow-hidden">
           <img
-            src={field.images?.[0] || 'https://via.placeholder.com/1200x400'}
+            src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
             alt={field.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                e.currentTarget.src = DEFAULT_FIELD_IMAGE;
+              }
+            }}
           />
         </div>
         <CardBody className="p-6">

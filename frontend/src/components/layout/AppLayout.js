@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../../services/api';
 import teamService from '../../services/teamService';
+import bookingService from '../../services/bookingService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -197,13 +198,85 @@ const AppLayout = () => {
 
   const canRespondToJoinRequest = (notification) => {
     const title = String(notification?.title || '').toLowerCase();
+    const message = String(notification?.message || '').toLowerCase();
+    const isBookingJoinLike =
+      notification?.metadata?.event === 'booking_join_request' ||
+      (title.startsWith('join request for ') && message.includes('open match'));
     return (
       !notification?.isRead &&
+      !isBookingJoinLike &&
       (
         notification?.metadata?.event === 'team_join_request' ||
         title.startsWith('join request for ')
       )
     );
+  };
+
+  const canRespondToBookingJoinRequest = (notification) => {
+    const title = String(notification?.title || '').toLowerCase();
+    const message = String(notification?.message || '').toLowerCase();
+    return (
+      !notification?.isRead &&
+      (
+        notification?.metadata?.event === 'booking_join_request' ||
+        (
+          title.startsWith('join request for ') &&
+          message.includes('open match')
+        )
+      )
+    );
+  };
+
+  const extractBookingHostTeamName = (notification) => {
+    const title = String(notification?.title || '');
+    const titlePrefix = 'Join request for ';
+    if (title.startsWith(titlePrefix)) {
+      return title.slice(titlePrefix.length).trim().toLowerCase();
+    }
+    return '';
+  };
+
+  const extractBookingRequesterTeamName = (notification) => {
+    const message = String(notification?.message || '');
+    const match = message.match(/^(.*?)\s+requested to join your open match/i);
+    return match?.[1]?.trim().toLowerCase() || '';
+  };
+
+  const resolveBookingJoinRequestContext = async (notification) => {
+    let bookingId = Number(notification?.metadata?.bookingId);
+    let requestId = Number(notification?.metadata?.requestId);
+
+    if (Number.isInteger(bookingId) && Number.isInteger(requestId)) {
+      return { bookingId, requestId };
+    }
+
+    const hostTeamName = extractBookingHostTeamName(notification);
+    const requesterTeamName = extractBookingRequesterTeamName(notification);
+
+    const bookingsRes = await bookingService.getAllBookings();
+    const bookings = Array.isArray(bookingsRes?.data) ? bookingsRes.data : [];
+    const myHostBookings = bookings.filter((booking) => {
+      if (!booking?.team || Number(booking?.team?.captainId) !== Number(user?.id)) return false;
+      if (hostTeamName && String(booking.team.name || '').trim().toLowerCase() !== hostTeamName) return false;
+      return true;
+    });
+
+    for (const booking of myHostBookings) {
+      const joinRes = await bookingService.getBookingJoinRequests(booking.id);
+      const joinRequests = Array.isArray(joinRes?.data) ? joinRes.data : [];
+      const pending = joinRequests.filter((item) => item?.status === 'pending');
+      const byName = requesterTeamName
+        ? pending.find(
+            (item) => String(item?.requesterTeam?.name || '').trim().toLowerCase() === requesterTeamName
+          )
+        : null;
+      const target = byName || (pending.length === 1 ? pending[0] : null);
+      if (target?.id) {
+        return { bookingId: booking.id, requestId: target.id };
+      }
+    }
+
+    return { bookingId: null, requestId: null };
   };
 
   const extractLeaveRequestTeamName = (notification) => {
@@ -388,6 +461,34 @@ const AppLayout = () => {
       });
       await markNotificationRead(notification.id);
       await loadNotifications();
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleBookingJoinRequestAction = async (notification, action) => {
+    try {
+      setNotificationActionLoading(true);
+      const { bookingId, requestId } = await resolveBookingJoinRequestContext(notification);
+      if (!bookingId || !requestId) {
+        setFlash({
+          type: 'error',
+          message: 'Could not identify that match request. Open Bookings page and accept from Join Requests.'
+        });
+        return;
+      }
+      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
+      await markNotificationRead(notification.id);
+      await loadNotifications();
+      setFlash({
+        type: 'success',
+        message: action === 'accept' ? 'Match request accepted.' : 'Match request declined.'
+      });
+    } catch (error) {
+      setFlash({
+        type: 'error',
+        message: error?.error || `Failed to ${action} match request`
+      });
     } finally {
       setNotificationActionLoading(false);
     }
@@ -711,6 +812,27 @@ const AppLayout = () => {
                                       </button>
                                       <button
                                         onClick={() => handleJoinRequestAction(notification, 'decline')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                                      >
+                                        <XMarkIcon className="h-3.5 w-3.5" />
+                                        Decline
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {canRespondToBookingJoinRequest(notification) && (
+                                    <>
+                                      <button
+                                        onClick={() => handleBookingJoinRequestAction(notification, 'accept')}
+                                        disabled={notificationActionLoading}
+                                        className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                                      >
+                                        <CheckIcon className="h-3.5 w-3.5" />
+                                        Approve Join
+                                      </button>
+                                      <button
+                                        onClick={() => handleBookingJoinRequestAction(notification, 'decline')}
                                         disabled={notificationActionLoading}
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
