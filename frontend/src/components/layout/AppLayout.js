@@ -215,7 +215,6 @@ const AppLayout = () => {
   };
 
   const canRespondToJoinRequest = (notification) => {
-<<<<<<< HEAD
     const title = String(notification?.title || '').toLowerCase();
     const message = String(notification?.message || '').toLowerCase();
     const isBookingJoinLike =
@@ -228,18 +227,6 @@ const AppLayout = () => {
         notification?.metadata?.event === 'team_join_request' ||
         title.startsWith('join request for ')
       )
-=======
-    return !notification?.isRead && notification?.metadata?.event === 'team_join_request';
-  };
-
-  const canRespondToBookingJoinRequest = (notification) => {
-    const eventName = notification?.metadata?.event;
-    return (
-      !notification?.isRead &&
-      (eventName === 'booking_join_request' || eventName === 'open_match_join_request') &&
-      !!notification?.metadata?.bookingId &&
-      !!notification?.metadata?.requestId
->>>>>>> 09597abcc6118a192be106eae4ad34b10efa838d
     );
   };
 
@@ -496,25 +483,6 @@ const AppLayout = () => {
       setFlash({
         type: 'error',
         message: err?.error || 'Failed to process join request'
-      });
-    } finally {
-      setNotificationActionLoading(false);
-    }
-  };
-
-  const handleBookingJoinRequestAction = async (notification, action) => {
-    try {
-      setNotificationActionLoading(true);
-      const bookingId = notification?.metadata?.bookingId;
-      const requestId = notification?.metadata?.requestId;
-      if (!bookingId || !requestId) return;
-      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
-      await markNotificationRead(notification.id);
-      await loadNotifications();
-    } catch (err) {
-      setFlash({
-        type: 'error',
-        message: err?.error || 'Failed to process opponent join request'
       });
     } finally {
       setNotificationActionLoading(false);

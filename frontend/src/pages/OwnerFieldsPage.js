@@ -372,7 +372,7 @@ const OwnerFieldsPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Field Pictures (up to 5)</label>
+            <label className="block text-sm font-medium text-gray-700">Field Photos (Maximum 5)</label>
             <label className="mt-1 relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
               <input
                 type="file"
@@ -382,8 +382,8 @@ const OwnerFieldsPage = () => {
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
               <PhotoIcon className="h-16 w-16 text-gray-400" />
-              <p className="mt-3 text-sm font-medium text-gray-700">Click to upload field pictures</p>
-              <p className="mt-1 text-xs text-gray-500">PNG, JPG, WEBP. Up to 5 files.</p>
+              <p className="mt-3 text-sm font-medium text-gray-700">Click to upload field photos</p>
+              <p className="mt-1 text-xs text-gray-500">Accepted formats: PNG, JPG, WEBP.</p>
             </label>
             {imageFiles.length > 0 && (
               <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
@@ -398,13 +398,13 @@ const OwnerFieldsPage = () => {
               </div>
             )}
             {editingFieldId && (
-              <p className="mt-2 text-xs text-gray-500">When editing, newly selected images replace old field pictures.</p>
+              <p className="mt-2 text-xs text-gray-500">When editing, newly selected photos will replace existing field photos.</p>
             )}
           </div>
 
           {editingFieldId && currentImages.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Choose Main Cover</label>
+              <label className="block text-sm font-medium text-gray-700">Select Cover Photo</label>
               <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3">
                 {currentImages.map((img, index) => (
                   <div
@@ -425,7 +425,7 @@ const OwnerFieldsPage = () => {
                     />
                     <div className="p-2 bg-white flex items-center justify-between gap-2">
                       {index === 0 ? (
-                        <span className="text-[11px] font-medium text-emerald-700">Main cover</span>
+                        <span className="text-[11px] font-medium text-emerald-700">Cover photo</span>
                       ) : (
                         <span className="text-[11px] text-gray-500">Image {index + 1}</span>
                       )}
@@ -436,7 +436,7 @@ const OwnerFieldsPage = () => {
                           disabled={actionLoading}
                           className="text-[11px] px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                         >
-                          Set as cover
+                          Set as cover photo
                         </button>
                       )}
                     </div>
