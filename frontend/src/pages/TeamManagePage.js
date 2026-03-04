@@ -106,7 +106,7 @@ const TeamManagePage = () => {
   }
 
   const activeMembers = Array.isArray(members)
-    ? members.filter((m) => m.status === 'active' && m.isActive !== false)
+    ? members.filter((m) => m.status === 'accepted' && m.isActive !== false)
     : [];
 
   return (

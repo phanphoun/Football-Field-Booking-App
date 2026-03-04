@@ -9,6 +9,31 @@ const CreateBookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
+  const preselectedDay = searchParams.get('day');
+  const preselectedTime = searchParams.get('time');
+
+  const getPrefilledTimes = () => {
+    if (!preselectedDay || !preselectedTime) {
+      return { startTime: '', endTime: '' };
+    }
+
+    const start = new Date(`${preselectedDay}T${preselectedTime}:00`);
+    if (Number.isNaN(start.getTime())) {
+      return { startTime: '', endTime: '' };
+    }
+
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    const toLocalInputValue = (value) => {
+      const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 16);
+    };
+
+    return {
+      startTime: toLocalInputValue(start),
+      endTime: toLocalInputValue(end)
+    };
+  };
+  const prefilledTimes = getPrefilledTimes();
   
   const [fields, setFields] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -18,10 +43,15 @@ const CreateBookingPage = () => {
   const [formData, setFormData] = useState({
     fieldId: preselectedFieldId || '',
     teamId: '',
-    startTime: '',
-    endTime: '',
+    startTime: prefilledTimes.startTime,
+    endTime: prefilledTimes.endTime,
     notes: ''
   });
+  const hasTeams = Array.isArray(teams) && teams.length > 0;
+  const toLocalInputValue = (value) => {
+    const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,7 +92,7 @@ const CreateBookingPage = () => {
       const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // +2 hours
       setFormData(prev => ({
         ...prev,
-        endTime: endTime.toISOString().slice(0, 16)
+        endTime: toLocalInputValue(endTime)
       }));
     }
   };
@@ -84,11 +114,19 @@ const CreateBookingPage = () => {
     setSubmitting(true);
 
     try {
+      const startDate = new Date(formData.startTime);
+      const endDate = new Date(formData.endTime);
+
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        setError('Please provide a valid date and time');
+        return;
+      }
+
       const bookingData = {
         fieldId: parseInt(formData.fieldId),
         teamId: parseInt(formData.teamId),
-        startTime: formData.startTime,
-        endTime: formData.endTime,
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString(),
         notes: formData.notes
       };
 
@@ -102,7 +140,12 @@ const CreateBookingPage = () => {
         setError(response.error || 'Failed to create booking');
       }
     } catch (err) {
-      setError(err.error || 'Failed to create booking');
+      const apiErrors = err?.data?.errors;
+      if (Array.isArray(apiErrors) && apiErrors.length > 0) {
+        setError(apiErrors.map((item) => item.message).join(', '));
+      } else {
+        setError(err.error || 'Failed to create booking');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -189,6 +232,18 @@ const CreateBookingPage = () => {
                     </option>
                   )) : null}
                 </select>
+                {!hasTeams && (
+                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    You need a team before booking.
+                    <button
+                      type="button"
+                      onClick={() => navigate('/app/teams/create')}
+                      className="ml-2 font-semibold underline hover:text-amber-900"
+                    >
+                      Create Team
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Date and Time */}
@@ -252,7 +307,7 @@ const CreateBookingPage = () => {
         </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !hasTeams}
                   className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                 >
                   {submitting ? 'Creating...' : 'Create Booking'}

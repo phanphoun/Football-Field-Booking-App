@@ -5,7 +5,7 @@ import { UsersIcon, MapPinIcon, PlusIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 
 const TeamsPage = () => {
-  const { user, isCaptain, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
@@ -37,7 +37,7 @@ const TeamsPage = () => {
   }, [user?.id]);
 
   const handleCreateTeam = () => {
-    navigate('/teams/create');
+    navigate('/app/teams/create');
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -109,13 +109,13 @@ const TeamsPage = () => {
 
   // eslint-disable-next-line no-unused-vars
   const getMemberCount = (team) => {
-    return team.TeamMembers?.filter(member => member.status === 'active').length || 0;
+    return team.TeamMembers?.filter(member => member.status === 'accepted').length || 0;
   };
 
   // eslint-disable-next-line no-unused-vars
   const isUserInTeam = (team) => {
     return team.TeamMembers?.some(member => 
-      member.userId === user?.id && member.status === 'active'
+      member.userId === user?.id && member.status === 'accepted'
     );
   };
 
@@ -143,7 +143,7 @@ const TeamsPage = () => {
           >
             Browse Teams
           </button>
-          {(isCaptain() || isAdmin()) && (
+          {user && (
             <button
               onClick={handleCreateTeam}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -257,7 +257,7 @@ const TeamsPage = () => {
               >
                 Browse Teams
               </button>
-              {(isCaptain() || isAdmin()) && (
+              {user && (
                 <button
                   onClick={handleCreateTeam}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

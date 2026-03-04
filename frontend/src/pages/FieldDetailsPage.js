@@ -7,7 +7,7 @@ import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../component
 
 const FieldDetailsPage = () => {
   const { id } = useParams();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const [field, setField] = useState(null);
@@ -35,11 +35,6 @@ const FieldDetailsPage = () => {
   const handleBook = () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/app/bookings/new?fieldId=${id}` } });
-      return;
-    }
-
-    if (user?.role === 'field_owner') {
-      navigate('/owner/dashboard');
       return;
     }
 

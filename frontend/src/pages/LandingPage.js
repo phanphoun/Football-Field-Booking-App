@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   BuildingOfficeIcon,
   CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CheckCircleIcon,
   ClockIcon,
   CreditCardIcon,
@@ -16,18 +18,20 @@ import {
 } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
+import bookingService from '../services/bookingService';
+import { useAuth } from '../context/AuthContext';
 import { Badge, Button, EmptyState, Spinner } from '../components/ui';
 
 const HERO_IMAGE =
-  'https://img.freepik.com/free-photo/close-up-sport-environment-with-soccer-ball_23-2151891105.jpg?semt=ais_user_personalization&w=740&q=80';
+  'https://i.pinimg.com/1200x/a7/3b/e1/a73be158c7884ef379c16e6b14dfc264.jpg';
 
 const FIELD_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=900&q=80';
 
 const FEATURED_CARD_IMAGES = [
-  'https://t4.ftcdn.net/jpg/16/91/00/61/360_F_1691006146_6VhSMVJeZlVx6tcEuIz1IHsD29R9nWZL.jpg',
-  'https://t4.ftcdn.net/jpg/16/09/75/97/360_F_1609759781_Z1BZLZs9h9Ac3PbUNqbaQH3RIVhl57x0.jpg',
-  'https://images.unsplash.com/photo-1628891890467-b79de9b4fce8?auto=format&fit=crop&w=1200&q=80'
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Wembley_Stadium_interior.jpg/1280px-Wembley_Stadium_interior.jpg',
+  'https://i.pinimg.com/1200x/5c/41/fa/5c41fab583e85303594a8b24ae0132ce.jpg',
+  'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg'
 ];
 
 const FEATURED_FALLBACK_FIELDS = [
@@ -41,7 +45,7 @@ const FEATURED_FALLBACK_FIELDS = [
     pricePerHour: 80,
     status: 'available',
     images: [
-      '../assets/fallback-field-1.jpg'
+      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
     ]
   },
   {
@@ -67,16 +71,66 @@ const FEATURED_FALLBACK_FIELDS = [
     pricePerHour: 100,
     status: 'booked',
     images: [
-      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
+      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
+    ]
+  },
+  {
+    id: 'fallback-4',
+    name: 'City Center Pitch',
+    address: 'Central Sports Park',
+    city: 'Phnom Penh',
+    capacity: 18,
+    sessionDuration: 90,
+    pricePerHour: 95,
+    status: 'available',
+    images: [
+      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
+    ]
+  },
+  
+  {
+    id: 'fallback-5',
+    name: 'Night Lights Field',
+    address: 'North Arena',
+    city: 'Phnom Penh',
+    capacity: 20,
+    sessionDuration: 90,
+    pricePerHour: 110,
+    status: 'available',
+    images: [
+      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
+    ]
+  },
+  {
+    id: 'fallback-6',
+    name: 'Champions Ground',
+    address: 'West Stadium',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 130,
+    status: 'booked',
+    images: [
+      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
     ]
   }
+  
 ];
 
+const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+
 const LandingPage = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeSocial, setActiveSocial] = useState('facebook');
+  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
+  const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
 
   useEffect(() => {
     const fetchLandingData = async () => {
@@ -101,7 +155,7 @@ const LandingPage = () => {
             if (ratingB !== ratingA) return ratingB - ratingA;
             return totalB - totalA;
           })
-          .slice(0, 3);
+          .slice(0, 6);
 
         const topTeams = [...teams].slice(0, 3);
 
@@ -142,11 +196,30 @@ const LandingPage = () => {
 
   const featuredFields = useMemo(() => {
     const merged = [...popularFields];
-    for (let i = merged.length; i < 3; i += 1) {
+    for (let i = merged.length; i < 6; i += 1) {
       merged.push(FEATURED_FALLBACK_FIELDS[i]);
     }
-    return merged.slice(0, 3);
+    return merged.slice(0, 6);
   }, [popularFields]);
+
+  const scheduleDays = useMemo(() => {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: 6 }).map((_, index) => {
+      const day = new Date(base);
+      day.setDate(base.getDate() + index);
+      const key = day.toISOString().slice(0, 10);
+      const label =
+        index === 0
+          ? 'Today'
+          : index === 1
+            ? 'Tomorrow'
+            : `${String(day.getDate()).padStart(2, '0')} ${day.toLocaleDateString('en-US', { weekday: 'short' })}`;
+
+      return { key, label };
+    });
+  }, []);
 
   const resolveFieldImage = (images) => {
     if (Array.isArray(images) && images.length > 0) return images[0];
@@ -168,6 +241,114 @@ const LandingPage = () => {
     return FIELD_FALLBACK_IMAGE;
   };
 
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        setScheduleLoading(true);
+        const response = await bookingService.getPublicSchedule(selectedDay, 6);
+        const payload = response.data || {};
+        const fields = Array.isArray(payload.fields) ? payload.fields : [];
+        const bookings = Array.isArray(payload.bookings) ? payload.bookings : [];
+        setScheduleFieldsData(fields);
+        setScheduleBookingsData(bookings);
+      } catch (err) {
+        console.error('Failed to load public schedule:', err);
+        setScheduleFieldsData([]);
+        setScheduleBookingsData([]);
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+
+    fetchSchedule();
+  }, [selectedDay]);
+
+  const scheduleFields = useMemo(() => {
+    if (scheduleFieldsData.length > 0) return scheduleFieldsData;
+    return featuredFields.slice(0, 3);
+  }, [scheduleFieldsData, featuredFields]);
+
+  const formatHHMM = (value) =>
+    new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  const scheduleEvents = useMemo(() => {
+    const toneByStatus = {
+      confirmed: 'bg-blue-600',
+      pending: 'bg-amber-500',
+      completed: 'bg-emerald-600'
+    };
+
+    return scheduleBookingsData.map((booking) => ({
+      id: `bk-${booking.id}`,
+      fieldKey: booking.fieldId,
+      team: booking.teamName || 'Booked Slot',
+      start: formatHHMM(booking.startTime),
+      end: formatHHMM(booking.endTime),
+      players: booking.players || 22,
+      tone: toneByStatus[booking.status] || 'bg-slate-600'
+    }));
+  }, [scheduleBookingsData]);
+
+  const toMinutes = (time) => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const timelineStart = toMinutes('08:00');
+  const timelineEnd = toMinutes('21:00');
+  const timelineDuration = timelineEnd - timelineStart;
+
+  const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
+
+  const toFieldRoute = (field) => {
+    if (!field) return '/fields';
+    return String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`;
+  };
+
+  const handlePrevDay = () => {
+    const currentIndex = getDayIndex(selectedDay);
+    const nextIndex = currentIndex <= 0 ? scheduleDays.length - 1 : currentIndex - 1;
+    setSelectedDay(scheduleDays[nextIndex].key);
+  };
+
+  const handleNextDay = () => {
+    const currentIndex = getDayIndex(selectedDay);
+    const nextIndex = currentIndex >= scheduleDays.length - 1 ? 0 : currentIndex + 1;
+    setSelectedDay(scheduleDays[nextIndex].key);
+  };
+
+  const handleOpenFieldFromSchedule = (field) => {
+    navigate(toFieldRoute(field));
+  };
+
+  const buildBookingPath = (field, day = null, time = null) => {
+    const params = new URLSearchParams({ fieldId: String(field.id) });
+    if (day) params.set('day', day);
+    if (time) params.set('time', time);
+    return `/app/bookings/new?${params.toString()}`;
+  };
+
+  const handleBookNow = (field, day = null, time = null) => {
+    if (!field || String(field.id).startsWith('fallback-')) {
+      navigate('/fields');
+      return;
+    }
+
+    const bookingPath = buildBookingPath(field, day, time);
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: bookingPath } });
+      return;
+    }
+
+    navigate(bookingPath);
+  };
+
+  const handleTimeSlotClick = (field, slot) => {
+    handleBookNow(field, selectedDay, slot);
+  };
+
+
   return (
     <div className="space-y-14">
       <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
@@ -187,11 +368,8 @@ const LandingPage = () => {
               Find and reserve the best football fields in your area with easy booking and competitive prices.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button as={Link} to="/fields" className="bg-green-600 hover:bg-green-700">
+              <Button as={Link} to="/fields?focus=search" className="bg-green-600 hover:bg-green-700">
                 Browse Fields
-              </Button>
-              <Button as={Link} to="/fields" variant="outline" className="border-white/40 text-white hover:bg-white/10">
-                Check Availability
               </Button>
               <Button as={Link} to="/register" variant="neutral" className="bg-white/15 text-white hover:bg-white/25">
                 Get Started
@@ -206,6 +384,136 @@ const LandingPage = () => {
           {error}
         </div>
       )}
+
+      <section className="p-6 sm:p-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-slate-900">Live Booking Schedule</h2>
+          <p className="mt-2 text-lg text-slate-600">Visual timeline of all field bookings - see who&apos;s playing when</p>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={handlePrevDay} className="rounded-xl p-2 text-slate-500 hover:bg-white">
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            <div className="flex flex-wrap gap-2">
+              {scheduleDays.map((day) => (
+                <button
+                  key={day.key}
+                  type="button"
+                  onClick={() => setSelectedDay(day.key)}
+                  className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                    selectedDay === day.key
+                      ? 'border-slate-800 bg-white text-slate-900'
+                      : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={handleNextDay} className="rounded-xl p-2 text-slate-500 hover:bg-white">
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/app/bookings')}
+              className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            >
+                <div className="text-3xl font-bold text-emerald-600">{scheduleLoading ? '...' : scheduleEvents.length}</div>
+              <div className="text-sm text-slate-600">Total Bookings</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/fields')}
+              className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            >
+                <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : scheduleFields.length}</div>
+              <div className="text-sm text-slate-600">Active Fields</div>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="flex border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-blue-600 text-white">
+            <div className="w-56 p-4 font-semibold">Fields / Time</div>
+            <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
+              {TIME_SLOTS.map((slot) => (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={() => navigate(`/fields?day=${selectedDay}&time=${slot}`)}
+                  className="border-l border-white/20 px-2 py-4 text-center text-sm font-semibold hover:bg-white/10"
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {scheduleFields.map((field) => {
+            const rowEvents = scheduleEvents.filter((event) => Number(event.fieldKey) === Number(field.id));
+            return (
+              <div key={field.id} className="flex border-b border-slate-200 last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => handleOpenFieldFromSchedule(field)}
+                  className="w-56 p-4 text-left hover:bg-slate-50"
+                >
+                  <div className="font-semibold text-slate-900">{field.name}</div>
+                  <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                    {field.fieldType || 'Outdoor'}
+                  </span>
+                </button>
+                <div className="relative flex-1">
+                  <div className="grid h-36" style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
+                    {TIME_SLOTS.map((slot) => (
+                      <button
+                        key={`${field.id}-${slot}`}
+                        type="button"
+                        onClick={() => handleTimeSlotClick(field, slot)}
+                        className="border-l border-slate-200 hover:bg-slate-50"
+                        aria-label={`Open ${field.name} at ${slot}`}
+                      />
+                    ))}
+                  </div>
+                  {rowEvents.map((event, index) => {
+                    const startPct = ((toMinutes(event.start) - timelineStart) / timelineDuration) * 100;
+                    const widthPct = ((toMinutes(event.end) - toMinutes(event.start)) / timelineDuration) * 100;
+                    return (
+                      <div
+                        key={event.id}
+                        className={`absolute rounded-xl p-3 text-white shadow-md ${event.tone}`}
+                        style={{
+                          left: `${startPct}%`,
+                          width: `max(${widthPct}%, 120px)`,
+                          top: `${10 + index * 8}px`
+                        }}
+                        onClick={() => handleOpenFieldFromSchedule(field)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleOpenFieldFromSchedule(field);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <div className="truncate text-sm font-bold">{event.team}</div>
+                        <div className="mt-1 text-xs">{event.start} - {event.end}</div>
+                        <div className="mt-1 text-xs">{event.players} players</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -282,6 +590,11 @@ const LandingPage = () => {
                     {isAvailable ? (
                       <button
                         type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleBookNow(field);
+                        }}
                         className="w-full rounded-xl bg-slate-950 py-3 text-lg font-semibold text-white hover:bg-slate-900"
                       >
                         Book Now
@@ -312,21 +625,26 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl bg-green-50 px-6 py-10 sm:px-10">
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
-          <p className="mt-2 text-gray-600">We make football field booking simple, secure, and convenient.</p>
-        </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {whyChooseUs.map((item) => (
-            <div key={item.title} className="rounded-xl bg-white p-5 text-center ring-1 ring-green-100">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <item.icon className="h-6 w-6 text-green-700" />
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-transparent py-10">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10">
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
+            <p className="mt-2 text-gray-600">We make football field booking simple, secure, and convenient.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {whyChooseUs.map((item) => (
+              <div
+                key={item.title}
+                className="group rounded-xl bg-white p-5 text-center ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]"
+              >
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 transition group-hover:bg-green-600 group-active:bg-green-600">
+                  <item.icon className="h-6 w-6 text-green-700 transition group-hover:text-white group-active:text-white" />
+                </div>
+                <h3 className="mt-3 text-lg font-semibold text-gray-900">{item.title}</h3>
+                <p className="mt-2 text-sm text-gray-600">{item.description}</p>
               </div>
-              <h3 className="mt-3 text-lg font-semibold text-gray-900">{item.title}</h3>
-              <p className="mt-2 text-sm text-gray-600">{item.description}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
@@ -445,34 +763,55 @@ const LandingPage = () => {
             </div>
 
             <div>
-              <h3 className="text-xl font-bold">Follow Us</h3>
+              <h3 className="text-2xl font-bold text-white">Follow Us</h3>
               <div className="mt-5 flex items-center gap-3">
                 <a
                   href="https://facebook.com"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Facebook"
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700"
+                  onMouseEnter={() => setActiveSocial('facebook')}
+                  onFocus={() => setActiveSocial('facebook')}
+                  onTouchStart={() => setActiveSocial('facebook')}
+                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
+                    activeSocial === 'facebook'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-slate-700/35 text-slate-200 hover:bg-slate-600/55'
+                  }`}
                 >
-                  <span className="text-lg font-bold">f</span>
+                  <span className="text-2xl font-semibold leading-none">f</span>
                 </a>
                 <a
                   href="https://x.com"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Twitter"
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700"
+                  onMouseEnter={() => setActiveSocial('twitter')}
+                  onFocus={() => setActiveSocial('twitter')}
+                  onTouchStart={() => setActiveSocial('twitter')}
+                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
+                    activeSocial === 'twitter'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-slate-700/35 text-slate-200 hover:bg-slate-600/55'
+                  }`}
                 >
-                  <span className="text-lg font-bold">t</span>
+                  <span className="text-2xl font-semibold leading-none">t</span>
                 </a>
                 <a
                   href="https://instagram.com"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Instagram"
-                  className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700"
+                  onMouseEnter={() => setActiveSocial('instagram')}
+                  onFocus={() => setActiveSocial('instagram')}
+                  onTouchStart={() => setActiveSocial('instagram')}
+                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
+                    activeSocial === 'instagram'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-slate-700/35 text-slate-200 hover:bg-slate-600/55'
+                  }`}
                 >
-                  <span className="text-lg font-bold">i</span>
+                  <span className="text-2xl font-semibold leading-none">i</span>
                 </a>
               </div>
             </div>
