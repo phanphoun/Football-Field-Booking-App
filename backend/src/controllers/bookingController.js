@@ -682,7 +682,20 @@ const getBookingJoinRequests = async (req, res) => {
 
     const joinRequests = await BookingJoinRequest.findAll({
       where: { bookingId },
-      include: [{ model: Team, as: 'requesterTeam', attributes: ['id', 'name', 'skillLevel', 'captainId'] }],
+      include: [
+        {
+          model: Team,
+          as: 'requesterTeam',
+          attributes: ['id', 'name', 'skillLevel', 'captainId'],
+          include: [
+            {
+              model: User,
+              as: 'captain',
+              attributes: ['id', 'username', 'firstName', 'lastName']
+            }
+          ]
+        }
+      ],
       order: [['createdAt', 'DESC']]
     });
 

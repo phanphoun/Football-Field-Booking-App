@@ -144,6 +144,20 @@ const AppLayout = () => {
     return `${API_ORIGIN}${normalizedPath}`;
   };
 
+  const parseMetadata = (value) => {
+    if (!value) return {};
+    if (typeof value === 'object') return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  };
+
   const latestNotifications = useMemo(() => {
     return [...notifications]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -155,8 +169,12 @@ const AppLayout = () => {
     try {
       const response = await apiService.get('/notifications');
       const list = Array.isArray(response.data) ? response.data : [];
-      setNotifications(list);
-      setUnreadNotifications(list.filter((item) => !item.isRead).length);
+      const normalized = list.map((item) => ({
+        ...item,
+        metadata: parseMetadata(item.metadata)
+      }));
+      setNotifications(normalized);
+      setUnreadNotifications(normalized.filter((item) => !item.isRead).length);
     } catch {
       setNotifications([]);
       setUnreadNotifications(0);
@@ -197,6 +215,7 @@ const AppLayout = () => {
   };
 
   const canRespondToJoinRequest = (notification) => {
+<<<<<<< HEAD
     const title = String(notification?.title || '').toLowerCase();
     const message = String(notification?.message || '').toLowerCase();
     const isBookingJoinLike =
@@ -209,6 +228,18 @@ const AppLayout = () => {
         notification?.metadata?.event === 'team_join_request' ||
         title.startsWith('join request for ')
       )
+=======
+    return !notification?.isRead && notification?.metadata?.event === 'team_join_request';
+  };
+
+  const canRespondToBookingJoinRequest = (notification) => {
+    const eventName = notification?.metadata?.event;
+    return (
+      !notification?.isRead &&
+      (eventName === 'booking_join_request' || eventName === 'open_match_join_request') &&
+      !!notification?.metadata?.bookingId &&
+      !!notification?.metadata?.requestId
+>>>>>>> 09597abcc6118a192be106eae4ad34b10efa838d
     );
   };
 
@@ -461,6 +492,30 @@ const AppLayout = () => {
       });
       await markNotificationRead(notification.id);
       await loadNotifications();
+    } catch (err) {
+      setFlash({
+        type: 'error',
+        message: err?.error || 'Failed to process join request'
+      });
+    } finally {
+      setNotificationActionLoading(false);
+    }
+  };
+
+  const handleBookingJoinRequestAction = async (notification, action) => {
+    try {
+      setNotificationActionLoading(true);
+      const bookingId = notification?.metadata?.bookingId;
+      const requestId = notification?.metadata?.requestId;
+      if (!bookingId || !requestId) return;
+      await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
+      await markNotificationRead(notification.id);
+      await loadNotifications();
+    } catch (err) {
+      setFlash({
+        type: 'error',
+        message: err?.error || 'Failed to process opponent join request'
+      });
     } finally {
       setNotificationActionLoading(false);
     }
