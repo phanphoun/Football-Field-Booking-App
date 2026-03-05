@@ -110,6 +110,16 @@ const PublicTeamDetailsPage = () => {
               <div className="capitalize">{team.skillLevel}</div>
             </div>
           )}
+
+          <div>
+            <div className="font-medium text-gray-900">Team Rating</div>
+            <div>
+              {Number(team.rating || 0) > 0
+                ? `${Number(team.rating).toFixed(1)} / 5 (${Number(team.totalRatings || 0)} reviews)`
+                : 'No ratings yet'}
+            </div>
+            {team.latestReview && <div className="text-xs text-gray-500 mt-1">"{team.latestReview}"</div>}
+          </div>
         </div>
 
         {successMessage && (

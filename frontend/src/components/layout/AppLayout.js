@@ -24,7 +24,7 @@ const AppLayout = () => {
     navigate('/login');
   };
 
-  const navigation = [
+  const baseNavigation = [
     {
       name: 'Dashboard',
       href: '/app/dashboard',
@@ -55,6 +55,20 @@ const AppLayout = () => {
       icon: UserCircleIcon,
       current: location.pathname === '/app/profile'
     }
+  ];
+
+  const navigation = [
+    ...baseNavigation,
+    ...(['captain', 'admin'].includes(user?.role || '')
+      ? [
+          {
+            name: 'Matches',
+            href: '/app/matches',
+            icon: CalendarIcon,
+            current: location.pathname.startsWith('/app/matches')
+          }
+        ]
+      : [])
   ];
 
   const adminNavigation = [

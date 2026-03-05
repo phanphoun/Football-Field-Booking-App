@@ -164,7 +164,19 @@ const TeamDetailsPage = () => {
               <span className="capitalize">{team.skillLevel}</span>
             </div>
           )}
+          <div className="flex items-center">
+            <ShieldCheckIcon className="h-5 w-5 mr-2 text-gray-400" />
+            {Number(team.rating || 0) > 0
+              ? `Rating: ${Number(team.rating).toFixed(1)} (${Number(team.totalRatings || 0)} reviews)`
+              : 'Rating: No ratings yet'}
+          </div>
         </div>
+
+        {team.latestReview && (
+          <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+            Latest review: "{team.latestReview}"
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3">
           {isCaptainOfTeam ? (

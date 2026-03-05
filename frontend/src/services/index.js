@@ -4,13 +4,17 @@ import authService from './authService';
 import fieldService from './fieldService';
 import bookingService from './bookingService';
 import teamService from './teamService';
+import matchResultService from './matchResultService';
+import ratingService from './ratingService';
 
 const services = {
   api: apiService,
   auth: authService,
   field: fieldService,
   booking: bookingService,
-  team: teamService
+  team: teamService,
+  matchResult: matchResultService,
+  rating: ratingService
 };
 
 export default services;
@@ -21,5 +25,7 @@ export {
   authService,
   fieldService,
   bookingService,
-  teamService
+  teamService,
+  matchResultService,
+  ratingService
 };

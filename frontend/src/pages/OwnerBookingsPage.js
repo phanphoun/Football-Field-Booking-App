@@ -9,6 +9,8 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
+import teamService from '../services/teamService';
+import matchResultService from '../services/matchResultService';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const statusTone = (status) => {
@@ -21,12 +23,24 @@ const formatMoney = (value) => {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+const getDisplayStatus = (booking) => {
+  if (booking?.status === 'pending' && booking?.opponentTeamId) {
+    return 'pending owner confirmation';
+  }
+  return booking?.status || 'unknown';
+};
+
 const OwnerBookingsPage = () => {
   const [bookings, setBookings] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('pending');
+  const [confirmingBookingId, setConfirmingBookingId] = useState(null);
+  const [teamSelection, setTeamSelection] = useState({ teamId: '', opponentTeamId: '' });
+  const [recordingBookingId, setRecordingBookingId] = useState(null);
+  const [resultForm, setResultForm] = useState({ homeScore: '', awayScore: '', matchNotes: '' });
 
   const refresh = async () => {
     const res = await bookingService.getAllBookings({ limit: 200 });
@@ -38,7 +52,12 @@ const OwnerBookingsPage = () => {
       try {
         setLoading(true);
         setError(null);
-        await refresh();
+        const [bookingRes, teamRes] = await Promise.all([
+          bookingService.getAllBookings({ limit: 200 }),
+          teamService.getAllTeams({ limit: 200 })
+        ]);
+        setBookings(Array.isArray(bookingRes.data) ? bookingRes.data : []);
+        setTeams(Array.isArray(teamRes.data) ? teamRes.data : []);
       } catch (err) {
         setError(err?.error || 'Failed to load booking requests');
       } finally {
@@ -61,6 +80,19 @@ const OwnerBookingsPage = () => {
     return bookings.filter((b) => b.status === statusFilter);
   }, [bookings, statusFilter]);
 
+  const openConfirmTeams = (booking) => {
+    setConfirmingBookingId(booking.id);
+    setTeamSelection({
+      teamId: booking?.teamId ? String(booking.teamId) : '',
+      opponentTeamId: booking?.opponentTeamId ? String(booking.opponentTeamId) : ''
+    });
+  };
+
+  const closeConfirmTeams = () => {
+    setConfirmingBookingId(null);
+    setTeamSelection({ teamId: '', opponentTeamId: '' });
+  };
+
   const handleStatus = async (bookingId, nextStatus) => {
     try {
       setUpdatingId(bookingId);
@@ -73,6 +105,96 @@ const OwnerBookingsPage = () => {
       await refresh();
     } catch (err) {
       setError(err?.error || 'Failed to update booking');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleConfirmTeams = async (bookingId) => {
+    try {
+      const selectedTeamId = Number(teamSelection.teamId);
+      const selectedOpponentTeamId = Number(teamSelection.opponentTeamId);
+
+      if (!selectedTeamId || !selectedOpponentTeamId) {
+        setError('Please select both teams before confirming.');
+        return;
+      }
+
+      if (selectedTeamId === selectedOpponentTeamId) {
+        setError('Please choose two different teams.');
+        return;
+      }
+
+      setUpdatingId(bookingId);
+      setError(null);
+
+      await bookingService.confirmBookingTeams(bookingId, {
+        teamId: selectedTeamId,
+        opponentTeamId: selectedOpponentTeamId
+      });
+
+      closeConfirmTeams();
+      await refresh();
+    } catch (err) {
+      setError(err?.error || 'Failed to confirm teams');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleConfirmMatch = async (bookingId) => {
+    try {
+      setUpdatingId(bookingId);
+      setError(null);
+      await bookingService.confirmMatch(bookingId);
+      await refresh();
+    } catch (err) {
+      setError(err?.error || 'Failed to confirm match');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const openRecordResult = (booking) => {
+    setRecordingBookingId(booking.id);
+    setResultForm({ homeScore: '', awayScore: '', matchNotes: '' });
+  };
+
+  const closeRecordResult = () => {
+    setRecordingBookingId(null);
+    setResultForm({ homeScore: '', awayScore: '', matchNotes: '' });
+  };
+
+  const handleRecordResult = async (booking) => {
+    try {
+      if (!booking.teamId || !booking.opponentTeamId) {
+        setError('Both teams must be assigned before recording result.');
+        return;
+      }
+
+      const homeScore = Number(resultForm.homeScore);
+      const awayScore = Number(resultForm.awayScore);
+      if (!Number.isInteger(homeScore) || homeScore < 0 || !Number.isInteger(awayScore) || awayScore < 0) {
+        setError('Scores must be non-negative integers.');
+        return;
+      }
+
+      setUpdatingId(booking.id);
+      setError(null);
+
+      await matchResultService.recordMatchResult({
+        bookingId: booking.id,
+        homeTeamId: booking.teamId,
+        awayTeamId: booking.opponentTeamId,
+        homeScore,
+        awayScore,
+        matchNotes: resultForm.matchNotes || ''
+      });
+
+      closeRecordResult();
+      await refresh();
+    } catch (err) {
+      setError(err?.error || 'Failed to record match result');
     } finally {
       setUpdatingId(null);
     }
@@ -166,7 +288,7 @@ const OwnerBookingsPage = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
                         <Badge tone={statusTone(b.status)} className="capitalize">
-                          {b.status}
+                          {getDisplayStatus(b)}
                         </Badge>
                         {(b.status === 'confirmed' || b.status === 'completed') && (
                           <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
@@ -175,21 +297,36 @@ const OwnerBookingsPage = () => {
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
                         <span className="inline-flex items-center gap-1">
                           <CalendarIcon className="h-4 w-4 text-gray-400" />
-                          {start ? start.toLocaleString() : '—'}
-                          {end ? ` – ${end.toLocaleTimeString()}` : ''}
+                          {start ? start.toLocaleString() : '-'}
+                          {end ? ` - ${end.toLocaleTimeString()}` : ''}
                         </span>
-                        <span className="text-gray-300">•</span>
-                        <span className="truncate">{b.team?.name || 'Team'}</span>
+                        <span className="text-gray-300">|</span>
+                        <span className="truncate">
+                          {b.team?.name || 'Team'}
+                          {b.opponentTeam?.name ? ` vs ${b.opponentTeam.name}` : ''}
+                        </span>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       {b.status === 'pending' && (
                         <>
-                          <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirmed')}>
-                            <CheckCircleIcon className="h-4 w-4" />
-                            Confirm
-                          </Button>
+                          {b.opponentTeamId ? (
+                            <Button size="sm" disabled={isUpdating} onClick={() => handleConfirmMatch(b.id)}>
+                              <CheckCircleIcon className="h-4 w-4" />
+                              Confirm match
+                            </Button>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" disabled={isUpdating} onClick={() => openConfirmTeams(b)}>
+                                Confirm teams
+                              </Button>
+                              <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirmed')}>
+                                <CheckCircleIcon className="h-4 w-4" />
+                                Confirm
+                              </Button>
+                            </>
+                          )}
                           <Button
                             size="sm"
                             variant="danger"
@@ -202,15 +339,116 @@ const OwnerBookingsPage = () => {
                         </>
                       )}
                       {b.status === 'confirmed' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'completed')}>
-                          <CheckCircleIcon className="h-4 w-4" />
-                          Complete
-                        </Button>
+                        <>
+                          <Button size="sm" variant="outline" disabled={isUpdating} onClick={() => openRecordResult(b)}>
+                            Record result
+                          </Button>
+                          <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'completed')}>
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Complete
+                          </Button>
+                        </>
                       )}
                       {(b.status === 'completed' || b.status === 'cancelled') && (
                         <Badge tone="gray">No actions</Badge>
                       )}
                     </div>
+
+                    {confirmingBookingId === b.id && !b.opponentTeamId && (
+                      <div className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700">Team 1</label>
+                            <select
+                              value={teamSelection.teamId}
+                              onChange={(e) => setTeamSelection((prev) => ({ ...prev, teamId: e.target.value }))}
+                              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            >
+                              <option value="">Select team</option>
+                              {teams.map((t) => (
+                                <option key={t.id} value={String(t.id)}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700">Team 2</label>
+                            <select
+                              value={teamSelection.opponentTeamId}
+                              onChange={(e) =>
+                                setTeamSelection((prev) => ({ ...prev, opponentTeamId: e.target.value }))
+                              }
+                              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            >
+                              <option value="">Select team</option>
+                              {teams.map((t) => (
+                                <option key={t.id} value={String(t.id)}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Button size="sm" disabled={isUpdating} onClick={() => handleConfirmTeams(b.id)}>
+                            Finalize booking
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={isUpdating} onClick={closeConfirmTeams}>
+                            Close
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {recordingBookingId === b.id && (
+                      <div className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="mb-2 text-xs text-gray-600">
+                          {b.team?.name || 'Team 1'} vs {b.opponentTeam?.name || 'Team 2'}
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700">{b.team?.name || 'Team 1'} score</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={resultForm.homeScore}
+                              onChange={(e) => setResultForm((prev) => ({ ...prev, homeScore: e.target.value }))}
+                              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700">{b.opponentTeam?.name || 'Team 2'} score</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={resultForm.awayScore}
+                              onChange={(e) => setResultForm((prev) => ({ ...prev, awayScore: e.target.value }))}
+                              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <label className="mb-1 block text-xs font-medium text-gray-700">Notes (optional)</label>
+                          <textarea
+                            rows={2}
+                            value={resultForm.matchNotes}
+                            onChange={(e) => setResultForm((prev) => ({ ...prev, matchNotes: e.target.value }))}
+                            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                            placeholder="Any notes about this match result"
+                          />
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Button size="sm" disabled={isUpdating} onClick={() => handleRecordResult(b)}>
+                            Save result
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={isUpdating} onClick={closeRecordResult}>
+                            Close
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -219,7 +457,7 @@ const OwnerBookingsPage = () => {
         </div>
 
         <CardBody className="px-6 py-4 text-xs text-gray-500">
-          Tip: Confirm pending requests quickly to improve your field’s booking rate.
+          Tip: Confirm pending requests quickly to improve your field booking rate.
         </CardBody>
       </Card>
     </div>

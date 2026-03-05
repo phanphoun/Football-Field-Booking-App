@@ -23,6 +23,13 @@ const formatMoney = (value) => {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+const getDisplayStatus = (booking) => {
+  if (booking?.status === 'pending' && booking?.opponentTeamId) {
+    return 'pending owner confirmation';
+  }
+  return booking?.status || 'unknown';
+};
+
 const OwnerDashboardPage = () => {
   const navigate = useNavigate();
   const [fields, setFields] = useState([]);
@@ -85,6 +92,7 @@ const OwnerDashboardPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') await bookingService.confirmBooking(bookingId);
+      if (nextStatus === 'confirm_match') await bookingService.confirmMatch(bookingId);
       if (nextStatus === 'cancelled') await bookingService.cancelBooking(bookingId);
       if (nextStatus === 'completed') await bookingService.completeBooking(bookingId);
 
@@ -130,7 +138,7 @@ const OwnerDashboardPage = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         {kpiCards.map((c) => (
           <Card key={c.name}>
             <CardBody className="p-5">
@@ -148,7 +156,7 @@ const OwnerDashboardPage = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="px-6 py-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-900">Pending booking requests</h2>
@@ -165,18 +173,26 @@ const OwnerDashboardPage = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
                           <Badge tone={statusTone(b.status)} className="capitalize">
-                            {b.status}
+                            {getDisplayStatus(b)}
                           </Badge>
                         </div>
                         <div className="mt-1 text-xs text-gray-600">
-                          {new Date(b.startTime).toLocaleString()} • {b.team?.name || 'Team'}
+                          {new Date(b.startTime).toLocaleString()} | {b.team?.name || 'Team'}
+                          {b.opponentTeam?.name ? ` vs ${b.opponentTeam.name}` : ''}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirmed')}>
-                          <CheckCircleIcon className="h-4 w-4" />
-                          Confirm
-                        </Button>
+                        {b.opponentTeamId ? (
+                          <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirm_match')}>
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Confirm match
+                          </Button>
+                        ) : (
+                          <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirmed')}>
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Confirm
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="danger"
@@ -196,7 +212,7 @@ const OwnerDashboardPage = () => {
                 <EmptyState
                   icon={ClockIcon}
                   title="No pending requests"
-                  description="When players create bookings for your fields, they'll show up here."
+                  description="When players create bookings for your fields, they will show up here."
                 />
               </div>
             )}
@@ -219,7 +235,8 @@ const OwnerDashboardPage = () => {
                         <Badge tone="green">confirmed</Badge>
                       </div>
                       <div className="mt-1 text-xs text-gray-600 truncate">
-                        {new Date(b.startTime).toLocaleString()} • {b.team?.name || 'Team'}
+                        {new Date(b.startTime).toLocaleString()} | {b.team?.name || 'Team'}
+                        {b.opponentTeam?.name ? ` vs ${b.opponentTeam.name}` : ''}
                       </div>
                     </div>
                     <div className="shrink-0">
@@ -266,7 +283,7 @@ const OwnerDashboardPage = () => {
                     </div>
                     <div className="mt-1 text-xs text-gray-600 truncate">
                       {f.city}
-                      {f.province ? `, ${f.province}` : ''} • {formatMoney(f.pricePerHour)}/hr
+                      {f.province ? `, ${f.province}` : ''} | {formatMoney(f.pricePerHour)}/hr
                     </div>
                   </div>
                   <Button as={Link} to="/owner/fields" size="sm" variant="outline">
@@ -290,7 +307,7 @@ const OwnerDashboardPage = () => {
       </Card>
 
       <div className="text-xs text-gray-500">
-        Completed bookings: {completedBookings.length}. Revenue estimate includes confirmed + completed only.
+        Completed bookings: {completedBookings.length}. Revenue estimate includes confirmed and completed only.
       </div>
     </div>
   );

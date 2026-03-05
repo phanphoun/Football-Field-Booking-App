@@ -24,6 +24,12 @@ const bookingService = {
     return response;
   },
 
+  // Get open matches waiting for opponent
+  getOpenMatches: async () => {
+    const response = await apiService.get('/bookings/open-matches');
+    return response;
+  },
+
   // Create new booking
   createBooking: async (bookingData) => {
     const response = await apiService.post('/bookings', bookingData);
@@ -110,6 +116,24 @@ const bookingService = {
   // Complete booking
   completeBooking: async (bookingId) => {
     const response = await apiService.put(`/bookings/${bookingId}`, { status: 'completed' });
+    return response;
+  },
+
+  // Confirm both teams for a booking and finalize it
+  confirmBookingTeams: async (bookingId, payload) => {
+    const response = await apiService.put(`/bookings/${bookingId}/confirm-teams`, payload);
+    return response;
+  },
+
+  // Join an open match as Team 2
+  joinOpenMatch: async (bookingId, teamId) => {
+    const response = await apiService.post(`/bookings/${bookingId}/join-match`, { teamId });
+    return response;
+  },
+
+  // Owner confirms a pending match with Team 1 + Team 2
+  confirmMatch: async (bookingId) => {
+    const response = await apiService.put(`/bookings/${bookingId}/confirm-match`);
     return response;
   },
 
