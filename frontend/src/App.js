@@ -20,6 +20,7 @@ import FieldDetailsPage from './pages/FieldDetailsPage';
 import TeamCreatePage from './pages/TeamCreatePage';
 import TeamDetailsPage from './pages/TeamDetailsPage';
 import TeamManagePage from './pages/TeamManagePage';
+import TeamMatchHistoryPage from './pages/TeamMatchHistoryPage';
 import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
@@ -73,6 +74,7 @@ function App() {
                 }
               />
               <Route path="teams/:id" element={<TeamDetailsPage />} />
+              <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
               <Route
                 path="teams/:id/manage"
                 element={

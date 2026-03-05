@@ -249,6 +249,7 @@ const TeamDetailsPage = () => {
   const activeMembers = Array.isArray(team.teamMembers)
     ? team.teamMembers.filter((m) => m.status === 'active')
     : [];
+  const canViewMatchHistory = isAdmin() || isCaptainOfTeam || membership?.status === 'active';
 
   const resolveUserAvatarUrl = (memberUser) => {
     const rawAvatar = memberUser?.avatarUrl || memberUser?.avatar_url || null;
@@ -287,6 +288,14 @@ const TeamDetailsPage = () => {
             <ArrowLeftIcon className="h-4 w-4" />
             Back
           </button>
+          {canViewMatchHistory && (
+            <Link
+              to={`/app/teams/${team.id}/matches`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              Match History
+            </Link>
+          )}
           {(isCaptainOfTeam || isAdmin()) && (
             <Link
               to={`/app/teams/${team.id}/manage`}

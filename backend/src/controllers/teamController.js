@@ -1,4 +1,5 @@
-const { Team, User, Field, Booking, TeamMember, Notification } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification } = require('../models');
+const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -369,6 +370,93 @@ const getTeamMembers = asyncHandler(async (req, res) => {
   });
 
   res.json({ success: true, data: members });
+});
+
+const getTeamMatchHistory = asyncHandler(async (req, res) => {
+  const teamId = Number(req.params.id);
+  if (!Number.isInteger(teamId) || teamId <= 0) {
+    return res.status(400).json({ success: false, message: 'Invalid team id' });
+  }
+
+  const team = await Team.findByPk(teamId, { attributes: ['id', 'name', 'captainId'] });
+  if (!team) {
+    return res.status(404).json({ success: false, message: 'Team not found' });
+  }
+
+  const isAdmin = req.user.role === 'admin';
+  const isCaptainOfTeam = team.captainId === req.user.id;
+  let isActiveMember = false;
+
+  if (!isAdmin && !isCaptainOfTeam) {
+    const membership = await TeamMember.findOne({
+      where: { teamId, userId: req.user.id, status: 'active', isActive: true },
+      attributes: ['teamId']
+    });
+    isActiveMember = !!membership;
+  }
+
+  if (!isAdmin && !isCaptainOfTeam && !isActiveMember) {
+    return res.status(403).json({
+      success: false,
+      message: 'Not authorized to view match history for this team'
+    });
+  }
+
+  const completedMatches = await MatchResult.findAll({
+    where: {
+      matchStatus: 'completed',
+      [Op.or]: [{ homeTeamId: teamId }, { awayTeamId: teamId }]
+    },
+    include: [
+      { model: Team, as: 'homeTeam', attributes: ['id', 'name'] },
+      { model: Team, as: 'awayTeam', attributes: ['id', 'name'] },
+      { model: Booking, as: 'booking', attributes: ['startTime', 'fieldId'], include: [{ model: Field, as: 'field', attributes: ['id', 'name'], required: false }], required: false }
+    ],
+    order: [['recordedAt', 'DESC']]
+  });
+
+  const matches = completedMatches.map((match) => {
+    const isHome = Number(match.homeTeamId) === teamId;
+    const myScore = isHome ? Number(match.homeScore) : Number(match.awayScore);
+    const opponentScore = isHome ? Number(match.awayScore) : Number(match.homeScore);
+    const opponentTeam = isHome ? match.awayTeam : match.homeTeam;
+
+    let result = 'Draw';
+    if (myScore > opponentScore) result = 'Win';
+    if (myScore < opponentScore) result = 'Loss';
+
+    return {
+      id: match.id,
+      bookingId: match.bookingId,
+      opponentTeamName: opponentTeam?.name || 'Unknown Team',
+      date: match.booking?.startTime || match.recordedAt || match.createdAt,
+      fieldName: match.booking?.field?.name || null,
+      finalScore: `${myScore}-${opponentScore}`,
+      myScore,
+      opponentScore,
+      result
+    };
+  });
+
+  const stats = matches.reduce(
+    (acc, match) => {
+      if (match.result === 'Win') acc.wins += 1;
+      else if (match.result === 'Loss') acc.losses += 1;
+      else acc.draws += 1;
+      return acc;
+    },
+    { total: matches.length, wins: 0, losses: 0, draws: 0 }
+  );
+
+  res.json({
+    success: true,
+    data: {
+      teamId: team.id,
+      teamName: team.name,
+      stats,
+      matches
+    }
+  });
 });
 
 const getJoinRequests = asyncHandler(async (req, res) => {
@@ -861,6 +949,7 @@ module.exports = {
   requestJoinTeam,
   leaveTeam,
   getTeamMembers,
+  getTeamMatchHistory,
   getJoinRequests,
   addTeamMember,
   updateTeamMember,

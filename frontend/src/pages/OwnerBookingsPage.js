@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowPathIcon,
   BuildingOfficeIcon,
   CalendarIcon,
   CheckCircleIcon,
@@ -121,10 +120,6 @@ const OwnerBookingsPage = () => {
           <Button as={Link} to="/owner/fields" variant="outline" size="sm">
             <BuildingOfficeIcon className="h-4 w-4" />
             My fields
-          </Button>
-          <Button variant="outline" size="sm" onClick={refresh}>
-            <ArrowPathIcon className="h-4 w-4" />
-            Refresh
           </Button>
         </div>
       </div>

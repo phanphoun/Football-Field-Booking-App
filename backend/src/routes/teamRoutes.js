@@ -12,6 +12,7 @@ router.get('/captained', auth, checkRole(['captain', 'admin']), teamController.g
 
 router.get('/', auth, teamController.getAllTeams);
 router.get('/:id', auth, ...idValidation, teamController.getTeamById);
+router.get('/:id/matches', auth, ...idValidation, teamController.getTeamMatchHistory);
 router.post('/', auth, checkRole(['captain', 'admin']), ...teamValidation.create, teamController.createTeam);
 router.put('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.updateTeam);
 router.delete('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.deleteTeam);

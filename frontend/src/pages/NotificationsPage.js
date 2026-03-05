@@ -93,6 +93,28 @@ const NotificationsPage = () => {
     }
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      setActionLoading(true);
+      setError(null);
+      const unread = notifications.filter((item) => !item.isRead);
+      if (unread.length === 0) return;
+      await Promise.all(
+        unread.map((item) =>
+          apiService.put(`/notifications/${item.id}`, {
+            isRead: true,
+            readAt: new Date().toISOString()
+          })
+        )
+      );
+      await loadNotifications();
+    } catch (err) {
+      setError(err?.error || 'Failed to mark all notifications as read');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const canRespondToInvite = (notification) => {
     return user?.role === 'player' && notification.type === 'team_invite' && !notification.isRead;
   };
@@ -205,24 +227,33 @@ const NotificationsPage = () => {
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center gap-2">
-          {[
-            { key: 'all', label: 'All' },
-            { key: 'invites', label: 'Invitations' },
-            { key: 'requests', label: 'Join Requests' }
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border ${
-                activeFilter === tab.key
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'invites', label: 'Invitations' },
+              { key: 'requests', label: 'Join Requests' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveFilter(tab.key)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium border ${
+                  activeFilter === tab.key
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleMarkAllRead}
+            disabled={actionLoading || notifications.every((item) => item.isRead)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Mark all read
+          </button>
         </div>
 
         <div className="p-4">

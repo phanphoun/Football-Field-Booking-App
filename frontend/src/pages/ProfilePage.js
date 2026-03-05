@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import bookingService from '../services/bookingService';
+import teamService from '../services/teamService';
 import {
   UserIcon,
   CameraIcon,
@@ -34,6 +36,11 @@ const ProfilePage = () => {
   const [profileError, setProfileError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    totalTeams: 0,
+    memberSince: 'Unknown'
+  });
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -69,6 +76,53 @@ const ProfilePage = () => {
       }
     };
   }, [avatarPreview]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadStats = async () => {
+      const memberSince = user?.createdAt
+        ? new Date(user.createdAt).toLocaleDateString()
+        : 'Unknown';
+
+      try {
+        const [bookingsResult, teamsResult] = await Promise.allSettled([
+          bookingService.getAllBookings({ limit: 1000 }),
+          teamService.getMyTeams()
+        ]);
+
+        const bookings =
+          bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value?.data)
+            ? bookingsResult.value.data
+            : [];
+
+        const teams =
+          teamsResult.status === 'fulfilled' && Array.isArray(teamsResult.value?.data)
+            ? teamsResult.value.data
+            : [];
+
+        if (!active) return;
+        setStats({
+          totalBookings: bookings.length,
+          totalTeams: teams.length,
+          memberSince
+        });
+      } catch {
+        if (!active) return;
+        setStats({
+          totalBookings: 0,
+          totalTeams: 0,
+          memberSince
+        });
+      }
+    };
+
+    loadStats();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id, user?.createdAt]);
 
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
@@ -217,16 +271,6 @@ const ProfilePage = () => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
   };
-
-  const getAccountStats = () => {
-    return {
-      totalBookings: 0,
-      totalTeams: 0,
-      memberSince: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'
-    };
-  };
-
-  const stats = getAccountStats();
 
   return (
     <div className="space-y-6">

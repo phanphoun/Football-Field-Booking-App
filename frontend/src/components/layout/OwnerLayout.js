@@ -23,6 +23,18 @@ const OwnerLayout = () => {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
+  const pageInfo = React.useMemo(() => {
+    const path = location.pathname;
+    const entries = [
+      { match: '/owner/dashboard', title: 'Owner Dashboard', subtitle: 'Track field performance and booking flow' },
+      { match: '/owner/fields', title: 'My Fields', subtitle: 'Create, update, and manage your fields' },
+      { match: '/owner/bookings', title: 'Booking Requests', subtitle: 'Confirm or cancel incoming booking requests' },
+      { match: '/owner/profile', title: 'Profile', subtitle: 'Manage your owner account settings' }
+    ];
+    const current = entries.find((entry) => path.startsWith(entry.match));
+    return current || { title: 'Owner Panel', subtitle: 'Manage your field business' };
+  }, [location.pathname]);
+
   const handleLogout = () => {
     const confirmed = window.confirm('Do you want to logout?');
     if (!confirmed) return;
@@ -179,6 +191,14 @@ const OwnerLayout = () => {
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
+
+            <div className="ml-3 min-w-0 md:hidden">
+              <p className="text-sm font-semibold text-gray-900 truncate">{pageInfo.title}</p>
+              <p className="text-xs text-gray-500 truncate hidden sm:block">
+                {pageInfo.subtitle}
+                {user?.firstName ? ` | Welcome back, ${user.firstName}` : ''}
+              </p>
+            </div>
 
             <div className="flex items-center space-x-4 ml-auto">
               <div
