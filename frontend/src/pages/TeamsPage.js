@@ -15,7 +15,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
 };
 
 const TeamsPage = () => {
-  const { user, isCaptain, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
@@ -24,9 +24,10 @@ const TeamsPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchTeams = async () => {
+    const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
+<<<<<<< HEAD
         const [teamsRes, invitationsRes] = await Promise.all([
           teamService.getMyTeams(),
           teamService.getMyInvitations()
@@ -41,11 +42,11 @@ const TeamsPage = () => {
       }
     };
 
-    fetchTeams();
+    fetchTeamsAndInvitations();
   }, [user?.id]);
 
   const handleCreateTeam = () => {
-    navigate('/teams/create');
+    navigate('/app/teams/create');
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -149,13 +150,13 @@ const TeamsPage = () => {
 
   // eslint-disable-next-line no-unused-vars
   const getMemberCount = (team) => {
-    return team.TeamMembers?.filter(member => member.status === 'active').length || 0;
+    return team.TeamMembers?.filter(member => member.status === 'accepted').length || 0;
   };
 
   // eslint-disable-next-line no-unused-vars
   const isUserInTeam = (team) => {
     return team.TeamMembers?.some(member => 
-      member.userId === user?.id && member.status === 'active'
+      member.userId === user?.id && member.status === 'accepted'
     );
   };
 
@@ -183,7 +184,7 @@ const TeamsPage = () => {
           >
             Browse Teams
           </button>
-          {(isCaptain() || isAdmin()) && (
+          {user && (
             <button
               onClick={handleCreateTeam}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -202,6 +203,7 @@ const TeamsPage = () => {
       )}
 
       {invitations.length > 0 && (
+<<<<<<< HEAD
         <div className="mb-8 bg-white border border-amber-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/70 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-amber-900 inline-flex items-center gap-2">
@@ -328,7 +330,7 @@ const TeamsPage = () => {
               >
                 Browse Teams
               </button>
-              {(isCaptain() || isAdmin()) && (
+              {user && (
                 <button
                   onClick={handleCreateTeam}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"

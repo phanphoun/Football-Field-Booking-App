@@ -181,7 +181,7 @@ const TeamManagePage = () => {
   }
 
   const activeMembers = Array.isArray(members)
-    ? members.filter((m) => m.status === 'active' && m.isActive !== false)
+    ? members.filter((m) => m.status === 'accepted' && m.isActive !== false)
     : [];
   const pendingCount = Array.isArray(requests) ? requests.length : 0;
 

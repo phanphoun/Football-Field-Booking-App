@@ -174,6 +174,13 @@ const bookingService = {
     return response;
   },
 
+  // Public schedule for landing page (no auth required)
+  getPublicSchedule: async (date, limit = 6) => {
+    const params = { date, limit };
+    const response = await apiService.get('/public/schedule', params);
+    return response;
+  },
+
   // Helper method to format booking data for API
   formatBookingData: (rawData) => {
     return {
