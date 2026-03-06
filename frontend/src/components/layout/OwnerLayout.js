@@ -5,6 +5,7 @@ import {
   HomeIcon,
   BuildingOfficeIcon,
   CalendarIcon,
+  TrophyIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
@@ -29,6 +30,7 @@ const OwnerLayout = () => {
       { match: '/owner/dashboard', title: 'Owner Dashboard', subtitle: 'Track field performance and booking flow' },
       { match: '/owner/fields', title: 'My Fields', subtitle: 'Create, update, and manage your fields' },
       { match: '/owner/bookings', title: 'Booking Requests', subtitle: 'Confirm or cancel incoming booking requests' },
+      { match: '/owner/matches', title: 'Matches', subtitle: 'View team vs team matches and enter final results' },
       { match: '/owner/profile', title: 'Profile', subtitle: 'Manage your owner account settings' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
@@ -60,6 +62,12 @@ const OwnerLayout = () => {
       href: '/owner/bookings',
       icon: CalendarIcon,
       current: location.pathname.startsWith('/owner/bookings')
+    },
+    {
+      name: 'Matches',
+      href: '/owner/matches',
+      icon: TrophyIcon,
+      current: location.pathname.startsWith('/owner/matches')
     },
     {
       name: 'Profile',

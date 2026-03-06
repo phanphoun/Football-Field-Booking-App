@@ -129,6 +129,10 @@ const OwnerDashboardPage = () => {
             <ClockIcon className="h-4 w-4" />
             Review requests
           </Button>
+          <Button as={Link} to="/owner/matches" variant="outline" size="sm">
+            <CalendarIcon className="h-4 w-4" />
+            Matches
+          </Button>
         </div>
       </div>
 

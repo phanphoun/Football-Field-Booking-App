@@ -119,6 +119,18 @@ const bookingService = {
     return response;
   },
 
+  // Field owner/captain/admin: create a match result for a completed booking
+  createMatchResult: async (resultData) => {
+    const response = await apiService.post('/match-results', resultData);
+    return response;
+  },
+
+  // Field owner/captain/admin: update an existing match result
+  updateMatchResult: async (resultId, resultData) => {
+    const response = await apiService.put(`/match-results/${resultId}`, resultData);
+    return response;
+  },
+
   // Captain: toggle open for opponents on own booking
   setOpenForOpponents: async (bookingId, openForOpponents) => {
     const response = await apiService.patch(`/bookings/${bookingId}/open-for-opponents`, { openForOpponents });

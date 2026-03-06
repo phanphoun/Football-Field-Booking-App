@@ -344,13 +344,13 @@ const League = () => {
                           </span>
                         </div>
                         
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-6">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
                           <div className="flex flex-col items-center text-center min-w-0">
                             {match.homeTeam.logo && (
                               <img 
                                 src={match.homeTeam.logo} 
                                 alt={match.homeTeam.name} 
-                                className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
+                                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain flex-shrink-0"
                               />
                             )}
                             <span
@@ -365,7 +365,7 @@ const League = () => {
                             </span>
                           </div>
                           
-                          <div className="px-3 sm:px-5 py-2.5 sm:py-3 bg-gray-100 rounded-lg min-w-[88px] sm:min-w-[104px] text-center flex-shrink-0">
+                          <div className="px-2.5 sm:px-4 py-2 sm:py-2.5 bg-gray-100 rounded-lg min-w-[78px] sm:min-w-[96px] text-center flex-shrink-0">
                             <span className="text-base sm:text-xl md:text-2xl font-bold text-gray-900 leading-none">
                               {hasResult
                                 ? `${match.homeTeam.score} : ${match.awayTeam.score}`
@@ -378,7 +378,7 @@ const League = () => {
                               <img 
                                 src={match.awayTeam.logo} 
                                 alt={match.awayTeam.name} 
-                                className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
+                                className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 object-contain flex-shrink-0"
                               />
                             )}
                             <span

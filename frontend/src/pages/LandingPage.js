@@ -263,6 +263,7 @@ const HOME_STATS = [
   }
 ];
 const SLOT_DURATION_MINUTES = 60;
+const SCHEDULE_ROW_HEIGHT_CLASS = 'h-24';
 const toLocalDateKey = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -474,6 +475,7 @@ const LandingPage = () => {
         return {
           id: `bk-${booking.id}`,
           bookingId: booking.id,
+          status: booking.status,
           fieldKey: booking.fieldId,
           team: booking.teamName || booking?.team?.name || 'Booked Slot',
           start,
@@ -482,7 +484,12 @@ const LandingPage = () => {
           endMinutes: parseSlotToMinutes(end),
           players: booking.players || booking?.team?.teamMembers?.length || 22,
           isOwnBooking,
-          tone: isOwnBooking ? 'bg-emerald-600' : 'bg-red-600'
+          tone:
+            booking.status === 'pending'
+              ? 'bg-amber-500'
+              : isOwnBooking
+              ? 'bg-emerald-600'
+              : 'bg-red-600'
         };
       });
   }, [scheduleBookingsData, user?.id]);
@@ -560,11 +567,11 @@ const LandingPage = () => {
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
   };
-  const findEventForSlot = (events, slot) => {
+  const findEventsForSlot = (events, slot) => {
     const slotStart = parseSlotToMinutes(slot);
-    if (!Number.isFinite(slotStart)) return null;
+    if (!Number.isFinite(slotStart)) return [];
     const slotEnd = slotStart + SLOT_DURATION_MINUTES;
-    return events.find(
+    return events.filter(
       (event) =>
         Number.isFinite(event.startMinutes) &&
         Number.isFinite(event.endMinutes) &&
@@ -1057,6 +1064,20 @@ const LandingPage = () => {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-700">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-semibold text-slate-800">Color guide:</span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-sm bg-emerald-600" /> Your confirmed booking
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-sm bg-red-600" /> Confirmed by another team (blocked)
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending request (owner not approved yet, still bookable)
+              </span>
+            </div>
+          </div>
           <div className="flex border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-blue-600 text-white">
             <div className="w-56 p-4 font-semibold">Fields / Time</div>
             <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
@@ -1080,24 +1101,36 @@ const LandingPage = () => {
                 <button
                   type="button"
                   onClick={() => handleOpenFieldFromSchedule(field)}
-                  className="w-56 p-4 text-left hover:bg-slate-50"
+                  className={`w-56 p-2.5 text-left hover:bg-slate-50 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
                 >
-                  <div className="font-semibold text-slate-900">{field.name}</div>
-                  <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                  <div className="font-semibold text-slate-900 leading-tight">{field.name}</div>
+                  <span className="mt-1.5 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                     {field.fieldType || 'Outdoor'}
                   </span>
                 </button>
                 <div className="relative flex-1">
-                  <div className="grid h-36" style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
+                  <div className={`grid ${SCHEDULE_ROW_HEIGHT_CLASS}`} style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
                     {TIME_SLOTS.map((slot) => {
-                      const slotEvent = findEventForSlot(rowEvents, slot);
-                      const slotTakenByOther = Boolean(slotEvent && !slotEvent.isOwnBooking);
-                      const slotTakenByMe = Boolean(slotEvent && slotEvent.isOwnBooking);
+                      const slotEvents = findEventsForSlot(rowEvents, slot);
+                      const slotOwnEvent = slotEvents.find((event) => event.isOwnBooking);
+                      const slotOtherConfirmedEvent = slotEvents.find(
+                        (event) => !event.isOwnBooking && event.status === 'confirmed'
+                      );
+                      const slotOtherPendingEvent = slotEvents.find(
+                        (event) => !event.isOwnBooking && event.status === 'pending'
+                      );
+                      const slotTakenByOther = Boolean(slotOtherConfirmedEvent);
+                      const slotTakenByMe = Boolean(slotOwnEvent);
+                      const slotHasOtherPending = Boolean(slotOtherPendingEvent);
 
                       const slotClassName = slotTakenByOther
                         ? 'border-l border-slate-200 bg-red-100 cursor-not-allowed'
                         : slotTakenByMe
-                        ? 'border-l border-slate-200 bg-emerald-100 hover:bg-emerald-200'
+                        ? slotOwnEvent?.status === 'pending'
+                          ? 'border-l border-slate-200 bg-amber-100 hover:bg-amber-200'
+                          : 'border-l border-slate-200 bg-emerald-100 hover:bg-emerald-200'
+                        : slotHasOtherPending
+                        ? 'border-l border-slate-200 bg-amber-50 hover:bg-amber-100'
                         : 'border-l border-slate-200 hover:bg-slate-50';
 
                       return (
@@ -1118,13 +1151,19 @@ const LandingPage = () => {
                               ? `${field.name} at ${slot} is unavailable`
                               : slotTakenByMe
                               ? `Open your booking at ${field.name} ${slot}`
+                              : slotHasOtherPending
+                              ? `Pending request exists at ${field.name} ${slot}, you can still request this slot`
                               : `Book ${field.name} at ${slot}`
                           }
                           title={
                             slotTakenByOther
-                              ? 'Booked by another team'
+                              ? 'Confirmed booking by another team'
                               : slotTakenByMe
-                              ? 'Your booking - click to track'
+                              ? slotOwnEvent?.status === 'pending'
+                                ? 'Your request is pending owner approval - click to track'
+                                : 'Your booking - click to track'
+                              : slotHasOtherPending
+                              ? 'Pending request exists, owner can still choose between teams'
                               : 'Available - click to book'
                           }
                         />
@@ -1137,11 +1176,11 @@ const LandingPage = () => {
                     return (
                       <div
                         key={event.id}
-                        className={`absolute rounded-xl p-3 text-white shadow-md ${event.tone}`}
+                        className={`absolute rounded-lg px-2.5 py-1.5 text-white shadow-md ${event.tone}`}
                         style={{
                           left: `${startPct}%`,
-                          width: `max(${widthPct}%, 120px)`,
-                          top: `${10 + index * 8}px`
+                          width: `max(${widthPct}%, 96px)`,
+                          top: `${8 + index * 8}px`
                         }}
                         onClick={() => navigate(event.isOwnBooking ? '/app/bookings' : toFieldRoute(field))}
                         onKeyDown={(e) => {
@@ -1153,9 +1192,9 @@ const LandingPage = () => {
                         role="button"
                         tabIndex={0}
                       >
-                        <div className="truncate text-sm font-bold">{event.team}</div>
-                        <div className="mt-1 text-xs">{event.start} - {event.end}</div>
-                        <div className="mt-1 text-xs">{event.players} players</div>
+                        <div className="truncate text-sm font-bold leading-tight">{event.team}</div>
+                        <div className="mt-1 text-xs leading-tight">{event.start} - {event.end}</div>
+                        <div className="mt-1 text-xs leading-tight">{event.players} players</div>
                       </div>
                     );
                   })}
