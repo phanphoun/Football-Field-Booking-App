@@ -337,28 +337,6 @@ const LandingPage = () => {
     []
   );
 
-<<<<<<< HEAD
-  const normalizeImages = (imagesValue) => {
-    if (Array.isArray(imagesValue)) return imagesValue;
-    if (typeof imagesValue === 'string') {
-      try {
-        const parsed = JSON.parse(imagesValue);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  };
-
-  const resolveFieldImageUrl = (rawImage) => {
-    if (!rawImage) return DEFAULT_FIELD_IMAGE;
-    if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
-    return rawImage;
-  };
-
-=======
   const steps = useMemo(
     () => [
       { id: '01', title: 'Browse Fields', description: 'Explore available football fields and compare options.', icon: MagnifyingGlassIcon },
@@ -588,7 +566,6 @@ const LandingPage = () => {
   };
 
 
->>>>>>> guest-register-ponmakara
   return (
     <div className="space-y-14">
       <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
@@ -647,26 +624,6 @@ const LandingPage = () => {
             <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
             <p className="mt-3 text-2xl text-slate-600">Find and book your perfect field in seconds</p>
           </div>
-<<<<<<< HEAD
-        ) : popularFields.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {popularFields.map((field) => (
-              <Link
-                key={field.id}
-                to={`/fields/${field.id}`}
-                className="group bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="h-40 bg-gray-200 overflow-hidden">
-                  <img
-                    src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
-                    alt={field.name}
-                    className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
-                    onError={(e) => {
-                      if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                        e.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                      }
-                    }}
-=======
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -783,7 +740,6 @@ const LandingPage = () => {
                   <div
                     className="h-3 rounded-full bg-violet-600"
                     style={{ width: `${Math.max(10, Math.min(slot.rate, 100))}%` }}
->>>>>>> guest-register-ponmakara
                   />
                 </div>
 

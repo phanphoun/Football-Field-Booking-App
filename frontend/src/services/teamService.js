@@ -94,7 +94,7 @@ const teamService = {
   },
 
   // Invite member to team (captain only)
-  inviteMember: async (teamId, userId, role = 'player') => {
+  addTeamMember: async (teamId, userId, role = 'player') => {
     const response = await apiService.post('/team-members', {
       teamId,
       userId,
@@ -140,7 +140,7 @@ const teamService = {
   },
 
   // Invite a player (captain/admin)
-  inviteMember: async (teamId, inviteData) => {
+  invitePlayer: async (teamId, inviteData) => {
     const response = await apiService.post(`/teams/${teamId}/invite`, inviteData);
     return response;
   },

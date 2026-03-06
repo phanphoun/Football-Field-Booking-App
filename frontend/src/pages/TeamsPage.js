@@ -27,7 +27,7 @@ const TeamsPage = () => {
     const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
-<<<<<<< HEAD
+
         const [teamsRes, invitationsRes] = await Promise.all([
           teamService.getMyTeams(),
           teamService.getMyInvitations()
@@ -60,28 +60,6 @@ const TeamsPage = () => {
     } catch (err) {
       console.error('Failed to join team:', err);
       setError('Failed to join team');
-    }
-  };
-
-  const extractApiArray = (response) => {
-    if (!response) return [];
-    if (Array.isArray(response.data)) return response.data;
-    if (Array.isArray(response.data?.data)) return response.data.data;
-    if (Array.isArray(response.data?.data?.data)) return response.data.data.data;
-    return [];
-  };
-
-  const handleInvitationDecision = async (invitationId, status) => {
-    try {
-      await teamService.respondToInvitation(invitationId, status);
-      setInvitations((prev) => prev.filter((invitation) => invitation.id !== invitationId));
-
-      const response = await teamService.getAllTeams();
-      const teamsData = extractApiArray(response);
-      setTeams(teamsData);
-    } catch (err) {
-      console.error('Failed to process invitation:', err);
-      setError(`Failed to ${status === 'accepted' ? 'accept' : 'decline'} invitation`);
     }
   };
 
@@ -203,7 +181,6 @@ const TeamsPage = () => {
       )}
 
       {invitations.length > 0 && (
-<<<<<<< HEAD
         <div className="mb-8 bg-white border border-amber-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/70 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-amber-900 inline-flex items-center gap-2">
