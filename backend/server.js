@@ -389,8 +389,26 @@ const startServer = async () => {
       console.log(`⏰ Started at: ${new Date().toISOString()}`);
     });
   } catch (error) {
-    console.error('❌ Unable to connect to the database:', error.message);
-    console.error('💡 Please check your database configuration and ensure MySQL is running.');
+    const nestedErrors = error?.original?.errors || error?.errors || [];
+    const nestedMessages = nestedErrors
+      .map((err) => err?.message)
+      .filter(Boolean)
+      .join('; ');
+
+    const errorMessage =
+      error?.message ||
+      error?.original?.message ||
+      nestedMessages ||
+      'Unknown database connection error';
+
+    console.error('❌ Unable to connect to the database.');
+    console.error(`📛 Error details: ${errorMessage}`);
+
+    if (serverConfig.nodeEnv === 'development' && error?.stack) {
+      console.error(error.stack);
+    }
+
+    console.error('💡 Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
     process.exit(1);
   }
 };
