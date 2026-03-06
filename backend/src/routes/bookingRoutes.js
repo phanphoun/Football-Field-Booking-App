@@ -8,6 +8,7 @@ const { bookingValidation, idValidation } = require('../middleware/validation');
 
 router.post('/', auth, checkRole(['player', 'captain', 'admin']), ...bookingValidation.create, bookingController.createBooking);
 router.get('/', auth, bookingController.getBookings);
+router.get('/schedule', auth, bookingController.getBookingSchedule);
 router.get('/open-matches', auth, bookingController.getOpenMatches);
 router.get('/:id', auth, ...idValidation, bookingController.getBookingById);
 router.put('/:id', auth, ...idValidation, bookingController.updateBookingStatus);

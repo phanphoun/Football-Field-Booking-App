@@ -247,7 +247,7 @@ const TeamDetailsPage = () => {
   }
 
   const activeMembers = Array.isArray(team.teamMembers)
-    ? team.teamMembers.filter((m) => m.status === 'active')
+    ? team.teamMembers.filter((m) => m.status === 'accepted')
     : [];
   const canViewMatchHistory = isAdmin() || isCaptainOfTeam || membership?.status === 'active';
 
@@ -445,7 +445,7 @@ const TeamDetailsPage = () => {
             </div>
           ) : membership?.status === 'pending' ? (
             <div className="text-sm text-gray-700">Join request pending approval.</div>
-          ) : membership?.status === 'active' ? (
+          ) : membership?.status === 'accepted' ? (
             <button
               onClick={handleLeave}
               disabled={actionLoading}

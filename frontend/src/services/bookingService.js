@@ -18,6 +18,12 @@ const bookingService = {
     return response;
   },
 
+  // Get day schedule for slot-grid booking
+  getSchedule: async (date) => {
+    const response = await apiService.get('/bookings/schedule', { date });
+    return response;
+  },
+
   // Get booking by ID
   getBookingById: async (bookingId) => {
     const response = await apiService.get(`/bookings/${bookingId}`);
@@ -159,6 +165,13 @@ const bookingService = {
     };
 
     const response = await apiService.get('/bookings/stats', params);
+    return response;
+  },
+
+  // Public schedule for landing page (no auth required)
+  getPublicSchedule: async (date, limit = 6) => {
+    const params = { date, limit };
+    const response = await apiService.get('/public/schedule', params);
     return response;
   },
 

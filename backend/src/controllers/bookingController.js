@@ -79,7 +79,7 @@ const createBooking = async (req, res) => {
     const existingBooking = await Booking.findOne({
       where: {
         fieldId,
-        status: { [Op.ne]: 'cancelled' },
+        status: 'confirmed',
         [Op.and]: [{ startTime: { [Op.lt]: endTime } }, { endTime: { [Op.gt]: startTime } }]
       }
     });
@@ -87,7 +87,7 @@ const createBooking = async (req, res) => {
     if (existingBooking) {
       return res.status(400).json({
         success: false,
-        message: 'Field is already booked for this time slot.'
+        message: 'Field already has a confirmed booking for this time slot.'
       });
     }
 
@@ -220,6 +220,56 @@ const getBookingById = async (req, res) => {
   }
 };
 
+const getBookingSchedule = async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'date query is required (YYYY-MM-DD)'
+      });
+    }
+
+    const dayStart = new Date(`${date}T00:00:00`);
+    const dayEnd = new Date(`${date}T23:59:59.999`);
+    if (Number.isNaN(dayStart.getTime()) || Number.isNaN(dayEnd.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Use YYYY-MM-DD.'
+      });
+    }
+
+    const [fields, bookings] = await Promise.all([
+      Field.findAll({
+        order: [['name', 'ASC']]
+      }),
+      Booking.findAll({
+        where: {
+          status: { [Op.notIn]: ['cancelled', 'completed'] },
+          [Op.and]: [{ startTime: { [Op.lt]: dayEnd } }, { endTime: { [Op.gt]: dayStart } }]
+        },
+        include: BOOKING_BASE_INCLUDE,
+        order: [['startTime', 'ASC']]
+      })
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        fields,
+        bookings: bookings.map(serializeBooking)
+      }
+    });
+  } catch (error) {
+    console.error('Get booking schedule error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch booking schedule',
+      error: error.message
+    });
+  }
+};
+
 const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -247,12 +297,15 @@ const updateBookingStatus = async (req, res) => {
     const isOwner = booking.field && booking.field.ownerId === req.user.id;
     const isBooker = booking.createdBy === req.user.id;
     const isAdmin = req.user.role === 'admin';
+    const isTeamCaptain = booking.team && booking.team.captainId === req.user.id;
+    const isCaptain = req.user.role === 'captain';
 
-    if (isBooker && status === 'cancelled') {
-      if (booking.status !== 'pending') {
+    if ((isBooker || (isCaptain && isTeamCaptain)) && status === 'cancelled') {
+      const canCancelStatus = booking.status === 'pending' || booking.status === 'confirmed';
+      if (!canCancelStatus) {
         return res.status(400).json({
           success: false,
-          message: 'Can only cancel pending bookings.'
+          message: 'Can only cancel pending or confirmed bookings.'
         });
       }
     } else if (isOwner || isAdmin) {
@@ -265,6 +318,24 @@ const updateBookingStatus = async (req, res) => {
     }
 
     const previousStatus = booking.status;
+
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      const overlappingConfirmed = await Booking.findOne({
+        where: {
+          id: { [Op.ne]: booking.id },
+          fieldId: booking.fieldId,
+          status: 'confirmed',
+          [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+        }
+      });
+      if (overlappingConfirmed) {
+        return res.status(400).json({
+          success: false,
+          message: 'Another booking is already confirmed for this time slot.'
+        });
+      }
+    }
+
     await booking.update({ status });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
@@ -296,6 +367,48 @@ const updateBookingStatus = async (req, res) => {
             }
           }))
         );
+      }
+
+      const overlappingPending = await Booking.findAll({
+        where: {
+          id: { [Op.ne]: booking.id },
+          fieldId: booking.fieldId,
+          status: 'pending',
+          [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+        },
+        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }]
+      });
+
+      if (overlappingPending.length > 0) {
+        await Booking.update(
+          { status: 'cancelled' },
+          { where: { id: { [Op.in]: overlappingPending.map((item) => item.id) } } }
+        );
+
+        const rejectedNotifications = [];
+        for (const pendingItem of overlappingPending) {
+          const pendingTeamName = pendingItem.team?.name || 'Your team';
+          const recipientId = pendingItem.team?.captainId || pendingItem.createdBy;
+          if (!recipientId) continue;
+
+          rejectedNotifications.push({
+            userId: recipientId,
+            title: 'Booking request was not selected',
+            message: `Your request for ${fieldName} (${pendingTeamName}) was cancelled because another team was accepted.`,
+            type: 'booking',
+            metadata: {
+              event: 'booking_rejected_by_competing_confirmation',
+              bookingId: pendingItem.id,
+              winningBookingId: booking.id,
+              fieldName,
+              teamName: pendingTeamName
+            }
+          });
+        }
+
+        if (rejectedNotifications.length > 0) {
+          await Notification.bulkCreate(rejectedNotifications);
+        }
       }
     }
 
@@ -975,6 +1088,7 @@ const cancelMatchedOpponent = async (req, res) => {
 module.exports = {
   createBooking,
   getBookings,
+  getBookingSchedule,
   getBookingById,
   updateBookingStatus,
   toggleOpenForOpponents,

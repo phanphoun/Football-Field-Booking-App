@@ -170,6 +170,11 @@ const BookingsPage = () => {
 
   const getStatusActions = (booking) => {
     const actions = [];
+    const canUserCancelBooking =
+      booking.createdBy === user?.id ||
+      booking.team?.captainId === user?.id ||
+      booking.opponentTeam?.captainId === user?.id ||
+      isAdmin();
 
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
@@ -179,13 +184,21 @@ const BookingsPage = () => {
           </Button>
         );
       }
-      if (booking.createdBy === user?.id || isAdmin()) {
+      if (canUserCancelBooking) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
             Cancel Booking
           </Button>
         );
       }
+    }
+
+    if (booking.status === 'confirmed' && canUserCancelBooking) {
+      actions.push(
+        <Button key="cancel-confirmed" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
+          Cancel Booking
+        </Button>
+      );
     }
 
     if (booking.status === 'confirmed' && (isAdmin() || isFieldOwner())) {
@@ -310,10 +323,12 @@ const BookingsPage = () => {
                         <ClockIcon className="h-4 w-4 mr-1" />
                         {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
                       </div>
-                      <div className="flex items-center">
+                      <div className="flex items-center min-w-0">
                         <UsersIcon className="h-4 w-4 mr-1" />
-                        {booking.team?.name || 'No team'}
-                        {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
+                        <span className="truncate whitespace-nowrap">
+                          {booking.team?.name || 'No team'}
+                          {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
+                        </span>
                       </div>
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-4 w-4 mr-1" />
@@ -326,8 +341,15 @@ const BookingsPage = () => {
                       {formatDate(booking.createdAt)}
                     </div>
 
+                    {booking.status === 'pending' && isCaptainOwner(booking) && (
+                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Waiting for field owner approval. Other captains can still request this same slot until owner confirms
+                        one booking.
+                      </div>
+                    )}
+
                     {booking.opponentTeam?.name && (
-                      <div className="mt-2 text-sm text-green-700">
+                      <div className="mt-2 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
                         Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
                       </div>
                     )}

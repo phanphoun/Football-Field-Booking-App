@@ -93,6 +93,12 @@ const teamService = {
     return response;
   },
 
+  // Accept or decline invitation
+  respondToInvitation: async (invitationId, status) => {
+    const response = await apiService.patch(`/team-members/${invitationId}`, { status });
+    return response;
+  },
+
   // Remove member from team (captain only)
   removeMember: async (teamId, userId) => {
     const response = await apiService.delete(`/teams/${teamId}/members/${userId}`);
@@ -140,7 +146,6 @@ const teamService = {
     const response = await apiService.put(`/teams/${teamId}/members/${userId}`, update);
     return response;
   },
-
   // Search teams
   searchTeams: async (searchTerm, filters = {}) => {
     const params = {

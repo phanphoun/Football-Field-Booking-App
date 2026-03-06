@@ -15,7 +15,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
 };
 
 const TeamsPage = () => {
-  const { isCaptain, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
@@ -24,7 +24,7 @@ const TeamsPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchTeams = async () => {
+    const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
         const [teamsRes, invitationsRes] = await Promise.all([
@@ -41,11 +41,25 @@ const TeamsPage = () => {
       }
     };
 
-    fetchTeams();
-  }, []);
+    fetchTeamsAndInvitations();
+  }, [user?.id]);
 
   const handleCreateTeam = () => {
     navigate('/app/teams/create');
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const handleJoinTeam = async (teamId) => {
+    try {
+      await teamService.joinTeam(teamId);
+      // Refresh teams list
+      const response = await teamService.getAllTeams();
+      const teamsData = Array.isArray(response.data) ? response.data : [];
+      setTeams(teamsData);
+    } catch (err) {
+      console.error('Failed to join team:', err);
+      setError('Failed to join team');
+    }
   };
 
   const handleViewTeam = (teamId) => {
@@ -94,6 +108,35 @@ const TeamsPage = () => {
     return colors[level] || 'bg-gray-100 text-gray-800';
   };
 
+  // eslint-disable-next-line no-unused-vars
+  const getPreferredTimeColor = (time) => {
+    const colors = {
+      morning: 'bg-blue-100 text-blue-800',
+      evening: 'bg-purple-100 text-purple-800',
+      flexible: 'bg-green-100 text-green-800'
+    };
+    return colors[time] || 'bg-gray-100 text-gray-800';
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const calculateWinRate = (wins, losses, draws) => {
+    const total = wins + losses + draws;
+    if (total === 0) return 0;
+    return ((wins / total) * 100).toFixed(1);
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const getMemberCount = (team) => {
+    return team.TeamMembers?.filter(member => member.status === 'accepted').length || 0;
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const isUserInTeam = (team) => {
+    return team.TeamMembers?.some(member => 
+      member.userId === user?.id && member.status === 'accepted'
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -118,7 +161,7 @@ const TeamsPage = () => {
           >
             Browse Teams
           </button>
-          {(isCaptain() || isAdmin()) && (
+          {user && (
             <button
               onClick={handleCreateTeam}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -263,7 +306,7 @@ const TeamsPage = () => {
               >
                 Browse Teams
               </button>
-              {(isCaptain() || isAdmin()) && (
+              {user && (
                 <button
                   onClick={handleCreateTeam}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
