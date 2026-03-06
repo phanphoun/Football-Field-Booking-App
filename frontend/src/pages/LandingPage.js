@@ -190,65 +190,35 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
-const HOME_STATS = [
-  {
-    value: '50+',
-    label: 'Football Fields',
-    icon: MapPinIcon,
-    iconTone: 'text-emerald-600',
-    iconBg: 'bg-emerald-100'
-  },
-  {
-    value: '10,000+',
-    label: 'Active Users',
-    icon: UsersIcon,
-    iconTone: 'text-blue-600',
-    iconBg: 'bg-blue-100'
-  },
-  {
-    value: '25,000+',
-    label: 'Bookings Completed',
-    icon: TrophyIcon,
-    iconTone: 'text-violet-600',
-    iconBg: 'bg-violet-100'
-  },
-  {
-    value: '4.9/5',
-    label: 'Customer Rating',
-    icon: StarIcon,
-    iconTone: 'text-amber-500',
-    iconBg: 'bg-amber-100'
-  }
-];
-
-// Utility functions for schedule
-const parseSlotToMinutes = (timeString) => {
-  if (!timeString) return 0;
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return hours * 60 + (minutes || 0);
+const SLOT_DURATION_MINUTES = 60;
+const SCHEDULE_ROW_HEIGHT_CLASS = 'h-24';
+const toLocalDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
-
-const toLocalDateKey = (date) => {
-  const d = new Date(date);
-  return d.toISOString().slice(0, 10);
+const parseSlotToMinutes = (slot) => {
+  const [h, m] = String(slot || '')
+    .split(':')
+    .map((n) => Number(n));
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
 };
-
-const isBookingActiveOnSchedule = (booking) => {
-  return booking && (booking.status === 'confirmed' || booking.status === 'pending');
-};
-
+const isBookingActiveOnSchedule = (booking) =>
+  booking?.status !== 'cancelled' && booking?.status !== 'completed';
 const findEventsForSlot = (events, slot) => {
   if (!Array.isArray(events)) return [];
   const slotMinutes = parseSlotToMinutes(slot);
+  if (slotMinutes === null) return [];
   return events.filter(
     (event) =>
       event.startMinutes <= slotMinutes &&
       slotMinutes < event.endMinutes
   );
 };
-
-const SCHEDULE_ROW_HEIGHT_CLASS = 'h-24';
-
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -256,9 +226,10 @@ const LandingPage = () => {
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
+  const [error, setError] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
   const [quickLocation, setQuickLocation] = useState('');
-  const [quickDate, setQuickDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickDate] = useState(toLocalDateKey(new Date()));
   const [quickTimeSlot, setQuickTimeSlot] = useState('Afternoon (12PM - 5PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
@@ -268,6 +239,7 @@ const LandingPage = () => {
     const fetchLandingData = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         const [fieldsResult, teamsResult] = await Promise.allSettled([
           fieldService.getAllFields({ limit: 12 }),
@@ -302,6 +274,7 @@ const LandingPage = () => {
         }
       } catch (err) {
         console.error('Failed to load landing data:', err);
+        setError('Failed to load landing data');
       } finally {
         setLoading(false);
       }
@@ -415,20 +388,6 @@ const LandingPage = () => {
     if (scheduleFieldsData.length > 0) return scheduleFieldsData;
     return featuredFields.slice(0, 3);
   }, [scheduleFieldsData, featuredFields]);
-
-  const quickLocationOptions = useMemo(() => {
-    const source = scheduleFields.length > 0 ? scheduleFields : featuredFields;
-    return source
-      .map((field) => field?.name)
-      .filter(Boolean)
-      .slice(0, 8);
-  }, [scheduleFields, featuredFields]);
-
-  useEffect(() => {
-    if (!quickLocation && quickLocationOptions.length > 0) {
-      setQuickLocation(quickLocationOptions[0]);
-    }
-  }, [quickLocation, quickLocationOptions]);
 
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -548,7 +507,6 @@ const LandingPage = () => {
     });
     navigate(`/fields?${params.toString()}`);
   };
-
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
@@ -619,99 +577,16 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
-            <p className="mt-3 text-2xl text-slate-600">Find and book your perfect field in seconds</p>
-          </div>
-
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
-                  <MapPinIcon className="h-5 w-5 text-emerald-600" />
-                  Location
-                </label>
-                <select
-                  value={quickLocation}
-                  onChange={(e) => setQuickLocation(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {quickLocationOptions.length > 0 ? (
-                    quickLocationOptions.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">Select location</option>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
-                  <CalendarIcon className="h-5 w-5 text-emerald-600" />
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={quickDate}
-                  onChange={(e) => setQuickDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
-                  <ClockIcon className="h-5 w-5 text-emerald-600" />
-                  Time Slot
-                </label>
-                <select
-                  value={quickTimeSlot}
-                  onChange={(e) => setQuickTimeSlot(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option>Morning (8AM - 12PM)</option>
-                  <option>Afternoon (12PM - 5PM)</option>
-                  <option>Evening (5PM - 9PM)</option>
-                </select>
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={handleQuickSearch}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-lg font-semibold text-white shadow-sm hover:bg-slate-900"
-                >
-                  <MagnifyingGlassIcon className="h-5 w-5" />
-                  Search Fields
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 py-12 text-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 text-center sm:grid-cols-2 sm:px-10 lg:grid-cols-4 lg:px-16">
-          {HOME_STATS.map((item) => (
-            <div key={item.label} className="flex flex-col items-center">
-              <div className={`flex h-20 w-20 items-center justify-center rounded-full ${item.iconBg}`}>
-                <item.icon className={`h-10 w-10 ${item.iconTone}`} />
-              </div>
-              <div className="mt-5 text-5xl font-extrabold leading-none">{item.value}</div>
-              <div className="mt-3 text-3xl font-medium text-white/90">{item.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-sm font-semibold text-violet-600">
               <ArrowTrendingUpIcon className="h-4 w-4" />
               Popular Times
             </span>
