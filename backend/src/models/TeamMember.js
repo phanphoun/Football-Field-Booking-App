@@ -35,14 +35,14 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'player'
     },
     status: {
-      type: DataTypes.ENUM('active', 'inactive', 'pending'),
+      type: DataTypes.ENUM('pending', 'accepted', 'declined'),
       defaultValue: 'pending',
       allowNull: false
     },
     joinedAt: {
       type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
+      allowNull: true,
+      defaultValue: null
     },
     isActive: {
       type: DataTypes.BOOLEAN,
