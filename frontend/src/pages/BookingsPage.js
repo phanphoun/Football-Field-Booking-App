@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -107,56 +107,20 @@ const BookingsPage = () => {
     }
   };
 
-  const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
-  const isCaptainInMatchedBooking = (booking) =>
-    user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
 
-  const handleToggleOpenForOpponents = async (booking) => {
+  const handlePayBooking = async (bookingId) => {
     try {
-      setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
-      await bookingService.setOpenForOpponents(booking.id, !booking.openForOpponents);
-      await loadBookings();
+      await bookingService.payBooking(bookingId, 'card');
+      const response = await bookingService.getAllBookings();
+      const bookingsData = Array.isArray(response.data) ? response.data : [];
+      setBookings(bookingsData);
     } catch (err) {
-      console.error('Failed to toggle open for opponents:', err);
-      setError(err.error || 'Failed to update Open for Opponents');
-    } finally {
-      setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
+      console.error('Failed to process payment:', err);
+      setError(err?.error || 'Failed to process payment');
     }
   };
 
-  const handleCancelMatchedOpponent = async (booking) => {
-    const confirmed = window.confirm(
-      `Do you want to cancel this matched game: ${booking.team?.name || 'Team A'} vs ${
-        booking.opponentTeam?.name || 'Team B'
-      }?`
-    );
-    if (!confirmed) return;
-
-    try {
-      setCancelMatchedLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
-      await bookingService.cancelMatchedOpponent(booking.id);
-      await loadBookings();
-    } catch (err) {
-      console.error('Failed to cancel matched opponent:', err);
-      setError(err.error || 'Failed to cancel matched match');
-    } finally {
-      setCancelMatchedLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
-    }
-  };
-
-  const handleRespondToJoinRequest = async (bookingId, requestId, action) => {
-    const key = `${bookingId}-${requestId}-${action}`;
-    try {
-      setJoinActionLoadingMap((prev) => ({ ...prev, [key]: true }));
-      await bookingService.respondToJoinRequest(bookingId, requestId, action);
-      await loadBookings();
-    } catch (err) {
-      console.error(`Failed to ${action} join request:`, err);
-      setError(err.error || `Failed to ${action} join request`);
-    } finally {
-      setJoinActionLoadingMap((prev) => ({ ...prev, [key]: false }));
-    }
-  };
+  // Booking details page not implemented yet.
 
   const getStatusTone = (status) => {
     const tones = {
@@ -166,6 +130,17 @@ const BookingsPage = () => {
       completed: 'blue'
     };
     return tones[status] || 'gray';
+  };
+
+  const getPaymentTone = (paymentStatus) => {
+    const tones = {
+      unpaid: 'yellow',
+      paid: 'green',
+      failed: 'red',
+      refunded: 'blue'
+    };
+
+    return tones[paymentStatus] || 'gray';
   };
 
   const getStatusActions = (booking) => {
@@ -196,6 +171,19 @@ const BookingsPage = () => {
       );
     }
 
+    if (booking.paymentStatus !== 'paid' && (booking.createdBy === user?.id || isAdmin())) {
+      actions.push(
+        <Button
+          key="pay"
+          size="sm"
+          variant="primary"
+          onClick={() => handlePayBooking(booking.id)}
+        >
+          Pay Now
+        </Button>
+      );
+    }
+    
     return actions;
   };
 
@@ -294,11 +282,9 @@ const BookingsPage = () => {
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
                         {booking.status}
                       </Badge>
-                      {booking.opponentTeam?.name ? (
-                        <Badge tone="green">Matched</Badge>
-                      ) : booking.openForOpponents ? (
-                        <Badge tone="blue">Open for Opponents</Badge>
-                      ) : null}
+                      <Badge tone={getPaymentTone(booking.paymentStatus)} className="capitalize">
+                        Payment: {booking.paymentStatus || 'unpaid'}
+                      </Badge>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
@@ -318,6 +304,10 @@ const BookingsPage = () => {
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-4 w-4 mr-1" />
                         ${booking.totalPrice} ({calculateDuration(booking.startTime, booking.endTime)}h)
+                      </div>
+                      <div className="flex items-center">
+                        <CreditCardIcon className="h-4 w-4 mr-1" />
+                        {booking.paymentMethod ? `${booking.paymentMethod} • ` : ''}{booking.transactionId || 'No transaction'}
                       </div>
                     </div>
 
