@@ -190,16 +190,76 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
+const HOME_STATS = [
+  {
+    value: '50+',
+    label: 'Football Fields',
+    icon: MapPinIcon,
+    iconTone: 'text-emerald-600',
+    iconBg: 'bg-emerald-100'
+  },
+  {
+    value: '10,000+',
+    label: 'Active Users',
+    icon: UsersIcon,
+    iconTone: 'text-blue-600',
+    iconBg: 'bg-blue-100'
+  },
+  {
+    value: '25,000+',
+    label: 'Bookings Completed',
+    icon: TrophyIcon,
+    iconTone: 'text-violet-600',
+    iconBg: 'bg-violet-100'
+  },
+  {
+    value: '4.9/5',
+    label: 'Customer Rating',
+    icon: StarIcon,
+    iconTone: 'text-amber-500',
+    iconBg: 'bg-amber-100'
+  }
+];
+
+// Utility functions for schedule
+const parseSlotToMinutes = (timeString) => {
+  if (!timeString) return 0;
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + (minutes || 0);
+};
+
+const toLocalDateKey = (date) => {
+  const d = new Date(date);
+  return d.toISOString().slice(0, 10);
+};
+
+const isBookingActiveOnSchedule = (booking) => {
+  return booking && (booking.status === 'confirmed' || booking.status === 'pending');
+};
+
+const findEventsForSlot = (events, slot) => {
+  if (!Array.isArray(events)) return [];
+  const slotMinutes = parseSlotToMinutes(slot);
+  return events.filter(
+    (event) =>
+      event.startMinutes <= slotMinutes &&
+      slotMinutes < event.endMinutes
+  );
+};
+
+const SCHEDULE_ROW_HEIGHT_CLASS = 'h-24';
+
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
   const [quickLocation, setQuickLocation] = useState('');
-  const quickDate = new Date().toISOString().slice(0, 10);
+  const [quickDate, setQuickDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickTimeSlot, setQuickTimeSlot] = useState('Afternoon (12PM - 5PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
@@ -323,6 +383,16 @@ const LandingPage = () => {
     const fetchSchedule = async () => {
       try {
         setScheduleLoading(true);
+        if (isAuthenticated) {
+          const scheduleResponse = await bookingService.getSchedule(selectedDay);
+          const payload = scheduleResponse.data || {};
+          const fields = Array.isArray(payload.fields) ? payload.fields : [];
+          const bookings = Array.isArray(payload.bookings) ? payload.bookings : [];
+          setScheduleFieldsData(fields);
+          setScheduleBookingsData(bookings);
+          return;
+        }
+
         const response = await bookingService.getPublicSchedule(selectedDay, 6);
         const payload = response.data || {};
         const fields = Array.isArray(payload.fields) ? payload.fields : [];
@@ -339,7 +409,7 @@ const LandingPage = () => {
     };
 
     fetchSchedule();
-  }, [selectedDay]);
+  }, [isAuthenticated, selectedDay]);
 
   const scheduleFields = useMemo(() => {
     if (scheduleFieldsData.length > 0) return scheduleFieldsData;
@@ -364,22 +434,36 @@ const LandingPage = () => {
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
   const scheduleEvents = useMemo(() => {
-    const toneByStatus = {
-      confirmed: 'bg-blue-600',
-      pending: 'bg-amber-500',
-      completed: 'bg-emerald-600'
-    };
+    return scheduleBookingsData
+      .filter((booking) => isBookingActiveOnSchedule(booking))
+      .map((booking) => {
+        const start = formatHHMM(booking.startTime);
+        const end = formatHHMM(booking.endTime);
+        const isOwnBooking =
+          Number(booking?.createdBy) === Number(user?.id) ||
+          Number(booking?.team?.captainId) === Number(user?.id);
 
-    return scheduleBookingsData.map((booking) => ({
-      id: `bk-${booking.id}`,
-      fieldKey: booking.fieldId,
-      team: booking.teamName || 'Booked Slot',
-      start: formatHHMM(booking.startTime),
-      end: formatHHMM(booking.endTime),
-      players: booking.players || 22,
-      tone: toneByStatus[booking.status] || 'bg-slate-600'
-    }));
-  }, [scheduleBookingsData]);
+        return {
+          id: `bk-${booking.id}`,
+          bookingId: booking.id,
+          status: booking.status,
+          fieldKey: booking.fieldId,
+          team: booking.teamName || booking?.team?.name || 'Booked Slot',
+          start,
+          end,
+          startMinutes: parseSlotToMinutes(start),
+          endMinutes: parseSlotToMinutes(end),
+          players: booking.players || booking?.team?.teamMembers?.length || 22,
+          isOwnBooking,
+          tone:
+            booking.status === 'pending'
+              ? 'bg-amber-500'
+              : isOwnBooking
+              ? 'bg-emerald-600'
+              : 'bg-red-600'
+        };
+      });
+  }, [scheduleBookingsData, user?.id]);
 
   const availableNowCards = useMemo(() => {
     const source = scheduleFields.length > 0 ? scheduleFields : featuredFields;
@@ -455,6 +539,16 @@ const LandingPage = () => {
     handleBookNow(field, selectedDay, slot);
   };
 
+  const handleQuickSearch = () => {
+    const params = new URLSearchParams({
+      focus: 'search',
+      location: quickLocation || '',
+      day: quickDate || '',
+      timeSlot: quickTimeSlot || ''
+    });
+    navigate(`/fields?${params.toString()}`);
+  };
+
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
@@ -463,7 +557,7 @@ const LandingPage = () => {
   };
 
   const handleClaimOffer = (code, preferredTime = '18:00') => {
-    const day = quickDate || selectedDay || new Date().toISOString().slice(0, 10);
+    const day = quickDate || selectedDay || toLocalDateKey(new Date());
     const preferredField = scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
 
     if (preferredField) {
@@ -479,8 +573,6 @@ const LandingPage = () => {
     });
     navigate(`/fields?${params.toString()}`);
   };
-
-
   return (
     <div className="flex flex-col gap-14">
       <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
@@ -530,7 +622,96 @@ const LandingPage = () => {
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-sm font-semibold text-violet-600">
+            <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
+            <p className="mt-3 text-2xl text-slate-600">Find and book your perfect field in seconds</p>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <MapPinIcon className="h-5 w-5 text-emerald-600" />
+                  Location
+                </label>
+                <select
+                  value={quickLocation}
+                  onChange={(e) => setQuickLocation(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {quickLocationOptions.length > 0 ? (
+                    quickLocationOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Select location</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <CalendarIcon className="h-5 w-5 text-emerald-600" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={quickDate}
+                  onChange={(e) => setQuickDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <ClockIcon className="h-5 w-5 text-emerald-600" />
+                  Time Slot
+                </label>
+                <select
+                  value={quickTimeSlot}
+                  onChange={(e) => setQuickTimeSlot(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option>Morning (8AM - 12PM)</option>
+                  <option>Afternoon (12PM - 5PM)</option>
+                  <option>Evening (5PM - 9PM)</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={handleQuickSearch}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-lg font-semibold text-white shadow-sm hover:bg-slate-900"
+                >
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                  Search Fields
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 py-12 text-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 text-center sm:grid-cols-2 sm:px-10 lg:grid-cols-4 lg:px-16">
+          {HOME_STATS.map((item) => (
+            <div key={item.label} className="flex flex-col items-center">
+              <div className={`flex h-20 w-20 items-center justify-center rounded-full ${item.iconBg}`}>
+                <item.icon className={`h-10 w-10 ${item.iconTone}`} />
+              </div>
+              <div className="mt-5 text-5xl font-extrabold leading-none">{item.value}</div>
+              <div className="mt-3 text-3xl font-medium text-white/90">{item.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
               <ArrowTrendingUpIcon className="h-4 w-4" />
               Popular Times
             </span>
@@ -770,6 +951,20 @@ const LandingPage = () => {
         </div>
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-700">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-semibold text-slate-800">Color guide:</span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-sm bg-emerald-600" /> Your confirmed booking
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-sm bg-red-600" /> Confirmed by another team (blocked)
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending request (owner not approved yet, still bookable)
+              </span>
+            </div>
+          </div>
           <div className="flex border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-blue-600 text-white">
             <div className="w-56 p-4 font-semibold">Fields / Time</div>
             <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
@@ -793,24 +988,74 @@ const LandingPage = () => {
                 <button
                   type="button"
                   onClick={() => handleOpenFieldFromSchedule(field)}
-                  className="w-56 p-4 text-left hover:bg-slate-50"
+                  className={`w-56 p-2.5 text-left hover:bg-slate-50 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
                 >
-                  <div className="font-semibold text-slate-900">{field.name}</div>
-                  <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                  <div className="font-semibold text-slate-900 leading-tight">{field.name}</div>
+                  <span className="mt-1.5 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                     {field.fieldType || 'Outdoor'}
                   </span>
                 </button>
                 <div className="relative flex-1">
-                  <div className="grid h-36" style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
-                    {TIME_SLOTS.map((slot) => (
-                      <button
-                        key={`${field.id}-${slot}`}
-                        type="button"
-                        onClick={() => handleTimeSlotClick(field, slot)}
-                        className="border-l border-slate-200 hover:bg-slate-50"
-                        aria-label={`Open ${field.name} at ${slot}`}
-                      />
-                    ))}
+                  <div className={`grid ${SCHEDULE_ROW_HEIGHT_CLASS}`} style={{ gridTemplateColumns: `repeat(${TIME_SLOTS.length}, minmax(64px, 1fr))` }}>
+                    {TIME_SLOTS.map((slot) => {
+                      const slotEvents = findEventsForSlot(rowEvents, slot);
+                      const slotOwnEvent = slotEvents.find((event) => event.isOwnBooking);
+                      const slotOtherConfirmedEvent = slotEvents.find(
+                        (event) => !event.isOwnBooking && event.status === 'confirmed'
+                      );
+                      const slotOtherPendingEvent = slotEvents.find(
+                        (event) => !event.isOwnBooking && event.status === 'pending'
+                      );
+                      const slotTakenByOther = Boolean(slotOtherConfirmedEvent);
+                      const slotTakenByMe = Boolean(slotOwnEvent);
+                      const slotHasOtherPending = Boolean(slotOtherPendingEvent);
+
+                      const slotClassName = slotTakenByOther
+                        ? 'border-l border-slate-200 bg-red-100 cursor-not-allowed'
+                        : slotTakenByMe
+                        ? slotOwnEvent?.status === 'pending'
+                          ? 'border-l border-slate-200 bg-amber-100 hover:bg-amber-200'
+                          : 'border-l border-slate-200 bg-emerald-100 hover:bg-emerald-200'
+                        : slotHasOtherPending
+                        ? 'border-l border-slate-200 bg-amber-50 hover:bg-amber-100'
+                        : 'border-l border-slate-200 hover:bg-slate-50';
+
+                      return (
+                        <button
+                          key={`${field.id}-${slot}`}
+                          type="button"
+                          disabled={slotTakenByOther}
+                          onClick={() => {
+                            if (slotTakenByMe) {
+                              navigate('/app/bookings');
+                              return;
+                            }
+                            handleTimeSlotClick(field, slot);
+                          }}
+                          className={slotClassName}
+                          aria-label={
+                            slotTakenByOther
+                              ? `${field.name} at ${slot} is unavailable`
+                              : slotTakenByMe
+                              ? `Open your booking at ${field.name} ${slot}`
+                              : slotHasOtherPending
+                              ? `Pending request exists at ${field.name} ${slot}, you can still request this slot`
+                              : `Book ${field.name} at ${slot}`
+                          }
+                          title={
+                            slotTakenByOther
+                              ? 'Confirmed booking by another team'
+                              : slotTakenByMe
+                              ? slotOwnEvent?.status === 'pending'
+                                ? 'Your request is pending owner approval - click to track'
+                                : 'Your booking - click to track'
+                              : slotHasOtherPending
+                              ? 'Pending request exists, owner can still choose between teams'
+                              : 'Available - click to book'
+                          }
+                        />
+                      );
+                    })}
                   </div>
                   {rowEvents.map((event, index) => {
                     const startPct = ((toMinutes(event.start) - timelineStart) / timelineDuration) * 100;
@@ -818,25 +1063,25 @@ const LandingPage = () => {
                     return (
                       <div
                         key={event.id}
-                        className={`absolute rounded-xl p-3 text-white shadow-md ${event.tone}`}
+                        className={`absolute rounded-lg px-2.5 py-1.5 text-white shadow-md ${event.tone}`}
                         style={{
                           left: `${startPct}%`,
-                          width: `max(${widthPct}%, 120px)`,
-                          top: `${10 + index * 8}px`
+                          width: `max(${widthPct}%, 96px)`,
+                          top: `${8 + index * 8}px`
                         }}
-                        onClick={() => handleOpenFieldFromSchedule(field)}
+                        onClick={() => navigate(event.isOwnBooking ? '/app/bookings' : toFieldRoute(field))}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            handleOpenFieldFromSchedule(field);
+                            navigate(event.isOwnBooking ? '/app/bookings' : toFieldRoute(field));
                           }
                         }}
                         role="button"
                         tabIndex={0}
                       >
-                        <div className="truncate text-sm font-bold">{event.team}</div>
-                        <div className="mt-1 text-xs">{event.start} - {event.end}</div>
-                        <div className="mt-1 text-xs">{event.players} players</div>
+                        <div className="truncate text-sm font-bold leading-tight">{event.team}</div>
+                        <div className="mt-1 text-xs leading-tight">{event.start} - {event.end}</div>
+                        <div className="mt-1 text-xs leading-tight">{event.players} players</div>
                       </div>
                     );
                   })}

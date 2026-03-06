@@ -57,6 +57,12 @@ const teamService = {
     return response;
   },
 
+  // Get current user's pending invitations
+  getMyInvitations: async () => {
+    const response = await apiService.get('/teams/my-invitations');
+    return response;
+  },
+
   // Get teams where user is captain
   getCaptainedTeams: async () => {
     const response = await apiService.get('/teams/captained');
@@ -75,25 +81,15 @@ const teamService = {
     return response;
   },
 
+  // Captain/Admin responds to member leave request
+  respondLeaveRequest: async (teamId, userId, action) => {
+    const response = await apiService.post(`/teams/${teamId}/leave-requests/${userId}/respond`, { action });
+    return response;
+  },
+
   // Add member to team (captain only)
   addMember: async (teamId, memberData) => {
     const response = await apiService.post(`/teams/${teamId}/members`, memberData);
-    return response;
-  },
-
-  // Invite member to team (captain only)
-  inviteMember: async (teamId, userId, role = 'player') => {
-    const response = await apiService.post('/team-members', {
-      teamId,
-      userId,
-      role
-    });
-    return response;
-  },
-
-  // Get invitations for current user
-  getMyInvitations: async () => {
-    const response = await apiService.get('/team-members/invitations/mine');
     return response;
   },
 
@@ -121,6 +117,35 @@ const teamService = {
     return response;
   },
 
+  // Get pending join requests (captain/admin)
+  getJoinRequests: async (teamId) => {
+    const response = await apiService.get(`/teams/${teamId}/requests`);
+    return response;
+  },
+
+  // Invite a player (captain/admin)
+  inviteMember: async (teamId, inviteData) => {
+    const response = await apiService.post(`/teams/${teamId}/invite`, inviteData);
+    return response;
+  },
+
+  // Accept an invitation (invited user)
+  acceptInvite: async (teamId) => {
+    const response = await apiService.post(`/teams/${teamId}/invite/accept`);
+    return response;
+  },
+
+  // Decline an invitation (invited user)
+  declineInvite: async (teamId) => {
+    const response = await apiService.post(`/teams/${teamId}/invite/decline`);
+    return response;
+  },
+
+  // Approve/Deny join request (captain/admin)
+  updateMember: async (teamId, userId, update) => {
+    const response = await apiService.put(`/teams/${teamId}/members/${userId}`, update);
+    return response;
+  },
   // Search teams
   searchTeams: async (searchTerm, filters = {}) => {
     const params = {
@@ -132,9 +157,11 @@ const teamService = {
     return response;
   },
 
-  // Get team statistics
-  getTeamStats: async (teamId) => {
-    const response = await apiService.get(`/teams/${teamId}/stats`);
+  // Upload team logo (captain only)
+  uploadTeamLogo: async (teamId, formData) => {
+    const response = await apiService.upload(`/teams/${teamId}/logo`, formData, {
+      timeout: 30000
+    });
     return response;
   },
 
@@ -147,15 +174,6 @@ const teamService = {
     };
 
     const response = await apiService.get(`/teams/${teamId}/matches`, params);
-    return response;
-  },
-
-  // Upload team logo
-  uploadTeamLogo: async (teamId, imageFile) => {
-    const formData = new FormData();
-    formData.append('logo', imageFile);
-
-    const response = await apiService.upload(`/teams/${teamId}/logo`, formData);
     return response;
   },
 

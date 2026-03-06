@@ -44,6 +44,16 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Let the browser set multipart boundaries automatically for file uploads.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (typeof config.headers?.set === 'function') {
+        config.headers.set('Content-Type', undefined);
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -116,24 +126,19 @@ const apiService = {
   get: (url, params = {}) => api.get(url, { params }),
 
   // POST
-  post: (url, data = {}) => api.post(url, data),
+  post: (url, data = {}, config = {}) => api.post(url, data, config),
 
   // PUT
-  put: (url, data = {}) => api.put(url, data),
+  put: (url, data = {}, config = {}) => api.put(url, data, config),
 
   // PATCH
-  patch: (url, data = {}) => api.patch(url, data),
+  patch: (url, data = {}, config = {}) => api.patch(url, data, config),
 
   // DELETE
   delete: (url) => api.delete(url),
 
   // File Upload
-  upload: (url, formData) =>
-    api.post(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }),
+  upload: (url, formData, config = {}) => api.post(url, formData, config),
 };
 
 export default apiService;

@@ -12,7 +12,8 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
     description: team.description,
     skillLevel: team.skillLevel,
     maxPlayers: team.maxPlayers,
-    logoUrl: team.logoUrl,
+    logoUrl: team.logoUrl || team.logo_url || team.logo || null,
+    captainId: team.captainId,
     homeFieldId: team.homeFieldId,
     isActive: team.isActive,
     captain: team.captain
@@ -92,6 +93,7 @@ const getPublicTeams = async (req, res) => {
         'skillLevel',
         'maxPlayers',
         'logoUrl',
+        'captainId',
         'homeFieldId',
         'isActive'
       ],
@@ -142,6 +144,7 @@ const getPublicTeamById = async (req, res) => {
         'skillLevel',
         'maxPlayers',
         'logoUrl',
+        'captainId',
         'homeFieldId',
         'isActive'
       ],

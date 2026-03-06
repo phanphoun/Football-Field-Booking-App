@@ -32,6 +32,9 @@ module.exports = (sequelize, DataTypes) => {
 
       Booking.hasMany(models.Rating, { foreignKey: 'bookingId', as: 'ratings' });
 
+      // Booking can receive join requests from other teams
+      Booking.hasMany(models.BookingJoinRequest, { foreignKey: 'bookingId', as: 'joinRequests' });
+
     }
 
   }

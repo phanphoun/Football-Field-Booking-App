@@ -8,8 +8,8 @@ const { idValidation } = require('../middleware/validation');
 // Protected routes
 router.get('/', auth, matchResultController.getAllMatchResults);
 router.get('/:id', auth, ...idValidation, matchResultController.getMatchResultById);
-router.post('/', auth, checkRole(['field_owner', 'captain', 'admin']), matchResultController.createMatchResult);
-router.put('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, matchResultController.updateMatchResult);
-router.delete('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, matchResultController.deleteMatchResult);
+router.post('/', auth, checkRole(['captain', 'field_owner', 'admin']), matchResultController.createMatchResult);
+router.put('/:id', auth, checkRole(['captain', 'field_owner', 'admin']), ...idValidation, matchResultController.updateMatchResult);
+router.delete('/:id', auth, checkRole(['captain', 'field_owner', 'admin']), ...idValidation, matchResultController.deleteMatchResult);
 
 module.exports = router;

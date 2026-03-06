@@ -12,7 +12,9 @@ const tones = {
 const Badge = ({ children, tone = 'gray', className = '' }) => {
   const t = tones[tone] || tones.gray;
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${t} ${className}`}>
+    <span
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-3 py-1 text-[11px] sm:text-xs font-semibold leading-none ${t} ${className}`}
+    >
       {children}
     </span>
   );

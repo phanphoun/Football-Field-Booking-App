@@ -8,7 +8,10 @@ import teamService from '../services/teamService';
 import {
   BuildingOfficeIcon,
   CalendarIcon,
+  BellAlertIcon,
   ClipboardDocumentCheckIcon,
+  CheckIcon,
+  XMarkIcon,
   UserCircleIcon,
   UsersIcon
 } from '@heroicons/react/24/outline';
@@ -28,8 +31,10 @@ const DashboardPage = () => {
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
   const [joinRequestsByTeam, setJoinRequestsByTeam] = useState([]);
+  const [inviteActionLoading, setInviteActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -48,12 +53,13 @@ const DashboardPage = () => {
           return;
         }
 
-        const [statsRes, bookingsRes, myTeamsRes, captainedRes, fieldsRes] = await Promise.all([
+        const [statsRes, bookingsRes, myTeamsRes, captainedRes, fieldsRes, notificationsRes] = await Promise.all([
           apiService.get('/dashboard/stats'),
           bookingService.getAllBookings({ limit: 50 }),
           role === 'player' || role === 'captain' ? teamService.getMyTeams() : Promise.resolve({ data: [] }),
           role === 'captain' ? teamService.getCaptainedTeams() : Promise.resolve({ data: [] }),
-          fieldService.getAllFields({ limit: 50 })
+          fieldService.getAllFields({ limit: 50 }),
+          apiService.get('/notifications')
         ]);
 
         const statsData = statsRes.data && typeof statsRes.data === 'object' ? statsRes.data : {};
@@ -61,6 +67,7 @@ const DashboardPage = () => {
         const myTeamsData = Array.isArray(myTeamsRes.data) ? myTeamsRes.data : [];
         const captainedData = Array.isArray(captainedRes.data) ? captainedRes.data : [];
         const fieldsData = Array.isArray(fieldsRes.data) ? fieldsRes.data : [];
+        const notificationsData = Array.isArray(notificationsRes.data) ? notificationsRes.data : [];
 
         setStats({
           role,
@@ -69,6 +76,7 @@ const DashboardPage = () => {
         });
         setBookings(bookingData);
         setMyTeams(myTeamsData);
+        setNotifications(notificationsData);
         setCaptainedTeams(captainedData);
 
         if (role === 'captain') {
@@ -117,11 +125,12 @@ const DashboardPage = () => {
     }
 
     if (role === 'player') {
+      const pendingInvites = notifications.filter((n) => n.type === 'team_invite' && !n.isRead).length;
       return [
         { name: 'My Teams', value: stats?.teams ?? myTeams.length, icon: UsersIcon, color: 'bg-green-600' },
+        { name: 'Invitations', value: pendingInvites, icon: BellAlertIcon, color: 'bg-amber-600' },
         { name: 'My Bookings', value: stats?.bookings ?? bookings.length, icon: CalendarIcon, color: 'bg-blue-600' },
-        { name: 'Upcoming', value: upcomingBookings.length, icon: CalendarIcon, color: 'bg-yellow-600' },
-        { name: 'Fields Available', value: stats?.fields ?? 0, icon: BuildingOfficeIcon, color: 'bg-emerald-600' }
+        { name: 'Upcoming', value: upcomingBookings.length, icon: CalendarIcon, color: 'bg-yellow-600' }
       ];
     }
 
@@ -132,7 +141,49 @@ const DashboardPage = () => {
       { name: 'Teams', value: stats?.teams ?? 0, icon: UsersIcon, color: 'bg-green-600' },
       { name: 'Bookings', value: stats?.bookings ?? 0, icon: CalendarIcon, color: 'bg-yellow-600' }
     ];
-  }, [role, stats, bookings.length, myTeams.length, upcomingBookings.length, captainedTeams.length, joinRequestsByTeam]);
+  }, [role, stats, bookings.length, myTeams.length, upcomingBookings.length, captainedTeams.length, joinRequestsByTeam, notifications]);
+
+  const inviteNotifications = useMemo(() => {
+    return notifications
+      .filter((n) => n.type === 'team_invite' && !n.isRead && n.metadata?.teamId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 6);
+  }, [notifications]);
+
+  const markNotificationRead = async (notificationId) => {
+    await apiService.put(`/notifications/${notificationId}`, {
+      isRead: true,
+      readAt: new Date().toISOString()
+    });
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n
+      )
+    );
+  };
+
+  const handleInviteAction = async (notification, action) => {
+    const teamId = notification?.metadata?.teamId;
+    if (!teamId) return;
+    try {
+      setInviteActionLoading(true);
+      setError(null);
+      if (action === 'accept') {
+        await teamService.acceptInvite(teamId);
+      } else {
+        await teamService.declineInvite(teamId);
+      }
+      await markNotificationRead(notification.id);
+      if (action === 'accept') {
+        const myTeamsRes = await teamService.getMyTeams();
+        setMyTeams(Array.isArray(myTeamsRes.data) ? myTeamsRes.data : []);
+      }
+    } catch (err) {
+      setError(err?.error || `Failed to ${action} invitation`);
+    } finally {
+      setInviteActionLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -274,6 +325,61 @@ const DashboardPage = () => {
           </CardBody>
         </Card>
       </div>
+
+      {role === 'player' && (
+        <Card>
+          <CardHeader className="px-4 py-5 sm:px-6 flex items-center justify-between">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 inline-flex items-center gap-2">
+              <BellAlertIcon className="h-5 w-5 text-amber-500" />
+              Team Invitation Notifications
+            </h3>
+            <Badge tone="yellow">{inviteNotifications.length} pending</Badge>
+          </CardHeader>
+          <div className="border-t border-gray-200">
+            {inviteNotifications.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {inviteNotifications.map((notification) => (
+                  <div key={notification.id} className="px-4 py-4 sm:px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{notification.title}</div>
+                      <div className="text-xs text-gray-500">{notification.message}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleInviteAction(notification, 'accept')}
+                        disabled={inviteActionLoading}
+                        className="inline-flex items-center gap-1"
+                      >
+                        <CheckIcon className="h-4 w-4" />
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleInviteAction(notification, 'decline')}
+                        disabled={inviteActionLoading}
+                        className="inline-flex items-center gap-1"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                        Decline
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6">
+                <EmptyState
+                  icon={BellAlertIcon}
+                  title="No invitation notifications"
+                  description="When captains invite you to teams, they will appear here."
+                />
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

@@ -4,6 +4,11 @@ import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as Sparkle
 import fieldService from '../services/fieldService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_FIELD_IMAGE =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="28">No Field Image</text></svg>';
+
 const FieldsPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -96,6 +101,26 @@ const FieldsPage = () => {
     }
 
     return `${numericRating.toFixed(1)} (${numericTotalRatings} reviews)`;
+  };
+
+  const resolveFieldImageUrl = (rawImage) => {
+    if (!rawImage) return DEFAULT_FIELD_IMAGE;
+    if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
+    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+    return rawImage;
+  };
+
+  const normalizeImages = (imagesValue) => {
+    if (Array.isArray(imagesValue)) return imagesValue;
+    if (typeof imagesValue === 'string') {
+      try {
+        const parsed = JSON.parse(imagesValue);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
   };
 
   if (loading) {
@@ -201,9 +226,14 @@ const FieldsPage = () => {
             <div key={field.id} className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
               <div className="h-48 bg-gray-200 overflow-hidden">
                 <img
-                  src={field.images?.[0] || 'https://via.placeholder.com/400x200'}
+                  src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
                   alt={field.name}
                   className="w-full h-full object-cover hover:scale-[1.02] transition-transform"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                      e.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                    }
+                  }}
                 />
               </div>
               <div className="p-6">
