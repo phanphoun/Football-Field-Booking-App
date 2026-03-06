@@ -25,6 +25,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
 import OwnerBookingsPage from './pages/OwnerBookingsPage';
+import OwnerMatchesPage from './pages/OwnerMatchesPage';
 import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
 
@@ -128,6 +129,7 @@ function App() {
               <Route path="dashboard" element={<OwnerDashboardPage />} />
               <Route path="fields" element={<OwnerFieldsPage />} />
               <Route path="bookings" element={<OwnerBookingsPage />} />
+              <Route path="matches" element={<OwnerMatchesPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
 

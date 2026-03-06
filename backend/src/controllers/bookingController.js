@@ -1,4 +1,4 @@
-const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, Notification, sequelize } = require('../models');
+const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult, Notification, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
@@ -30,6 +30,7 @@ const BOOKING_BASE_INCLUDE = [
     required: false
   },
   { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'], required: false },
+  { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
