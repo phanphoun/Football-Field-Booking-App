@@ -1,8 +1,6 @@
 .App {
   min-height: 100vh;
 }
-<<<<<<< HEAD
-=======
 
 /* Status badges */
 .status-badge {
@@ -84,4 +82,14 @@
   animation: shake 0.5s ease-in-out;
 }
 
->>>>>>> d5bc80c633a1d74c751736a704b49e4cb02ad709
+.img{
+  background-image: url(https://www.scorefc.com/wp-content/uploads/2023/09/Book-A-Football-Pitch.png);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  padding: 4rem;
+  border-radius: 1rem;
+  margin: 2rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
