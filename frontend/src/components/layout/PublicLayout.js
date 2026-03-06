@@ -33,7 +33,6 @@ const PublicLayout = () => {
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
-<<<<<<< HEAD
   React.useEffect(() => {
     const successMessage = location.state?.successMessage;
     const errorMessage = location.state?.errorMessage;
@@ -50,9 +49,8 @@ const PublicLayout = () => {
       state: {}
     });
   }, [location, navigate]);
-=======
+
   const isHomePage = location.pathname === '/';
->>>>>>> guest-register-ponmakara
 
   return (
     <div className="min-h-screen bg-white">
@@ -155,8 +153,7 @@ const PublicLayout = () => {
         </div>
       </header>
 
-<<<<<<< HEAD
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isHomePage ? 'py-0' : 'py-8'}`}>
         {flash && (
           <div
             className={`mb-4 px-4 py-3 rounded-md text-sm border ${
@@ -177,9 +174,6 @@ const PublicLayout = () => {
             </div>
           </div>
         )}
-=======
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isHomePage ? 'py-0' : 'py-8'}`}>
->>>>>>> guest-register-ponmakara
         <Outlet />
       </main>
     </div>

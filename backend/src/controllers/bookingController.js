@@ -518,6 +518,63 @@ const getOpenMatches = async (req, res) => {
   }
 };
 
+const getPublicSchedule = async (req, res) => {
+  try {
+    const { date, limit = 6 } = req.query;
+    const dateValue = date || new Date().toISOString().slice(0, 10);
+    const limitCount = parseInt(limit) || 6;
+
+    const startOfDay = new Date(dateValue);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(dateValue);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const fields = await Field.findAll({
+      where: { status: 'available' },
+      limit: limitCount,
+      attributes: ['id', 'name', 'address', 'city', 'pricePerHour', 'fieldType', 'surfaceType', 'images']
+    });
+
+    const fieldIds = fields.map((f) => f.id);
+
+    const bookings = await Booking.findAll({
+      where: {
+        fieldId: { [Op.in]: fieldIds },
+        status: { [Op.in]: ['pending', 'confirmed', 'completed'] },
+        [Op.and]: [
+          { startTime: { [Op.lte]: endOfDay } },
+          { endTime: { [Op.gte]: startOfDay } }
+        ]
+      },
+      include: [{ model: Team, as: 'team', attributes: ['id', 'name'] }],
+      attributes: ['id', 'fieldId', 'startTime', 'endTime', 'status']
+    });
+
+    res.json({
+      success: true,
+      data: {
+        fields,
+        bookings: bookings.map((b) => ({
+          id: b.id,
+          fieldId: b.fieldId,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          status: b.status,
+          teamName: b.team?.name || 'Booked Slot'
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get public schedule error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch public schedule',
+      error: error.message
+    });
+  }
+};
+
 const requestJoinMatch = async (req, res) => {
   try {
     if (!requireCaptainRole(req, res)) return;

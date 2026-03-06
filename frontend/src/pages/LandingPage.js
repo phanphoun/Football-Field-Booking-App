@@ -387,8 +387,8 @@ const LandingPage = () => {
           // fall through
         }
       }
-      // Handle direct URL string values
-      if (images.startsWith('http://') || images.startsWith('https://')) return images;
+      // Handle direct URL string values or relative paths
+      if (images.startsWith('http://') || images.startsWith('https://') || images.startsWith('/')) return images;
     }
 
     return FIELD_FALLBACK_IMAGE;

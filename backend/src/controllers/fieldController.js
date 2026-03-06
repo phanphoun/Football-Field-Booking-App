@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { Field, Booking } = require('../models');
+const { Op } = require('sequelize');
 const serverConfig = require('../config/serverConfig');
 
 const removeFieldImageFile = (imagePath) => {
@@ -14,8 +15,39 @@ const removeFieldImageFile = (imagePath) => {
 
 const getFields = async (req, res) => {
   try {
-    const fields = await Field.findAll();
-    res.json({ success: true, data: fields });
+    const { page = 1, limit = 10, fieldType, surfaceType, city, minPrice, maxPrice, status = 'available' } = req.query;
+    
+    const where = {};
+    if (status) where.status = status;
+    if (fieldType) where.fieldType = fieldType;
+    if (surfaceType) where.surfaceType = surfaceType;
+    if (city) where.city = city;
+    
+    if (minPrice || maxPrice) {
+      where.pricePerHour = {};
+      if (minPrice) where.pricePerHour[Op.gte] = parseFloat(minPrice);
+      if (maxPrice) where.pricePerHour[Op.lte] = parseFloat(maxPrice);
+    }
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    const { count, rows } = await Field.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset: offset,
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({ 
+      success: true, 
+      data: rows,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(count / parseInt(limit))
+      }
+    });
   } catch (error) {
     console.error('Get fields error:', error);
     res.status(500).json({
