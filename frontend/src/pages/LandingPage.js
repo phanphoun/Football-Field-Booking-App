@@ -11,6 +11,11 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_FIELD_IMAGE =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="28">No Field Image</text></svg>';
+
 const LandingPage = () => {
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
@@ -78,6 +83,26 @@ const LandingPage = () => {
     []
   );
 
+  const normalizeImages = (imagesValue) => {
+    if (Array.isArray(imagesValue)) return imagesValue;
+    if (typeof imagesValue === 'string') {
+      try {
+        const parsed = JSON.parse(imagesValue);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const resolveFieldImageUrl = (rawImage) => {
+    if (!rawImage) return DEFAULT_FIELD_IMAGE;
+    if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
+    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+    return rawImage;
+  };
+
   return (
     <div className="space-y-12">
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700 text-white shadow-sm ring-1 ring-black/5">
@@ -137,9 +162,14 @@ const LandingPage = () => {
               >
                 <div className="h-40 bg-gray-200 overflow-hidden">
                   <img
-                    src={field.images?.[0] || 'https://via.placeholder.com/400x200'}
+                    src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
                     alt={field.name}
                     className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform"
+                    onError={(e) => {
+                      if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                        e.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                      }
+                    }}
                   />
                 </div>
                 <div className="p-5">

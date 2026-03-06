@@ -67,6 +67,11 @@ const userValidation = {
   ],
 
   updateProfile: [
+    body('email')
+      .optional({ checkFalsy: true })
+      .isEmail()
+      .withMessage('Please provide a valid email address')
+      .normalizeEmail(),
     body('firstName')
       .optional()
       .isLength({ max: 50 })
@@ -76,15 +81,19 @@ const userValidation = {
       .isLength({ max: 50 })
       .withMessage('Last name must be less than 50 characters'),
     body('phone')
-      .optional()
-      .isMobilePhone()
+      .optional({ checkFalsy: true })
+      .matches(/^[0-9+\-\s()]{7,20}$/)
       .withMessage('Please provide a valid phone number'),
-    body('dateOfBirth')
+    body('address')
       .optional()
+      .isLength({ max: 500 })
+      .withMessage('Address must be less than 500 characters'),
+    body('dateOfBirth')
+      .optional({ checkFalsy: true })
       .isISO8601()
       .withMessage('Please provide a valid date'),
     body('gender')
-      .optional()
+      .optional({ checkFalsy: true })
       .isIn(['male', 'female', 'other'])
       .withMessage('Gender must be one of: male, female, other'),
     handleValidationErrors
@@ -151,6 +160,15 @@ const teamValidation = {
       .optional()
       .isLength({ max: 500 })
       .withMessage('Description must be less than 500 characters'),
+    handleValidationErrors
+  ],
+  invite: [
+    body('email')
+      .notEmpty()
+      .withMessage('email is required')
+      .isEmail()
+      .withMessage('email must be valid')
+      .normalizeEmail(),
     handleValidationErrors
   ]
 };
