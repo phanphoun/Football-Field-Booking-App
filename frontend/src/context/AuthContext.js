@@ -112,16 +112,17 @@ export const AuthProvider = ({ children }) => {
           const user =
             (profileResponse.success && (profileResponse.data?.user || profileResponse.data)) ||
             authService.getCurrentUser();
-          const permissions = authService.getPermissions();
+          const permissions = authService.getPermissions(user);
           
           dispatch({
             type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
             payload: { user, permissions }
           });
         } catch (error) {
+          const errorMessage = error.error || error.message || 'Failed to load user';
           dispatch({
             type: AUTH_ACTIONS.LOAD_USER_FAILURE,
-            payload: error.message || 'Failed to load user'
+            payload: errorMessage
           });
         }
       } else {

@@ -344,7 +344,6 @@ const updateBookingStatus = async (req, res) => {
 
 const toggleOpenForOpponents = async (req, res) => {
   try {
-    if (!requireCaptainRole(req, res)) return;
     const requestedOpenFlag = req.body.openForOpponents;
     const requestedMatchmakingFlag = req.body.isMatchmaking;
     const openForOpponents = typeof requestedOpenFlag === 'boolean' ? requestedOpenFlag : requestedMatchmakingFlag;
@@ -364,6 +363,7 @@ const toggleOpenForOpponents = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
+    // Check if user is captain of the team that owns this booking
     if (!booking.team || booking.team.captainId !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -461,8 +461,6 @@ const toggleOpenForOpponents = async (req, res) => {
 
 const getOpenMatches = async (req, res) => {
   try {
-    if (!requireCaptainRole(req, res)) return;
-
     const where = {
       isMatchmaking: true,
       opponentTeamId: null,
@@ -1037,6 +1035,7 @@ module.exports = {
   updateBookingStatus,
   toggleOpenForOpponents,
   getOpenMatches,
+  getPublicSchedule,
   requestJoinMatch,
   getBookingJoinRequests,
   respondToJoinRequest,

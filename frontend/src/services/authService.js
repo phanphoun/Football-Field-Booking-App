@@ -31,9 +31,11 @@ const authService = {
     const response = await apiService.get('/auth/profile');
     
     // Update stored user data
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      localStorage.setItem('user', JSON.stringify(resolvedUser));
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
+        localStorage.setItem('user', JSON.stringify(resolvedUser));
+      }
     }
     
     return response;
@@ -44,9 +46,11 @@ const authService = {
     const response = await apiService.put('/auth/profile', userData);
     
     // Update stored user data
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      localStorage.setItem('user', JSON.stringify(resolvedUser));
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
+        localStorage.setItem('user', JSON.stringify(resolvedUser));
+      }
     }
     
     return response;
@@ -58,9 +62,9 @@ const authService = {
       timeout: 30000
     });
 
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      if (resolvedUser) {
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
         localStorage.setItem('user', JSON.stringify(resolvedUser));
       }
     }
@@ -72,9 +76,9 @@ const authService = {
   deleteAvatar: async () => {
     const response = await apiService.delete('/auth/profile/avatar');
 
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      if (resolvedUser) {
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
         localStorage.setItem('user', JSON.stringify(resolvedUser));
       }
     }
@@ -140,9 +144,11 @@ const authService = {
   },
 
   // Get user permissions based on role
-  getPermissions: () => {
-    const user = authService.getCurrentUser();
-    if (!user) return [];
+  getPermissions: (userArg = null) => {
+    const user = userArg || authService.getCurrentUser();
+    if (!user || !user.role) return [
+      'view_fields', 'view_public_teams'
+    ];
 
     const rolePermissions = {
       admin: [
