@@ -190,37 +190,6 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
-const HOME_STATS = [
-  {
-    value: '50+',
-    label: 'Football Fields',
-    icon: MapPinIcon,
-    iconTone: 'text-emerald-600',
-    iconBg: 'bg-emerald-100'
-  },
-  {
-    value: '10,000+',
-    label: 'Active Users',
-    icon: UsersIcon,
-    iconTone: 'text-blue-600',
-    iconBg: 'bg-blue-100'
-  },
-  {
-    value: '25,000+',
-    label: 'Bookings Completed',
-    icon: TrophyIcon,
-    iconTone: 'text-violet-600',
-    iconBg: 'bg-violet-100'
-  },
-  {
-    value: '4.9/5',
-    label: 'Customer Rating',
-    icon: StarIcon,
-    iconTone: 'text-amber-500',
-    iconBg: 'bg-amber-100'
-  }
-];
-
 const LandingPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -555,20 +524,6 @@ const LandingPage = () => {
               </Button>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="order-2 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-r from-emerald-600 via-green-600 to-emerald-700 py-3 text-white">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-6 text-center sm:grid-cols-2 sm:px-10 lg:grid-cols-4 lg:px-16">
-          {HOME_STATS.map((item) => (
-            <div key={item.label} className="flex flex-col items-center">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100">
-                <item.icon className="h-4 w-4 text-emerald-700" />
-              </div>
-              <div className="mt-1.5 text-2xl font-extrabold leading-none">{item.value}</div>
-              <div className="mt-0.5 text-base font-medium text-white/90">{item.label}</div>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -972,7 +927,7 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-emerald-600 py-3 text-lg font-semibold text-white hover:bg-emerald-700"
+                        className="w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white hover:bg-emerald-700"
                       >
                         Book Now
                       </button>
@@ -980,7 +935,7 @@ const LandingPage = () => {
                       <button
                         type="button"
                         disabled
-                        className="w-full cursor-not-allowed rounded-xl bg-emerald-500 py-3 text-lg font-semibold text-white"
+                        className="w-full cursor-not-allowed rounded-xl bg-emerald-500 py-2 text-base font-semibold text-white"
                       >
                         Fully Booked
                       </button>
