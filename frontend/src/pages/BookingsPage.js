@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, CurrencyDollarIcon, PlusIcon, UsersIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -23,6 +23,7 @@ const BookingsPage = () => {
     try {
       setLoading(true);
       setError(null);
+
       const response = await bookingService.getAllBookings();
       const bookingsData = Array.isArray(response.data) ? response.data : [];
       setBookings(bookingsData);
@@ -57,9 +58,7 @@ const BookingsPage = () => {
 
           setJoinRequestsByBooking((prev) => {
             const next = { ...prev };
-            for (const result of results) {
-              next[result.bookingId] = result.requests;
-            }
+            for (const result of results) next[result.bookingId] = result.requests;
             return next;
           });
 
@@ -83,9 +82,11 @@ const BookingsPage = () => {
     loadBookings();
   }, [loadBookings]);
 
-  const handleCreateBooking = () => {
-    navigate('/app/bookings/new');
-  };
+  const isCaptainOwner = (booking) => user?.role === 'captain' && booking?.team?.captainId === user?.id;
+  const isCaptainInMatchedBooking = (booking) =>
+    user?.role === 'captain' && (booking?.team?.captainId === user?.id || booking?.opponentTeam?.captainId === user?.id);
+
+  const handleCreateBooking = () => navigate('/app/bookings/new');
 
   const handleUpdateStatus = async (bookingId, newStatus) => {
     try {
@@ -106,10 +107,6 @@ const BookingsPage = () => {
       setError('Failed to update booking status');
     }
   };
-
-  const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
-  const isCaptainInMatchedBooking = (booking) =>
-    user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
 
   const handleToggleOpenForOpponents = async (booking) => {
     try {
@@ -159,21 +156,16 @@ const BookingsPage = () => {
   };
 
   const getStatusTone = (status) => {
-    const tones = {
-      pending: 'yellow',
-      confirmed: 'green',
-      cancelled: 'red',
-      completed: 'blue'
-    };
+    const tones = { pending: 'yellow', confirmed: 'green', cancelled: 'red', completed: 'blue' };
     return tones[status] || 'gray';
   };
 
   const getStatusActions = (booking) => {
     const actions = [];
     const canUserCancelBooking =
-      booking.createdBy === user?.id ||
-      booking.team?.captainId === user?.id ||
-      booking.opponentTeam?.captainId === user?.id ||
+      booking?.createdBy === user?.id ||
+      booking?.team?.captainId === user?.id ||
+      booking?.opponentTeam?.captainId === user?.id ||
       isAdmin();
 
     if (booking.status === 'pending') {
@@ -227,13 +219,7 @@ const BookingsPage = () => {
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
   const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  const calculateDuration = (startTime, endTime) => {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const duration = (end - start) / (1000 * 60 * 60);
-    return duration.toFixed(1);
-  };
+  const calculateDuration = (startTime, endTime) => ((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60)).toFixed(1);
 
   if (loading) {
     return (
@@ -343,8 +329,8 @@ const BookingsPage = () => {
 
                     {booking.status === 'pending' && isCaptainOwner(booking) && (
                       <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        Waiting for field owner approval. Other captains can still request this same slot until owner confirms
-                        one booking.
+                        Waiting for field owner approval. Other captains can still request this same slot until owner confirms one
+                        booking.
                       </div>
                     )}
 
@@ -372,23 +358,20 @@ const BookingsPage = () => {
 
                     {isCaptainOwner(booking) && booking.status !== 'cancelled' && booking.status !== 'completed' && (
                       <div className="mt-4">
-                        <div className="flex items-center flex-wrap gap-2">
-                          {!booking.opponentTeam?.name && (
-                            <Button
-                              size="sm"
-                              variant={booking.openForOpponents ? 'warning' : 'primary'}
-                              onClick={() => handleToggleOpenForOpponents(booking)}
-                              disabled={!!toggleLoadingMap[booking.id]}
-                            >
-                              {toggleLoadingMap[booking.id]
-                                ? 'Updating...'
-                                : booking.openForOpponents
-                                ? 'Close Match'
-                                : 'Open Match'}
-                            </Button>
-                          )}
-
-                        </div>
+                        {!booking.opponentTeam?.name && (
+                          <Button
+                            size="sm"
+                            variant={booking.openForOpponents ? 'warning' : 'primary'}
+                            onClick={() => handleToggleOpenForOpponents(booking)}
+                            disabled={!!toggleLoadingMap[booking.id]}
+                          >
+                            {toggleLoadingMap[booking.id]
+                              ? 'Updating...'
+                              : booking.openForOpponents
+                              ? 'Close Match'
+                              : 'Open Match'}
+                          </Button>
+                        )}
 
                         {booking.openForOpponents && !booking.opponentTeam?.name && (
                           <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
