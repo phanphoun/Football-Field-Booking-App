@@ -32,6 +32,7 @@ const PublicLayout = () => {
 
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+  const isHomePage = location.pathname === '/';
 
   React.useEffect(() => {
     const successMessage = location.state?.successMessage;
@@ -151,7 +152,7 @@ const PublicLayout = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isHomePage ? 'py-0' : 'py-8'}`}>
         {flash && (
           <div
             className={`mb-4 px-4 py-3 rounded-md text-sm border ${
