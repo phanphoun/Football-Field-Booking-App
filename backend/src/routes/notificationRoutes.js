@@ -9,7 +9,7 @@ const { idValidation } = require('../middleware/validation');
 router.get('/', auth, notificationController.getAllNotifications);
 router.get('/:id', auth, ...idValidation, notificationController.getNotificationById);
 router.post('/', auth, checkRole(['admin']), notificationController.createNotification);
-router.put('/:id', auth, checkRole(['admin']), ...idValidation, notificationController.updateNotification);
-router.delete('/:id', auth, checkRole(['admin']), ...idValidation, notificationController.deleteNotification);
+router.put('/:id', auth, ...idValidation, notificationController.updateNotification);
+router.delete('/:id', auth, ...idValidation, notificationController.deleteNotification);
 
 module.exports = router;

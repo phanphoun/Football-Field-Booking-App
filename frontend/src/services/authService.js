@@ -52,6 +52,36 @@ const authService = {
     return response;
   },
 
+  // Upload profile avatar
+  uploadAvatar: async (formData) => {
+    const response = await apiService.upload('/auth/profile/avatar', formData, {
+      timeout: 30000
+    });
+
+    if (response.success) {
+      const resolvedUser = response.data?.user || response.data;
+      if (resolvedUser) {
+        localStorage.setItem('user', JSON.stringify(resolvedUser));
+      }
+    }
+
+    return response;
+  },
+
+  // Delete profile avatar
+  deleteAvatar: async () => {
+    const response = await apiService.delete('/auth/profile/avatar');
+
+    if (response.success) {
+      const resolvedUser = response.data?.user || response.data;
+      if (resolvedUser) {
+        localStorage.setItem('user', JSON.stringify(resolvedUser));
+      }
+    }
+
+    return response;
+  },
+
   // Logout user
   logout: () => {
     localStorage.removeItem('token');

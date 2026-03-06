@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_FIELD_IMAGE =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%25" height="100%25" fill="%23e5e7eb"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="24">No Field Image</text></svg>';
 
 const emptyForm = {
   name: '',
@@ -24,6 +30,8 @@ const OwnerFieldsPage = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [currentImages, setCurrentImages] = useState([]);
 
   const refresh = async () => {
     const res = await fieldService.getMyFields();
@@ -50,6 +58,8 @@ const OwnerFieldsPage = () => {
     setError(null);
     setEditingFieldId(null);
     setForm(emptyForm);
+    setImageFiles([]);
+    setCurrentImages([]);
     setIsCreating(true);
   };
 
@@ -58,6 +68,8 @@ const OwnerFieldsPage = () => {
     setError(null);
     setIsCreating(false);
     setEditingFieldId(field.id);
+    setImageFiles([]);
+    setCurrentImages(normalizeImages(field.images));
     setForm({
       name: field.name || '',
       description: field.description || '',
@@ -76,10 +88,38 @@ const OwnerFieldsPage = () => {
     setIsCreating(false);
     setEditingFieldId(null);
     setForm(emptyForm);
+    setImageFiles([]);
+    setCurrentImages([]);
   };
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleImageChange = (e) => {
+    const picked = Array.from(e.target.files || []);
+    const onlyImages = picked.filter((file) => String(file.type || '').startsWith('image/'));
+    setImageFiles(onlyImages.slice(0, 5));
+  };
+
+  const normalizeImages = (imagesValue) => {
+    if (Array.isArray(imagesValue)) return imagesValue;
+    if (typeof imagesValue === 'string') {
+      try {
+        const parsed = JSON.parse(imagesValue);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const resolveFieldImageUrl = (rawImage) => {
+    if (!rawImage) return DEFAULT_FIELD_IMAGE;
+    if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
+    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+    return rawImage;
   };
 
   const handleSubmit = async (e) => {
@@ -109,9 +149,18 @@ const OwnerFieldsPage = () => {
 
       if (editingFieldId) {
         await fieldService.updateField(editingFieldId, payload);
+        if (imageFiles.length > 0) {
+          await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: true });
+        }
+        const updated = await fieldService.getFieldById(editingFieldId);
+        setCurrentImages(normalizeImages(updated?.data?.images));
         setSuccessMessage('Field updated.');
       } else {
-        await fieldService.createField(payload);
+        const created = await fieldService.createField(payload);
+        const createdId = created?.data?.id;
+        if (createdId && imageFiles.length > 0) {
+          await fieldService.uploadFieldImages(createdId, imageFiles);
+        }
         setSuccessMessage('Field created.');
       }
 
@@ -119,6 +168,24 @@ const OwnerFieldsPage = () => {
       resetForm();
     } catch (err) {
       setError(err?.error || 'Failed to save field');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSetCover = async (imageIndex) => {
+    if (!editingFieldId) return;
+    try {
+      setActionLoading(true);
+      setError(null);
+      setSuccessMessage(null);
+      const response = await fieldService.setFieldCoverImage(editingFieldId, imageIndex);
+      const nextImages = normalizeImages(response?.data?.images);
+      setCurrentImages(nextImages);
+      setSuccessMessage('Cover image updated.');
+      await refresh();
+    } catch (err) {
+      setError(err?.error || 'Failed to set cover image');
     } finally {
       setActionLoading(false);
     }
@@ -304,6 +371,81 @@ const OwnerFieldsPage = () => {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Field Photos (Maximum 5)</label>
+            <label className="mt-1 relative flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageChange}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+              <PhotoIcon className="h-16 w-16 text-gray-400" />
+              <p className="mt-3 text-sm font-medium text-gray-700">Click to upload field photos</p>
+              <p className="mt-1 text-xs text-gray-500">Accepted formats: PNG, JPG, WEBP.</p>
+            </label>
+            {imageFiles.length > 0 && (
+              <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
+                <p className="text-xs font-medium text-gray-700">{imageFiles.length} image(s) selected</p>
+                <ul className="mt-1 space-y-1 text-xs text-gray-600">
+                  {imageFiles.map((file) => (
+                    <li key={`${file.name}-${file.lastModified}`} className="truncate">
+                      {file.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {editingFieldId && (
+              <p className="mt-2 text-xs text-gray-500">When editing, newly selected photos will replace existing field photos.</p>
+            )}
+          </div>
+
+          {editingFieldId && currentImages.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Select Cover Photo</label>
+              <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+                {currentImages.map((img, index) => (
+                  <div
+                    key={`${img}-${index}`}
+                    className={`rounded-md border overflow-hidden ${
+                      index === 0 ? 'border-emerald-400 ring-1 ring-emerald-300' : 'border-gray-200'
+                    }`}
+                  >
+                    <img
+                      src={resolveFieldImageUrl(img)}
+                      alt={`Field ${index + 1}`}
+                      className="w-full h-24 object-cover"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                          e.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                        }
+                      }}
+                    />
+                    <div className="p-2 bg-white flex items-center justify-between gap-2">
+                      {index === 0 ? (
+                        <span className="text-[11px] font-medium text-emerald-700">Cover photo</span>
+                      ) : (
+                        <span className="text-[11px] text-gray-500">Image {index + 1}</span>
+                      )}
+                      {index !== 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetCover(index)}
+                          disabled={actionLoading}
+                          className="text-[11px] px-2 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Set as cover photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -328,10 +470,24 @@ const OwnerFieldsPage = () => {
           {fields.length > 0 ? (
             fields.map((f) => (
               <div key={f.id} className="p-6 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-gray-900">{f.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {f.address}, {f.city} • ${f.pricePerHour}/hr
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
+                    <img
+                      src={resolveFieldImageUrl(normalizeImages(f.images)[0])}
+                      alt={f.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                          e.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                        }
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{f.name}</div>
+                    <div className="text-xs text-gray-500">
+                      {f.address}, {f.city} - ${f.pricePerHour}/hr
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

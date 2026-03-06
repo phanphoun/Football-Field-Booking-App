@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
@@ -12,51 +12,76 @@ const BookingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [openForOpponentsFilter, setOpenForOpponentsFilter] = useState('all');
+  const [toggleLoadingMap, setToggleLoadingMap] = useState({});
+  const [cancelMatchedLoadingMap, setCancelMatchedLoadingMap] = useState({});
+  const [joinRequestsByBooking, setJoinRequestsByBooking] = useState({});
+  const [joinRequestsLoadingMap, setJoinRequestsLoadingMap] = useState({});
+  const [joinActionLoadingMap, setJoinActionLoadingMap] = useState({});
+
+  const loadBookings = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await bookingService.getAllBookings();
+      const bookingsData = Array.isArray(response.data) ? response.data : [];
+      setBookings(bookingsData);
+
+      if (user?.role === 'captain') {
+        const targetBookings = bookingsData.filter(
+          (booking) =>
+            booking?.team?.captainId === user?.id &&
+            booking?.openForOpponents &&
+            !booking?.opponentTeam?.name &&
+            booking?.status !== 'cancelled' &&
+            booking?.status !== 'completed'
+        );
+
+        if (targetBookings.length > 0) {
+          setJoinRequestsLoadingMap((prev) => {
+            const next = { ...prev };
+            for (const booking of targetBookings) next[booking.id] = true;
+            return next;
+          });
+
+          const results = await Promise.all(
+            targetBookings.map(async (booking) => {
+              try {
+                const res = await bookingService.getBookingJoinRequests(booking.id);
+                return { bookingId: booking.id, requests: Array.isArray(res.data) ? res.data : [] };
+              } catch {
+                return { bookingId: booking.id, requests: [] };
+              }
+            })
+          );
+
+          setJoinRequestsByBooking((prev) => {
+            const next = { ...prev };
+            for (const result of results) {
+              next[result.bookingId] = result.requests;
+            }
+            return next;
+          });
+
+          setJoinRequestsLoadingMap((prev) => {
+            const next = { ...prev };
+            for (const booking of targetBookings) next[booking.id] = false;
+            return next;
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch bookings:', err);
+      setError('Failed to load bookings');
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        setLoading(true);
-        const response = await bookingService.getAllBookings();
-        // Ensure we always set an array, even if response.data is not an array
-        const bookingsData = Array.isArray(response.data) ? response.data : [];
-        setBookings(bookingsData);
-      } catch (err) {
-        console.error('Failed to fetch bookings:', err);
-        setError('Failed to load bookings');
-        
-        // Fallback to mock data if API fails
-        const mockBookings = [
-          {
-            id: 1,
-            field: {
-              name: 'Downtown Arena',
-              address: '123 Main St',
-              pricePerHour: 50.00
-            },
-            team: {
-              name: 'Test Team'
-            },
-            creator: {
-              username: 'admin',
-              firstName: 'Admin',
-              lastName: 'User'
-            },
-            startTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-            endTime: new Date(Date.now() + 86400000 + 7200000).toISOString(), // Tomorrow + 2 hours
-            status: 'pending',
-            totalPrice: 100.00,
-            createdAt: new Date().toISOString()
-          }
-        ];
-        setBookings(mockBookings);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBookings();
-  }, []);
+    loadBookings();
+  }, [loadBookings]);
 
   const handleCreateBooking = () => {
     navigate('/app/bookings/new');
@@ -69,21 +94,69 @@ const BookingsPage = () => {
       } else if (newStatus === 'completed') {
         await bookingService.completeBooking(bookingId);
       } else if (newStatus === 'cancelled') {
+        const confirmed = window.confirm('Do you want to cancel your booking?');
+        if (!confirmed) return;
         await bookingService.cancelBooking(bookingId);
       } else {
         await bookingService.updateBooking(bookingId, { status: newStatus });
       }
-      // Refresh bookings list
-      const response = await bookingService.getAllBookings();
-      const bookingsData = Array.isArray(response.data) ? response.data : [];
-      setBookings(bookingsData);
+      await loadBookings();
     } catch (err) {
       console.error('Failed to update booking status:', err);
       setError('Failed to update booking status');
     }
   };
 
-  // Booking details page not implemented yet.
+  const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
+  const isCaptainInMatchedBooking = (booking) =>
+    user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
+
+  const handleToggleOpenForOpponents = async (booking) => {
+    try {
+      setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
+      await bookingService.setOpenForOpponents(booking.id, !booking.openForOpponents);
+      await loadBookings();
+    } catch (err) {
+      console.error('Failed to toggle open for opponents:', err);
+      setError(err.error || 'Failed to update Open for Opponents');
+    } finally {
+      setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
+  const handleCancelMatchedOpponent = async (booking) => {
+    const confirmed = window.confirm(
+      `Do you want to cancel this matched game: ${booking.team?.name || 'Team A'} vs ${
+        booking.opponentTeam?.name || 'Team B'
+      }?`
+    );
+    if (!confirmed) return;
+
+    try {
+      setCancelMatchedLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
+      await bookingService.cancelMatchedOpponent(booking.id);
+      await loadBookings();
+    } catch (err) {
+      console.error('Failed to cancel matched opponent:', err);
+      setError(err.error || 'Failed to cancel matched match');
+    } finally {
+      setCancelMatchedLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
+  const handleRespondToJoinRequest = async (bookingId, requestId, action) => {
+    const key = `${bookingId}-${requestId}-${action}`;
+    try {
+      setJoinActionLoadingMap((prev) => ({ ...prev, [key]: true }));
+      await bookingService.respondToJoinRequest(bookingId, requestId, action);
+      await loadBookings();
+    } catch (err) {
+      console.error(`Failed to ${action} join request:`, err);
+      setError(err.error || `Failed to ${action} join request`);
+    } finally {
+      setJoinActionLoadingMap((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   const getStatusTone = (status) => {
     const tones = {
@@ -97,67 +170,55 @@ const BookingsPage = () => {
 
   const getStatusActions = (booking) => {
     const actions = [];
-    
+
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
         actions.push(
-          <Button
-            key="confirm"
-            size="sm"
-            variant="outline"
-            onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-          >
+          <Button key="confirm" size="sm" variant="outline" onClick={() => handleUpdateStatus(booking.id, 'confirmed')}>
             Confirm
           </Button>
         );
       }
       if (booking.createdBy === user?.id || isAdmin()) {
         actions.push(
-          <Button
-            key="cancel"
-            size="sm"
-            variant="danger"
-            onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
-          >
-            Cancel
+          <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
+            Cancel Booking
           </Button>
         );
       }
     }
-    
+
     if (booking.status === 'confirmed' && (isAdmin() || isFieldOwner())) {
       actions.push(
-        <Button
-          key="complete"
-          size="sm"
-          variant="outline"
-          onClick={() => handleUpdateStatus(booking.id, 'completed')}
-        >
+        <Button key="complete" size="sm" variant="outline" onClick={() => handleUpdateStatus(booking.id, 'completed')}>
           Complete
         </Button>
       );
     }
-    
+
     return actions;
   };
 
-  const filteredBookings = Array.isArray(bookings) ? bookings.filter(booking => {
-    if (statusFilter === 'all') return true;
-    return booking.status === statusFilter;
-  }) : [];
+  const filteredBookings = Array.isArray(bookings)
+    ? bookings.filter((booking) => {
+        const statusMatch = statusFilter === 'all' ? true : booking.status === statusFilter;
+        const openForOpponentsMatch =
+          openForOpponentsFilter === 'all'
+            ? true
+            : openForOpponentsFilter === 'open'
+            ? Boolean(booking.openForOpponents)
+            : !booking.openForOpponents;
+        return statusMatch && openForOpponentsMatch;
+      })
+    : [];
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
+  const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const calculateDuration = (startTime, endTime) => {
     const start = new Date(startTime);
     const end = new Date(endTime);
-    const duration = (end - start) / (1000 * 60 * 60); // hours
+    const duration = (end - start) / (1000 * 60 * 60);
     return duration.toFixed(1);
   };
 
@@ -174,9 +235,7 @@ const BookingsPage = () => {
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Manage your football field bookings
-          </p>
+          <p className="mt-1 text-sm text-gray-600">Manage your football field bookings</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="gray">{filteredBookings.length} results</Badge>
@@ -187,13 +246,8 @@ const BookingsPage = () => {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
 
-      {/* Filters */}
       <Card className="mb-6">
         <CardBody className="p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -209,27 +263,44 @@ const BookingsPage = () => {
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
+
+            {user?.role === 'captain' && (
+              <>
+                <label className="text-sm font-medium text-gray-700">Opponent Match</label>
+                <select
+                  value={openForOpponentsFilter}
+                  onChange={(e) => setOpenForOpponentsFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                >
+                  <option value="all">All</option>
+                  <option value="open">Open for Opponents</option>
+                  <option value="closed">Not Open</option>
+                </select>
+              </>
+            )}
           </div>
         </CardBody>
       </Card>
 
-      {/* Bookings List */}
       <Card className="overflow-hidden">
         <div className="divide-y divide-gray-200">
           {filteredBookings.length > 0 ? (
             filteredBookings.map((booking) => (
               <div key={booking.id} className="p-6 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-4 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {booking.field?.name || 'Unknown Field'}
-                      </h3>
+                    <div className="flex items-center flex-wrap gap-3 mb-2">
+                      <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
                         {booking.status}
                       </Badge>
+                      {booking.opponentTeam?.name ? (
+                        <Badge tone="green">Matched</Badge>
+                      ) : booking.openForOpponents ? (
+                        <Badge tone="blue">Open for Opponents</Badge>
+                      ) : null}
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
                       <div className="flex items-center">
                         <CalendarIcon className="h-4 w-4 mr-1" />
@@ -242,6 +313,7 @@ const BookingsPage = () => {
                       <div className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
                         {booking.team?.name || 'No team'}
+                        {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
                       </div>
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-4 w-4 mr-1" />
@@ -250,9 +322,111 @@ const BookingsPage = () => {
                     </div>
 
                     <div className="mt-2 text-xs text-gray-500">
-                      Booked by: {booking.creator?.firstName || booking.creator?.username || 'Unknown'} •
-                      Created: {formatDate(booking.createdAt)}
+                      Booked by: {booking.creator?.firstName || booking.creator?.username || 'Unknown'} | Created:{' '}
+                      {formatDate(booking.createdAt)}
                     </div>
+
+                    {booking.opponentTeam?.name && (
+                      <div className="mt-2 text-sm text-green-700">
+                        Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
+                      </div>
+                    )}
+
+                    {booking.opponentTeam?.name &&
+                      isCaptainInMatchedBooking(booking) &&
+                      booking.status !== 'cancelled' &&
+                      booking.status !== 'completed' && (
+                        <div className="mt-3">
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => handleCancelMatchedOpponent(booking)}
+                            disabled={!!cancelMatchedLoadingMap[booking.id]}
+                          >
+                            {cancelMatchedLoadingMap[booking.id] ? 'Cancelling Match...' : 'Cancel Matched Opponent'}
+                          </Button>
+                        </div>
+                      )}
+
+                    {isCaptainOwner(booking) && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                      <div className="mt-4">
+                        <div className="flex items-center flex-wrap gap-2">
+                          {!booking.opponentTeam?.name && (
+                            <Button
+                              size="sm"
+                              variant={booking.openForOpponents ? 'warning' : 'primary'}
+                              onClick={() => handleToggleOpenForOpponents(booking)}
+                              disabled={!!toggleLoadingMap[booking.id]}
+                            >
+                              {toggleLoadingMap[booking.id]
+                                ? 'Updating...'
+                                : booking.openForOpponents
+                                ? 'Close Match'
+                                : 'Open Match'}
+                            </Button>
+                          )}
+
+                        </div>
+
+                        {booking.openForOpponents && !booking.opponentTeam?.name && (
+                          <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
+                            <p className="text-sm font-medium text-gray-800 mb-2">Join Requests</p>
+                            {joinRequestsLoadingMap[booking.id] ? (
+                              <p className="text-sm text-gray-500">Loading requests...</p>
+                            ) : Array.isArray(joinRequestsByBooking[booking.id]) &&
+                              joinRequestsByBooking[booking.id].length > 0 ? (
+                              <div className="space-y-2">
+                                {joinRequestsByBooking[booking.id].map((request) => {
+                                  const captainName =
+                                    request?.requesterTeam?.captain?.firstName || request?.requesterTeam?.captain?.lastName
+                                      ? `${request.requesterTeam?.captain?.firstName || ''} ${
+                                          request.requesterTeam?.captain?.lastName || ''
+                                        }`.trim()
+                                      : request?.requesterTeam?.captain?.username || 'Unknown captain';
+                                  return (
+                                    <div
+                                      key={request.id}
+                                      className="border border-gray-100 rounded-md p-2 flex items-center justify-between gap-3"
+                                    >
+                                      <div>
+                                        <p className="text-sm text-gray-800">
+                                          {request.requesterTeam?.name || 'Unknown team'} ({request.status})
+                                        </p>
+                                        <p className="text-xs text-gray-600 mt-1">Captain: {captainName}</p>
+                                        {request.message && <p className="text-xs text-gray-500 mt-1">"{request.message}"</p>}
+                                      </div>
+
+                                      {request.status === 'pending' && (
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="primary"
+                                            onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'accept')}
+                                            disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-accept`]}
+                                          >
+                                            Approve Join
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="danger"
+                                            onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'reject')}
+                                            disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-reject`]}
+                                          >
+                                            Decline
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500">No requests yet.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center space-x-2 ml-4">{getStatusActions(booking)}</div>
@@ -265,7 +439,9 @@ const BookingsPage = () => {
                 icon={CalendarIcon}
                 title="No bookings found"
                 description={
-                  statusFilter === 'all' ? 'Create your first booking to get started.' : `No ${statusFilter} bookings found.`
+                  statusFilter === 'all' && openForOpponentsFilter === 'all'
+                    ? 'Create your first booking to get started.'
+                    : 'No bookings found for the selected filters.'
                 }
                 actionLabel="New Booking"
                 onAction={handleCreateBooking}
