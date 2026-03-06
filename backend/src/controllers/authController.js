@@ -105,14 +105,31 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Account is not active. Please contact support.' });
     }
 
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Compare password (supports legacy plain-text rows without crashing login)
+    let isMatch = false;
+    try {
+      isMatch = await bcrypt.compare(password, user.password || '');
+    } catch (compareError) {
+      console.warn('Password compare failed, trying legacy fallback:', compareError.message);
+      isMatch = user.password === password;
+
+      // Upgrade legacy plain-text password to bcrypt hash after successful login
+      if (isMatch) {
+        const hashedPassword = await bcrypt.hash(password, 12);
+        await user.update({ password: hashedPassword });
+      }
+    }
+
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid email or password.' });
     }
 
     // Update last login
-    await user.update({ lastLogin: new Date() });
+    try {
+      await user.update({ lastLogin: new Date() });
+    } catch (lastLoginError) {
+      console.warn('Skipping lastLogin update:', lastLoginError.message);
+    }
 
     // Generate token
     const token = jwt.sign(

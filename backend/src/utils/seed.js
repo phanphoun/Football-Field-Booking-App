@@ -121,27 +121,27 @@ const seedDatabase = async () => {
       isActive: true
     });
 
-    // Team memberships (active + pending request demo)
+    // Team memberships (accepted + pending request demo)
     await TeamMember.bulkCreate([
       {
         teamId: team1.id,
         userId: captain1.id,
         role: 'captain',
-        status: 'active',
+        status: 'accepted',
         isActive: true
       },
       {
         teamId: team2.id,
         userId: captain2.id,
         role: 'captain',
-        status: 'active',
+        status: 'accepted',
         isActive: true
       },
       {
         teamId: team1.id,
         userId: player1.id,
         role: 'player',
-        status: 'active',
+        status: 'accepted',
         isActive: true
       },
       {

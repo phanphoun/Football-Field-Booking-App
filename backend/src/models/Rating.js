@@ -49,6 +49,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT,
       allowNull: true
     },
+    sportsmanshipScore: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+        max: 5
+      }
+    },
     ratingType: {
       type: DataTypes.ENUM('sportsmanship', 'skill_level', 'punctuality', 'overall'),
       defaultValue: 'overall',

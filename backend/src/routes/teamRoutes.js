@@ -7,21 +7,21 @@ const { teamValidation, idValidation } = require('../middleware/validation');
 
 // Protected routes
 router.get('/my-teams', auth, teamController.getMyTeams);
-router.get('/captained', auth, checkRole(['captain', 'admin']), teamController.getCaptainedTeams);
+router.get('/captained', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), teamController.getCaptainedTeams);
 
 router.get('/', auth, teamController.getAllTeams);
 router.get('/:id', auth, ...idValidation, teamController.getTeamById);
-router.post('/', auth, checkRole(['captain', 'admin']), ...teamValidation.create, teamController.createTeam);
-router.put('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.updateTeam);
-router.delete('/:id', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.deleteTeam);
+router.post('/', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...teamValidation.create, teamController.createTeam);
+router.put('/:id', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.updateTeam);
+router.delete('/:id', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.deleteTeam);
 
 // Team membership flows
-router.post('/:id/join', auth, checkRole(['player', 'captain', 'admin']), ...idValidation, teamController.requestJoinTeam);
-router.post('/:id/leave', auth, checkRole(['player', 'captain', 'admin']), ...idValidation, teamController.leaveTeam);
+router.post('/:id/join', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.requestJoinTeam);
+router.post('/:id/leave', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.leaveTeam);
 router.get('/:id/members', auth, ...idValidation, teamController.getTeamMembers);
-router.get('/:id/requests', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.getJoinRequests);
-router.post('/:id/members', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.addTeamMember);
-router.put('/:id/members/:userId', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.updateTeamMember);
-router.delete('/:id/members/:userId', auth, checkRole(['captain', 'admin']), ...idValidation, teamController.removeTeamMember);
+router.get('/:id/requests', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.getJoinRequests);
+router.post('/:id/members', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.addTeamMember);
+router.put('/:id/members/:userId', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.updateTeamMember);
+router.delete('/:id/members/:userId', auth, checkRole(['guest', 'player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.removeTeamMember);
 
 module.exports = router;

@@ -1,4 +1,5 @@
-const { Team, User, Field, Booking, TeamMember } = require('../models');
+const { Team, User, Field, Booking, TeamMember, Rating } = require('../models');
+const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -40,6 +41,62 @@ const getTeamDetailsIncludes = () => [
   }
 ];
 
+const getRatingSummaries = async (teamIds = []) => {
+  if (!teamIds.length) return {};
+
+  const [rows, recentRows] = await Promise.all([
+    Rating.findAll({
+      where: { teamIdRated: { [Op.in]: teamIds } },
+      attributes: [
+        'teamIdRated',
+        [Rating.sequelize.fn('AVG', Rating.sequelize.col('rating')), 'avgRating'],
+        [Rating.sequelize.fn('COUNT', Rating.sequelize.col('id')), 'totalRatings']
+      ],
+      group: ['teamIdRated'],
+      raw: true
+    }),
+    Rating.findAll({
+      where: {
+        teamIdRated: { [Op.in]: teamIds },
+        review: { [Op.ne]: null }
+      },
+      attributes: ['teamIdRated', 'review', 'createdAt'],
+      order: [['createdAt', 'DESC']],
+      raw: true
+    })
+  ]);
+
+  const byTeam = {};
+  for (const row of rows) {
+    byTeam[Number(row.teamIdRated)] = {
+      avgRating: Number(row.avgRating || 0),
+      totalRatings: Number(row.totalRatings || 0)
+    };
+  }
+
+  for (const row of recentRows) {
+    const id = Number(row.teamIdRated);
+    if (!byTeam[id]) byTeam[id] = { avgRating: 0, totalRatings: 0 };
+    if (!byTeam[id].latestReview && row.review) {
+      byTeam[id].latestReview = row.review;
+    }
+  }
+
+  return byTeam;
+};
+
+const applyRatingsToTeams = (teams = [], ratingByTeam = {}) =>
+  teams.map((team) => {
+    const plain = team?.toJSON ? team.toJSON() : team;
+    const summary = ratingByTeam[Number(plain.id)] || {};
+    return {
+      ...plain,
+      rating: Number(summary.avgRating || 0),
+      totalRatings: Number(summary.totalRatings || 0),
+      latestReview: summary.latestReview || null
+    };
+  });
+
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
@@ -52,8 +109,11 @@ const getAllTeams = asyncHandler(async (req, res) => {
     ...(limit ? { limit } : {}),
     ...(offset ? { offset } : {})
   });
-
-  res.json({ success: true, data: teams });
+  const rated = applyRatingsToTeams(
+    teams,
+    await getRatingSummaries((teams || []).map((t) => Number(t.id)))
+  );
+  res.json({ success: true, data: rated });
 });
 
 const getTeamById = asyncHandler(async (req, res) => {
@@ -65,7 +125,11 @@ const getTeamById = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Team not found' });
   }
 
-  res.json({ success: true, data: team });
+  const [ratedTeam] = applyRatingsToTeams(
+    [team],
+    await getRatingSummaries([Number(team.id)])
+  );
+  res.json({ success: true, data: ratedTeam });
 });
 
 const getMyTeams = asyncHandler(async (req, res) => {
@@ -74,7 +138,7 @@ const getMyTeams = asyncHandler(async (req, res) => {
   const [captainedTeams, memberships] = await Promise.all([
     Team.findAll({ where: { captainId: userId }, attributes: ['id'] }),
     TeamMember.findAll({
-      where: { userId, status: 'active', isActive: true },
+      where: { userId, status: 'accepted', isActive: true },
       attributes: ['teamId']
     })
   ]);
@@ -92,8 +156,11 @@ const getMyTeams = asyncHandler(async (req, res) => {
     include: getTeamBaseIncludes(),
     order: [['createdAt', 'DESC']]
   });
-
-  res.json({ success: true, data: teams });
+  const rated = applyRatingsToTeams(
+    teams,
+    await getRatingSummaries((teams || []).map((t) => Number(t.id)))
+  );
+  res.json({ success: true, data: rated });
 });
 
 const getCaptainedTeams = asyncHandler(async (req, res) => {
@@ -102,8 +169,11 @@ const getCaptainedTeams = asyncHandler(async (req, res) => {
     include: getTeamBaseIncludes(),
     order: [['createdAt', 'DESC']]
   });
-
-  res.json({ success: true, data: teams });
+  const rated = applyRatingsToTeams(
+    teams,
+    await getRatingSummaries((teams || []).map((t) => Number(t.id)))
+  );
+  res.json({ success: true, data: rated });
 });
 
 const createTeam = asyncHandler(async (req, res) => {
@@ -125,7 +195,7 @@ const createTeam = asyncHandler(async (req, res) => {
       teamId: team.id,
       userId: req.user.id,
       role: 'captain',
-      status: 'active',
+      status: 'accepted',
       isActive: true
     });
 
@@ -201,7 +271,7 @@ const requestJoinTeam = asyncHandler(async (req, res) => {
   });
 
   if (existing) {
-    if (existing.status === 'active') {
+    if (existing.status === 'accepted') {
       return res.status(400).json({ success: false, message: 'You are already a member of this team' });
     }
     if (existing.status === 'pending') {
@@ -244,11 +314,11 @@ const leaveTeam = asyncHandler(async (req, res) => {
     }
   });
 
-  if (!membership || membership.status === 'inactive') {
+  if (!membership || membership.status === 'declined') {
     return res.status(400).json({ success: false, message: 'You are not an active member of this team' });
   }
 
-  await membership.update({ status: 'inactive', isActive: false });
+  await membership.update({ status: 'declined', isActive: false });
   res.json({ success: true, data: membership, message: 'Left team successfully' });
 });
 
@@ -335,13 +405,13 @@ const addTeamMember = asyncHandler(async (req, res) => {
 
   const existing = await TeamMember.findOne({ where: { teamId: team.id, userId: parsedUserId } });
 
-  if (existing && existing.status === 'active') {
+  if (existing && existing.status === 'accepted') {
     return res.status(400).json({ success: false, message: 'User is already an active member of this team' });
   }
 
   if (existing) {
     await existing.update({
-      status: 'active',
+      status: 'accepted',
       isActive: true,
       role: role || existing.role
     });
@@ -352,7 +422,7 @@ const addTeamMember = asyncHandler(async (req, res) => {
     teamId: team.id,
     userId: parsedUserId,
     role: role || 'player',
-    status: 'active',
+    status: 'accepted',
     isActive: true
   });
 
@@ -387,7 +457,7 @@ const updateTeamMember = asyncHandler(async (req, res) => {
   }
 
   const { status, role } = req.body;
-  const allowedStatuses = ['pending', 'active', 'inactive'];
+  const allowedStatuses = ['pending', 'accepted', 'declined'];
 
   if (status !== undefined && !allowedStatuses.includes(status)) {
     return res.status(400).json({ success: false, message: `status must be one of: ${allowedStatuses.join(', ')}` });
@@ -401,7 +471,7 @@ const updateTeamMember = asyncHandler(async (req, res) => {
   const updateData = {};
   if (status !== undefined) {
     updateData.status = status;
-    updateData.isActive = status === 'active';
+    updateData.isActive = status === 'accepted';
   }
   if (role !== undefined) updateData.role = role;
 
@@ -436,7 +506,7 @@ const removeTeamMember = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Team member not found' });
   }
 
-  await membership.update({ status: 'inactive', isActive: false });
+  await membership.update({ status: 'declined', isActive: false });
   res.json({ success: true, data: membership, message: 'Member removed successfully' });
 });
 
