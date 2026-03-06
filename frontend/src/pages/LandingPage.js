@@ -28,7 +28,7 @@ import { useAuth } from '../context/AuthContext';
 import { Badge, Button, EmptyState, Spinner } from '../components/ui';
 
 const HERO_IMAGE =
-  'https://i.pinimg.com/1200x/a7/3b/e1/a73be158c7884ef379c16e6b14dfc264.jpg';
+  '/hero-manu.jpg';
 
 const FIELD_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1459865264687-595d652de67e?auto=format&fit=crop&w=900&q=80';
@@ -128,48 +128,6 @@ const POPULAR_TIME_SLOTS = [
   { time: '08:00 - 10:00', label: 'Morning Session', rate: 65, status: 'Available', tone: 'available' },
   { time: '12:00 - 14:00', label: 'Lunch Break', rate: 75, status: 'Moderate', tone: 'moderate' },
   { time: '20:00 - 22:00', label: 'Night Session', rate: 55, status: 'Available', tone: 'cool' }
-];
-const PRICING_PLANS = [
-  {
-    name: 'Basic',
-    subtitle: 'Perfect for casual games',
-    price: 50,
-    highlight: false,
-    features: ['Standard outdoor field', 'Basic facilities', 'Up to 14 players', 'Regular maintenance', 'Free parking']
-  },
-  {
-    name: 'Premium',
-    subtitle: 'Most popular choice',
-    price: 80,
-    highlight: true,
-    badge: 'Most Popular',
-    features: [
-      'Premium outdoor field',
-      'Enhanced facilities',
-      'Up to 22 players',
-      'Daily maintenance',
-      'Free parking',
-      'Changing rooms',
-      'Shower facilities'
-    ]
-  },
-  {
-    name: 'Elite',
-    subtitle: 'Professional experience',
-    price: 120,
-    highlight: false,
-    features: [
-      'Stadium-quality pitch',
-      'Premium facilities',
-      'Up to 22 players',
-      'Professional maintenance',
-      'VIP parking',
-      'Luxury changing rooms',
-      'Premium showers',
-      'Equipment storage',
-      'Live streaming setup'
-    ]
-  }
 ];
 const LIVE_AVAILABILITY_TIMES = ['18:00', '20:00', '09:00', '19:00'];
 const LIVE_AVAILABILITY_LABELS = ['Today 6:00 PM', 'Today 8:00 PM', 'Tomorrow 9:00 AM', 'Today 7:00 PM'];
@@ -290,7 +248,6 @@ const LandingPage = () => {
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeSocial, setActiveSocial] = useState('facebook');
   const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
   const [quickLocation, setQuickLocation] = useState('');
   const [quickDate, setQuickDate] = useState(toLocalDateKey(new Date()));
@@ -305,13 +262,16 @@ const LandingPage = () => {
         setLoading(true);
         setError(null);
 
-        const [fieldsResponse, teamsResponse] = await Promise.all([
+        const [fieldsResult, teamsResult] = await Promise.allSettled([
           fieldService.getAllFields({ limit: 12 }),
           teamService.getPublicTeams()
         ]);
 
-        const fields = Array.isArray(fieldsResponse.data) ? fieldsResponse.data : [];
-        const teams = Array.isArray(teamsResponse.data) ? teamsResponse.data : [];
+        const fieldsResponse = fieldsResult.status === 'fulfilled' ? fieldsResult.value : null;
+        const teamsResponse = teamsResult.status === 'fulfilled' ? teamsResult.value : null;
+
+        const fields = Array.isArray(fieldsResponse?.data) ? fieldsResponse.data : [];
+        const teams = Array.isArray(teamsResponse?.data) ? teamsResponse.data : [];
 
         const topFields = [...fields]
           .sort((a, b) => {
@@ -328,6 +288,11 @@ const LandingPage = () => {
 
         setPopularFields(topFields);
         setPopularTeams(topTeams);
+
+        // Show page with partial data if one endpoint fails; only fail if both fail
+        if (fieldsResult.status === 'rejected' && teamsResult.status === 'rejected') {
+          throw new Error('Both landing requests failed');
+        }
       } catch (err) {
         console.error('Failed to load landing data:', err);
         setError('Failed to load landing data');
@@ -579,7 +544,6 @@ const LandingPage = () => {
         event.endMinutes > slotStart
     );
   };
-
   const handleQuickSearch = () => {
     const params = new URLSearchParams({
       focus: 'search',
@@ -615,8 +579,8 @@ const LandingPage = () => {
     navigate(`/fields?${params.toString()}`);
   };
   return (
-    <div className="space-y-14">
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
+    <div className="flex flex-col gap-14">
+      <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
         <img
           src={HERO_IMAGE}
           alt="Football stadium with soccer ball"
@@ -744,48 +708,48 @@ const LandingPage = () => {
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 text-center sm:grid-cols-2 sm:px-10 lg:grid-cols-4 lg:px-16">
           {HOME_STATS.map((item) => (
             <div key={item.label} className="flex flex-col items-center">
-              <div className={`flex h-20 w-20 items-center justify-center rounded-full ${item.iconBg}`}>
-                <item.icon className={`h-10 w-10 ${item.iconTone}`} />
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100">
+                <item.icon className="h-4 w-4 text-emerald-700" />
               </div>
-              <div className="mt-5 text-5xl font-extrabold leading-none">{item.value}</div>
-              <div className="mt-3 text-3xl font-medium text-white/90">{item.label}</div>
+              <div className="mt-1.5 text-2xl font-extrabold leading-none">{item.value}</div>
+              <div className="mt-0.5 text-base font-medium text-white/90">{item.label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
+      <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-sm font-semibold text-violet-600">
               <ArrowTrendingUpIcon className="h-4 w-4" />
               Popular Times
             </span>
-            <h2 className="mt-4 text-4xl font-bold text-slate-900">Most Booked Time Slots</h2>
-            <p className="mt-2 text-2xl text-slate-600">See when others are playing and find the best time for your team</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">Most Booked Time Slots</h2>
+            <p className="mt-2 text-base text-slate-600">See when others are playing and find the best time for your team</p>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             {POPULAR_TIME_SLOTS.map((slot) => (
               <div key={slot.time} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-3xl font-bold text-slate-900">
+                <div className="flex items-center gap-2 text-2xl font-bold text-slate-900">
                   <ClockIcon className="h-6 w-6 text-violet-600" />
                   <span>{slot.time}</span>
                 </div>
-                <p className="mt-5 text-2xl font-medium text-slate-700">{slot.label}</p>
+                <p className="mt-5 text-xl font-medium text-slate-700">{slot.label}</p>
 
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xl text-slate-600">Booking Rate:</span>
-                  <span className="rounded-full bg-violet-100 px-3 py-1 text-base font-semibold text-violet-600">{slot.rate}%</span>
+                  <span className="text-base text-slate-600">Booking Rate:</span>
+                  <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-600">{slot.rate}%</span>
                 </div>
 
-                <div className={`mt-4 rounded-xl border px-4 py-2 text-center text-lg font-semibold ${slotToneClass(slot.tone)}`}>
+                <div className={`mt-4 rounded-xl border px-4 py-2 text-center text-base font-semibold ${slotToneClass(slot.tone)}`}>
                   {slot.status}
                 </div>
 
                 <div className="mt-4 h-3 w-full rounded-full bg-slate-200">
                   <div
-                    className="h-3 rounded-full bg-violet-600"
+                    className="h-3 rounded-full bg-emerald-600"
                     style={{ width: `${Math.max(10, Math.min(slot.rate, 100))}%` }}
                   />
                 </div>
@@ -794,28 +758,28 @@ const LandingPage = () => {
             ))}
           </div>
 
-          <p className="mt-8 text-center text-xl text-slate-600">
+          <p className="mt-8 text-center text-base text-slate-600">
             Pro Tip: Book morning or night sessions for better availability and special rates.
           </p>
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
+      <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <TrophyIcon className="h-4 w-4" />
               Limited Time Offers
             </span>
-            <h2 className="mt-4 text-4xl font-bold text-slate-900">Special Deals & Discounts</h2>
-            <p className="mt-2 text-xl text-slate-600">Save more with football-friendly offers and promotional deals.</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">Special Deals & Discounts</h2>
+            <p className="mt-2 text-base text-slate-600">Save more with football-friendly offers and promotional deals.</p>
           </div>
 
           <div className="mt-8 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 className="text-5xl font-extrabold">Flash Deal: 50% OFF Tonight!</h3>
-                <p className="mt-2 text-xl text-emerald-50">Limited slots available for tonight&apos;s bookings (8PM - 10PM)</p>
+                <h3 className="text-4xl font-extrabold">Flash Deal: 50% OFF Tonight!</h3>
+                <p className="mt-2 text-base text-emerald-50">Limited slots available for tonight&apos;s bookings (8PM - 10PM)</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
                   <span className="rounded-full bg-white/20 px-3 py-1">Ends in 4h 23m</span>
                   <span className="rounded-full bg-white/20 px-3 py-1">Premium Fields Only</span>
@@ -824,7 +788,7 @@ const LandingPage = () => {
               <button
                 type="button"
                 onClick={() => handleClaimOffer('FLASH50', '20:00')}
-                className="rounded-xl bg-white px-6 py-3 text-lg font-bold text-emerald-700 shadow-sm hover:bg-emerald-100"
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700"
               >
                 Grab This Deal
               </button>
@@ -838,25 +802,25 @@ const LandingPage = () => {
                   <div className="rounded-2xl bg-emerald-100 p-3">
                     <offer.icon className="h-6 w-6 text-emerald-700" />
                   </div>
-                  <span className="rounded-lg bg-emerald-600 px-3 py-1 text-sm font-bold text-white">{offer.discount}</span>
+                  <span className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white">{offer.discount}</span>
                 </div>
 
-                <h3 className="mt-4 text-3xl font-bold text-slate-900">{offer.title}</h3>
+                <h3 className="mt-4 text-2xl font-bold text-slate-900">{offer.title}</h3>
                 <p className="mt-2 text-base text-slate-600">{offer.description}</p>
 
-                <div className="mt-4 flex items-center justify-between text-sm">
+                <div className="mt-4 flex items-center justify-between text-xs">
                   <span className="text-slate-500">Validity:</span>
                   <span className="font-semibold text-slate-800">{offer.validity}</span>
                 </div>
                 <div className="mt-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-center">
                   <p className="text-xs text-slate-500">Promo Code:</p>
-                  <p className="text-base font-bold tracking-wider text-emerald-700">{offer.code}</p>
+                  <p className="text-sm font-bold tracking-wider text-emerald-700">{offer.code}</p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleClaimOffer(offer.code, offer.time)}
-                  className="mt-4 w-full rounded-xl bg-slate-950 py-2.5 text-base font-semibold text-white hover:bg-slate-900"
+                  className="mt-4 w-full rounded-xl bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
                   Claim Offer
                 </button>
@@ -864,136 +828,69 @@ const LandingPage = () => {
             ))}
           </div>
 
-          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white px-5 py-4 text-center text-lg text-slate-700 shadow-sm">
+          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white px-5 py-4 text-center text-sm text-slate-700 shadow-sm">
             Pro Tip: Combine offers with loyalty plans to maximize your football savings.
           </div>
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="text-center">
-            <h2 className="text-4xl font-bold text-slate-900">Flexible Pricing Plans</h2>
-            <p className="mt-3 text-xl text-slate-600">Choose the perfect field for your team - all with transparent pricing</p>
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
-            {PRICING_PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative rounded-2xl border bg-white p-6 shadow-sm ${
-                  plan.highlight ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-slate-200'
-                }`}
-              >
-                {plan.badge && (
-                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-emerald-600 px-4 py-1 text-sm font-semibold text-white">
-                    {plan.badge}
-                  </div>
-                )}
-
-                <div className="text-center">
-                  <h3 className="text-4xl font-bold text-slate-900">{plan.name}</h3>
-                  <p className="mt-2 text-lg text-slate-600">{plan.subtitle}</p>
-                  <div className="mt-5">
-                    <span className="text-6xl font-extrabold text-emerald-600">${plan.price}</span>
-                    <span className="ml-1 text-xl text-slate-600">/per hour</span>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-3">
-                  {plan.features.map((feature) => (
-                    <div key={`${plan.name}-${feature}`} className="flex items-center gap-2 text-base text-slate-700">
-                      <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
-                      <span>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/fields?focus=search')}
-                  className={`mt-7 w-full rounded-xl border px-4 py-2.5 text-base font-semibold transition ${
-                    plan.highlight
-                      ? 'border-slate-950 bg-slate-950 text-white hover:bg-slate-900'
-                      : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50'
-                  }`}
-                >
-                  Book Now
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
+      <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
               <BoltIcon className="h-4 w-4" />
               Live Updates
             </span>
-            <h2 className="mt-4 text-4xl font-bold text-slate-900">Available Right Now</h2>
-            <p className="mt-2 text-xl text-slate-600">Real-time availability - book instantly before slots fill up!</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">Available Right Now</h2>
+            <p className="mt-2 text-base text-slate-600">Real-time availability - book instantly before slots fill up!</p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="mx-auto mt-8 grid max-w-6xl grid-cols-1 gap-4">
             {availableNowCards.map((field, index) => (
               <div
                 key={`live-${field.id}-${index}`}
-                className={`rounded-2xl border bg-white p-6 shadow-sm ${
-                  index === 1 ? 'border-emerald-500 ring-1 ring-emerald-300' : 'border-slate-200'
-                }`}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-3xl font-bold text-slate-900">{field.name}</h3>
-                    <p className="mt-1 flex items-center gap-1 text-base text-slate-500">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-2xl font-bold text-slate-900">{field.name}</h3>
+                    <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
                       <MapPinIcon className="h-4 w-4" />
                       {field.location}
                     </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-4xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
-                    {field.slotsLeft <= 1 && (
-                      <span className="mt-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
-                        Filling Fast
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
+                        <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
+                        {field.fieldType}
                       </span>
-                    )}
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
+                        {field.surfaceType}
+                      </span>
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700">
+                        {field.slotsLeft} slots left
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
+                    <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
+                    <p className="text-sm font-semibold text-emerald-700">{field.nextLabel}</p>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
+                      }`}
+                    >
+                      Filling Fast
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                      className="mt-1 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                    >
+                      Quick Book
+                    </button>
                   </div>
                 </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-4 border-b border-slate-200 pb-4">
-                  <div>
-                    <p className="text-sm text-slate-500">Field Size</p>
-                    <p className="mt-1 flex items-center gap-1 text-lg font-semibold text-slate-900">
-                      <UsersIcon className="h-4 w-4 text-blue-600" />
-                      {field.fieldType}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-slate-500">Surface Type</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-900">{field.surfaceType}</p>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500">Next Available</p>
-                    <p className="text-2xl font-semibold text-emerald-600">{field.nextLabel}</p>
-                  </div>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                    {field.slotsLeft} slots left
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                  className="mt-5 w-full rounded-xl bg-slate-950 py-2.5 text-base font-semibold text-white hover:bg-slate-900"
-                >
-                  Quick Book
-                </button>
               </div>
             ))}
           </div>
@@ -1011,10 +908,10 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section ref={scheduleSectionRef} className="p-6 sm:p-8">
+      <section ref={scheduleSectionRef} className="order-4 p-6 sm:p-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-slate-900">Live Booking Schedule</h2>
-          <p className="mt-2 text-lg text-slate-600">Visual timeline of all field bookings - see who&apos;s playing when</p>
+          <h2 className="text-2xl font-bold text-slate-900">Live Booking Schedule</h2>
+          <p className="mt-2 text-base text-slate-600">Visual timeline of all field bookings - see who&apos;s playing when</p>
         </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
@@ -1050,7 +947,7 @@ const LandingPage = () => {
               className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
             >
                 <div className="text-3xl font-bold text-emerald-600">{scheduleLoading ? '...' : scheduleEvents.length}</div>
-              <div className="text-sm text-slate-600">Total Bookings</div>
+              <div className="text-base text-slate-600">Total Bookings</div>
             </button>
             <button
               type="button"
@@ -1058,7 +955,7 @@ const LandingPage = () => {
               className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
             >
                 <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : scheduleFields.length}</div>
-              <div className="text-sm text-slate-600">Active Fields</div>
+              <div className="text-base text-slate-600">Active Fields</div>
             </button>
           </div>
         </div>
@@ -1205,11 +1102,11 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
+      <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-10 text-center">
-          <h2 className="text-4xl font-bold text-gray-900">Featured Football Fields</h2>
-          <p className="mx-auto mt-3 max-w-3xl text-2xl text-gray-600">
+          <h2 className="text-2xl font-bold text-gray-900">Featured Football Fields</h2>
+          <p className="mx-auto mt-3 max-w-3xl text-base text-gray-600">
             Choose from our premium selection of football fields, each equipped with top-quality facilities
           </p>
           </div>
@@ -1285,7 +1182,7 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-slate-950 py-3 text-lg font-semibold text-white hover:bg-slate-900"
+                        className="w-full rounded-xl bg-emerald-600 py-3 text-lg font-semibold text-white hover:bg-emerald-700"
                       >
                         Book Now
                       </button>
@@ -1293,7 +1190,7 @@ const LandingPage = () => {
                       <button
                         type="button"
                         disabled
-                        className="w-full cursor-not-allowed rounded-xl bg-gray-500 py-3 text-lg font-semibold text-white"
+                        className="w-full cursor-not-allowed rounded-xl bg-emerald-500 py-3 text-lg font-semibold text-white"
                       >
                         Fully Booked
                       </button>
@@ -1315,7 +1212,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
+      <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
         <div className="mx-auto max-w-7xl px-6 sm:px-10">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
@@ -1331,14 +1228,14 @@ const LandingPage = () => {
                   <item.icon className="h-6 w-6 text-green-700 transition group-hover:text-white group-active:text-white" />
                 </div>
                 <h3 className="mt-3 text-lg font-semibold text-gray-900">{item.title}</h3>
-                <p className="mt-2 text-sm text-gray-600">{item.description}</p>
+                <p className="mt-2 text-base text-gray-600">{item.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section>
+      <section className="order-9">
         <div className="mb-8 text-center">
           <h2 className="text-2xl font-bold text-gray-900">How It Works</h2>
           <p className="mt-2 text-gray-600">Book your football field in four simple steps.</p>
@@ -1353,15 +1250,15 @@ const LandingPage = () => {
                 </span>
               </div>
               <h3 className="text-lg font-semibold text-gray-900">{step.title}</h3>
-              <p className="mt-2 text-sm text-gray-600">{step.description}</p>
+              <p className="mt-2 text-base text-gray-600">{step.description}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section>
+      <section className="order-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Popular Teams</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Popular Teams</h2>
           <Link to="/teams" className="text-sm font-medium text-green-700 hover:text-green-800">
             View all
           </Link>
@@ -1383,7 +1280,7 @@ const LandingPage = () => {
                   <h3 className="text-base font-semibold text-gray-900">{team.name}</h3>
                   <Badge tone="gray">{team.memberCount || 0} members</Badge>
                 </div>
-                <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'Community football team'}</p>
+                <p className="mt-1 text-base text-gray-600 line-clamp-2">{team.description || 'Community football team'}</p>
                 <p className="mt-3 text-xs text-gray-500">
                   Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
                 </p>
@@ -1401,11 +1298,11 @@ const LandingPage = () => {
         )}
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
+      <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <h2 className="text-4xl font-bold text-slate-900">World-Class Facilities</h2>
-            <p className="mx-auto mt-3 max-w-3xl text-xl text-slate-600">
+            <h2 className="text-2xl font-bold text-slate-900">World-Class Facilities</h2>
+            <p className="mx-auto mt-3 max-w-3xl text-base text-slate-600">
               Every field comes equipped with premium amenities to enhance your playing experience
             </p>
           </div>
@@ -1424,11 +1321,11 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
+      <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
-            <h2 className="text-4xl font-bold text-slate-900">Premium Experience Guaranteed</h2>
-            <p className="mx-auto mt-3 max-w-4xl text-lg text-slate-600">
+            <h2 className="text-2xl font-bold text-slate-900">Premium Experience Guaranteed</h2>
+            <p className="mx-auto mt-3 max-w-4xl text-base text-slate-600">
               All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and
               safety for all our customers. Every field is inspected daily and meets professional football standards.
             </p>
@@ -1443,41 +1340,33 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <footer className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-black text-slate-100">
-        <div className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
+      <footer className="order-last !mt-0 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-black text-slate-100">
+        <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-600">
-                  <GlobeAltIcon className="h-7 w-7 text-white" />
+                  <GlobeAltIcon className="h-6 w-6 text-white" />
                 </div>
-                <div className="text-3xl font-extrabold tracking-tight">FieldBook</div>
+                <div className="text-4xl font-extrabold tracking-tight">FieldBook</div>
               </div>
-              <p className="mt-5 text-base text-slate-300">
+              <p className="mt-5 max-w-xs text-base text-slate-300">
                 Your trusted platform for booking premium football fields. Easy, fast, and reliable.
               </p>
             </div>
 
             <div>
-              <h3 className="text-xl font-bold">Quick Links</h3>
+              <h3 className="text-2xl font-bold text-white">Quick Links</h3>
               <div className="mt-5 space-y-3 text-lg">
-                <Link to="/" className="block text-slate-200 hover:text-white">
-                  About Us
-                </Link>
-                <Link to="/fields" className="block text-slate-200 hover:text-white">
-                  Browse Fields
-                </Link>
-                <Link to="/teams" className="block text-slate-200 hover:text-white">
-                  Pricing
-                </Link>
-                <Link to="/teams" className="block text-slate-200 hover:text-white">
-                  FAQs
-                </Link>
+                <Link to="/" className="block text-slate-200 hover:text-white">About Us</Link>
+                <Link to="/fields" className="block text-slate-200 hover:text-white">Browse Fields</Link>
+                <Link to="/teams" className="block text-slate-200 hover:text-white">Pricing</Link>
+                <Link to="/teams" className="block text-slate-200 hover:text-white">FAQs</Link>
               </div>
             </div>
 
             <div>
-              <h3 className="text-xl font-bold">Contact Us</h3>
+              <h3 className="text-2xl font-bold text-white">Contact Us</h3>
               <div className="mt-5 space-y-4 text-lg text-slate-200">
                 <div className="flex items-center gap-3">
                   <PhoneIcon className="h-5 w-5 text-slate-300" />
@@ -1497,63 +1386,22 @@ const LandingPage = () => {
             <div>
               <h3 className="text-2xl font-bold text-white">Follow Us</h3>
               <div className="mt-5 flex items-center gap-3">
-                <a
-                  href="https://facebook.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Facebook"
-                  onMouseEnter={() => setActiveSocial('facebook')}
-                  onFocus={() => setActiveSocial('facebook')}
-                  onTouchStart={() => setActiveSocial('facebook')}
-                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
-                    activeSocial === 'facebook'
-                      ? 'bg-green-500 text-white'
-                      : 'bg-slate-700/35 text-slate-200 hover:bg-slate-600/55'
-                  }`}
-                >
+                <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white">
                   <span className="text-2xl font-semibold leading-none">f</span>
                 </a>
-                <a
-                  href="https://x.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Twitter"
-                  onMouseEnter={() => setActiveSocial('twitter')}
-                  onFocus={() => setActiveSocial('twitter')}
-                  onTouchStart={() => setActiveSocial('twitter')}
-                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
-                    activeSocial === 'twitter'
-                      ? 'bg-green-500 text-white'
-                      : 'bg-slate-700/35 text-slate-200 hover:bg-slate-600/55'
-                  }`}
-                >
+                <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="Twitter" className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700">
                   <span className="text-2xl font-semibold leading-none">t</span>
                 </a>
-                <a
-                  href="https://instagram.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Instagram"
-                  onMouseEnter={() => setActiveSocial('instagram')}
-                  onFocus={() => setActiveSocial('instagram')}
-                  onTouchStart={() => setActiveSocial('instagram')}
-                  className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
-                    activeSocial === 'instagram'
-                      ? 'bg-green-500 text-white'
-                      : 'bg-slate-700/35 text-slate-200 hover:bg-slate-600/55'
-                  }`}
-                >
+                <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700">
                   <span className="text-2xl font-semibold leading-none">i</span>
                 </a>
               </div>
             </div>
           </div>
 
-          <div className="mt-10 border-t border-slate-800 pt-6 text-center text-xl text-slate-300">
-            {`(c) ${new Date().getFullYear()} FieldBook. All rights reserved.`}
-          </div>
         </div>
       </footer>
+
     </div>
   );
 };
