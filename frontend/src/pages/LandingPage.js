@@ -286,13 +286,16 @@ const LandingPage = () => {
         setLoading(true);
         setError(null);
 
-        const [fieldsResponse, teamsResponse] = await Promise.all([
+        const [fieldsResult, teamsResult] = await Promise.allSettled([
           fieldService.getAllFields({ limit: 12 }),
           teamService.getPublicTeams()
         ]);
 
-        const fields = Array.isArray(fieldsResponse.data) ? fieldsResponse.data : [];
-        const teams = Array.isArray(teamsResponse.data) ? teamsResponse.data : [];
+        const fieldsResponse = fieldsResult.status === 'fulfilled' ? fieldsResult.value : null;
+        const teamsResponse = teamsResult.status === 'fulfilled' ? teamsResult.value : null;
+
+        const fields = Array.isArray(fieldsResponse?.data) ? fieldsResponse.data : [];
+        const teams = Array.isArray(teamsResponse?.data) ? teamsResponse.data : [];
 
         const topFields = [...fields]
           .sort((a, b) => {
@@ -309,6 +312,11 @@ const LandingPage = () => {
 
         setPopularFields(topFields);
         setPopularTeams(topTeams);
+
+        // Show page with partial data if one endpoint fails; only fail if both fail
+        if (fieldsResult.status === 'rejected' && teamsResult.status === 'rejected') {
+          throw new Error('Both landing requests failed');
+        }
       } catch (err) {
         console.error('Failed to load landing data:', err);
         setError('Failed to load landing data');

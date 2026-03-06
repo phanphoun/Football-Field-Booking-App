@@ -3,9 +3,9 @@ import axios from 'axios';
 // =====================================
 // Configuration
 // =====================================
-// API base URL - can be overridden by environment variable
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// API base URL - can be overridden by environment variable.
+// Default to same-origin /api to avoid localhost/mixed-content issues.
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Create axios instance
 const api = axios.create({
@@ -71,11 +71,13 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status || 500;
 
-    const message =
-      error.response?.data?.error ||
-      error.response?.data?.message ||
-      error.message ||
-      'An unexpected error occurred';
+    const isNetworkError = !error.response;
+    const message = isNetworkError
+      ? 'Cannot connect to server. Please make sure backend API is running.'
+      : error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'An unexpected error occurred';
 
     // Handle Unauthorized (Token expired / invalid)
     if (status === 401) {
