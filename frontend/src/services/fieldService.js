@@ -66,12 +66,15 @@ const fieldService = {
   },
 
   // Upload field images
-  uploadFieldImages: async (fieldId, imageFiles) => {
+  uploadFieldImages: async (fieldId, imageFiles, options = {}) => {
     const formData = new FormData();
     
-    imageFiles.forEach((file, index) => {
-      formData.append(`images[${index}]`, file);
+    imageFiles.forEach((file) => {
+      formData.append('images', file);
     });
+    if (options.replaceExisting) {
+      formData.append('replaceExisting', 'true');
+    }
 
     const response = await apiService.upload(`/fields/${fieldId}/images`, formData);
     return response;
@@ -80,6 +83,12 @@ const fieldService = {
   // Delete field image
   deleteFieldImage: async (fieldId, imageId) => {
     const response = await apiService.delete(`/fields/${fieldId}/images/${imageId}`);
+    return response;
+  },
+
+  // Set a field image as main cover (moves it to index 0)
+  setFieldCoverImage: async (fieldId, imageId) => {
+    const response = await apiService.patch(`/fields/${fieldId}/images/${imageId}/cover`);
     return response;
   },
 

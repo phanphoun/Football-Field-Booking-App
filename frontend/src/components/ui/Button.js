@@ -10,6 +10,7 @@ const variants = {
   secondary: 'bg-green-50 text-green-800 hover:bg-green-100',
   neutral: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
   outline: 'border border-gray-300 text-gray-900 hover:bg-gray-50',
+  warning: 'bg-amber-500 text-white hover:bg-amber-600',
   danger: 'bg-red-600 text-white hover:bg-red-700'
 };
 

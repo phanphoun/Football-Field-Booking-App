@@ -1,7 +1,24 @@
-const { MatchResult, Booking, Team, User } = require('../models');
+const { MatchResult, Booking, Team, User, Field } = require('../models');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
+};
+
+const getResultIncludes = () => [
+  { model: Booking, as: 'booking', include: [{ model: Field, as: 'field', attributes: ['id', 'ownerId', 'name'], required: false }] },
+  { model: Team, as: 'homeTeam' },
+  { model: Team, as: 'awayTeam' },
+  { model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] },
+  { model: User, as: 'recorder', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
+];
+
+const canManageResultForBooking = (booking, user) => {
+  if (!booking || !user) return false;
+  if (user.role === 'admin') return true;
+  if (booking.field?.ownerId === user.id) return true;
+  if (booking.team?.captainId === user.id) return true;
+  if (booking.opponentTeam?.captainId === user.id) return true;
+  return false;
 };
 
 const getAllMatchResults = asyncHandler(async (req, res) => {
@@ -14,13 +31,7 @@ const getAllMatchResults = asyncHandler(async (req, res) => {
 
   const matchResults = await MatchResult.findAll({
     where: whereClause,
-    include: [
-      { model: Booking, as: 'booking' },
-      { model: Team, as: 'homeTeam' },
-      { model: Team, as: 'awayTeam' },
-      { model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] },
-      { model: User, as: 'recorder', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
-    ],
+    include: getResultIncludes(),
     order: [['recordedAt', 'DESC']]
   });
   res.json({ success: true, data: matchResults });
@@ -28,13 +39,7 @@ const getAllMatchResults = asyncHandler(async (req, res) => {
 
 const getMatchResultById = asyncHandler(async (req, res) => {
   const matchResult = await MatchResult.findByPk(req.params.id, {
-    include: [
-      { model: Booking, as: 'booking' },
-      { model: Team, as: 'homeTeam' },
-      { model: Team, as: 'awayTeam' },
-      { model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] },
-      { model: User, as: 'recorder', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
-    ]
+    include: getResultIncludes()
   });
   
   if (!matchResult) {
@@ -46,11 +51,59 @@ const getMatchResultById = asyncHandler(async (req, res) => {
 
 const createMatchResult = asyncHandler(async (req, res) => {
   try {
+    const bookingId = Number(req.body.bookingId);
+    const homeScore = Number(req.body.homeScore);
+    const awayScore = Number(req.body.awayScore);
+    const mvpPlayerId = req.body.mvpPlayerId === undefined || req.body.mvpPlayerId === null || req.body.mvpPlayerId === ''
+      ? null
+      : Number(req.body.mvpPlayerId);
+
+    if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      return res.status(400).json({ success: false, message: 'bookingId must be a positive integer' });
+    }
+    if (!Number.isInteger(homeScore) || homeScore < 0 || !Number.isInteger(awayScore) || awayScore < 0) {
+      return res.status(400).json({ success: false, message: 'homeScore and awayScore must be non-negative integers' });
+    }
+
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        { model: Team, as: 'team', attributes: ['id', 'captainId', 'name'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'captainId', 'name'], required: false },
+        { model: Field, as: 'field', attributes: ['id', 'ownerId', 'name'], required: false },
+        { model: MatchResult, as: 'matchResult', attributes: ['id'], required: false }
+      ]
+    });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+    if (!canManageResultForBooking(booking, req.user)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to record result for this booking' });
+    }
+    if (booking.status !== 'completed') {
+      return res.status(400).json({ success: false, message: 'Match result can only be recorded for completed bookings' });
+    }
+    if (!booking.teamId || !booking.opponentTeamId) {
+      return res.status(400).json({ success: false, message: 'This booking does not have two matched teams' });
+    }
+    if (booking.matchResult) {
+      return res.status(409).json({ success: false, message: 'Match result already exists for this booking' });
+    }
+
     const matchResult = await MatchResult.create({
-      ...req.body,
+      bookingId,
+      homeTeamId: booking.teamId,
+      awayTeamId: booking.opponentTeamId,
+      homeScore,
+      awayScore,
+      matchStatus: 'completed',
+      mvpPlayerId: Number.isInteger(mvpPlayerId) && mvpPlayerId > 0 ? mvpPlayerId : null,
+      matchNotes: req.body.matchNotes || null,
+      matchEvents: Array.isArray(req.body.matchEvents) ? req.body.matchEvents : [],
       recordedBy: req.user.id
     });
-    res.status(201).json({ success: true, data: matchResult });
+
+    const created = await MatchResult.findByPk(matchResult.id, { include: getResultIncludes() });
+    res.status(201).json({ success: true, data: created });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -58,19 +111,69 @@ const createMatchResult = asyncHandler(async (req, res) => {
 
 const updateMatchResult = asyncHandler(async (req, res) => {
   try {
-    const matchResult = await MatchResult.findByPk(req.params.id);
+    const matchResult = await MatchResult.findByPk(req.params.id, {
+      include: [
+        {
+          model: Booking,
+          as: 'booking',
+          include: [
+            { model: Team, as: 'team', attributes: ['id', 'captainId', 'name'] },
+            { model: Team, as: 'opponentTeam', attributes: ['id', 'captainId', 'name'], required: false },
+            { model: Field, as: 'field', attributes: ['id', 'ownerId', 'name'], required: false }
+          ]
+        }
+      ]
+    });
     
     if (!matchResult) {
       return res.status(404).json({ success: false, message: 'Match result not found' });
     }
     
-    // Authorization check
-    if (matchResult.recordedBy !== req.user.id && req.user.role !== 'admin') {
+    const canManage =
+      req.user.role === 'admin' ||
+      matchResult.recordedBy === req.user.id ||
+      canManageResultForBooking(matchResult.booking, req.user);
+    if (!canManage) {
       return res.status(403).json({ success: false, message: 'Not authorized to update this match result' });
     }
+
+    const allowedFields = ['homeScore', 'awayScore', 'matchNotes', 'mvpPlayerId', 'matchEvents'];
+    const updatePayload = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) updatePayload[key] = req.body[key];
+    }
+    if (updatePayload.homeScore !== undefined) {
+      const score = Number(updatePayload.homeScore);
+      if (!Number.isInteger(score) || score < 0) {
+        return res.status(400).json({ success: false, message: 'homeScore must be a non-negative integer' });
+      }
+      updatePayload.homeScore = score;
+    }
+    if (updatePayload.awayScore !== undefined) {
+      const score = Number(updatePayload.awayScore);
+      if (!Number.isInteger(score) || score < 0) {
+        return res.status(400).json({ success: false, message: 'awayScore must be a non-negative integer' });
+      }
+      updatePayload.awayScore = score;
+    }
+    if (updatePayload.mvpPlayerId !== undefined) {
+      if (updatePayload.mvpPlayerId === null || updatePayload.mvpPlayerId === '') {
+        updatePayload.mvpPlayerId = null;
+      } else {
+        const mvpId = Number(updatePayload.mvpPlayerId);
+        if (!Number.isInteger(mvpId) || mvpId <= 0) {
+          return res.status(400).json({ success: false, message: 'mvpPlayerId must be a positive integer or null' });
+        }
+        updatePayload.mvpPlayerId = mvpId;
+      }
+    }
+    if (updatePayload.matchEvents !== undefined && !Array.isArray(updatePayload.matchEvents)) {
+      return res.status(400).json({ success: false, message: 'matchEvents must be an array' });
+    }
     
-    const updatedMatchResult = await matchResult.update(req.body);
-    res.json({ success: true, data: updatedMatchResult });
+    const updatedMatchResult = await matchResult.update(updatePayload);
+    const updated = await MatchResult.findByPk(updatedMatchResult.id, { include: getResultIncludes() });
+    res.json({ success: true, data: updated });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -78,14 +181,29 @@ const updateMatchResult = asyncHandler(async (req, res) => {
 
 const deleteMatchResult = asyncHandler(async (req, res) => {
   try {
-    const matchResult = await MatchResult.findByPk(req.params.id);
+    const matchResult = await MatchResult.findByPk(req.params.id, {
+      include: [
+        {
+          model: Booking,
+          as: 'booking',
+          include: [
+            { model: Team, as: 'team', attributes: ['id', 'captainId', 'name'] },
+            { model: Team, as: 'opponentTeam', attributes: ['id', 'captainId', 'name'], required: false },
+            { model: Field, as: 'field', attributes: ['id', 'ownerId', 'name'], required: false }
+          ]
+        }
+      ]
+    });
     
     if (!matchResult) {
       return res.status(404).json({ success: false, message: 'Match result not found' });
     }
     
-    // Authorization check
-    if (matchResult.recordedBy !== req.user.id && req.user.role !== 'admin') {
+    const canDelete =
+      req.user.role === 'admin' ||
+      matchResult.recordedBy === req.user.id ||
+      canManageResultForBooking(matchResult.booking, req.user);
+    if (!canDelete) {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this match result' });
     }
     

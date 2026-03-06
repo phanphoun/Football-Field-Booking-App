@@ -9,10 +9,13 @@ const PublicLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [flash, setFlash] = useState(null);
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
 
   const handleLogout = () => {
+    const confirmed = window.confirm('Do you want to logout?');
+    if (!confirmed) return;
     logout();
     navigate('/');
   };
@@ -21,6 +24,7 @@ const PublicLayout = () => {
     () => [
       { to: '/', label: 'Home' },
       { to: '/fields', label: 'Fields' },
+      { to: '/league', label: 'League' },
       { to: '/teams', label: 'Teams' }
     ],
     []
@@ -28,6 +32,23 @@ const PublicLayout = () => {
 
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  React.useEffect(() => {
+    const successMessage = location.state?.successMessage;
+    const errorMessage = location.state?.errorMessage;
+
+    if (!successMessage && !errorMessage) return;
+
+    setFlash({
+      type: successMessage ? 'success' : 'error',
+      message: successMessage || errorMessage
+    });
+
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: {}
+    });
+  }, [location, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -131,6 +152,26 @@ const PublicLayout = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {flash && (
+          <div
+            className={`mb-4 px-4 py-3 rounded-md text-sm border ${
+              flash.type === 'success'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span>{flash.message}</span>
+              <button
+                type="button"
+                onClick={() => setFlash(null)}
+                className="text-xs font-medium underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>

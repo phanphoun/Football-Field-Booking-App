@@ -60,7 +60,9 @@ const TeamCreatePage = () => {
       const response = await teamService.createTeam(payload);
       if (response.success) {
         const createdTeamId = response.data?.id;
-        navigate(createdTeamId ? `/app/teams/${createdTeamId}` : '/app/teams');
+        navigate(createdTeamId ? `/app/teams/${createdTeamId}` : '/app/teams', {
+          state: { successMessage: 'Team created successfully!' }
+        });
       }
     } catch (err) {
       setError(err?.error || 'Failed to create team');
