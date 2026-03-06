@@ -190,6 +190,25 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
+const SLOT_DURATION_MINUTES = 60;
+const SCHEDULE_ROW_HEIGHT_CLASS = 'h-24';
+const toLocalDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const parseSlotToMinutes = (slot) => {
+  const [h, m] = String(slot || '')
+    .split(':')
+    .map((n) => Number(n));
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
+};
+const isBookingActiveOnSchedule = (booking) =>
+  booking?.status !== 'cancelled' && booking?.status !== 'completed';
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -197,9 +216,9 @@ const LandingPage = () => {
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
-  const [quickLocation, setQuickLocation] = useState('');
-  const quickDate = new Date().toISOString().slice(0, 10);
+  const [error, setError] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
+  const [quickDate] = useState(toLocalDateKey(new Date()));
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
@@ -208,6 +227,7 @@ const LandingPage = () => {
     const fetchLandingData = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         const [fieldsResult, teamsResult] = await Promise.allSettled([
           fieldService.getAllFields({ limit: 12 }),
@@ -242,6 +262,7 @@ const LandingPage = () => {
         }
       } catch (err) {
         console.error('Failed to load landing data:', err);
+        setError('Failed to load landing data');
       } finally {
         setLoading(false);
       }
@@ -356,20 +377,6 @@ const LandingPage = () => {
     return featuredFields.slice(0, 3);
   }, [scheduleFieldsData, featuredFields]);
 
-  const quickLocationOptions = useMemo(() => {
-    const source = scheduleFields.length > 0 ? scheduleFields : featuredFields;
-    return source
-      .map((field) => field?.name)
-      .filter(Boolean)
-      .slice(0, 8);
-  }, [scheduleFields, featuredFields]);
-
-  useEffect(() => {
-    if (!quickLocation && quickLocationOptions.length > 0) {
-      setQuickLocation(quickLocationOptions[0]);
-    }
-  }, [quickLocation, quickLocationOptions]);
-
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
@@ -478,7 +485,18 @@ const LandingPage = () => {
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
   };
-
+  const findEventsForSlot = (events, slot) => {
+    const slotStart = parseSlotToMinutes(slot);
+    if (!Number.isFinite(slotStart)) return [];
+    const slotEnd = slotStart + SLOT_DURATION_MINUTES;
+    return events.filter(
+      (event) =>
+        Number.isFinite(event.startMinutes) &&
+        Number.isFinite(event.endMinutes) &&
+        event.startMinutes < slotEnd &&
+        event.endMinutes > slotStart
+    );
+  };
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
@@ -548,6 +566,12 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
 
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
