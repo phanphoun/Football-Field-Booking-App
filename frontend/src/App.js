@@ -20,9 +20,14 @@ import FieldDetailsPage from './pages/FieldDetailsPage';
 import TeamCreatePage from './pages/TeamCreatePage';
 import TeamDetailsPage from './pages/TeamDetailsPage';
 import TeamManagePage from './pages/TeamManagePage';
+import TeamMatchHistoryPage from './pages/TeamMatchHistoryPage';
+import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
 import OwnerBookingsPage from './pages/OwnerBookingsPage';
+import OwnerMatchesPage from './pages/OwnerMatchesPage';
+import LeaguePage from './pages/League';
+import OpenMatchesPage from './pages/OpenMatchesPage';
 
 // Import layout components
 import AppLayout from './components/layout/AppLayout';
@@ -40,6 +45,7 @@ function App() {
               <Route index element={<LandingPage />} />
               <Route path="fields" element={<FieldsPage />} />
               <Route path="fields/:id" element={<FieldDetailsPage />} />
+              <Route path="league" element={<LeaguePage />} />
               <Route path="teams" element={<PublicTeamsPage />} />
               <Route path="teams/:id" element={<PublicTeamDetailsPage />} />
               <Route path="login" element={<LoginPage />} />
@@ -58,6 +64,7 @@ function App() {
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="fields" element={<FieldsPage />} />
+              <Route path="league" element={<LeaguePage />} />
               <Route path="teams" element={<TeamsPage />} />
               <Route
                 path="teams/create"
@@ -68,6 +75,7 @@ function App() {
                 }
               />
               <Route path="teams/:id" element={<TeamDetailsPage />} />
+              <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
               <Route
                 path="teams/:id/manage"
                 element={
@@ -78,6 +86,15 @@ function App() {
               />
               <Route path="bookings" element={<BookingsPage />} />
               <Route path="bookings/new" element={<CreateBookingPage />} />
+              <Route
+                path="open-matches"
+                element={
+                  <ProtectedRoute allowedRoles={['captain']}>
+                    <OpenMatchesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="profile" element={<ProfilePage />} />
 
               {/* Admin-only (optional/minimal) */}
@@ -112,6 +129,7 @@ function App() {
               <Route path="dashboard" element={<OwnerDashboardPage />} />
               <Route path="fields" element={<OwnerFieldsPage />} />
               <Route path="bookings" element={<OwnerBookingsPage />} />
+              <Route path="matches" element={<OwnerMatchesPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
 

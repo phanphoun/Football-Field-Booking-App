@@ -32,6 +32,9 @@ module.exports = (sequelize, DataTypes) => {
 
       Booking.hasMany(models.Rating, { foreignKey: 'bookingId', as: 'ratings' });
 
+      // Booking can receive join requests from other teams
+      Booking.hasMany(models.BookingJoinRequest, { foreignKey: 'bookingId', as: 'joinRequests' });
+
     }
 
   }
@@ -96,7 +99,12 @@ module.exports = (sequelize, DataTypes) => {
 
       validate: {
 
-        isAfter: new Date()
+        isAfterNow(value) {
+          const parsed = new Date(value);
+          if (Number.isNaN(parsed.getTime()) || parsed <= new Date()) {
+            throw new Error('Start time must be in the future');
+          }
+        }
 
       }
 

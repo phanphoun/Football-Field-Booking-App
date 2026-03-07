@@ -132,6 +132,14 @@ npm run dev
 - `POST /api/teams` - Create team (Captain/Admin)
 - `PUT /api/teams/:id` - Update team
 - `DELETE /api/teams/:id` - Delete team
+- `POST /api/teams/:id/join` - Request to join team (players)
+- `POST /api/teams/:id/leave` - Leave a team (members)
+- `GET /api/teams/:id/members` - List team members
+- `GET /api/teams/:id/requests` - Captain/admin view pending join requests
+- `POST /api/teams/:id/members` - Add member directly (captain/admin)
+- `POST /api/teams/:id/invite` - Invite a player to join (captain/admin)
+- `POST /api/teams/:id/invite/accept` - Accept a team invitation (invitee)
+- `POST /api/teams/:id/invite/decline` - Decline a team invitation (invitee)
 
 ### **⭐ Ratings**
 - `GET /api/ratings` - List ratings (Protected)

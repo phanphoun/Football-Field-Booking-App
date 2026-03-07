@@ -125,17 +125,7 @@ npm start
 - Role-based quick actions
 
 ### **🎯 Key Features**
-- **Field Booking** - Browse and book available football fields
-- **Team Management** - Create and manage team profiles and members
-- **Booking Management** - Create, view, and manage field reservations
-- **Profile Management** - Edit personal information and preferences
-- **Statistics Dashboard** - View personal and team statistics
-- **Public Teams** - Browse and join public teams without authentication
-- **Join Requests** - Request to join teams with captain approval
-- **Team Creation** - Create new teams with detailed management
-- **Member Management** - Approve/reject team join requests
-- **Captain Dashboard** - Manage captained teams and join requests
-- **Enhanced UI** - Professional component library with consistent design
+ - **Invite Players** - Captains can invite other users to join their teams
 
 ### **⚽ Field Management**
 - Browse available football fields

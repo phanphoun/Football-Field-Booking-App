@@ -18,6 +18,12 @@ const bookingService = {
     return response;
   },
 
+  // Get day schedule for slot-grid booking
+  getSchedule: async (date) => {
+    const response = await apiService.get('/bookings/schedule', { date });
+    return response;
+  },
+
   // Get booking by ID
   getBookingById: async (bookingId) => {
     const response = await apiService.get(`/bookings/${bookingId}`);
@@ -110,6 +116,54 @@ const bookingService = {
   // Complete booking
   completeBooking: async (bookingId) => {
     const response = await apiService.put(`/bookings/${bookingId}`, { status: 'completed' });
+    return response;
+  },
+
+  // Field owner/captain/admin: create a match result for a completed booking
+  createMatchResult: async (resultData) => {
+    const response = await apiService.post('/match-results', resultData);
+    return response;
+  },
+
+  // Field owner/captain/admin: update an existing match result
+  updateMatchResult: async (resultId, resultData) => {
+    const response = await apiService.put(`/match-results/${resultId}`, resultData);
+    return response;
+  },
+
+  // Captain: toggle open for opponents on own booking
+  setOpenForOpponents: async (bookingId, openForOpponents) => {
+    const response = await apiService.patch(`/bookings/${bookingId}/open-for-opponents`, { openForOpponents });
+    return response;
+  },
+
+  // Captain: list open matches from other teams
+  getOpenMatches: async () => {
+    const response = await apiService.get('/bookings/open-matches');
+    return response;
+  },
+
+  // Captain: request to join an open match with one of captained teams
+  requestJoinMatch: async (bookingId, teamId, message = '') => {
+    const response = await apiService.post(`/bookings/${bookingId}/join-requests`, { teamId, message });
+    return response;
+  },
+
+  // Captain: get join requests for a booking owned by their team
+  getBookingJoinRequests: async (bookingId) => {
+    const response = await apiService.get(`/bookings/${bookingId}/join-requests`);
+    return response;
+  },
+
+  // Captain: accept or reject a join request
+  respondToJoinRequest: async (bookingId, requestId, action) => {
+    const response = await apiService.patch(`/bookings/${bookingId}/join-requests/${requestId}`, { action });
+    return response;
+  },
+
+  // Captain (either matched team): cancel a matched pairing
+  cancelMatchedOpponent: async (bookingId) => {
+    const response = await apiService.patch(`/bookings/${bookingId}/cancel-matched-opponent`);
     return response;
   },
 

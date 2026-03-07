@@ -11,29 +11,32 @@ const CreateBookingPage = () => {
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
   const preselectedTime = searchParams.get('time');
+  const preselectedDuration = searchParams.get('duration');
+  const hasSlotPrefill = Boolean(preselectedDay && preselectedTime);
+  const initialDurationHours = ['1', '2', '3'].includes(preselectedDuration)
+    ? preselectedDuration
+    : hasSlotPrefill
+    ? '1'
+    : '2';
 
-  const getPrefilledTimes = () => {
+  const getPrefilledStartTime = () => {
     if (!preselectedDay || !preselectedTime) {
-      return { startTime: '', endTime: '' };
+      return '';
     }
 
     const start = new Date(`${preselectedDay}T${preselectedTime}:00`);
     if (Number.isNaN(start.getTime())) {
-      return { startTime: '', endTime: '' };
+      return '';
     }
 
-    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
     const toLocalInputValue = (value) => {
       const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
       return local.toISOString().slice(0, 16);
     };
 
-    return {
-      startTime: toLocalInputValue(start),
-      endTime: toLocalInputValue(end)
-    };
+    return toLocalInputValue(start);
   };
-  const prefilledTimes = getPrefilledTimes();
+  const prefilledStartTime = getPrefilledStartTime();
   
   const [fields, setFields] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -43,8 +46,9 @@ const CreateBookingPage = () => {
   const [formData, setFormData] = useState({
     fieldId: preselectedFieldId || '',
     teamId: '',
-    startTime: prefilledTimes.startTime,
-    endTime: prefilledTimes.endTime,
+    startTime: prefilledStartTime,
+    endTime: '',
+    durationHours: initialDurationHours,
     notes: ''
   });
   const hasTeams = Array.isArray(teams) && teams.length > 0;
@@ -52,6 +56,21 @@ const CreateBookingPage = () => {
     const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
   };
+  const syncEndTimeFromStartAndDuration = (startTimeValue, durationHoursValue) => {
+    const startTime = new Date(startTimeValue);
+    if (!startTimeValue || Number.isNaN(startTime.getTime())) return '';
+    const durationHours = Number(durationHoursValue || 2);
+    const endTime = new Date(startTime.getTime() + durationHours * 60 * 60 * 1000);
+    return toLocalInputValue(endTime);
+  };
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      endTime: syncEndTimeFromStartAndDuration(prev.startTime, prev.durationHours)
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,13 +105,20 @@ const CreateBookingPage = () => {
       [name]: value
     }));
 
-    // Auto-calculate end time (2 hours after start time)
+    // Auto-calculate end time from selected duration.
     if (name === 'startTime' && value) {
-      const startTime = new Date(value);
-      const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000); // +2 hours
       setFormData(prev => ({
         ...prev,
-        endTime: toLocalInputValue(endTime)
+        startTime: value,
+        endTime: syncEndTimeFromStartAndDuration(value, prev.durationHours)
+      }));
+    }
+
+    if (name === 'durationHours') {
+      setFormData(prev => ({
+        ...prev,
+        durationHours: value,
+        endTime: syncEndTimeFromStartAndDuration(prev.startTime, value)
       }));
     }
   };
@@ -264,18 +290,33 @@ const CreateBookingPage = () => {
                   />
                 </div>
                 <div>
+                  <label htmlFor="durationHours" className="block text-sm font-medium text-gray-700">
+                    Duration *
+                  </label>
+                  <select
+                    id="durationHours"
+                    name="durationHours"
+                    value={formData.durationHours}
+                    onChange={handleChange}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="1">1 hour</option>
+                    <option value="2">2 hours</option>
+                    <option value="3">3 hours</option>
+                  </select>
+                </div>
+                <div>
                   <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
-                    End Time *
+                    End Time (Auto) *
                   </label>
                   <input
                     type="datetime-local"
                     id="endTime"
                     name="endTime"
                     value={formData.endTime}
-                    onChange={handleChange}
-                    min={formData.startTime || new Date().toISOString().slice(0, 16)}
+                    readOnly
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-700"
                   />
                 </div>
               </div>

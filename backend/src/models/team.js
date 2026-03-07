@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
         as: 'bookings'
       });
 
+      Team.hasMany(models.BookingJoinRequest, {
+        foreignKey: 'requesterTeamId',
+        as: 'bookingJoinRequests'
+      });
+
       Team.hasMany(models.MatchResult, {
         foreignKey: 'homeTeamId',
         as: 'homeMatches'
@@ -83,7 +88,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(500),
         allowNull: true,
         validate: {
-          isUrl: true
+          isValidLogoUrl(value) {
+            if (!value) return;
+            const isAbsoluteUrl = /^https?:\/\/.+/i.test(value);
+            const isLocalUploadPath = /^\/uploads\/.+/i.test(value);
+            if (!isAbsoluteUrl && !isLocalUploadPath) {
+              throw new Error('logoUrl must be an absolute URL or /uploads path');
+            }
+          }
         }
       },
       isActive: {
