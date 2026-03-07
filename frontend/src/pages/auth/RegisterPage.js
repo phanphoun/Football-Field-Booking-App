@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
@@ -6,12 +6,15 @@ import { Badge, Button, Card, CardBody, CardHeader } from '../../components/ui';
 import '../../App.css';
 
 const RegisterPage = () => {
-  const { register, loading, error } = useAuth();
+  const { register, googleLogin, facebookLogin, loading, error } = useAuth();
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [clientError, setClientError] = useState(null);
+  const googleButtonRef = useRef(null);
+  const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  const facebookAppId = process.env.REACT_APP_FACEBOOK_APP_ID;
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -87,6 +90,127 @@ const RegisterPage = () => {
     };
     return map[formData.role] || map.player;
   }, [formData.role]);
+
+  const handleGoogleCredential = useCallback(async (credentialResponse) => {
+    if (!credentialResponse?.credential) {
+      return;
+    }
+
+    const result = await googleLogin(credentialResponse.credential);
+    if (result.success) {
+      const role = result.data?.user?.role;
+      const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+      navigate(defaultPath, { replace: true });
+    }
+  }, [googleLogin, navigate]);
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const initializeGoogleButton = () => {
+      if (!isMounted || !window.google?.accounts?.id || !googleButtonRef.current) {
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleCredential
+      });
+
+      googleButtonRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: 'standard',
+        shape: 'rectangular',
+        theme: 'outline',
+        text: 'continue_with',
+        size: 'large',
+        width: 320
+      });
+    };
+
+    const scriptId = 'google-identity-services';
+    const existingScript = document.getElementById(scriptId);
+
+    if (existingScript) {
+      initializeGoogleButton();
+    } else {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogleButton;
+      document.body.appendChild(script);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [googleClientId, handleGoogleCredential]);
+
+  useEffect(() => {
+    if (!facebookAppId) {
+      return undefined;
+    }
+
+    const initializeFacebook = () => {
+      if (window.FB?.init) {
+        window.FB.init({
+          appId: facebookAppId,
+          cookie: true,
+          xfbml: false,
+          version: 'v23.0'
+        });
+      }
+    };
+
+    const scriptId = 'facebook-jssdk';
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) {
+      initializeFacebook();
+    } else {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://connect.facebook.net/en_US/sdk.js';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeFacebook;
+      document.body.appendChild(script);
+    }
+
+    return undefined;
+  }, [facebookAppId]);
+
+  const handleFacebookLogin = async () => {
+    if (!window.FB?.login) {
+      return;
+    }
+
+    window.FB.login(
+      async (response) => {
+        const authResponse = response?.authResponse;
+        if (!authResponse?.accessToken || !authResponse?.userID) {
+          return;
+        }
+
+        const result = await facebookLogin({
+          accessToken: authResponse.accessToken,
+          userId: authResponse.userID
+        });
+
+        if (result.success) {
+          const role = result.data?.user?.role;
+          const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+          navigate(defaultPath, { replace: true });
+        }
+      },
+      { scope: 'public_profile,email' }
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
@@ -311,6 +435,43 @@ const RegisterPage = () => {
                     )}
                   </Button>
                 </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-500">or</span>
+                  </div>
+                </div>
+
+                {googleClientId ? (
+                  <div className="rounded-xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 p-4 shadow-sm">
+                    <div className="flex justify-center">
+                      <div ref={googleButtonRef} />
+                    </div>
+                    {facebookAppId && (
+                      <button
+                        type="button"
+                        onClick={handleFacebookLogin}
+                        className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#166fe5]"
+                      >
+                        <span className="text-base leading-none">f</span>
+                        Continue with Facebook
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                    Google login is not configured. Set `REACT_APP_GOOGLE_CLIENT_ID` in frontend env.
+                  </p>
+                )}
+
+                {googleClientId && !facebookAppId && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                    Facebook login is not configured. Set `REACT_APP_FACEBOOK_APP_ID` in frontend env.
+                  </p>
+                )}
               </form>
             </CardBody>
           </Card>

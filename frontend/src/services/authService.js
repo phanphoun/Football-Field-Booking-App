@@ -26,6 +26,30 @@ const authService = {
     return response;
   },
 
+  // Login/register with Google ID token
+  googleLogin: async (idToken) => {
+    const response = await apiService.post('/auth/google', { idToken });
+
+    if (response.success && response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+
+    return response;
+  },
+
+  // Login/register with Facebook access token
+  facebookLogin: async ({ accessToken, userId }) => {
+    const response = await apiService.post('/auth/facebook', { accessToken, userId });
+
+    if (response.success && response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+
+    return response;
+  },
+
   // Get user profile
   getProfile: async () => {
     const response = await apiService.get('/auth/profile');

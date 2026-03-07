@@ -1,6 +1,7 @@
 const { User, Team } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
@@ -8,6 +9,65 @@ const serverConfig = require('../config/serverConfig');
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
+
+const sanitizeUsername = (value = '') => {
+  const cleaned = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  return cleaned.slice(0, 30);
+};
+
+const buildUniqueGoogleUsername = async (email, fullName = '') => {
+  const emailPrefix = email?.split('@')?.[0] || '';
+  const namePrefix = fullName
+    .split(' ')
+    .filter(Boolean)
+    .join('_');
+
+  const candidateBase =
+    sanitizeUsername(namePrefix) ||
+    sanitizeUsername(emailPrefix) ||
+    `user${Date.now()}`;
+
+  let candidate = candidateBase.slice(0, 30);
+  let counter = 0;
+
+  while (true) {
+    const existingUser = await User.findOne({ where: { username: candidate } });
+    if (!existingUser) {
+      return candidate;
+    }
+
+    counter += 1;
+    const suffix = `_${counter}`;
+    const maxBaseLength = 30 - suffix.length;
+    candidate = `${candidateBase.slice(0, Math.max(3, maxBaseLength))}${suffix}`;
+  }
+};
+
+const issueAuthToken = (user) =>
+  jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+const toUserResponse = (user) => ({
+  id: user.id,
+  username: user.username,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  role: user.role,
+  phone: user.phone,
+  address: user.address,
+  dateOfBirth: user.dateOfBirth,
+  gender: user.gender,
+  avatarUrl: user.avatarUrl,
+  status: user.status,
+  emailVerified: user.emailVerified,
+  lastLogin: user.lastLogin,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt
+});
 
 const register = async (req, res) => {
   try {
@@ -63,29 +123,10 @@ const register = async (req, res) => {
     });
 
     // Generate token
-    const token = jwt.sign(
-      { id: user.id, role: user.role }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
+    const token = issueAuthToken(user);
 
     // Return user data without password
-    const userResponse = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      phone: user.phone,
-      address: user.address,
-      dateOfBirth: user.dateOfBirth,
-      gender: user.gender,
-      avatarUrl: user.avatarUrl,
-      status: user.status,
-      emailVerified: user.emailVerified,
-      createdAt: user.createdAt
-    };
+    const userResponse = toUserResponse(user);
 
     res.status(201).json({ user: userResponse, token });
   } catch (error) {
@@ -126,35 +167,192 @@ const login = async (req, res) => {
     await user.update({ lastLogin: new Date() });
 
     // Generate token
-    const token = jwt.sign(
-      { id: user.id, role: user.role }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
+    const token = issueAuthToken(user);
 
     // Return user data without password
-    const userResponse = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      role: user.role,
-      phone: user.phone,
-      address: user.address,
-      dateOfBirth: user.dateOfBirth,
-      gender: user.gender,
-      avatarUrl: user.avatarUrl,
-      status: user.status,
-      emailVerified: user.emailVerified,
-      lastLogin: user.lastLogin,
-      createdAt: user.createdAt
-    };
+    const userResponse = toUserResponse(user);
 
     res.json({ user: userResponse, token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error during login.' });
+  }
+};
+
+const loginWithGoogle = async (req, res) => {
+  try {
+    const { idToken } = req.body || {};
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+
+    if (!idToken) {
+      return res.status(400).json({ error: 'Google ID token is required.' });
+    }
+
+    if (!googleClientId) {
+      return res.status(500).json({ error: 'Google login is not configured on the server.' });
+    }
+
+    const tokenInfoResponse = await axios.get(
+      'https://oauth2.googleapis.com/tokeninfo',
+      {
+        params: { id_token: idToken },
+        timeout: 10000
+      }
+    );
+
+    const tokenInfo = tokenInfoResponse.data || {};
+    const issuer = tokenInfo.iss;
+    const isIssuerValid =
+      issuer === 'accounts.google.com' ||
+      issuer === 'https://accounts.google.com';
+    const isAudienceValid = tokenInfo.aud === googleClientId;
+    const isEmailVerified = tokenInfo.email_verified === 'true' || tokenInfo.email_verified === true;
+
+    if (!isIssuerValid || !isAudienceValid || !isEmailVerified || !tokenInfo.email) {
+      return res.status(401).json({ error: 'Invalid Google token.' });
+    }
+
+    const email = tokenInfo.email.toLowerCase();
+    const fullName = tokenInfo.name || '';
+    const nameParts = fullName.split(' ').filter(Boolean);
+    const firstName = tokenInfo.given_name || nameParts[0] || 'Google';
+    const lastName =
+      tokenInfo.family_name ||
+      nameParts.slice(1).join(' ') ||
+      'User';
+
+    let user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      const username = await buildUniqueGoogleUsername(email, fullName);
+      const randomPassword = `${tokenInfo.sub || 'google'}_${Date.now()}_${Math.random()}`;
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+      user = await User.create({
+        username,
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        role: 'player',
+        status: 'active',
+        emailVerified: true
+      });
+    } else if (user.status !== 'active') {
+      return res.status(400).json({ error: 'Account is not active. Please contact support.' });
+    }
+
+    await user.update({ lastLogin: new Date(), emailVerified: true });
+    const token = issueAuthToken(user);
+
+    return res.json({
+      user: toUserResponse(user),
+      token
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    const googleError = error.response?.data?.error_description || error.response?.data?.error;
+    if (status === 400 || status === 401) {
+      return res.status(401).json({ error: googleError || 'Invalid Google token.' });
+    }
+
+    console.error('Google login error:', error);
+    return res.status(500).json({ error: 'Internal server error during Google login.' });
+  }
+};
+
+const loginWithFacebook = async (req, res) => {
+  try {
+    const { accessToken, userId } = req.body || {};
+    const appId = process.env.FACEBOOK_APP_ID;
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+
+    if (!accessToken || !userId) {
+      return res.status(400).json({ error: 'Facebook access token and userId are required.' });
+    }
+
+    if (!appId || !appSecret) {
+      return res.status(500).json({ error: 'Facebook login is not configured on the server.' });
+    }
+
+    const appAccessToken = `${appId}|${appSecret}`;
+    const debugResponse = await axios.get(
+      'https://graph.facebook.com/debug_token',
+      {
+        params: {
+          input_token: accessToken,
+          access_token: appAccessToken
+        },
+        timeout: 10000
+      }
+    );
+
+    const debugData = debugResponse.data?.data || {};
+    const isValid =
+      debugData.is_valid === true &&
+      String(debugData.user_id) === String(userId) &&
+      String(debugData.app_id) === String(appId);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid Facebook token.' });
+    }
+
+    const profileResponse = await axios.get(
+      `https://graph.facebook.com/${userId}`,
+      {
+        params: {
+          fields: 'id,name,first_name,last_name,email',
+          access_token: accessToken
+        },
+        timeout: 10000
+      }
+    );
+
+    const profile = profileResponse.data || {};
+    if (!profile.id || !profile.email) {
+      return res.status(400).json({
+        error: 'Facebook account did not provide an email. Please use email login or Google login.'
+      });
+    }
+
+    const email = String(profile.email).toLowerCase();
+    let user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      const username = await buildUniqueGoogleUsername(email, profile.name || '');
+      const randomPassword = `facebook_${profile.id}_${Date.now()}_${Math.random()}`;
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+      user = await User.create({
+        username,
+        email,
+        password: hashedPassword,
+        firstName: profile.first_name || 'Facebook',
+        lastName: profile.last_name || 'User',
+        role: 'player',
+        status: 'active',
+        emailVerified: true
+      });
+    } else if (user.status !== 'active') {
+      return res.status(400).json({ error: 'Account is not active. Please contact support.' });
+    }
+
+    await user.update({ lastLogin: new Date(), emailVerified: true });
+    const token = issueAuthToken(user);
+
+    return res.json({
+      user: toUserResponse(user),
+      token
+    });
+  } catch (error) {
+    const status = error.response?.status;
+    const facebookError = error.response?.data?.error?.message;
+    if (status === 400 || status === 401) {
+      return res.status(401).json({ error: facebookError || 'Invalid Facebook token.' });
+    }
+
+    console.error('Facebook login error:', error);
+    return res.status(500).json({ error: 'Internal server error during Facebook login.' });
   }
 };
 
@@ -409,6 +607,8 @@ const deleteProfileAvatar = async (req, res) => {
 module.exports = {
   register,
   login,
+  loginWithGoogle,
+  loginWithFacebook,
   getProfile,
   updateProfile,
   uploadProfileAvatar,

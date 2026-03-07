@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, CurrencyDollarIcon, PlusIcon, UsersIcon } from '@heroicons/react/24/outline';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -15,60 +15,14 @@ const BookingsPage = () => {
   const [openForOpponentsFilter, setOpenForOpponentsFilter] = useState('all');
   const [toggleLoadingMap, setToggleLoadingMap] = useState({});
   const [cancelMatchedLoadingMap, setCancelMatchedLoadingMap] = useState({});
-  const [joinRequestsByBooking, setJoinRequestsByBooking] = useState({});
-  const [joinRequestsLoadingMap, setJoinRequestsLoadingMap] = useState({});
-  const [joinActionLoadingMap, setJoinActionLoadingMap] = useState({});
 
-  const loadBookings = useCallback(async () => {
+  const loadBookings = async () => {
     try {
       setLoading(true);
       setError(null);
-
       const response = await bookingService.getAllBookings();
       const bookingsData = Array.isArray(response.data) ? response.data : [];
       setBookings(bookingsData);
-
-      if (user?.role === 'captain') {
-        const targetBookings = bookingsData.filter(
-          (booking) =>
-            booking?.team?.captainId === user?.id &&
-            booking?.openForOpponents &&
-            !booking?.opponentTeam?.name &&
-            booking?.status !== 'cancelled' &&
-            booking?.status !== 'completed'
-        );
-
-        if (targetBookings.length > 0) {
-          setJoinRequestsLoadingMap((prev) => {
-            const next = { ...prev };
-            for (const booking of targetBookings) next[booking.id] = true;
-            return next;
-          });
-
-          const results = await Promise.all(
-            targetBookings.map(async (booking) => {
-              try {
-                const res = await bookingService.getBookingJoinRequests(booking.id);
-                return { bookingId: booking.id, requests: Array.isArray(res.data) ? res.data : [] };
-              } catch {
-                return { bookingId: booking.id, requests: [] };
-              }
-            })
-          );
-
-          setJoinRequestsByBooking((prev) => {
-            const next = { ...prev };
-            for (const result of results) next[result.bookingId] = result.requests;
-            return next;
-          });
-
-          setJoinRequestsLoadingMap((prev) => {
-            const next = { ...prev };
-            for (const booking of targetBookings) next[booking.id] = false;
-            return next;
-          });
-        }
-      }
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
       setError('Failed to load bookings');
@@ -76,17 +30,15 @@ const BookingsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.role]);
+  };
 
   useEffect(() => {
     loadBookings();
-  }, [loadBookings]);
+  }, []);
 
-  const isCaptainOwner = (booking) => user?.role === 'captain' && booking?.team?.captainId === user?.id;
-  const isCaptainInMatchedBooking = (booking) =>
-    user?.role === 'captain' && (booking?.team?.captainId === user?.id || booking?.opponentTeam?.captainId === user?.id);
-
-  const handleCreateBooking = () => navigate('/app/bookings/new');
+  const handleCreateBooking = () => {
+    navigate('/app/bookings/new');
+  };
 
   const handleUpdateStatus = async (bookingId, newStatus) => {
     try {
@@ -107,6 +59,10 @@ const BookingsPage = () => {
       setError('Failed to update booking status');
     }
   };
+
+  const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
+  const isCaptainInMatchedBooking = (booking) =>
+    user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
 
   const handleToggleOpenForOpponents = async (booking) => {
     try {
@@ -141,32 +97,18 @@ const BookingsPage = () => {
     }
   };
 
-  const handleRespondToJoinRequest = async (bookingId, requestId, action) => {
-    const key = `${bookingId}-${requestId}-${action}`;
-    try {
-      setJoinActionLoadingMap((prev) => ({ ...prev, [key]: true }));
-      await bookingService.respondToJoinRequest(bookingId, requestId, action);
-      await loadBookings();
-    } catch (err) {
-      console.error(`Failed to ${action} join request:`, err);
-      setError(err.error || `Failed to ${action} join request`);
-    } finally {
-      setJoinActionLoadingMap((prev) => ({ ...prev, [key]: false }));
-    }
-  };
-
   const getStatusTone = (status) => {
-    const tones = { pending: 'yellow', confirmed: 'green', cancelled: 'red', completed: 'blue' };
+    const tones = {
+      pending: 'yellow',
+      confirmed: 'green',
+      cancelled: 'red',
+      completed: 'blue'
+    };
     return tones[status] || 'gray';
   };
 
   const getStatusActions = (booking) => {
     const actions = [];
-    const canUserCancelBooking =
-      booking?.createdBy === user?.id ||
-      booking?.team?.captainId === user?.id ||
-      booking?.opponentTeam?.captainId === user?.id ||
-      isAdmin();
 
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
@@ -176,21 +118,13 @@ const BookingsPage = () => {
           </Button>
         );
       }
-      if (canUserCancelBooking) {
+      if (booking.createdBy === user?.id || isAdmin()) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
-            Cancel Booking
+            Cancel
           </Button>
         );
       }
-    }
-
-    if (booking.status === 'confirmed' && canUserCancelBooking) {
-      actions.push(
-        <Button key="cancel-confirmed" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
-          Cancel Booking
-        </Button>
-      );
     }
 
     if (booking.status === 'confirmed' && (isAdmin() || isFieldOwner())) {
@@ -219,7 +153,13 @@ const BookingsPage = () => {
 
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
   const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const calculateDuration = (startTime, endTime) => ((new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60)).toFixed(1);
+
+  const calculateDuration = (startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const duration = (end - start) / (1000 * 60 * 60);
+    return duration.toFixed(1);
+  };
 
   if (loading) {
     return (
@@ -309,12 +249,10 @@ const BookingsPage = () => {
                         <ClockIcon className="h-4 w-4 mr-1" />
                         {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
                       </div>
-                      <div className="flex items-center min-w-0">
+                      <div className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
-                        <span className="truncate whitespace-nowrap">
-                          {booking.team?.name || 'No team'}
-                          {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
-                        </span>
+                        {booking.team?.name || 'No team'}
+                        {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
                       </div>
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-4 w-4 mr-1" />
@@ -327,15 +265,8 @@ const BookingsPage = () => {
                       {formatDate(booking.createdAt)}
                     </div>
 
-                    {booking.status === 'pending' && isCaptainOwner(booking) && (
-                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        Waiting for field owner approval. Other captains can still request this same slot until owner confirms one
-                        booking.
-                      </div>
-                    )}
-
                     {booking.opponentTeam?.name && (
-                      <div className="mt-2 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <div className="mt-2 text-sm text-green-700">
                         Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
                       </div>
                     )}
@@ -358,78 +289,23 @@ const BookingsPage = () => {
 
                     {isCaptainOwner(booking) && booking.status !== 'cancelled' && booking.status !== 'completed' && (
                       <div className="mt-4">
-                        {!booking.opponentTeam?.name && (
-                          <Button
-                            size="sm"
-                            variant={booking.openForOpponents ? 'warning' : 'primary'}
-                            onClick={() => handleToggleOpenForOpponents(booking)}
-                            disabled={!!toggleLoadingMap[booking.id]}
-                          >
-                            {toggleLoadingMap[booking.id]
-                              ? 'Updating...'
-                              : booking.openForOpponents
-                              ? 'Close Match'
-                              : 'Open Match'}
-                          </Button>
-                        )}
+                        <div className="flex items-center flex-wrap gap-2">
+                          {!booking.opponentTeam?.name && (
+                            <Button
+                              size="sm"
+                              variant={booking.openForOpponents ? 'warning' : 'primary'}
+                              onClick={() => handleToggleOpenForOpponents(booking)}
+                              disabled={!!toggleLoadingMap[booking.id]}
+                            >
+                              {toggleLoadingMap[booking.id]
+                                ? 'Updating...'
+                                : booking.openForOpponents
+                                ? 'Close Match'
+                                : 'Open Match'}
+                            </Button>
+                          )}
 
-                        {booking.openForOpponents && !booking.opponentTeam?.name && (
-                          <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
-                            <p className="text-sm font-medium text-gray-800 mb-2">Join Requests</p>
-                            {joinRequestsLoadingMap[booking.id] ? (
-                              <p className="text-sm text-gray-500">Loading requests...</p>
-                            ) : Array.isArray(joinRequestsByBooking[booking.id]) &&
-                              joinRequestsByBooking[booking.id].length > 0 ? (
-                              <div className="space-y-2">
-                                {joinRequestsByBooking[booking.id].map((request) => {
-                                  const captainName =
-                                    request?.requesterTeam?.captain?.firstName || request?.requesterTeam?.captain?.lastName
-                                      ? `${request.requesterTeam?.captain?.firstName || ''} ${
-                                          request.requesterTeam?.captain?.lastName || ''
-                                        }`.trim()
-                                      : request?.requesterTeam?.captain?.username || 'Unknown captain';
-                                  return (
-                                    <div
-                                      key={request.id}
-                                      className="border border-gray-100 rounded-md p-2 flex items-center justify-between gap-3"
-                                    >
-                                      <div>
-                                        <p className="text-sm text-gray-800">
-                                          {request.requesterTeam?.name || 'Unknown team'} ({request.status})
-                                        </p>
-                                        <p className="text-xs text-gray-600 mt-1">Captain: {captainName}</p>
-                                        {request.message && <p className="text-xs text-gray-500 mt-1">"{request.message}"</p>}
-                                      </div>
-
-                                      {request.status === 'pending' && (
-                                        <div className="flex items-center gap-2">
-                                          <Button
-                                            size="sm"
-                                            variant="primary"
-                                            onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'accept')}
-                                            disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-accept`]}
-                                          >
-                                            Approve Join
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="danger"
-                                            onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'reject')}
-                                            disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-reject`]}
-                                          >
-                                            Decline
-                                          </Button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-gray-500">No requests yet.</p>
-                            )}
-                          </div>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>

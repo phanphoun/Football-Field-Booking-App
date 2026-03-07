@@ -162,6 +162,66 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Google login function
+  const googleLogin = async (idToken) => {
+    dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+
+    try {
+      const response = await authService.googleLogin(idToken);
+
+      if (response.success) {
+        const user = authService.getCurrentUser();
+        const permissions = authService.getPermissions();
+
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: { user, permissions }
+        });
+
+        return { success: true, data: response.data };
+      }
+
+      throw new Error(response.message || 'Google login failed');
+    } catch (error) {
+      const errorMessage = error.error || error.message || 'Google login failed';
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_FAILURE,
+        payload: errorMessage
+      });
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Facebook login function
+  const facebookLogin = async ({ accessToken, userId }) => {
+    dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+
+    try {
+      const response = await authService.facebookLogin({ accessToken, userId });
+
+      if (response.success) {
+        const user = authService.getCurrentUser();
+        const permissions = authService.getPermissions();
+
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: { user, permissions }
+        });
+
+        return { success: true, data: response.data };
+      }
+
+      throw new Error(response.message || 'Facebook login failed');
+    } catch (error) {
+      const errorMessage = error.error || error.message || 'Facebook login failed';
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_FAILURE,
+        payload: errorMessage
+      });
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // Register function
   const register = async (userData) => {
     dispatch({ type: AUTH_ACTIONS.REGISTER_START });
@@ -326,6 +386,8 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
+    googleLogin,
+    facebookLogin,
     register,
     logout,
     updateProfile,
