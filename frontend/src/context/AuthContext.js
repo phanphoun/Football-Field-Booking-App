@@ -288,6 +288,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Change password function
+  const changePassword = async (passwordData) => {
+    dispatch({ type: AUTH_ACTIONS.UPDATE_PROFILE_START });
+
+    try {
+      const response = await authService.changePassword(passwordData);
+
+      if (response.success) {
+        const user = authService.getCurrentUser();
+        const permissions = authService.getPermissions();
+
+        dispatch({
+          type: AUTH_ACTIONS.UPDATE_PROFILE_SUCCESS,
+          payload: { user, permissions }
+        });
+
+        return { success: true, data: response.data };
+      }
+
+      throw new Error(response.message || 'Password change failed');
+    } catch (error) {
+      const errorMessage = error.error || error.message || 'Password change failed';
+      dispatch({
+        type: AUTH_ACTIONS.UPDATE_PROFILE_FAILURE,
+        payload: errorMessage
+      });
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // Clear error function
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -331,6 +361,7 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     uploadAvatar,
     deleteAvatar,
+    changePassword,
     clearError,
     hasPermission,
     hasRole,
