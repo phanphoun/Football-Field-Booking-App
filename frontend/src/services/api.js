@@ -4,47 +4,62 @@ import axios from 'axios';
 // Configuration
 // =====================================
 // API base URL - can be overridden by environment variable
+// Default to v1 endpoint
 const API_BASE_URL =
-  process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
-// Create axios instance
+// Create axios instance with credentials enabled for cookies
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,  // IMPORTANT: Allow cookie transmission
 });
 
 // =====================================
 // Authentication Helpers
 // =====================================
-export const setToken = (token) => {
-  localStorage.setItem('token', token);
-};
-
-export const getToken = () => {
-  return localStorage.getItem('token');
-};
-
+// No longer store token in localStorage - token is in httpOnly cookie
 export const clearAuth = () => {
-  localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('csrfToken');
+};
+
+// =====================================
+// CSRF Token Management
+// =====================================
+export const fetchCsrfToken = async () => {
+  try {
+    const response = await api.get('/csrf-token');
+    const csrfToken = response.data?.csrfToken;
+    if (csrfToken) {
+      localStorage.setItem('csrfToken', csrfToken);
+      api.defaults.headers.common['X-CSRF-Token'] = csrfToken;
+    }
+    return csrfToken;
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+    return null;
+  }
 };
 
 // =====================================
 // Request Interceptor
-// Add token to every request
+// Add CSRF token to state-changing requests
 // =====================================
 api.interceptors.request.use(
   (config) => {
-    const token = getToken();
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Token is automatically sent via cookie, no need to add to headers
+    
+    // Add CSRF token for state-changing operations
+    const csrfToken = localStorage.getItem('csrfToken');
+    if (csrfToken && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(config.method?.toUpperCase())) {
+      config.headers['X-CSRF-Token'] = csrfToken;
     }
 
-    // Let the browser set multipart boundaries automatically for file uploads.
+    // Let the browser set multipart boundaries automatically for file uploads
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       if (typeof config.headers?.set === 'function') {
         config.headers.set('Content-Type', undefined);
@@ -58,9 +73,10 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
 // =====================================
 // Response Interceptor
-// Standard success & error format
+// Handle token refresh and standard format
 // =====================================
 api.interceptors.response.use(
   (response) => {
@@ -78,8 +94,9 @@ api.interceptors.response.use(
       message: (isWrapped && payload.message) || response.statusText,
     };
   },
-  (error) => {
+  async (error) => {
     const status = error.response?.status || 500;
+    const originalRequest = error.config;
 
     const message =
       error.response?.data?.error ||
@@ -88,12 +105,29 @@ api.interceptors.response.use(
       'An unexpected error occurred';
 
     // Handle Unauthorized (Token expired / invalid)
-    if (status === 401) {
-      clearAuth();
+    if (status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-      // Avoid redirect loop
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      try {
+        // Try to refresh the token
+        await api.post('/auth/refresh');
+        // Retry the original request
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, clear auth and redirect to login
+        clearAuth();
+
+        // Avoid redirect loop
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+
+        return Promise.reject({
+          success: false,
+          status: 401,
+          error: 'Session expired. Please login again.',
+          data: null,
+        });
       }
     }
 

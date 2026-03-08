@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import { fetchCsrfToken } from './services/api';
 import './App.css';
 
 // Import pages
@@ -35,6 +36,11 @@ import PublicLayout from './components/layout/PublicLayout';
 import OwnerLayout from './components/layout/OwnerLayout';
 
 function App() {
+  // Initialize CSRF token on app load
+  useEffect(() => {
+    fetchCsrfToken();
+  }, []);
+
   return (
     <AuthProvider>
       <Router>

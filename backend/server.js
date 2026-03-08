@@ -23,7 +23,18 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 
-const API_KEY = "88aaa20e57db47deb4847097dcf9c6a4"; // Using API key directly for now
+// Import security middleware
+const { csrfProtection, csrfErrorHandler, cookieParser } = require('./src/middleware/csrfMiddleware');
+
+// Import Swagger documentation
+const setupSwagger = require('./src/config/swagger');
+
+// Security: Load API key from environment variables
+const API_KEY = process.env.FOOTBALL_API_KEY;
+if (!API_KEY) {
+  throw new Error('FOOTBALL_API_KEY environment variable is required. Please set it in your .env file.');
+}
+
 const BASE_URL = "https://api.football-data.org/v4";
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Bangkok";
 
@@ -107,6 +118,12 @@ app.use(helmet(serverConfig.security.helmet));
 app.use(cors(serverConfig.cors));
 app.use(compression());
 
+// Cookie parser for CSRF protection
+app.use(cookieParser());
+
+// CSRF protection middleware
+app.use(csrfProtection);
+
 // Rate limiting
 if (serverConfig.security.rateLimiting.enabled) {
   app.use(generalLimiter);
@@ -130,6 +147,18 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'frontend', 'publi
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============= API ROUTES =============
+
+// Setup Swagger documentation
+setupSwagger(app);
+
+// CSRF token endpoint
+app.get('/api/csrf-token', csrfProtection, (req, res) => {
+  res.json({ 
+    success: true,
+    csrfToken: req.csrfToken(),
+    message: 'CSRF token generated'
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -180,9 +209,34 @@ app.use('/api/auth', authLimiter);
 app.use('/api/dashboard/search', searchLimiter);
 
 // Apply creation rate limiting
-app.use('/api', createLimiter);
+app.use('/api/v1', createLimiter);
 
-// API Routes
+// ============= API v1 ROUTES =============
+
+// API Routes - Version 1
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/fields', fieldRoutes);
+app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/teams', teamRoutes);
+app.use('/api/v1/public', publicRoutes);
+app.use('/api/v1/team-members', teamMemberRoutes);
+app.use('/api/v1/match-results', matchResultRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/ratings', ratingRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+
+// Deprecated v0 routes - redirect with deprecation headers
+app.use('/api', (req, res, next) => {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', 'Sat, 31 Dec 2026 23:59:59 GMT');
+  res.setHeader('Warning', '299 - "/api is deprecated, use /api/v1 instead"');
+  
+  // Log deprecation usage
+  console.warn(`Deprecated API endpoint used: ${req.method} ${req.path}`);
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/fields', fieldRoutes);
@@ -195,8 +249,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// League API Routes
-app.get("/api/matches", async (req, res) => {
+// League API Routes (v1)
+app.get("/api/v1/matches", async (req, res) => {
   try {
     const { league } = req.query; // Get league filter from query params
     const cacheKey = `matches:${league || "ALL"}`;
@@ -274,7 +328,23 @@ app.get("/api/matches", async (req, res) => {
   }
 });
 
+// League API Routes (v0 - deprecated)
+app.get("/api/matches", async (req, res) => {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Warning', '299 - "/api/matches is deprecated, use /api/v1/matches instead"');
+  // Forward to v1
+  return res.redirect(307, `/api/v1/matches${req.url.split('?')[1] ? '?' + req.url.split('?')[1] : ''}`);
+});
+
 app.get("/api/leagues/standings", async (req, res) => {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Warning', '299 - "/api/leagues/standings is deprecated, use /api/v1/leagues/standings instead"');
+  // Forward to v1
+  return res.redirect(307, `/api/v1/leagues/standings${req.url.split('?')[1] ? '?' + req.url.split('?')[1] : ''}`);
+});
+
+// v1 standings endpoint
+app.get("/api/v1/leagues/standings", async (req, res) => {
   try {
     const { league } = req.query;
     const selectedLeagues = league
@@ -329,6 +399,7 @@ app.get("/api/leagues/standings", async (req, res) => {
 });
 
 // Error handling middleware (must be after routes)
+app.use(csrfErrorHandler);
 app.use(notFound);
 app.use(errorHandler);
 

@@ -4,6 +4,8 @@ const multer = require('multer');
 const { Field, Booking } = require('../models');
 const { Op } = require('sequelize');
 const serverConfig = require('../config/serverConfig');
+const { sendSuccess, sendError, sendPaginated } = require('../utils/ApiResponse');
+const logger = require('../utils/logger');
 
 const removeFieldImageFile = (imagePath) => {
   if (typeof imagePath !== 'string' || !imagePath.startsWith('/uploads/fields/')) return;
@@ -17,6 +19,10 @@ const getFields = async (req, res) => {
   try {
     const { page = 1, limit = 10, fieldType, surfaceType, city, minPrice, maxPrice, status = 'available' } = req.query;
     
+    // Validate pagination params
+    const validPage = Math.max(1, parseInt(page) || 1);
+    const validLimit = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    
     const where = {};
     if (status) where.status = status;
     if (fieldType) where.fieldType = fieldType;
@@ -29,32 +35,19 @@ const getFields = async (req, res) => {
       if (maxPrice) where.pricePerHour[Op.lte] = parseFloat(maxPrice);
     }
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const offset = (validPage - 1) * validLimit;
     
     const { count, rows } = await Field.findAndCountAll({
       where,
-      limit: parseInt(limit),
+      limit: validLimit,
       offset: offset,
       order: [['createdAt', 'DESC']]
     });
 
-    res.json({ 
-      success: true, 
-      data: rows,
-      pagination: {
-        total: count,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(count / parseInt(limit))
-      }
-    });
+    return sendPaginated(res, rows, validPage, validLimit, count, 'Fields retrieved successfully');
   } catch (error) {
-    console.error('Get fields error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch fields',
-      error: error.message
-    });
+    logger.error('Get fields error', { error: error.message });
+    return sendError(res, 500, 'Failed to fetch fields');
   }
 };
 
@@ -63,20 +56,13 @@ const getField = async (req, res) => {
     const field = await Field.findByPk(req.params.id);
 
     if (!field) {
-      return res.status(404).json({
-        success: false,
-        message: 'Field not found'
-      });
+      return sendError(res, 404, 'Field not found');
     }
 
-    res.json({ success: true, data: field });
+    return sendSuccess(res, 200, field, 'Field retrieved successfully');
   } catch (error) {
-    console.error('Get field error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch field',
-      error: error.message
-    });
+    logger.error('Get field error', { error: error.message, fieldId: req.params.id });
+    return sendError(res, 500, 'Failed to fetch field');
   }
 };
 

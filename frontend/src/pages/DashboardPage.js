@@ -13,7 +13,8 @@ import {
   CheckIcon,
   XMarkIcon,
   UserCircleIcon,
-  UsersIcon
+  UsersIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
@@ -32,6 +33,7 @@ const DashboardPage = () => {
   const [bookings, setBookings] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [fields, setFields] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
   const [joinRequestsByTeam, setJoinRequestsByTeam] = useState([]);
   const [inviteActionLoading, setInviteActionLoading] = useState(false);
@@ -78,6 +80,7 @@ const DashboardPage = () => {
         setMyTeams(myTeamsData);
         setNotifications(notificationsData);
         setCaptainedTeams(captainedData);
+        setFields(fieldsData);
 
         if (role === 'captain') {
           const requests = await Promise.all(
@@ -112,7 +115,20 @@ const DashboardPage = () => {
       .slice(0, 5);
   }, [bookings]);
 
+  const pendingBookings = useMemo(() => {
+    return bookings.filter((b) => b.status === 'pending');
+  }, [bookings]);
+
   const statCards = useMemo(() => {
+    if (role === 'field_owner') {
+      return [
+        { name: 'My Fields', value: stats?.fields ?? fields.length, icon: BuildingOfficeIcon, color: 'bg-blue-600' },
+        { name: 'My Teams', value: captainedTeams.length, icon: UsersIcon, color: 'bg-emerald-600' },
+        { name: 'Pending Bookings', value: pendingBookings.length, icon: ClockIcon, color: 'bg-yellow-600' },
+        { name: 'Upcoming', value: upcomingBookings.length, icon: CalendarIcon, color: 'bg-indigo-600' }
+      ];
+    }
+
     if (role === 'captain') {
       const pendingJoinRequests =
         stats?.pendingJoinRequests ?? joinRequestsByTeam.reduce((sum, t) => sum + t.pendingCount, 0);

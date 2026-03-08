@@ -48,23 +48,6 @@ const fieldService = {
     return response;
   },
 
-  // Search fields
-  searchFields: async (searchTerm, filters = {}) => {
-    const params = {
-      q: searchTerm,
-      ...filters
-    };
-
-    const response = await apiService.get('/fields/search', params);
-    return response;
-  },
-
-  // Get field availability
-  getFieldAvailability: async (fieldId, date) => {
-    const response = await apiService.get(`/fields/${fieldId}/availability`, { date });
-    return response;
-  },
-
   // Upload field images
   uploadFieldImages: async (fieldId, imageFiles, options = {}) => {
     const formData = new FormData();
@@ -89,24 +72,6 @@ const fieldService = {
   // Set a field image as main cover (moves it to index 0)
   setFieldCoverImage: async (fieldId, imageId) => {
     const response = await apiService.patch(`/fields/${fieldId}/images/${imageId}/cover`);
-    return response;
-  },
-
-  // Get field ratings
-  getFieldRatings: async (fieldId) => {
-    const response = await apiService.get(`/fields/${fieldId}/ratings`);
-    return response;
-  },
-
-  // Rate a field
-  rateField: async (fieldId, ratingData) => {
-    const response = await apiService.post(`/fields/${fieldId}/rate`, ratingData);
-    return response;
-  },
-
-  // Get field statistics (for owners)
-  getFieldStats: async (fieldId) => {
-    const response = await apiService.get(`/fields/${fieldId}/stats`);
     return response;
   },
 

@@ -57,9 +57,9 @@ const teamService = {
     return response;
   },
 
-  // Get current user's pending invitations
+  // Get current user's pending invitations (from team-members route)
   getMyInvitations: async () => {
-    const response = await apiService.get('/teams/my-invitations');
+    const response = await apiService.get('/team-members/invitations/mine');
     return response;
   },
 
@@ -100,12 +100,6 @@ const teamService = {
       userId,
       role
     });
-    return response;
-  },
-
-  // Get invitations for current user
-  getMyInvitations: async () => {
-    const response = await apiService.get('/team-members/invitations/mine');
     return response;
   },
 

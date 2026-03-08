@@ -1,3 +1,5 @@
+const logger = require('../utils/logger');
+
 class AppError extends Error {
   constructor(message, statusCode) {
     super(message);
@@ -88,16 +90,26 @@ const errorHandler = (error, req, res, next) => {
     err = handleJWTErrors(error);
   }
 
-  // Log error details
-  console.error('Error occurred:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
+  // Log error with context (never log sensitive data like passwords)
+  const errorMeta = {
     method: req.method,
+    path: req.path,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
-  });
+    userId: req.user?.id,
+    statusCode: err.statusCode || 500
+  };
+
+  if (err.isOperational) {
+    // Log operational errors as warnings
+    logger.warn(`Operational Error: ${err.message}`, errorMeta);
+  } else {
+    // Log programming errors
+    logger.error(`Unhandled Error: ${err.message}`, {
+      ...errorMeta,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
 
   // Handle operational errors
   if (err.isOperational) {
@@ -123,7 +135,7 @@ const errorHandler = (error, req, res, next) => {
     });
   }
 
-  // Production error response
+  // Production error response (no stack trace)
   res.status(500).json({
     success: false,
     message: 'Internal server error'

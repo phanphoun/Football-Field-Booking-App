@@ -2,6 +2,7 @@ import apiService from './api';
 
 const bookingService = {
   // Get all bookings (with filters)
+  // NOTE: Backend /bookings already filters by user role, no separate my-bookings endpoint needed
   getAllBookings: async (filters = {}) => {
     const params = {
       page: filters.page || 1,
@@ -30,7 +31,7 @@ const bookingService = {
     return response;
   },
 
-  // Update booking
+  // Update booking status (pending, confirmed, cancelled, completed)
   updateBooking: async (bookingId, bookingData) => {
     const response = await apiService.put(`/bookings/${bookingId}`, bookingData);
     return response;
@@ -42,86 +43,15 @@ const bookingService = {
     return response;
   },
 
-  // Delete booking
-  deleteBooking: async (bookingId) => {
-    const response = await apiService.delete(`/bookings/${bookingId}`);
-    return response;
-  },
-
-  // Get current user's bookings
-  getMyBookings: async (filters = {}) => {
-    const response = await apiService.get('/bookings/my-bookings', filters);
-    return response;
-  },
-
-  // Get bookings for a specific field
-  getFieldBookings: async (fieldId, filters = {}) => {
-    const params = {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      status: filters.status
-    };
-
-    const response = await apiService.get(`/fields/${fieldId}/bookings`, params);
-    return response;
-  },
-
-  // Get bookings for a specific team
-  getTeamBookings: async (teamId, filters = {}) => {
-    const params = {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      status: filters.status
-    };
-
-    const response = await apiService.get(`/teams/${teamId}/bookings`, params);
-    return response;
-  },
-
-  // Check booking availability
-  checkAvailability: async (fieldId, startTime, endTime) => {
-    const response = await apiService.get('/bookings/check-availability', {
-      fieldId,
-      startTime,
-      endTime
-    });
-    return response;
-  },
-
-  // Get booking conflicts
-  getBookingConflicts: async (fieldId, startTime, endTime, excludeBookingId = null) => {
-    const params = {
-      fieldId,
-      startTime,
-      endTime,
-      excludeBookingId
-    };
-
-    const response = await apiService.get('/bookings/conflicts', params);
-    return response;
-  },
-
-  // Confirm booking
+  // Confirm booking (field owner/admin)
   confirmBooking: async (bookingId) => {
     const response = await apiService.put(`/bookings/${bookingId}`, { status: 'confirmed' });
     return response;
   },
 
-  // Complete booking
+  // Complete booking (field owner/admin)
   completeBooking: async (bookingId) => {
     const response = await apiService.put(`/bookings/${bookingId}`, { status: 'completed' });
-    return response;
-  },
-
-  // Field owner/captain/admin: create a match result for a completed booking
-  createMatchResult: async (resultData) => {
-    const response = await apiService.post('/match-results', resultData);
-    return response;
-  },
-
-  // Field owner/captain/admin: update an existing match result
-  updateMatchResult: async (resultId, resultData) => {
-    const response = await apiService.put(`/match-results/${resultId}`, resultData);
     return response;
   },
 
@@ -158,19 +88,6 @@ const bookingService = {
   // Captain (either matched team): cancel a matched pairing
   cancelMatchedOpponent: async (bookingId) => {
     const response = await apiService.patch(`/bookings/${bookingId}/cancel-matched-opponent`);
-    return response;
-  },
-
-  // Get booking statistics
-  getBookingStats: async (filters = {}) => {
-    const params = {
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      fieldId: filters.fieldId,
-      teamId: filters.teamId
-    };
-
-    const response = await apiService.get('/bookings/stats', params);
     return response;
   },
 
