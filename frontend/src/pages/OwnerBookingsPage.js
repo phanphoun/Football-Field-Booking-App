@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   BuildingOfficeIcon,
   CalendarIcon,
@@ -21,6 +21,8 @@ const formatMoney = (value) => {
 };
 
 const OwnerBookingsPage = () => {
+  const [searchParams] = useSearchParams();
+  const fieldIdFilter = searchParams.get('fieldId');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -30,10 +32,12 @@ const OwnerBookingsPage = () => {
   const [expandedMembers, setExpandedMembers] = useState({});
   const [resultDrafts, setResultDrafts] = useState({});
 
-  const refresh = async () => {
-    const res = await bookingService.getAllBookings({ limit: 200 });
+  const refresh = useCallback(async () => {
+    const filters = { limit: 200 };
+    if (fieldIdFilter) filters.fieldId = fieldIdFilter;
+    const res = await bookingService.getAllBookings(filters);
     setBookings(Array.isArray(res.data) ? res.data : []);
-  };
+  }, [fieldIdFilter]);
 
   useEffect(() => {
     const load = async () => {
@@ -48,7 +52,7 @@ const OwnerBookingsPage = () => {
       }
     };
     load();
-  }, []);
+  }, [refresh]);
 
   const counts = useMemo(() => {
     const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
@@ -192,7 +196,10 @@ const OwnerBookingsPage = () => {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Booking requests</h1>
-          <p className="mt-1 text-sm text-gray-600">Confirm, complete, or cancel bookings for your fields.</p>
+          <p className="mt-1 text-sm text-gray-600">
+            Confirm, complete, or cancel bookings for your fields.
+            {fieldIdFilter ? ` (Filtered by field #${fieldIdFilter})` : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button as={Link} to="/owner/fields" variant="outline" size="sm">

@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useMemo } from 'react';
-=======
-import React, { useCallback, useEffect, useState } from 'react';
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon, MapPinIcon, TagIcon, UserIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon, UserIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -16,7 +12,7 @@ const BookingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [openForOpponentsFilter, setOpenForOpponentsFilter] = useState('all');
+  const [openForOpponentsFilter] = useState('all');
   const [toggleLoadingMap, setToggleLoadingMap] = useState({});
   const [cancelMatchedLoadingMap, setCancelMatchedLoadingMap] = useState({});
   const [joinRequestsByBooking, setJoinRequestsByBooking] = useState({});
@@ -84,7 +80,6 @@ const BookingsPage = () => {
   }, [user?.id, user?.role]);
 
   useEffect(() => {
-<<<<<<< HEAD
     const fetchBookings = async () => {
       try {
         setLoading(true);
@@ -193,10 +188,6 @@ const BookingsPage = () => {
 
     fetchBookings();
   }, []);
-=======
-    loadBookings();
-  }, [loadBookings]);
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
 
   const handleCreateBooking = () => {
     navigate('/app/bookings/new');
@@ -304,7 +295,6 @@ const BookingsPage = () => {
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
         actions.push(
-<<<<<<< HEAD
           <Button
             key="confirm"
             size="sm"
@@ -313,20 +303,12 @@ const BookingsPage = () => {
             onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
           >
             <CheckCircleIcon className="h-3 w-3 mr-1" />
-=======
-          <Button key="confirm" size="sm" variant="outline" onClick={() => handleUpdateStatus(booking.id, 'confirmed')}>
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
             Confirm
           </Button>
         );
       }
-<<<<<<< HEAD
       if (canUserCancelBooking) {
-=======
-      if (booking.creator?.id === user?.id || isAdmin()) {
->>>>>>> bdd2869c59a266687036af9c9dd00e8f1c47cb0d
         actions.push(
-<<<<<<< HEAD
           <Button
             key="cancel"
             size="sm"
@@ -336,10 +318,6 @@ const BookingsPage = () => {
           >
             <XCircleIcon className="h-3 w-3 mr-1" />
             Cancel
-=======
-          <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
-            Cancel Booking
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
           </Button>
         );
       }
@@ -355,7 +333,6 @@ const BookingsPage = () => {
 
     if (booking.status === 'confirmed' && (isAdmin() || isFieldOwner())) {
       actions.push(
-<<<<<<< HEAD
         <Button
           key="complete"
           size="sm"
@@ -364,9 +341,6 @@ const BookingsPage = () => {
           onClick={() => handleUpdateStatus(booking.id, 'completed')}
         >
           <CheckCircleIcon className="h-3 w-3 mr-1" />
-=======
-        <Button key="complete" size="sm" variant="outline" onClick={() => handleUpdateStatus(booking.id, 'completed')}>
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
           Complete
         </Button>
       );
@@ -411,15 +385,10 @@ const BookingsPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-<<<<<<< HEAD
           <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
           <p className="mt-2 text-gray-600">
             Manage your football field bookings and reservations
           </p>
-=======
-          <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="mt-1 text-sm text-gray-600">Manage your football field bookings</p>
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
         </div>
         <Button 
           onClick={handleCreateBooking}
@@ -430,7 +399,6 @@ const BookingsPage = () => {
         </Button>
       </div>
 
-<<<<<<< HEAD
       {/* Error Alert */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
@@ -482,54 +450,6 @@ const BookingsPage = () => {
                       </div>
                       <Badge tone={getStatusTone(booking.status)} className="capitalize flex items-center gap-1">
                         {getStatusIcon(booking.status)}
-=======
-      {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
-
-      <Card className="mb-6">
-        <CardBody className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-            >
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-
-            {user?.role === 'captain' && (
-              <>
-                <label className="text-sm font-medium text-gray-700">Opponent Match</label>
-                <select
-                  value={openForOpponentsFilter}
-                  onChange={(e) => setOpenForOpponentsFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                >
-                  <option value="all">All</option>
-                  <option value="open">Open for Opponents</option>
-                  <option value="closed">Not Open</option>
-                </select>
-              </>
-            )}
-          </div>
-        </CardBody>
-      </Card>
-
-      <Card className="overflow-hidden">
-        <div className="divide-y divide-gray-200">
-          {filteredBookings.length > 0 ? (
-            filteredBookings.map((booking) => (
-              <div key={booking.id} className="p-6 hover:bg-gray-50">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center flex-wrap gap-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
-                      <Badge tone={getStatusTone(booking.status)} className="capitalize">
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
                         {booking.status}
                       </Badge>
                       {booking.opponentTeam?.name ? (
@@ -538,13 +458,8 @@ const BookingsPage = () => {
                         <Badge tone="blue">Open for Opponents</Badge>
                       ) : null}
                     </div>
-<<<<<<< HEAD
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
-=======
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
                       <div className="flex items-center">
                         <CalendarIcon className="h-4 w-4 mr-2 text-gray-400" />
                         <span>{formatDate(booking.startTime)}</span>
@@ -553,24 +468,12 @@ const BookingsPage = () => {
                         <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
                         <span>{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</span>
                       </div>
-<<<<<<< HEAD
                       <div className="flex items-center min-w-0">
                         <UsersIcon className="h-4 w-4 mr-1" />
                         <span className="truncate whitespace-nowrap">
                           {booking.team?.name || 'No team'}
                           {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
                         </span>
-=======
-                      <div className="flex items-center">
-<<<<<<< HEAD
-                        <UsersIcon className="h-4 w-4 mr-2 text-gray-400" />
-                        <span>{booking.team?.name || 'No team'}</span>
-=======
-                        <UsersIcon className="h-4 w-4 mr-1" />
-                        {booking.team?.name || 'No team'}
-                        {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
->>>>>>> bdd2869c59a266687036af9c9dd00e8f1c47cb0d
                       </div>
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-4 w-4 mr-2 text-gray-400" />
@@ -579,7 +482,6 @@ const BookingsPage = () => {
                       </div>
                     </div>
 
-<<<<<<< HEAD
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-500">
                         <div className="flex items-center">
@@ -597,11 +499,6 @@ const BookingsPage = () => {
                           <span className="font-medium">Notes:</span> {booking.notes}
                         </div>
                       )}
-=======
-                    <div className="mt-2 text-xs text-gray-500">
-                      Booked by: {booking.creator?.firstName || booking.creator?.username || 'Unknown'} | Created:{' '}
-                      {formatDate(booking.createdAt)}
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
                     </div>
 
                     {booking.status === 'pending' && isCaptainOwner(booking) && (
@@ -724,15 +621,9 @@ const BookingsPage = () => {
                 icon={CalendarIcon}
                 title="No bookings found"
                 description={
-<<<<<<< HEAD
                   statusFilter === 'all' 
                     ? 'Create your first booking to get started.' 
                     : `No ${statusFilter} bookings found.`
-=======
-                  statusFilter === 'all' && openForOpponentsFilter === 'all'
-                    ? 'Create your first booking to get started.'
-                    : 'No bookings found for the selected filters.'
->>>>>>> fd27b642005c637351cc6b78970b5cc95e177268
                 }
                 actionLabel="New Booking"
                 onAction={handleCreateBooking}

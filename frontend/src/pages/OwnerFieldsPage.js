@@ -1,6 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { PhotoIcon } from '@heroicons/react/24/outline';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  PhotoIcon,
+  PlusIcon
+} from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
+import bookingService from '../services/bookingService';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -17,11 +25,48 @@ const emptyForm = {
   capacity: '',
   fieldType: '11v11',
   surfaceType: 'artificial_turf',
+  status: 'available',
   amenities: ''
 };
 
+const PAGE_SIZE = 6;
+
+const statusTone = (status) => {
+  if (status === 'available') return 'green';
+  if (status === 'maintenance') return 'yellow';
+  if (status === 'unavailable') return 'red';
+  return 'gray';
+};
+
+const formatMoney = (value) => {
+  const n = Number(value || 0);
+  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+};
+
+const normalizeImages = (imagesValue) => {
+  if (Array.isArray(imagesValue)) return imagesValue;
+  if (typeof imagesValue === 'string') {
+    try {
+      const parsed = JSON.parse(imagesValue);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+const resolveFieldImageUrl = (rawImage) => {
+  if (!rawImage) return DEFAULT_FIELD_IMAGE;
+  if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
+  if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+  return rawImage;
+};
+
 const OwnerFieldsPage = () => {
+  const navigate = useNavigate();
   const [fields, setFields] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -33,13 +78,22 @@ const OwnerFieldsPage = () => {
   const [imageFiles, setImageFiles] = useState([]);
   const [currentImages, setCurrentImages] = useState([]);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [surfaceFilter, setSurfaceFilter] = useState('all');
+  const [page, setPage] = useState(1);
+
   const refresh = async () => {
-    const res = await fieldService.getMyFields();
-    setFields(Array.isArray(res.data) ? res.data : []);
+    const [fieldsRes, bookingsRes] = await Promise.all([
+      fieldService.getMyFields(),
+      bookingService.getAllBookings({ limit: 500 })
+    ]);
+    setFields(Array.isArray(fieldsRes.data) ? fieldsRes.data : []);
+    setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
   };
 
   useEffect(() => {
-    const fetchFields = async () => {
+    const fetchOwnerFields = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -50,8 +104,57 @@ const OwnerFieldsPage = () => {
         setLoading(false);
       }
     };
-    fetchFields();
+    fetchOwnerFields();
   }, []);
+
+  const bookingStatsByField = useMemo(() => {
+    const map = {};
+    for (const b of bookings) {
+      const fieldId = b?.fieldId;
+      if (!fieldId) continue;
+      if (!map[fieldId]) {
+        map[fieldId] = { total: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+      }
+      map[fieldId].total += 1;
+      if (map[fieldId][b.status] !== undefined) {
+        map[fieldId][b.status] += 1;
+      }
+    }
+    return map;
+  }, [bookings]);
+
+  const statusCounts = useMemo(() => {
+    const base = { all: fields.length, available: 0, maintenance: 0, unavailable: 0 };
+    for (const f of fields) {
+      if (base[f.status] !== undefined) base[f.status] += 1;
+    }
+    return base;
+  }, [fields]);
+
+  const filteredFields = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return fields.filter((f) => {
+      const matchesStatus = statusFilter === 'all' || f.status === statusFilter;
+      const matchesSurface = surfaceFilter === 'all' || f.surfaceType === surfaceFilter;
+      if (!matchesStatus || !matchesSurface) return false;
+
+      if (!query) return true;
+      return [f.name, f.address, f.city, f.province, f.fieldType, f.surfaceType]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(query));
+    });
+  }, [fields, searchTerm, statusFilter, surfaceFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredFields.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const pagedFields = useMemo(() => {
+    const start = (pageSafe - 1) * PAGE_SIZE;
+    return filteredFields.slice(start, start + PAGE_SIZE);
+  }, [filteredFields, pageSafe]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, surfaceFilter]);
 
   const startCreate = () => {
     setSuccessMessage(null);
@@ -80,6 +183,7 @@ const OwnerFieldsPage = () => {
       capacity: field.capacity ?? '',
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
+      status: field.status || 'available',
       amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : ''
     });
   };
@@ -102,26 +206,6 @@ const OwnerFieldsPage = () => {
     setImageFiles(onlyImages.slice(0, 5));
   };
 
-  const normalizeImages = (imagesValue) => {
-    if (Array.isArray(imagesValue)) return imagesValue;
-    if (typeof imagesValue === 'string') {
-      try {
-        const parsed = JSON.parse(imagesValue);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  };
-
-  const resolveFieldImageUrl = (rawImage) => {
-    if (!rawImage) return DEFAULT_FIELD_IMAGE;
-    if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
-    return rawImage;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -139,6 +223,7 @@ const OwnerFieldsPage = () => {
         capacity: Number(form.capacity),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
+        status: form.status,
         amenities: form.amenities
           ? form.amenities
               .split(',')
@@ -180,8 +265,7 @@ const OwnerFieldsPage = () => {
       setError(null);
       setSuccessMessage(null);
       const response = await fieldService.setFieldCoverImage(editingFieldId, imageIndex);
-      const nextImages = normalizeImages(response?.data?.images);
-      setCurrentImages(nextImages);
+      setCurrentImages(normalizeImages(response?.data?.images));
       setSuccessMessage('Cover image updated.');
       await refresh();
     } catch (err) {
@@ -210,24 +294,29 @@ const OwnerFieldsPage = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <Spinner className="h-8 w-8" />
       </div>
     );
   }
 
+  const statusTabs = [
+    { key: 'all', label: 'All Fields', count: statusCounts.all },
+    { key: 'available', label: 'Available', count: statusCounts.available },
+    { key: 'maintenance', label: 'Maintenance', count: statusCounts.maintenance },
+    { key: 'unavailable', label: 'Unavailable', count: statusCounts.unavailable }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Create and manage your football fields.</p>
+          <p className="mt-1 text-sm text-gray-600">Manage field details, status, photos, and bookings from database records.</p>
         </div>
-        <button
-          onClick={startCreate}
-          className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          Add Field
-        </button>
+        <Button onClick={startCreate}>
+          <PlusIcon className="h-4 w-4" />
+          Add New Field
+        </Button>
       </div>
 
       {successMessage && (
@@ -240,6 +329,54 @@ const OwnerFieldsPage = () => {
           {error}
         </div>
       )}
+
+      <Card>
+        <CardBody className="p-4 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {statusTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm ring-1 transition ${
+                  statusFilter === tab.key
+                    ? 'bg-green-600 text-white ring-green-600'
+                    : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span className={statusFilter === tab.key ? 'text-white/80' : 'text-gray-500'}>{tab.count}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3">
+            <div className="relative">
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by field name, city, province, address..."
+                className="w-full rounded-md border border-gray-300 pl-9 pr-3 py-2 text-sm"
+              />
+            </div>
+            <div className="relative">
+              <FunnelIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <select
+                value={surfaceFilter}
+                onChange={(e) => setSurfaceFilter(e.target.value)}
+                className="w-full rounded-md border border-gray-300 pl-9 pr-3 py-2 text-sm"
+              >
+                <option value="all">All Surfaces</option>
+                <option value="artificial_turf">Artificial Turf</option>
+                <option value="natural_grass">Natural Grass</option>
+                <option value="concrete">Concrete</option>
+                <option value="indoor">Indoor</option>
+              </select>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
 
       {(isCreating || editingFieldId) && (
         <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
@@ -345,6 +482,19 @@ const OwnerFieldsPage = () => {
                 <option value="natural_grass">Natural Grass</option>
                 <option value="concrete">Concrete</option>
                 <option value="indoor">Indoor</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Status</label>
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              >
+                <option value="available">Available</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="unavailable">Unavailable</option>
               </select>
             </div>
           </div>
@@ -465,52 +615,119 @@ const OwnerFieldsPage = () => {
         </form>
       )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="divide-y divide-gray-200">
-          {fields.length > 0 ? (
-            fields.map((f) => (
-              <div key={f.id} className="p-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-16 rounded-md overflow-hidden bg-gray-100 border border-gray-200">
-                    <img
-                      src={resolveFieldImageUrl(normalizeImages(f.images)[0])}
-                      alt={f.name}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                          e.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                        }
-                      }}
-                    />
+      {pagedFields.length === 0 ? (
+        <Card>
+          <CardBody className="p-8">
+            <EmptyState
+              icon={PhotoIcon}
+              title="No fields found"
+              description="Try changing your filters, or create your first field."
+              actionLabel="Add New Field"
+              onAction={startCreate}
+            />
+          </CardBody>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {pagedFields.map((field) => {
+            const images = normalizeImages(field.images);
+            const cover = resolveFieldImageUrl(images[0]);
+            const stats = bookingStatsByField[field.id] || { total: 0, pending: 0, confirmed: 0, completed: 0 };
+            return (
+              <Card key={field.id} className="overflow-hidden border border-gray-200">
+                <div className="relative h-40">
+                  <img
+                    src={cover}
+                    alt={field.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      if (e.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                        e.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                      }
+                    }}
+                  />
+                  <div className="absolute top-2 left-2 flex gap-2">
+                    <Badge tone={statusTone(field.status)} className="capitalize">
+                      {field.status || 'unknown'}
+                    </Badge>
+                    <Badge tone="gray">{field.surfaceType || '-'}</Badge>
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{f.name}</div>
-                    <div className="text-xs text-gray-500">
-                      {f.address}, {f.city} - ${f.pricePerHour}/hr
+                </div>
+                <CardBody className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-base font-semibold text-gray-900 truncate">{field.name}</h3>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        {field.address}, {field.city}
+                      </p>
+                    </div>
+                    <div className="text-sm font-semibold text-emerald-600 whitespace-nowrap">
+                      {formatMoney(field.pricePerHour)}/hr
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => startEdit(f)}
-                    className="px-3 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => handleDelete(f.id)}
-                    className="px-3 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="p-10 text-center text-sm text-gray-500">No fields yet.</div>
-          )}
+
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600">
+                    <Badge tone="gray">{field.fieldType || '-'}</Badge>
+                    <Badge tone="gray">Capacity {field.capacity || 0}</Badge>
+                  </div>
+
+                  <div className="mt-3 text-xs text-gray-600">
+                    Bookings: {stats.total} total, {stats.pending} pending, {stats.confirmed} confirmed, {stats.completed} completed
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <Button size="sm" variant="outline" disabled={actionLoading} onClick={() => startEdit(field)}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => navigate(`/owner/bookings?fieldId=${field.id}`)}
+                    >
+                      Bookings
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={actionLoading}
+                      onClick={() => handleDelete(field.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={startCreate}
+            className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors min-h-[290px] flex flex-col items-center justify-center text-center p-6"
+          >
+            <div className="h-10 w-10 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+              <PlusIcon className="h-5 w-5 text-gray-700" />
+            </div>
+            <div className="mt-3 text-sm font-semibold text-gray-900">Add New Field</div>
+            <div className="mt-1 text-xs text-gray-500">Create a new pitch with pricing, capacity, and photos.</div>
+          </button>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div>
+          Showing {(pageSafe - 1) * PAGE_SIZE + (pagedFields.length > 0 ? 1 : 0)} to {(pageSafe - 1) * PAGE_SIZE + pagedFields.length} of {filteredFields.length} fields
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={pageSafe <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            Previous
+          </Button>
+          <span className="text-xs text-gray-600">
+            Page {pageSafe} / {totalPages}
+          </span>
+          <Button size="sm" variant="outline" disabled={pageSafe >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            Next
+          </Button>
         </div>
       </div>
     </div>
