@@ -39,6 +39,12 @@ const authService = {
     return response;
   },
 
+  // Get profile statistics
+  getProfileStats: async () => {
+    const response = await apiService.get('/auth/profile/stats');
+    return response;
+  },
+
   // Update user profile
   updateProfile: async (userData) => {
     const response = await apiService.put('/auth/profile', userData);
@@ -65,6 +71,12 @@ const authService = {
       }
     }
 
+    return response;
+  },
+
+  // Change password
+  changePassword: async (payload) => {
+    const response = await apiService.put('/auth/profile/password', payload);
     return response;
   },
 
@@ -137,6 +149,12 @@ const authService = {
   // Check if user is player
   isPlayer: () => {
     return authService.hasRole('player');
+  },
+
+  // Submit a request to upgrade to field owner
+  requestFieldOwnerRole: async (requestData) => {
+    const response = await apiService.post('/auth/request-field-owner', requestData);
+    return response;
   },
 
   // Get user permissions based on role

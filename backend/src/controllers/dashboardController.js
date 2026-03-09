@@ -75,7 +75,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     ]);
 
     const activeMembershipTeams = await TeamMember.findAll({
-      where: { userId, status: 'active', isActive: true },
+      where: { userId, status: 'accepted', isActive: true },
       attributes: ['teamId'],
       group: ['teamId'],
       raw: true

@@ -105,7 +105,8 @@ const updateProfile = asyncHandler(async (req, res) => {
 const requestFieldOwnerRole = asyncHandler(async (req, res) => {
   try {
     const userId = req.user.id;
-    const result = await authService.requestFieldOwnerRole(userId);
+    const requestData = req.body || {};
+    const result = await authService.requestFieldOwnerRole(userId, requestData);
     
     res.status(201).json({
       success: true,

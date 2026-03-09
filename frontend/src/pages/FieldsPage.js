@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
@@ -11,6 +11,8 @@ const DEFAULT_FIELD_IMAGE =
 
 const FieldsPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const searchInputRef = useRef(null);
   const [fields, setFields] = useState([]);
   const [filteredFields, setFilteredFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,14 @@ const FieldsPage = () => {
     setFilteredFields(filtered);
   }, [fields, searchTerm, fieldTypeFilter, surfaceTypeFilter, maxPriceFilter]);
 
+  useEffect(() => {
+    const focusMode = searchParams.get('focus');
+    if (focusMode !== 'search') return;
+
+    searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    searchInputRef.current?.focus();
+  }, [searchParams]);
+
   const handleBookField = (fieldId) => {
     navigate(`/app/bookings/new?fieldId=${fieldId}`);
   };
@@ -83,8 +93,14 @@ const FieldsPage = () => {
   };
 
   const getRatingDisplay = (rating, totalRatings) => {
-    if (!rating || totalRatings === 0) return 'No rating';
-    return `${rating.toFixed(1)} (${totalRatings} reviews)`;
+    const numericRating = Number(rating);
+    const numericTotalRatings = Number(totalRatings) || 0;
+
+    if (!Number.isFinite(numericRating) || numericRating <= 0 || numericTotalRatings === 0) {
+      return 'No rating';
+    }
+
+    return `${numericRating.toFixed(1)} (${numericTotalRatings} reviews)`;
   };
 
   const resolveFieldImageUrl = (rawImage) => {
@@ -138,6 +154,7 @@ const FieldsPage = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search fields..."
               value={searchTerm}

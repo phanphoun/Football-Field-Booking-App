@@ -120,8 +120,32 @@ const validateUpdateProfile = (req, res, next) => {
   next();
 };
 
+
+const validateFieldOwnerRequest = (req, res, next) => {
+  const { fieldName, location } = req.body;
+  const errors = [];
+
+  if (!fieldName || !fieldName.trim()) {
+    errors.push('Field name is required');
+  }
+  if (!location || !location.trim()) {
+    errors.push('Location is required');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   register: validateRegister,
   login: validateLogin,
-  updateProfile: validateUpdateProfile
+  updateProfile: validateUpdateProfile,
+  requestFieldOwner: validateFieldOwnerRequest
 };

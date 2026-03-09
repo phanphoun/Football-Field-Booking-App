@@ -93,13 +93,9 @@ const teamService = {
     return response;
   },
 
-  // Invite member to team (captain only)
-  inviteMember: async (teamId, userId, role = 'player') => {
-    const response = await apiService.post('/team-members', {
-      teamId,
-      userId,
-      role
-    });
+  // Accept or decline invitation
+  respondToInvitation: async (invitationId, status) => {
+    const response = await apiService.patch(`/team-members/${invitationId}`, { status });
     return response;
   },
 
@@ -150,7 +146,6 @@ const teamService = {
     const response = await apiService.put(`/teams/${teamId}/members/${userId}`, update);
     return response;
   },
-
   // Search teams
   searchTeams: async (searchTerm, filters = {}) => {
     const params = {

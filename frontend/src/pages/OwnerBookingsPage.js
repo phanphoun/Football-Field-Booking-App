@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   BuildingOfficeIcon,
   CalendarIcon,
@@ -21,6 +21,8 @@ const formatMoney = (value) => {
 };
 
 const OwnerBookingsPage = () => {
+  const [searchParams] = useSearchParams();
+  const fieldIdFilter = searchParams.get('fieldId');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
@@ -30,10 +32,12 @@ const OwnerBookingsPage = () => {
   const [expandedMembers, setExpandedMembers] = useState({});
   const [resultDrafts, setResultDrafts] = useState({});
 
-  const refresh = async () => {
-    const res = await bookingService.getAllBookings({ limit: 200 });
+  const refresh = useCallback(async () => {
+    const filters = { limit: 200 };
+    if (fieldIdFilter) filters.fieldId = fieldIdFilter;
+    const res = await bookingService.getAllBookings(filters);
     setBookings(Array.isArray(res.data) ? res.data : []);
-  };
+  }, [fieldIdFilter]);
 
   useEffect(() => {
     const load = async () => {
@@ -48,7 +52,7 @@ const OwnerBookingsPage = () => {
       }
     };
     load();
-  }, []);
+  }, [refresh]);
 
   const counts = useMemo(() => {
     const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
@@ -63,21 +67,25 @@ const OwnerBookingsPage = () => {
     return bookings.filter((b) => b.status === statusFilter);
   }, [bookings, statusFilter]);
 
-  const handleStatus = async (bookingId, nextStatus) => {
+  const handleStatus = async (booking, nextStatus) => {
     try {
-      setUpdatingId(bookingId);
+      setUpdatingId(booking.id);
       setError(null);
 
       if (nextStatus === 'confirmed') {
-        const confirmed = window.confirm('Do you want to confirm booking?');
+        if (!booking?.team?.id || !booking?.opponentTeam?.id) {
+          setError('Match cannot be confirmed until both teams are assigned.');
+          return;
+        }
+        const confirmed = window.confirm('Do you want to confirm this match between two teams?');
         if (!confirmed) return;
-        await bookingService.confirmBooking(bookingId);
+        await bookingService.confirmMatchTeams(booking.id);
       }
-      if (nextStatus === 'completed') await bookingService.completeBooking(bookingId);
+      if (nextStatus === 'completed') await bookingService.completeBooking(booking.id);
       if (nextStatus === 'cancelled') {
         const confirmed = window.confirm('Do you want to cancel booking?');
         if (!confirmed) return;
-        await bookingService.cancelBooking(bookingId);
+        await bookingService.cancelBooking(booking.id);
       }
 
       await refresh();
@@ -188,7 +196,10 @@ const OwnerBookingsPage = () => {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Booking requests</h1>
-          <p className="mt-1 text-sm text-gray-600">Confirm, complete, or cancel bookings for your fields.</p>
+          <p className="mt-1 text-sm text-gray-600">
+            Confirm, complete, or cancel bookings for your fields.
+            {fieldIdFilter ? ` (Filtered by field #${fieldIdFilter})` : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button as={Link} to="/owner/fields" variant="outline" size="sm">
@@ -251,6 +262,7 @@ const OwnerBookingsPage = () => {
                 const isResultEditing = !!resultDrafts[b.id];
                 const resultDraft = resultDrafts[b.id] || getInitialResultDraft(b);
                 const canInputResult = b.status === 'completed' && b.team?.id && b.opponentTeam?.id;
+                const canConfirmMatch = b.status === 'pending' && b.team?.id && b.opponentTeam?.id;
                 const homeTeamName = b.team?.name || 'Home Team';
                 const awayTeamName = b.opponentTeam?.name || 'Away Team';
                 const hasResult = !!b.matchResult?.id;
@@ -375,18 +387,19 @@ const OwnerBookingsPage = () => {
                     <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
                       {b.status === 'pending' && (
                         <>
-                          <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'confirmed')}>
+                          <Button size="sm" disabled={isUpdating || !canConfirmMatch} onClick={() => handleStatus(b, 'confirmed')}>
                             <CheckCircleIcon className="h-4 w-4" />
-                            Confirm
+                            Confirm Match
                           </Button>
-                          <Button size="sm" variant="danger" disabled={isUpdating} onClick={() => handleStatus(b.id, 'cancelled')}>
+                          <Button size="sm" variant="danger" disabled={isUpdating} onClick={() => handleStatus(b, 'cancelled')}>
                             <XCircleIcon className="h-4 w-4" />
                             Cancel
                           </Button>
+                          {!canConfirmMatch && <Badge tone="gray">Need two teams</Badge>}
                         </>
                       )}
                       {b.status === 'confirmed' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b.id, 'completed')}>
+                        <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b, 'completed')}>
                           <CheckCircleIcon className="h-4 w-4" />
                           Complete
                         </Button>

@@ -7,7 +7,9 @@ const { userValidation } = require('../middleware/validation');
 router.post('/register', userValidation.register, authController.register);
 router.post('/login', userValidation.login, authController.login);
 router.get('/profile', auth, authController.getProfile);
+router.get('/profile/stats', auth, authController.getProfileStats);
 router.put('/profile', auth, userValidation.updateProfile, authController.updateProfile);
+router.put('/profile/password', auth, authController.changePassword);
 router.post('/profile/avatar', auth, authController.uploadProfileAvatar);
 router.delete('/profile/avatar', auth, authController.deleteProfileAvatar);
 

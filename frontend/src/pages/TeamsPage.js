@@ -15,7 +15,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
 };
 
 const TeamsPage = () => {
-  const { user, isCaptain, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
@@ -24,7 +24,7 @@ const TeamsPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchTeams = async () => {
+    const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
         const [teamsRes, invitationsRes] = await Promise.all([
@@ -41,11 +41,11 @@ const TeamsPage = () => {
       }
     };
 
-    fetchTeams();
+    fetchTeamsAndInvitations();
   }, [user?.id]);
 
   const handleCreateTeam = () => {
-    navigate('/teams/create');
+    navigate('/app/teams/create');
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -59,28 +59,6 @@ const TeamsPage = () => {
     } catch (err) {
       console.error('Failed to join team:', err);
       setError('Failed to join team');
-    }
-  };
-
-  const extractApiArray = (response) => {
-    if (!response) return [];
-    if (Array.isArray(response.data)) return response.data;
-    if (Array.isArray(response.data?.data)) return response.data.data;
-    if (Array.isArray(response.data?.data?.data)) return response.data.data.data;
-    return [];
-  };
-
-  const handleInvitationDecision = async (invitationId, status) => {
-    try {
-      await teamService.respondToInvitation(invitationId, status);
-      setInvitations((prev) => prev.filter((invitation) => invitation.id !== invitationId));
-
-      const response = await teamService.getAllTeams();
-      const teamsData = extractApiArray(response);
-      setTeams(teamsData);
-    } catch (err) {
-      console.error('Failed to process invitation:', err);
-      setError(`Failed to ${status === 'accepted' ? 'accept' : 'decline'} invitation`);
     }
   };
 
@@ -149,13 +127,13 @@ const TeamsPage = () => {
 
   // eslint-disable-next-line no-unused-vars
   const getMemberCount = (team) => {
-    return team.TeamMembers?.filter(member => member.status === 'active').length || 0;
+    return team.TeamMembers?.filter(member => member.status === 'accepted').length || 0;
   };
 
   // eslint-disable-next-line no-unused-vars
   const isUserInTeam = (team) => {
     return team.TeamMembers?.some(member => 
-      member.userId === user?.id && member.status === 'active'
+      member.userId === user?.id && member.status === 'accepted'
     );
   };
 
@@ -183,7 +161,7 @@ const TeamsPage = () => {
           >
             Browse Teams
           </button>
-          {(isCaptain() || isAdmin()) && (
+          {user && (
             <button
               onClick={handleCreateTeam}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -328,7 +306,7 @@ const TeamsPage = () => {
               >
                 Browse Teams
               </button>
-              {(isCaptain() || isAdmin()) && (
+              {user && (
                 <button
                   onClick={handleCreateTeam}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
