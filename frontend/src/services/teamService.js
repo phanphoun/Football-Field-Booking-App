@@ -57,9 +57,9 @@ const teamService = {
     return response;
   },
 
-  // Get current user's pending invitations
+  // Get current user's pending invitations (from team-members route)
   getMyInvitations: async () => {
-    const response = await apiService.get('/teams/my-invitations');
+    const response = await apiService.get('/team-members/invitations/mine');
     return response;
   },
 
@@ -90,6 +90,16 @@ const teamService = {
   // Add member to team (captain only)
   addMember: async (teamId, memberData) => {
     const response = await apiService.post(`/teams/${teamId}/members`, memberData);
+    return response;
+  },
+
+  // Invite member to team (captain only)
+  addTeamMember: async (teamId, userId, role = 'player') => {
+    const response = await apiService.post('/team-members', {
+      teamId,
+      userId,
+      role
+    });
     return response;
   },
 
@@ -124,7 +134,7 @@ const teamService = {
   },
 
   // Invite a player (captain/admin)
-  inviteMember: async (teamId, inviteData) => {
+  invitePlayer: async (teamId, inviteData) => {
     const response = await apiService.post(`/teams/${teamId}/invite`, inviteData);
     return response;
   },

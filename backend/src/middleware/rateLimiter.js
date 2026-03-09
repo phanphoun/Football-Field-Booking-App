@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const logger = require('../utils/logger');
 
 const createRateLimiter = (windowMs, max, message) => {
   return rateLimit({
@@ -11,12 +12,14 @@ const createRateLimiter = (windowMs, max, message) => {
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
-      console.warn('Rate limit exceeded:', {
+      // Log rate limit violations
+      logger.warn('Rate limit exceeded', {
         ip: req.ip,
-        url: req.url,
-        userAgent: req.get('User-Agent'),
-        timestamp: new Date().toISOString()
+        path: req.path,
+        method: req.method,
+        userAgent: req.get('User-Agent')
       });
+      
       res.status(429).json({
         success: false,
         message: message || 'Too many requests, please try again later'
@@ -25,31 +28,49 @@ const createRateLimiter = (windowMs, max, message) => {
   });
 };
 
-// General API rate limiting (increased for development)
+// Define different limits for development and production
+const limits = {
+  dev: {
+    general: { window: 15 * 60 * 1000, max: 1000 },      // Very lenient for dev
+    auth: { window: 15 * 60 * 1000, max: 1000 },
+    search: { window: 1 * 60 * 1000, max: 300 },
+    create: { window: 1 * 60 * 1000, max: 100 }
+  },
+  production: {
+    general: { window: 15 * 60 * 1000, max: 100 },      // Standard API rate limit
+    auth: { window: 15 * 60 * 1000, max: 5 },           // Strict: 5 attempts per 15 min
+    search: { window: 1 * 60 * 1000, max: 30 },         // 30 searches per minute
+    create: { window: 1 * 60 * 1000, max: 20 }          // 20 creations per minute
+  }
+};
+
+const currentLimits = process.env.NODE_ENV === 'production' ? limits.production : limits.dev;
+
+// General API rate limiting
 const generalLimiter = createRateLimiter(
-  15 * 60 * 1000, // 15 minutes
-  1000, // 1000 requests per window (effectively disabled for dev)
-  'Too many requests from this IP, please try again after 15 minutes'
+  currentLimits.general.window,
+  currentLimits.general.max,
+  'Too many requests from this IP, please try again later'
 );
 
-// Strict rate limiting for authentication routes (disabled for development)
+// Strict rate limiting for authentication routes (prevents brute force)
 const authLimiter = createRateLimiter(
-  15 * 60 * 1000, // 15 minutes
-  1000, // 1000 attempts per window (effectively disabled for dev)
+  currentLimits.auth.window,
+  currentLimits.auth.max,
   'Too many authentication attempts, please try again after 15 minutes'
 );
 
-// Rate limiting for search endpoints (increased for development)
+// Rate limiting for search endpoints
 const searchLimiter = createRateLimiter(
-  1 * 60 * 1000, // 1 minute
-  300, // 300 searches per minute (effectively disabled for dev)
+  currentLimits.search.window,
+  currentLimits.search.max,
   'Too many search requests, please try again after a minute'
 );
 
-// Rate limiting for creation endpoints (increased for development)
+// Rate limiting for creation endpoints
 const createLimiter = createRateLimiter(
-  1 * 60 * 1000, // 1 minute
-  100, // 100 creations per minute (effectively disabled for dev)
+  currentLimits.create.window,
+  currentLimits.create.max,
   'Too many creation requests, please try again after a minute'
 );
 

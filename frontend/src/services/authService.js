@@ -1,26 +1,30 @@
-import apiService from './api';
+import apiService, { clearAuth, fetchCsrfToken } from './api';
 
 const authService = {
-  // Register new user
+  // Register new user (token now in httpOnly cookie)
   register: async (userData) => {
+    // Fetch CSRF token before registration
+    await fetchCsrfToken();
+    
     const response = await apiService.post('/auth/register', userData);
     
-    // Store token and user data
-    if (response.success && response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    // Store user data (token is in httpOnly cookie)
+    if (response.success && response.data?.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     
     return response;
   },
 
-  // Login user
+  // Login user (token now in httpOnly cookie)
   login: async (credentials) => {
+    // Fetch CSRF token before login
+    await fetchCsrfToken();
+    
     const response = await apiService.post('/auth/login', credentials);
     
-    // Store token and user data
-    if (response.success && response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    // Store user data (token is in httpOnly cookie)
+    if (response.success && response.data?.user) {
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
     return response;
@@ -31,9 +35,11 @@ const authService = {
     const response = await apiService.get('/auth/profile');
     
     // Update stored user data
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      localStorage.setItem('user', JSON.stringify(resolvedUser));
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
+        localStorage.setItem('user', JSON.stringify(resolvedUser));
+      }
     }
     
     return response;
@@ -44,9 +50,11 @@ const authService = {
     const response = await apiService.put('/auth/profile', userData);
     
     // Update stored user data
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      localStorage.setItem('user', JSON.stringify(resolvedUser));
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
+        localStorage.setItem('user', JSON.stringify(resolvedUser));
+      }
     }
     
     return response;
@@ -58,9 +66,9 @@ const authService = {
       timeout: 30000
     });
 
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      if (resolvedUser) {
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
         localStorage.setItem('user', JSON.stringify(resolvedUser));
       }
     }
@@ -72,9 +80,9 @@ const authService = {
   deleteAvatar: async () => {
     const response = await apiService.delete('/auth/profile/avatar');
 
-    if (response.success) {
-      const resolvedUser = response.data?.user || response.data;
-      if (resolvedUser) {
+    if (response.success && response.data) {
+      const resolvedUser = response.data.user || response.data;
+      if (resolvedUser && typeof resolvedUser === 'object') {
         localStorage.setItem('user', JSON.stringify(resolvedUser));
       }
     }
@@ -82,29 +90,40 @@ const authService = {
     return response;
   },
 
-  // Logout user
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  // Logout user (clear cookie on backend, clear localStorage)
+  logout: async () => {
+    try {
+      await apiService.post('/auth/logout');
+    } catch (error) {
+      // Logout even if API call fails
+      console.error('Logout error:', error);
+    }
+    // Clear local auth data
+    clearAuth();
   },
 
-  // Check if user is authenticated
+  // Check if user is authenticated (token in cookie, user in localStorage)
   isAuthenticated: () => {
-    const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
-    
-    return !!(token && user);
+    // Token validation happens automatically through cookie
+    return !!user;
   },
 
-  // Get current user
+  // Get current user from localStorage
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    try {
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+      console.error('Failed to parse user from localStorage:', error);
+      return null;
+    }
   },
 
-  // Get auth token
+  // No more getToken - token is in httpOnly cookie and automatic
   getToken: () => {
-    return localStorage.getItem('token');
+    // Token is in secure httpOnly cookie, not accessible from JS
+    return 'token_in_cookie';  // Indicator that token is secure
   },
 
   // Check if user has specific role
@@ -140,9 +159,11 @@ const authService = {
   },
 
   // Get user permissions based on role
-  getPermissions: () => {
-    const user = authService.getCurrentUser();
-    if (!user) return [];
+  getPermissions: (userArg = null) => {
+    const user = userArg || authService.getCurrentUser();
+    if (!user || !user.role) return [
+      'view_fields', 'view_public_teams'
+    ];
 
     const rolePermissions = {
       admin: [

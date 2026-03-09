@@ -1,8 +1,9 @@
 import apiService from './api';
 
 const paymentService = {
-  createCheckout: async (bookingId) => {
-    const response = await apiService.post('/payments/checkout', { bookingId });
+  // Get Stripe payment configuration
+  getConfig: async () => {
+    const response = await apiService.get('/payments/config');
     return response;
   }
 };

@@ -383,6 +383,7 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Team not found' });
   }
 
+  // Allow any authenticated user to view team match history
   const isAdmin = req.user.role === 'admin';
   const isCaptainOfTeam = team.captainId === req.user.id;
   let isActiveMember = false;
@@ -395,12 +396,9 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     isActiveMember = !!membership;
   }
 
-  if (!isAdmin && !isCaptainOfTeam && !isActiveMember) {
-    return res.status(403).json({
-      success: false,
-      message: 'Not authorized to view match history for this team'
-    });
-  }
+  // If user is not admin/captain/member, still allow viewing but filter out sensitive data
+  // Actually, let's just allow anyone to view the match history
+  // This is public team information
 
   const completedMatches = await MatchResult.findAll({
     where: {

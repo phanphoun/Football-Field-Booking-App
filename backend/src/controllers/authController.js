@@ -9,9 +9,33 @@ const serverConfig = require('../config/serverConfig');
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
 
+/**
+ * Helper function to set authentication cookies with httpOnly flag
+ * @param {Response} res - Express response object
+ * @param {number} userId - User ID for token
+ * @param {string} role - User role for token
+ */
+const setAuthCookie = (res, userId, role) => {
+  const token = jwt.sign(
+    { id: userId, role }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+  );
+
+  // Set secure httpOnly cookie (prevents XSS attacks)
+  res.cookie('token', token, {
+    httpOnly: true,                                    // Prevent JavaScript access
+    secure: process.env.NODE_ENV === 'production',   // Only HTTPS in production
+    sameSite: 'strict',                              // CSRF protection
+    maxAge: 60 * 60 * 1000,                          // 1 hour
+    path: '/'
+  });
+
+  return token;
+};
+
 const register = async (req, res) => {
   try {
-    console.log('Registration request body:', req.body);
     const { username, email, password, firstName, lastName, phone, role } = req.body;
     
     // Enhanced validation
@@ -62,14 +86,10 @@ const register = async (req, res) => {
       role: role || 'player'
     });
 
-    // Generate token
-    const token = jwt.sign(
-      { id: user.id, role: user.role }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
+    // Set httpOnly cookie token (not returned in response)
+    setAuthCookie(res, user.id, user.role);
 
-    // Return user data without password
+    // Return user data without password or token
     const userResponse = {
       id: user.id,
       username: user.username,
@@ -87,9 +107,16 @@ const register = async (req, res) => {
       createdAt: user.createdAt
     };
 
-    res.status(201).json({ user: userResponse, token });
+    res.status(201).json({ 
+      success: true,
+      data: { user: userResponse },
+      message: 'Registration successful'
+    });
   } catch (error) {
-    console.error('Registration error:', error);
+    // Don't log full error details in production
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Registration error:', error.message);
+    }
     res.status(500).json({ error: 'Internal server error during registration.' });
   }
 };
@@ -108,31 +135,27 @@ const login = async (req, res) => {
     // Find user by email
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     // Check if user is active
     if (user.status !== 'active') {
-      return res.status(400).json({ error: 'Account is not active. Please contact support.' });
+      return res.status(403).json({ error: 'Account is not active. Please contact support.' });
     }
 
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     // Update last login
     await user.update({ lastLogin: new Date() });
 
-    // Generate token
-    const token = jwt.sign(
-      { id: user.id, role: user.role }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
+    // Set httpOnly cookie token (not returned in response)
+    setAuthCookie(res, user.id, user.role);
 
-    // Return user data without password
+    // Return user data without password or token
     const userResponse = {
       id: user.id,
       username: user.username,
@@ -151,9 +174,15 @@ const login = async (req, res) => {
       createdAt: user.createdAt
     };
 
-    res.json({ user: userResponse, token });
+    res.json({ 
+      success: true,
+      data: { user: userResponse },
+      message: 'Login successful'
+    });
   } catch (error) {
-    console.error('Login error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Login error:', error.message);
+    }
     res.status(500).json({ error: 'Internal server error during login.' });
   }
 };
@@ -168,7 +197,10 @@ const getProfile = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    res.json(user);
+    res.json({ 
+      success: true,
+      data: user
+    });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Internal server error while fetching profile.' });
@@ -406,9 +438,62 @@ const deleteProfileAvatar = async (req, res) => {
   }
 };
 
+const logout = async (req, res) => {
+  try {
+    // Clear the token cookie
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/'
+    });
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error during logout' });
+  }
+};
+
+const refreshToken = async (req, res) => {
+  try {
+    // Token is in the cookie, middleware has already validated it
+    const user = await User.findByPk(req.user.id);
+    
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Generate new token
+    setAuthCookie(res, user.id, user.role);
+
+    // Return updated user
+    const userResponse = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName
+    };
+
+    res.json({
+      success: true,
+      data: { user: userResponse },
+      message: 'Token refreshed'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error refreshing token' });
+  }
+};
+
 module.exports = {
   register,
   login,
+  logout,
+  refreshToken,
   getProfile,
   updateProfile,
   uploadProfileAvatar,

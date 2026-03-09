@@ -184,11 +184,18 @@ const WORLD_CLASS_FACILITIES = [
   { title: 'Equipment Rental', description: 'Balls, bibs & gear', icon: BuildingOfficeIcon, iconBg: 'bg-pink-100', iconTone: 'text-pink-600' },
   { title: 'Lounge Area', description: 'Comfortable waiting space', icon: CalendarIcon, iconBg: 'bg-yellow-100', iconTone: 'text-yellow-700' }
 ];
+const quickLocationOptions = ['Phnom Penh', 'Siem Reap', 'Sihanoukville', 'Battambang'];
 const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Daily Maintenance', className: 'bg-emerald-100 text-emerald-700' },
   { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
+];
+const HOME_STATS = [
+  { label: 'Fields Available', value: '150+', icon: BuildingOfficeIcon, iconBg: 'bg-emerald-100', iconTone: 'text-emerald-600' },
+  { label: 'Happy Players', value: '10K+', icon: UsersIcon, iconBg: 'bg-blue-100', iconTone: 'text-blue-600' },
+  { label: 'Daily Bookings', value: '500+', icon: CalendarIcon, iconBg: 'bg-violet-100', iconTone: 'text-violet-600' },
+  { label: 'Cities Covered', value: '25+', icon: MapPinIcon, iconBg: 'bg-orange-100', iconTone: 'text-orange-600' }
 ];
 const SLOT_DURATION_MINUTES = 60;
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-24';
@@ -219,6 +226,8 @@ const LandingPage = () => {
   const [error, setError] = useState(null);
   const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
   const [quickDate] = useState(toLocalDateKey(new Date()));
+  const [quickLocation, setQuickLocation] = useState('');
+  const [quickTimeSlot, setQuickTimeSlot] = useState('Evening (5PM - 9PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
@@ -333,8 +342,8 @@ const LandingPage = () => {
           // fall through
         }
       }
-      // Handle direct URL string values
-      if (images.startsWith('http://') || images.startsWith('https://')) return images;
+      // Handle direct URL string values or relative paths
+      if (images.startsWith('http://') || images.startsWith('https://') || images.startsWith('/')) return images;
     }
 
     return FIELD_FALLBACK_IMAGE;
@@ -521,6 +530,16 @@ const LandingPage = () => {
     });
     navigate(`/fields?${params.toString()}`);
   };
+
+  const handleQuickSearch = () => {
+    const params = new URLSearchParams({
+      location: quickLocation,
+      date: quickDate,
+      timeSlot: quickTimeSlot
+    });
+    navigate(`/fields?${params.toString()}`);
+  };
+
   return (
     <div className="flex flex-col gap-14">
       <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
@@ -576,7 +595,96 @@ const LandingPage = () => {
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-sm font-semibold text-violet-600">
+            <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
+            <p className="mt-3 text-2xl text-slate-600">Find and book your perfect field in seconds</p>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <MapPinIcon className="h-5 w-5 text-emerald-600" />
+                  Location
+                </label>
+                <select
+                  value={quickLocation}
+                  onChange={(e) => setQuickLocation(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {quickLocationOptions.length > 0 ? (
+                    quickLocationOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">Select location</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <CalendarIcon className="h-5 w-5 text-emerald-600" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={quickDate}
+                  onChange={(e) => setQuickDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <ClockIcon className="h-5 w-5 text-emerald-600" />
+                  Time Slot
+                </label>
+                <select
+                  value={quickTimeSlot}
+                  onChange={(e) => setQuickTimeSlot(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option>Morning (8AM - 12PM)</option>
+                  <option>Afternoon (12PM - 5PM)</option>
+                  <option>Evening (5PM - 9PM)</option>
+                </select>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={handleQuickSearch}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-lg font-semibold text-white shadow-sm hover:bg-slate-900"
+                >
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                  Search Fields
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 py-12 text-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-6 text-center sm:grid-cols-2 sm:px-10 lg:grid-cols-4 lg:px-16">
+          {HOME_STATS.map((item) => (
+            <div key={item.label} className="flex flex-col items-center">
+              <div className={`flex h-20 w-20 items-center justify-center rounded-full ${item.iconBg}`}>
+                <item.icon className={`h-10 w-10 ${item.iconTone}`} />
+              </div>
+              <div className="mt-5 text-5xl font-extrabold leading-none">{item.value}</div>
+              <div className="mt-3 text-3xl font-medium text-white/90">{item.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
               <ArrowTrendingUpIcon className="h-4 w-4" />
               Popular Times
             </span>

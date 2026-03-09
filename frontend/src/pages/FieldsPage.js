@@ -93,14 +93,9 @@ const FieldsPage = () => {
   };
 
   const getRatingDisplay = (rating, totalRatings) => {
-    const numericRating = Number(rating);
-    const numericTotalRatings = Number(totalRatings) || 0;
-
-    if (!Number.isFinite(numericRating) || numericRating <= 0 || numericTotalRatings === 0) {
-      return 'No rating';
-    }
-
-    return `${numericRating.toFixed(1)} (${numericTotalRatings} reviews)`;
+    const numRating = parseFloat(rating);
+    if (!numRating || totalRatings === 0 || isNaN(numRating)) return 'No rating';
+    return `${numRating.toFixed(1)} (${totalRatings} reviews)`;
   };
 
   const resolveFieldImageUrl = (rawImage) => {

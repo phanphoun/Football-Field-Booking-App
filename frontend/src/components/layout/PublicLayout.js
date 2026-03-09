@@ -32,6 +32,7 @@ const PublicLayout = () => {
 
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
   const isHomePage = location.pathname === '/';
 
   React.useEffect(() => {
