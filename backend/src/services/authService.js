@@ -154,16 +154,6 @@ class AuthService {
       throw new Error('You already have field owner access');
     }
     
-    // Find admins to notify
-    const admins = await User.findAll({ 
-      where: { role: 'admin' }, 
-      attributes: ['id'] 
-    });
-    
-    if (admins.length === 0) {
-      throw new Error('No admin found to process this request');
-    }
-    
     // Prepare metadata with extra fields from requestData
     const baseMetadata = {
       requestType: 'field_owner_upgrade',
@@ -171,25 +161,40 @@ class AuthService {
       requesterEmail: user.email,
       requesterName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
       status: 'pending',
+      requestDate: new Date().toISOString(),
       // include any additional info the player submitted
       ...requestData
     };
 
-    // Send notifications to admins
-    const notifications = admins.map(admin => ({
-      userId: admin.id,
-      type: 'system',
-      title: 'Field owner role request',
-      message: `${user.firstName || user.username} requested to become a field owner.`,
-      metadata: baseMetadata
-    }));
-    
+    // Try to find admins to notify
     try {
-      await Promise.all(
-        notifications.map(notification => createInAppNotification(notification))
-      );
-    } catch (error) {
-      console.warn('Failed to send admin notifications:', error.message);
+      const admins = await User.findAll({ 
+        where: { role: 'admin' }, 
+        attributes: ['id'] 
+      });
+      
+      if (admins && admins.length > 0) {
+        // Send notifications to admins
+        const notifications = admins.map(admin => ({
+          userId: admin.id,
+          type: 'system',
+          title: 'Field owner role request',
+          message: `${user.firstName || user.username} requested to become a field owner.`,
+          metadata: baseMetadata
+        }));
+        
+        try {
+          await Promise.all(
+            notifications.map(notification => createInAppNotification(notification))
+          );
+        } catch (notifyError) {
+          console.warn('Failed to send admin notifications:', notifyError.message);
+          // Don't fail the request if notifications fail
+        }
+      }
+    } catch (adminError) {
+      console.warn('Failed to notify admins:', adminError.message);
+      // Don't fail the request if admin lookup fails
     }
     
     return { requested: true, requestData };
