@@ -72,7 +72,7 @@ const League = () => {
     {
       code: 'PL',
       name: 'Premier League',
-      logo: '/logos/Premier League.png'
+      logo: '/logos/PremierLeague.png'
     },
     {
       code: 'PD',
@@ -82,7 +82,7 @@ const League = () => {
     {
       code: 'SA',
       name: 'Serie A',
-      logo: '/logos/Serie A.svg'
+      logo: '/logos/SerieA.svg'
     },
     {
       code: 'BL1',
