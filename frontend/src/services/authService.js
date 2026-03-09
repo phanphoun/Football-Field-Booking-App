@@ -151,6 +151,12 @@ const authService = {
     return authService.hasRole('player');
   },
 
+  // Submit a request to upgrade to field owner
+  requestFieldOwnerRole: async (requestData) => {
+    const response = await apiService.post('/auth/request-field-owner', requestData);
+    return response;
+  },
+
   // Get user permissions based on role
   getPermissions: () => {
     const user = authService.getCurrentUser();

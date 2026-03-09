@@ -161,7 +161,8 @@ const createTeam = asyncHandler(async (req, res) => {
       teamId: team.id,
       userId: req.user.id,
       role: 'captain',
-      status: 'active',
+      status: 'accepted',
+      joinedAt: new Date(),
       isActive: true
     });
 

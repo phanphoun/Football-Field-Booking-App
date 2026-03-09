@@ -143,7 +143,7 @@ class AuthService {
   /**
    * Request field owner role
    */
-  async requestFieldOwnerRole(userId) {
+  async requestFieldOwnerRole(userId, requestData = {}) {
     const user = await User.findByPk(userId);
     
     if (!user) {
@@ -164,19 +164,24 @@ class AuthService {
       throw new Error('No admin found to process this request');
     }
     
+    // Prepare metadata with extra fields from requestData
+    const baseMetadata = {
+      requestType: 'field_owner_upgrade',
+      requesterId: user.id,
+      requesterEmail: user.email,
+      requesterName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+      status: 'pending',
+      // include any additional info the player submitted
+      ...requestData
+    };
+
     // Send notifications to admins
     const notifications = admins.map(admin => ({
       userId: admin.id,
       type: 'system',
       title: 'Field owner role request',
       message: `${user.firstName || user.username} requested to become a field owner.`,
-      metadata: {
-        requestType: 'field_owner_upgrade',
-        requesterId: user.id,
-        requesterEmail: user.email,
-        requesterName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
-        status: 'pending'
-      }
+      metadata: baseMetadata
     }));
     
     try {
@@ -187,7 +192,7 @@ class AuthService {
       console.warn('Failed to send admin notifications:', error.message);
     }
     
-    return { requested: true };
+    return { requested: true, requestData };
   }
   
   /**

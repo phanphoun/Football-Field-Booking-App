@@ -1,4 +1,5 @@
-const { User, Team } = require('../models');
+const { Op } = require('sequelize');
+const { User, Team, TeamMember, Field, Booking } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -233,6 +234,147 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const getProfileStats = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'role', 'createdAt']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const role = user.role;
+    const userId = user.id;
+
+    let totalBookings = 0;
+    let confirmedBookings = 0;
+    let teamsManaged = 0;
+
+    if (role === 'field_owner') {
+      const fields = await Field.findAll({
+        where: { ownerId: userId },
+        attributes: ['id'],
+        raw: true
+      });
+      const fieldIds = fields.map((f) => f.id);
+
+      if (fieldIds.length > 0) {
+        const bookings = await Booking.findAll({
+          where: { fieldId: { [Op.in]: fieldIds } },
+          attributes: ['status', 'teamId', 'opponentTeamId'],
+          raw: true
+        });
+
+        totalBookings = bookings.length;
+        confirmedBookings = bookings.filter(
+          (b) => b.status === 'confirmed' || b.status === 'completed'
+        ).length;
+
+        const teamIds = new Set();
+        for (const b of bookings) {
+          if (b.teamId) teamIds.add(Number(b.teamId));
+          if (b.opponentTeamId) teamIds.add(Number(b.opponentTeamId));
+        }
+        teamsManaged = teamIds.size;
+      }
+    } else if (role === 'captain') {
+      const [captainedTeams, myBookings] = await Promise.all([
+        Team.count({ where: { captainId: userId } }),
+        Booking.findAll({
+          where: { createdBy: userId },
+          attributes: ['status'],
+          raw: true
+        })
+      ]);
+      teamsManaged = captainedTeams;
+      totalBookings = myBookings.length;
+      confirmedBookings = myBookings.filter(
+        (b) => b.status === 'confirmed' || b.status === 'completed'
+      ).length;
+    } else {
+      const [myBookings, myTeams] = await Promise.all([
+        Booking.findAll({
+          where: { createdBy: userId },
+          attributes: ['status'],
+          raw: true
+        }),
+        TeamMember.count({
+          where: { userId, status: 'accepted', isActive: true }
+        })
+      ]);
+
+      totalBookings = myBookings.length;
+      confirmedBookings = myBookings.filter(
+        (b) => b.status === 'confirmed' || b.status === 'completed'
+      ).length;
+      teamsManaged = myTeams;
+    }
+
+    const created = new Date(user.createdAt);
+    const yearsActive =
+      Number.isNaN(created.getTime())
+        ? 0
+        : Number(Math.max(0, (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24 * 365.25)).toFixed(1));
+
+    const fieldEfficiency = totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        role,
+        totalBookings,
+        confirmedBookings,
+        teamsManaged,
+        yearsActive,
+        fieldEfficiency,
+        memberSince: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'
+      }
+    });
+  } catch (error) {
+    console.error('Get profile stats error:', error);
+    res.status(500).json({ error: 'Internal server error while fetching profile stats.' });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'currentPassword and newPassword are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password is incorrect.' });
+    }
+
+    const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
+    if (sameAsCurrent) {
+      return res.status(400).json({ error: 'New password must be different from current password.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await user.update({ password: hashedPassword });
+
+    res.json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error while changing password.' });
+  }
+};
+
 const uploadProfileAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -410,7 +552,9 @@ module.exports = {
   register,
   login,
   getProfile,
+  getProfileStats,
   updateProfile,
+  changePassword,
   uploadProfileAvatar,
   deleteProfileAvatar
 };

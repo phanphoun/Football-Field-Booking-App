@@ -45,6 +45,18 @@ const ProfilePage = () => {
     yearsActive: 0,
     fieldEfficiency: 0
   });
+
+  // request field owner UI state
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestData, setRequestData] = useState({
+    fieldName: '',
+    location: '',
+    phone: '',
+    description: ''
+  });
+  const [requestError, setRequestError] = useState(null);
+  const [requestSuccess, setRequestSuccess] = useState(null);
+  const [requestPending, setRequestPending] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -275,6 +287,43 @@ const ProfilePage = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Handlers for request form
+  const handleRequestChange = (e) => {
+    setRequestData({
+      ...requestData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleRequestSubmit = async (e) => {
+    e.preventDefault();
+    setRequestError(null);
+    setRequestSuccess(null);
+
+    // simple validation
+    if (!requestData.fieldName.trim()) {
+      setRequestError('Field name is required.');
+      return;
+    }
+    if (!requestData.location.trim()) {
+      setRequestError('Location is required.');
+      return;
+    }
+
+    try {
+      const result = await authService.requestFieldOwnerRole(requestData);
+      if (result.success) {
+        setRequestSuccess('Request submitted successfully. Waiting for admin approval.');
+        setRequestPending(true);
+        setShowRequestForm(false);
+      } else {
+        setRequestError(result.message || 'Failed to submit request');
+      }
+    } catch (err) {
+      setRequestError(err.message || 'Failed to submit request');
+    }
+  };
+
   const fullName =
     user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
@@ -345,6 +394,106 @@ const ProfilePage = () => {
       {successMessage && (
         <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           {successMessage}
+        </div>
+      )}
+
+      {/* role upgrade section */}
+      {user && user.role !== 'field_owner' && !user.role.startsWith('admin') && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <h2 className="mb-2 text-base font-semibold text-gray-900">Role Upgrade</h2>
+          {requestPending && (
+            <p className="mb-2 text-sm text-orange-700">Your request is pending approval.</p>
+          )}
+          {requestSuccess && (
+            <p className="mb-2 text-sm text-green-700">{requestSuccess}</p>
+          )}
+          {requestError && (
+            <p className="mb-2 text-sm text-red-700">{requestError}</p>
+          )}
+
+          {!requestPending && !requestSuccess && !showRequestForm && (
+            <button
+              type="button"
+              onClick={() => setShowRequestForm(true)}
+              className="inline-flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+            >
+              Request Field Owner
+            </button>
+          )}
+
+          {showRequestForm && (
+            <form onSubmit={handleRequestSubmit} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="fieldName" className="block text-sm font-medium text-gray-700">
+                  Field Name
+                </label>
+                <input
+                  id="fieldName"
+                  name="fieldName"
+                  value={requestData.fieldName}
+                  onChange={handleRequestChange}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                  Location
+                </label>
+                <input
+                  id="location"
+                  name="location"
+                  value={requestData.location}
+                  onChange={handleRequestChange}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  value={requestData.phone}
+                  onChange={handleRequestChange}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  rows={3}
+                  value={requestData.description}
+                  onChange={handleRequestChange}
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRequestForm(false);
+                    setRequestError(null);
+                  }}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+                >
+                  Submit Request
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
