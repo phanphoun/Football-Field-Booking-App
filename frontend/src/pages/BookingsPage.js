@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon, MapPinIcon, TagIcon, UserIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -168,6 +168,16 @@ const BookingsPage = () => {
     return tones[status] || 'gray';
   };
 
+  const getStatusIcon = (status) => {
+    const icons = {
+      pending: <ClockIcon className="h-4 w-4" />,
+      confirmed: <CheckCircleIcon className="h-4 w-4" />,
+      cancelled: <XCircleIcon className="h-4 w-4" />,
+      completed: <CheckCircleIcon className="h-4 w-4" />
+    };
+    return icons[status] || <ClockIcon className="h-4 w-4" />;
+  };
+
   const getStatusActions = (booking) => {
     const actions = [];
     const canUserCancelBooking =
@@ -184,7 +194,7 @@ const BookingsPage = () => {
           </Button>
         );
       }
-      if (canUserCancelBooking) {
+      if (booking.creator?.id === user?.id || isAdmin()) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
             Cancel Booking
@@ -244,19 +254,20 @@ const BookingsPage = () => {
   }
 
   return (
-    <div>
-      <div className="mb-8 flex items-end justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
           <p className="mt-1 text-sm text-gray-600">Manage your football field bookings</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge tone="gray">{filteredBookings.length} results</Badge>
-          <Button onClick={handleCreateBooking}>
-            <PlusIcon className="h-4 w-4" />
-            New Booking
-          </Button>
-        </div>
+        <Button 
+          onClick={handleCreateBooking}
+          className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+        >
+          <PlusIcon className="h-5 w-5 mr-2" />
+          New Booking
+        </Button>
       </div>
 
       {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
@@ -316,23 +327,22 @@ const BookingsPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
                       <div className="flex items-center">
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        {formatDate(booking.startTime)}
+                        <CalendarIcon className="h-4 w-4 mr-2 text-gray-400" />
+                        <span>{formatDate(booking.startTime)}</span>
                       </div>
                       <div className="flex items-center">
-                        <ClockIcon className="h-4 w-4 mr-1" />
-                        {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+                        <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
+                        <span>{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</span>
                       </div>
-                      <div className="flex items-center min-w-0">
+                      <div className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
-                        <span className="truncate whitespace-nowrap">
-                          {booking.team?.name || 'No team'}
-                          {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
-                        </span>
+                        {booking.team?.name || 'No team'}
+                        {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
                       </div>
                       <div className="flex items-center">
-                        <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                        ${booking.totalPrice} ({calculateDuration(booking.startTime, booking.endTime)}h)
+                        <CurrencyDollarIcon className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="font-medium text-gray-900">${booking.totalPrice}</span>
+                        <span className="text-gray-400 ml-1">({calculateDuration(booking.startTime, booking.endTime)}h)</span>
                       </div>
                     </div>
 
@@ -451,12 +461,12 @@ const BookingsPage = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-2 ml-4">{getStatusActions(booking)}</div>
+                  <div className="flex items-center space-x-2 ml-6">{getStatusActions(booking)}</div>
                 </div>
               </div>
             ))
           ) : (
-            <div className="p-6">
+            <div className="p-12 text-center">
               <EmptyState
                 icon={CalendarIcon}
                 title="No bookings found"
