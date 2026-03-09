@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon, MapPinIcon, TagIcon, UserIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
@@ -168,15 +168,15 @@ const BookingsPage = () => {
     return tones[status] || 'gray';
   };
 
-  const getStatusIcon = (status) => {
-    const icons = {
-      pending: <ClockIcon className="h-4 w-4" />,
-      confirmed: <CheckCircleIcon className="h-4 w-4" />,
-      cancelled: <XCircleIcon className="h-4 w-4" />,
-      completed: <CheckCircleIcon className="h-4 w-4" />
-    };
-    return icons[status] || <ClockIcon className="h-4 w-4" />;
-  };
+  // const getStatusIcon = (status) => {
+  //   const icons = {
+  //     pending: <ClockIcon className="h-4 w-4" />,
+  //     confirmed: <CheckCircleIcon className="h-4 w-4" />,
+  //     cancelled: <XCircleIcon className="h-4 w-4" />,
+  //     completed: <CheckCircleIcon className="h-4 w-4" />
+  //   };
+  //   return icons[status] || <ClockIcon className="h-4 w-4" />;
+  // };
 
   const getStatusActions = (booking) => {
     const actions = [];

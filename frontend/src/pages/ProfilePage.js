@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
@@ -12,11 +13,10 @@ import {
   CalendarIcon,
   ShieldCheckIcon,
   PencilSquareIcon,
-  LockClosedIcon,
+  ArrowRightOnRectangleIcon,
   BookmarkSquareIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -28,11 +28,9 @@ const inputClass =
   'mt-1 block w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500';
 
 const ProfilePage = () => {
-  const { user, updateProfile, uploadAvatar, deleteAvatar, loading } = useAuth();
+  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profileError, setProfileError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -48,10 +46,7 @@ const ProfilePage = () => {
     phone: user?.phone || '',
     address: user?.address || '',
     dateOfBirth: user?.dateOfBirth || '',
-    gender: user?.gender || '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    gender: user?.gender || ''
   });
 
   useEffect(() => {
@@ -146,13 +141,12 @@ const ProfilePage = () => {
     setSuccessMessage(null);
 
     try {
-      const { currentPassword, newPassword, confirmPassword, ...profileData } = formData;
       const payload = {
-        ...profileData,
-        phone: profileData.phone?.trim() || '',
-        address: profileData.address?.trim() || '',
-        dateOfBirth: profileData.dateOfBirth || '',
-        gender: profileData.gender || ''
+        ...formData,
+        phone: formData.phone?.trim() || '',
+        address: formData.address?.trim() || '',
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || ''
       };
 
       const result = await updateProfile(payload);
@@ -164,34 +158,6 @@ const ProfilePage = () => {
       }
     } catch (err) {
       setProfileError(err.error || 'Failed to update profile');
-    }
-  };
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    setProfileError(null);
-    setSuccessMessage(null);
-
-    if (formData.newPassword !== formData.confirmPassword) {
-      setProfileError('New passwords do not match');
-      return;
-    }
-
-    if (formData.newPassword.length < 6) {
-      setProfileError('Password must be at least 6 characters long');
-      return;
-    }
-
-    try {
-      setSuccessMessage('Password change feature coming soon!');
-      setFormData((prev) => ({
-        ...prev,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      }));
-    } catch (err) {
-      setProfileError('Failed to change password');
     }
   };
 
@@ -256,6 +222,13 @@ const ProfilePage = () => {
     }
   };
 
+  const handleLogout = () => {
+    const confirmed = window.confirm('Do you want to logout?');
+    if (!confirmed) return;
+    logout();
+    navigate('/login');
+  };
+
   const getRoleBadgeColor = (role) => {
     const colors = {
       admin: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
@@ -275,10 +248,22 @@ const ProfilePage = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Manage your personal information and account settings
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Manage your personal information and account settings
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+          >
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+            Logout
+          </button>
+        </div>
       </div>
 
       {profileError && (
@@ -525,84 +510,6 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          <div className="bg-white shadow-sm rounded-xl border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 inline-flex items-center gap-2">
-                <LockClosedIcon className="h-5 w-5 text-emerald-600" />
-                Change Password
-              </h3>
-            </div>
-            <div className="p-6">
-              <form onSubmit={handlePasswordChange} className="space-y-6">
-                <div>
-                  <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
-                    Current Password
-                  </label>
-                  <div className="mt-1 relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      id="currentPassword"
-                      name="currentPassword"
-                      value={formData.currentPassword}
-                      onChange={handleChange}
-                      className={`${inputClass} pr-10`}
-                    />
-                    <button type="button" className="absolute inset-y-0 right-0 pr-3 flex items-center" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeSlashIcon className="h-4 w-4 text-gray-400" /> : <EyeIcon className="h-4 w-4 text-gray-400" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-                      New Password
-                    </label>
-                    <div className="mt-1 relative">
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        id="newPassword"
-                        name="newPassword"
-                        value={formData.newPassword}
-                        onChange={handleChange}
-                        className={`${inputClass} pr-10`}
-                      />
-                      <button type="button" className="absolute inset-y-0 right-0 pr-3 flex items-center" onClick={() => setShowNewPassword(!showNewPassword)}>
-                        {showNewPassword ? <EyeSlashIcon className="h-4 w-4 text-gray-400" /> : <EyeIcon className="h-4 w-4 text-gray-400" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                      Confirm New Password
-                    </label>
-                    <div className="mt-1 relative">
-                      <input
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        className={`${inputClass} pr-10`}
-                      />
-                      <button type="button" className="absolute inset-y-0 right-0 pr-3 flex items-center" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                        {showConfirmPassword ? <EyeSlashIcon className="h-4 w-4 text-gray-400" /> : <EyeIcon className="h-4 w-4 text-gray-400" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
-                  >
-                    Change Password
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
         </div>
       </div>
     </div>

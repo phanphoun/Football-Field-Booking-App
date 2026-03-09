@@ -1,18 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { 
+import {
   HomeIcon, 
   BuildingOfficeIcon, 
   UsersIcon, 
   CalendarIcon, 
   UserCircleIcon,
+  Cog6ToothIcon,
   BellAlertIcon,
   CheckIcon,
   ClipboardDocumentCheckIcon,
   EyeIcon,
   InboxIcon,
-  ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
   TrophyIcon
@@ -26,7 +26,7 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const AppLayout = () => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -35,14 +35,21 @@ const AppLayout = () => {
   const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
-  const handleLogout = () => {
-    const confirmed = window.confirm('Do you want to logout?');
-    if (!confirmed) return;
-    logout();
-    navigate('/login');
+  const userDisplayName =
+    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
+  const profileItem = {
+    name: 'Profile',
+    href: '/app/profile',
+    icon: UserCircleIcon,
+    current: location.pathname === '/app/profile'
+  };
+  const settingsItem = {
+    name: 'Settings',
+    href: '/app/settings',
+    icon: Cog6ToothIcon,
+    current: location.pathname === '/app/settings' || location.pathname === '/app/admin/settings'
   };
 
   const navigation = [
@@ -85,28 +92,7 @@ const AppLayout = () => {
             current: location.pathname.startsWith('/app/open-matches')
           }
         ]
-      : []),
-    {
-      name: 'Profile',
-      href: '/app/profile',
-      icon: UserCircleIcon,
-      current: location.pathname === '/app/profile'
-    }
-  ];
-
-  const adminNavigation = [
-    {
-      name: 'Manage Users',
-      href: '/app/admin/users',
-      icon: UsersIcon,
-      current: location.pathname === '/app/admin/users'
-    },
-    {
-      name: 'Settings',
-      href: '/app/admin/settings',
-      icon: HomeIcon,
-      current: location.pathname === '/app/admin/settings'
-    }
+      : [])
   ];
 
   const pageInfo = useMemo(() => {
@@ -120,23 +106,13 @@ const AppLayout = () => {
       { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
       { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
       { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
+      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
       { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
       { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
     return current || { title: 'Football Booking', subtitle: 'Welcome to your workspace' };
   }, [location.pathname]);
-
-  const getUserRoleColor = (role) => {
-    const colors = {
-      admin: 'bg-red-100 text-red-800',
-      field_owner: 'bg-blue-100 text-blue-800',
-      captain: 'bg-green-100 text-green-800',
-      player: 'bg-gray-100 text-gray-800',
-      guest: 'bg-yellow-100 text-yellow-800'
-    };
-    return colors[role] || colors.player;
-  };
 
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Player';
@@ -589,115 +565,146 @@ const AppLayout = () => {
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <nav className="flex-1 space-y-1 px-2 py-4">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    item.current
+                      ? 'bg-green-100 text-green-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon
+                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                      item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
+                    }`}
+                  />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  item.current
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                to={profileItem.href}
                 onClick={() => setSidebarOpen(false)}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
+                  profileItem.current
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                <item.icon
-                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                    item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
+                <img
+                  src={resolveAvatarUrl()}
+                  alt={`${userDisplayName} avatar`}
+                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  onError={(e) => {
+                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    if (e.currentTarget.src !== fallbackUrl) {
+                      e.currentTarget.src = fallbackUrl;
+                    }
+                  }}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{userDisplayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
+                </div>
+              </Link>
+              <Link
+                to={settingsItem.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                  settingsItem.current
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <settingsItem.icon
+                  className={`h-5 w-5 flex-shrink-0 ${
+                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
-                {item.name}
+                {settingsItem.name}
               </Link>
-            ))}
-            
-            {/* Admin navigation */}
-            {isAdmin && (
-              <>
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
-                </div>
-                {adminNavigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      item.current
-                        ? 'bg-red-100 text-red-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        item.current ? 'text-red-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`}
-                    />
-                    {item.name}
-                  </Link>
-                ))}
-              </>
-            )}
-
-
-          </nav>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 overflow-y-auto">
+        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
             <h1 className="text-lg font-semibold text-gray-900">Football Booking</h1>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <nav className="flex-1 space-y-1 px-2 py-4">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    item.current
+                      ? 'bg-green-100 text-green-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <item.icon
+                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                      item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
+                    }`}
+                  />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  item.current
+                to={profileItem.href}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
+                  profileItem.current
                     ? 'bg-green-100 text-green-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <item.icon
-                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                    item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
+                <img
+                  src={resolveAvatarUrl()}
+                  alt={`${userDisplayName} avatar`}
+                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  onError={(e) => {
+                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    if (e.currentTarget.src !== fallbackUrl) {
+                      e.currentTarget.src = fallbackUrl;
+                    }
+                  }}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{userDisplayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
+                </div>
+              </Link>
+              <Link
+                to={settingsItem.href}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                  settingsItem.current
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <settingsItem.icon
+                  className={`h-5 w-5 flex-shrink-0 ${
+                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
-                {item.name}
+                {settingsItem.name}
               </Link>
-            ))}
-            
-            {/* Admin navigation */}
-            {isAdmin && (
-              <>
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <p className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
-                </div>
-                {adminNavigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                      item.current
-                        ? 'bg-red-100 text-red-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                        item.current ? 'text-red-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`}
-                    />
-                    {item.name}
-                  </Link>
-                ))}
-              </>
-            )}
-
-
-          </nav>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -942,61 +949,6 @@ const AppLayout = () => {
                 )}
               </div>
 
-              {/* User menu */}
-              <div
-                className="relative"
-                onMouseEnter={() => setProfileMenuOpen(true)}
-                onMouseLeave={() => setProfileMenuOpen(false)}
-              >
-                <button
-                  type="button"
-                  className="flex items-center space-x-3 rounded-md px-2 py-1 hover:bg-gray-50"
-                  onClick={() => setProfileMenuOpen((prev) => !prev)}
-                >
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user?.firstName} {user?.lastName}
-                    </p>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUserRoleColor(user?.role)}`}>
-                      {formatRole(user?.role)}
-                    </span>
-                  </div>
-                  <img
-                    src={resolveAvatarUrl()}
-                    alt={`${user?.firstName || user?.username || 'User'} avatar`}
-                    className="h-8 w-8 rounded-full object-cover border border-gray-200 bg-gray-100"
-                    onError={(e) => {
-                      const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-                      if (e.currentTarget.src !== fallbackUrl) {
-                        e.currentTarget.src = fallbackUrl;
-                      }
-                    }}
-                  />
-                </button>
-
-                {profileMenuOpen && (
-                  <div className="absolute right-0 top-full pt-2 z-20">
-                    <div className="w-44 rounded-md border border-gray-200 bg-white shadow-lg py-1">
-                      <Link
-                        to="/app/profile"
-                        onClick={() => setProfileMenuOpen(false)}
-                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
-                      >
-                        <UserCircleIcon className="h-4 w-4" />
-                        Profile
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
-                      >
-                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

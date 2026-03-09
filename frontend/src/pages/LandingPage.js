@@ -248,7 +248,6 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
-const SLOT_DURATION_MINUTES = 60;
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-16';
 const toLocalDateKey = (value) => {
   const date = new Date(value);
@@ -269,7 +268,7 @@ const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
 const LandingPage = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isAdmin, isFieldOwner, isCaptain, isPlayer } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [popularTimeSlots, setPopularTimeSlots] = useState(POPULAR_TIME_SLOTS);
@@ -560,15 +559,6 @@ const LandingPage = () => {
     });
   }, [scheduleFields, featuredFields, scheduleEvents]);
 
-  const toMinutes = (time) => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + m;
-  };
-
-  const timelineStart = toMinutes('08:00');
-  const timelineEnd = toMinutes('21:00');
-  const timelineDuration = timelineEnd - timelineStart;
-
   const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
 
   const toFieldRoute = (field) => {
@@ -617,18 +607,6 @@ const LandingPage = () => {
 
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
-  };
-  const findEventsForSlot = (events, slot) => {
-    const slotStart = parseSlotToMinutes(slot);
-    if (!Number.isFinite(slotStart)) return [];
-    const slotEnd = slotStart + SLOT_DURATION_MINUTES;
-    return events.filter(
-      (event) =>
-        Number.isFinite(event.startMinutes) &&
-        Number.isFinite(event.endMinutes) &&
-        event.startMinutes < slotEnd &&
-        event.endMinutes > slotStart
-    );
   };
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';

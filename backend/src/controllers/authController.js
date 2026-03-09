@@ -1,13 +1,36 @@
-const { User, Team } = require('../models');
+const { User, RoleRequest } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const serverConfig = require('../config/serverConfig');
+const { createInAppNotification } = require('../utils/notify');
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
+const REQUESTABLE_ROLES_BY_USER_ROLE = {
+  player: ['captain', 'field_owner'],
+  captain: ['field_owner']
+};
+
+const ROLE_REQUEST_LABELS = {
+  captain: 'captain',
+  field_owner: 'field owner'
+};
+
+const serializeRoleRequest = (roleRequest) => ({
+  id: roleRequest.id,
+  requestedRole: roleRequest.requestedRole,
+  status: roleRequest.status,
+  note: roleRequest.note || '',
+  reviewedBy: roleRequest.reviewedBy,
+  reviewedAt: roleRequest.reviewedAt,
+  createdAt: roleRequest.createdAt,
+  updatedAt: roleRequest.updatedAt
+});
+
+const getAllowedRequestedRoles = (currentRole) => REQUESTABLE_ROLES_BY_USER_ROLE[currentRole] || [];
 
 const register = async (req, res) => {
   try {
@@ -233,6 +256,36 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ error: 'Current password is incorrect.' });
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({ error: 'New password must be different from your current password.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await user.update({ password: hashedPassword });
+
+    res.json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error while changing password.' });
+  }
+};
+
 const uploadProfileAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -406,11 +459,116 @@ const deleteProfileAvatar = async (req, res) => {
   }
 };
 
+const getRoleRequests = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'role']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const requests = await RoleRequest.findAll({
+      where: { requesterId: user.id },
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      currentRole: user.role,
+      availableRoles: getAllowedRequestedRoles(user.role),
+      hasPendingRequest: requests.some((request) => request.status === 'pending'),
+      requests: requests.map(serializeRoleRequest)
+    });
+  } catch (error) {
+    console.error('Get role requests error:', error);
+    res.status(500).json({ error: 'Internal server error while fetching role requests.' });
+  }
+};
+
+const requestRoleUpgrade = async (req, res) => {
+  try {
+    const { requestedRole, note } = req.body;
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'email', 'username', 'firstName', 'lastName', 'role']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const allowedRoles = getAllowedRequestedRoles(user.role);
+    if (!allowedRoles.includes(requestedRole)) {
+      return res.status(400).json({
+        error: 'Your current account cannot request that role.'
+      });
+    }
+
+    const existingPendingRequest = await RoleRequest.findOne({
+      where: {
+        requesterId: user.id,
+        status: 'pending'
+      }
+    });
+
+    if (existingPendingRequest) {
+      return res.status(400).json({
+        error: `You already have a pending request to become a ${ROLE_REQUEST_LABELS[existingPendingRequest.requestedRole]}.`
+      });
+    }
+
+    const roleRequest = await RoleRequest.create({
+      requesterId: user.id,
+      requestedRole,
+      note: note?.trim() || null
+    });
+
+    const admins = await User.findAll({
+      where: { role: 'admin', status: 'active' },
+      attributes: ['id']
+    });
+
+    if (admins.length > 0) {
+      const requesterName =
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email;
+
+      await Promise.allSettled(
+        admins.map((admin) =>
+          createInAppNotification({
+            userId: admin.id,
+            type: 'system',
+            title: `${requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request`,
+            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access.`,
+            metadata: {
+              event: 'role_request',
+              requestId: roleRequest.id,
+              requesterId: user.id,
+              requestedRole,
+              status: 'pending'
+            }
+          })
+        )
+      );
+    }
+
+    res.status(201).json({
+      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted.`,
+      roleRequest: serializeRoleRequest(roleRequest)
+    });
+  } catch (error) {
+    console.error('Request role upgrade error:', error);
+    res.status(500).json({ error: 'Internal server error while submitting role request.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
   updateProfile,
+  changePassword,
+  getRoleRequests,
+  requestRoleUpgrade,
   uploadProfileAvatar,
   deleteProfileAvatar
 };

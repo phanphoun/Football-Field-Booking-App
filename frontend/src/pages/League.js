@@ -9,6 +9,40 @@ import {
 } from '@heroicons/react/24/outline';
 
 const APP_TIMEZONE = process.env.REACT_APP_TIMEZONE || 'Asia/Bangkok';
+const PUBLIC_URL = process.env.PUBLIC_URL || '';
+
+const getPublicAssetUrl = (assetPath) => {
+  const normalizedPath = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+  return `${PUBLIC_URL}${encodeURI(normalizedPath)}`;
+};
+
+const LEAGUES = [
+  {
+    code: 'PL',
+    name: 'Premier League',
+    logo: getPublicAssetUrl('/logos/PremierLeague.png')
+  },
+  {
+    code: 'PD',
+    name: 'La Liga',
+    logo: getPublicAssetUrl('/logos/Laliga.svg')
+  },
+  {
+    code: 'SA',
+    name: 'Serie A',
+    logo: getPublicAssetUrl('/logos/SerieA.svg')
+  },
+  {
+    code: 'BL1',
+    name: 'Bundesliga',
+    logo: getPublicAssetUrl('/logos/Bundesliga.svg')
+  },
+  {
+    code: 'FL1',
+    name: 'Ligue 1',
+    logo: getPublicAssetUrl('/logos/Ligue1.svg')
+  }
+];
 
 const getDatePartsInTimezone = (value, timeZone) => {
   const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -67,34 +101,6 @@ const League = () => {
   const [weekDates] = useState(() => getWeekDateItems());
   const [selectedDateKey, setSelectedDateKey] = useState(() => getWeekDateItems()[1]?.dateISO || '');
   const [loading, setLoading] = useState(false);
-
-  const leagues = [
-    {
-      code: 'PL',
-      name: 'Premier League',
-      logo: '/logos/PremierLeague.png'
-    },
-    {
-      code: 'PD',
-      name: 'La Liga',
-      logo: '/logos/Laliga.svg'
-    },
-    {
-      code: 'SA',
-      name: 'Serie A',
-      logo: '/logos/SerieA.svg'
-    },
-    {
-      code: 'BL1',
-      name: 'Bundesliga',
-      logo: '/logos/Bundesliga.svg'
-    },
-    {
-      code: 'FL1',
-      name: 'Ligue 1',
-      logo: '/logos/Ligue1.svg'
-    }
-  ];
 
   const fetchLeagueData = useCallback(async () => {
     setLoading(true);
@@ -228,7 +234,7 @@ const League = () => {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-1 overflow-x-auto py-2">
-            {leagues.map((league) => (
+            {LEAGUES.map((league) => (
               <button
                 key={league.code}
                 onClick={() => {
