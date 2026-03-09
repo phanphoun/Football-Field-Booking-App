@@ -310,17 +310,21 @@ const ProfilePage = () => {
       return;
     }
 
+    setRequestPending(true);
     try {
       const result = await authService.requestFieldOwnerRole(requestData);
       if (result.success) {
         setRequestSuccess('Request submitted successfully. Waiting for admin approval.');
-        setRequestPending(true);
         setShowRequestForm(false);
+        setRequestData({ fieldName: '', location: '', phone: '', description: '' });
       } else {
-        setRequestError(result.message || 'Failed to submit request');
+        setRequestError(result.error || result.message || 'Failed to submit request');
+        setRequestPending(false);
       }
     } catch (err) {
-      setRequestError(err.message || 'Failed to submit request');
+      console.error('Request error:', err);
+      setRequestError(err.error || err.message || 'Failed to submit request');
+      setRequestPending(false);
     }
   };
 
