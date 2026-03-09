@@ -63,7 +63,21 @@ const createUser = asyncHandler(async (req, res) => {
 
 const updateUser = asyncHandler(async (req, res) => {
   try {
-    const { username, email, firstName, lastName, phone, role } = req.body;
+    const {
+      username,
+      email,
+      firstName,
+      lastName,
+      phone,
+      role,
+      status,
+      avatarUrl,
+      dateOfBirth,
+      gender,
+      address,
+      emailVerified,
+      password
+    } = req.body;
     const user = await User.findByPk(req.params.id);
     
     if (!user) {
@@ -74,17 +88,43 @@ const updateUser = asyncHandler(async (req, res) => {
     if (user.id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized to update this user' });
     }
+
+    const updatePayload = {};
+    const hasOwn = (key) => Object.prototype.hasOwnProperty.call(req.body, key);
+
+    if (hasOwn('username')) updatePayload.username = username;
+    if (hasOwn('email')) updatePayload.email = email;
+    if (hasOwn('firstName')) updatePayload.firstName = firstName;
+    if (hasOwn('lastName')) updatePayload.lastName = lastName;
+    if (hasOwn('role')) updatePayload.role = role;
+    if (hasOwn('status')) updatePayload.status = status;
+    if (hasOwn('emailVerified')) updatePayload.emailVerified = emailVerified;
+    if (hasOwn('phone')) updatePayload.phone = phone ? String(phone).trim() : null;
+    if (hasOwn('avatarUrl')) updatePayload.avatarUrl = avatarUrl ? String(avatarUrl).trim() : null;
+    if (hasOwn('gender')) updatePayload.gender = gender || null;
+    if (hasOwn('address')) updatePayload.address = address ? String(address).trim() : null;
+    if (hasOwn('dateOfBirth')) updatePayload.dateOfBirth = dateOfBirth || null;
+
+    if (hasOwn('password')) {
+      const normalizedPassword = typeof password === 'string' ? password.trim() : '';
+      if (normalizedPassword.length > 0 && normalizedPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters long'
+        });
+      }
+
+      if (normalizedPassword.length >= 6) {
+        updatePayload.password = await bcrypt.hash(normalizedPassword, 12);
+      }
+    }
+
+    await user.update(updatePayload);
+
+    const userJson = user.toJSON();
+    delete userJson.password;
     
-    await user.update({
-      username,
-      email,
-      firstName,
-      lastName,
-      phone,
-      role
-    });
-    
-    res.json({ success: true, data: user });
+    res.json({ success: true, data: userJson });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

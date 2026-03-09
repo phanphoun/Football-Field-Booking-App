@@ -28,6 +28,7 @@ import OwnerBookingsPage from './pages/OwnerBookingsPage';
 import OwnerMatchesPage from './pages/OwnerMatchesPage';
 import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 // Import layout components
 import AppLayout from './components/layout/AppLayout';
@@ -102,7 +103,7 @@ function App() {
                 path="admin/users"
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
-                    <div>Admin Users Page (Coming Soon)</div>
+                    <AdminUsersPage />
                   </ProtectedRoute>
                 }
               />

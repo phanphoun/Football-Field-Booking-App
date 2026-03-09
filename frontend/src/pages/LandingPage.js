@@ -232,6 +232,7 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
+<<<<<<< HEAD
 const HOME_STATS = [
   {
     value: '50+',
@@ -282,6 +283,8 @@ const parseSlotToMinutes = (slot) => {
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
 
+=======
+>>>>>>> 3e942b2003e463ceea0005fd3a551457e1ddef76
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -289,12 +292,18 @@ const LandingPage = () => {
   const [popularFields, setPopularFields] = useState([]);
   const [popularTeams, setPopularTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
   const [error, setError] = useState(null);
   const [activeSocial, setActiveSocial] = useState('facebook');
   const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
   const [quickLocation, setQuickLocation] = useState('');
   const [quickDate, setQuickDate] = useState(toLocalDateKey(new Date()));
   const [quickTimeSlot, setQuickTimeSlot] = useState('Afternoon (12PM - 5PM)');
+=======
+  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
+  const [quickLocation, setQuickLocation] = useState('');
+  const quickDate = new Date().toISOString().slice(0, 10);
+>>>>>>> 3e942b2003e463ceea0005fd3a551457e1ddef76
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
@@ -561,6 +570,7 @@ const LandingPage = () => {
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
   };
+<<<<<<< HEAD
   const findEventForSlot = (events, slot) => {
     const slotStart = parseSlotToMinutes(slot);
     if (!Number.isFinite(slotStart)) return null;
@@ -573,6 +583,8 @@ const LandingPage = () => {
         event.endMinutes > slotStart
     );
   };
+=======
+>>>>>>> 3e942b2003e463ceea0005fd3a551457e1ddef76
 
   const handleQuickSearch = () => {
     const params = new URLSearchParams({
@@ -663,6 +675,7 @@ const LandingPage = () => {
       <section className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-12">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
+<<<<<<< HEAD
             <h2 className="text-5xl font-semibold text-slate-900">Quick Booking</h2>
             <p className="mt-3 text-2xl text-slate-600">Find and book your perfect field in seconds</p>
           </div>
@@ -752,6 +765,9 @@ const LandingPage = () => {
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-base font-semibold text-violet-600">
+=======
+            <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-4 py-1.5 text-sm font-semibold text-violet-600">
+>>>>>>> 3e942b2003e463ceea0005fd3a551457e1ddef76
               <ArrowTrendingUpIcon className="h-4 w-4" />
               Popular Times
             </span>

@@ -39,8 +39,9 @@ const serverConfig = {
     
     // Environment-specific database options
     get options() {
+      const isDbLoggingEnabled = process.env.DB_LOGGING === 'true';
       const baseOptions = {
-        logging: serverConfig.nodeEnv === 'development' ? console.log : false,
+        logging: isDbLoggingEnabled ? console.log : false,
         pool: {
           max: 10,
           min: 0,
@@ -95,6 +96,7 @@ const serverConfig = {
 
   // Logging configuration
   logging: {
+    enabled: process.env.HTTP_LOGGING !== 'false',
     level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'dev'),
     format: process.env.NODE_ENV === 'production' ? 'combined' : 'dev'
   },
