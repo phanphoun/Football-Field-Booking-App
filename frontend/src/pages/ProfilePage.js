@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-import React, { useEffect, useMemo, useState } from 'react';
-=======
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
 import {
@@ -16,11 +12,8 @@ import {
   MapPinIcon,
   EnvelopeIcon,
   ShieldCheckIcon,
-<<<<<<< HEAD
-=======
   PencilSquareIcon,
   ArrowRightOnRectangleIcon,
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   BookmarkSquareIcon,
   UserGroupIcon,
   ClockIcon,
@@ -37,18 +30,9 @@ const inputClass =
   'mt-1 block w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500';
 
 const ProfilePage = () => {
-<<<<<<< HEAD
-  const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, loading } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [showPasswordSection, setShowPasswordSection] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-=======
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   const [profileError, setProfileError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -194,47 +178,6 @@ const ProfilePage = () => {
     }
   };
 
-<<<<<<< HEAD
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    setProfileError(null);
-    setSuccessMessage(null);
-
-    if (formData.newPassword !== formData.confirmPassword) {
-      setProfileError('New passwords do not match');
-      return;
-    }
-
-    if (formData.newPassword.length < 6) {
-      setProfileError('Password must be at least 6 characters long');
-      return;
-    }
-
-    try {
-      const result = await changePassword({
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
-      });
-      if (!result.success) {
-        setProfileError(result.error || 'Failed to change password');
-        return;
-      }
-
-      setSuccessMessage('Password changed successfully!');
-      setFormData((prev) => ({
-        ...prev,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      }));
-      setShowPasswordSection(false);
-    } catch (err) {
-      setProfileError(err?.error || 'Failed to change password');
-    }
-  };
-
-=======
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -296,8 +239,6 @@ const ProfilePage = () => {
     }
   };
 
-<<<<<<< HEAD
-=======
   const handleLogout = () => {
     const confirmed = window.confirm('Do you want to logout?');
     if (!confirmed) return;
@@ -316,7 +257,6 @@ const ProfilePage = () => {
     return colors[role] || colors.guest;
   };
 
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   const formatDate = (dateString) => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
@@ -369,14 +309,6 @@ const ProfilePage = () => {
       : user?.username || 'Unknown User';
 
   return (
-<<<<<<< HEAD
-    <div className="space-y-5">
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="h-20 w-20 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-=======
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -414,7 +346,6 @@ const ProfilePage = () => {
           <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-6">
             <div className="text-center">
               <div className="mx-auto h-28 w-28 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 flex items-center justify-center overflow-hidden border-2 border-emerald-100 shadow-sm">
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
                 {resolvedAvatarUrl ? (
                   <img
                     src={resolvedAvatarUrl}
@@ -757,91 +688,6 @@ const ProfilePage = () => {
           </div>
           <p className="mb-4 text-xs text-gray-500">Profile last updated: {profileLastUpdated}</p>
 
-<<<<<<< HEAD
-          {showPasswordSection && (
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="currentPassword"
-                    name="currentPassword"
-                    value={formData.currentPassword}
-                    onChange={handleChange}
-                    className={`${inputClass} pr-10`}
-                  />
-                  <button type="button" className="absolute inset-y-0 right-0 pr-3" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <EyeSlashIcon className="h-4 w-4 text-gray-400" /> : <EyeIcon className="h-4 w-4 text-gray-400" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      id="newPassword"
-                      name="newPassword"
-                      value={formData.newPassword}
-                      onChange={handleChange}
-                      className={`${inputClass} pr-10`}
-                    />
-                    <button type="button" className="absolute inset-y-0 right-0 pr-3" onClick={() => setShowNewPassword(!showNewPassword)}>
-                      {showNewPassword ? <EyeSlashIcon className="h-4 w-4 text-gray-400" /> : <EyeIcon className="h-4 w-4 text-gray-400" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className={`${inputClass} pr-10`}
-                    />
-                    <button type="button" className="absolute inset-y-0 right-0 pr-3" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                      {showConfirmPassword ? <EyeSlashIcon className="h-4 w-4 text-gray-400" /> : <EyeIcon className="h-4 w-4 text-gray-400" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-              >
-                <LockClosedIcon className="h-4 w-4" />
-                Update Password
-              </button>
-            </form>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900">Need Help?</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Contact our priority field owner support line for assistance.
-          </p>
-          <a
-            href="mailto:support@fieldmanager.com?subject=Field%20Owner%20Support%20Request"
-            className="mt-4 inline-flex w-full items-center justify-center rounded-md border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
-          >
-            Contact Support
-          </a>
-=======
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
         </div>
       </div>
     </div>
