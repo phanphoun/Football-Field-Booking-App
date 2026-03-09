@@ -38,6 +38,11 @@ module.exports = (sequelize, DataTypes) => {
 
       User.hasMany(models.Notification, { foreignKey: 'userId', as: 'notifications' });
 
+      // User can submit role requests and review them as an admin.
+
+      User.hasMany(models.RoleRequest, { foreignKey: 'requesterId', as: 'roleRequests' });
+      User.hasMany(models.RoleRequest, { foreignKey: 'reviewedBy', as: 'reviewedRoleRequests' });
+
       // User can record match results
 
       User.hasMany(models.MatchResult, { foreignKey: 'recordedBy', as: 'recordedMatches' });

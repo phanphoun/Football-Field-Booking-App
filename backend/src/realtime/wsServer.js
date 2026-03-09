@@ -1,5 +1,20 @@
 const jwt = require('jsonwebtoken');
-const { WebSocketServer } = require('ws');
+
+let WebSocketServer = null;
+
+const getWebSocketServerClass = () => {
+  if (WebSocketServer) return WebSocketServer;
+
+  try {
+    ({ WebSocketServer } = require('ws'));
+    return WebSocketServer;
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[ws] ws package is not installed, realtime notifications are disabled');
+    }
+    return null;
+  }
+};
 
 let webSocketServer = null;
 const userConnections = new Map();
@@ -73,7 +88,10 @@ const resolveTokenFromRequest = (request) => {
 const initializeWebSocketServer = (httpServer) => {
   if (webSocketServer) return webSocketServer;
 
-  webSocketServer = new WebSocketServer({
+  const ResolvedWebSocketServer = getWebSocketServerClass();
+  if (!ResolvedWebSocketServer) return null;
+
+  webSocketServer = new ResolvedWebSocketServer({
     server: httpServer,
     path: '/ws'
   });
