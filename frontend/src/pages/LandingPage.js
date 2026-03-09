@@ -266,6 +266,16 @@ const parseSlotToMinutes = (slot) => {
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
+const findEventsForSlot = (events, slot) => {
+  if (!Array.isArray(events)) return [];
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (slotMinutes === null) return [];
+  return events.filter(
+    (event) =>
+      event.startMinutes <= slotMinutes &&
+      slotMinutes < event.endMinutes
+  );
+};
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -275,7 +285,9 @@ const LandingPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
+  const [quickLocation, setQuickLocation] = useState('');
   const [quickDate] = useState(toLocalDateKey(new Date()));
+  const [quickTimeSlot, setQuickTimeSlot] = useState('Afternoon (12PM - 5PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);

@@ -107,6 +107,7 @@ const seedDatabase = async () => {
       role: 'player'
     });
 
+<<<<<<< HEAD
     // Create 10 Fields
     const fields = await Field.bulkCreate([
       {
@@ -298,6 +299,50 @@ const seedDatabase = async () => {
         skillLevel: 'intermediate',
         maxPlayers: 16,
         homeFieldId: fields[4].id,
+=======
+    // Create Teams
+    const team1 = await Team.create({
+      name: 'Downtown FC',
+      description: 'Friendly team playing weekly games.',
+      captainId: captain1.id,
+      skillLevel: 'intermediate',
+      maxPlayers: 15,
+      homeFieldId: field1.id,
+      isActive: true
+    });
+
+    const team2 = await Team.create({
+      name: 'Night Owls United',
+      description: 'Evening matches and competitive spirit.',
+      captainId: captain2.id,
+      skillLevel: 'advanced',
+      maxPlayers: 18,
+      homeFieldId: field2.id,
+      isActive: true
+    });
+
+    // Team memberships (accepted + pending request demo)
+    await TeamMember.bulkCreate([
+      {
+        teamId: team1.id,
+        userId: captain1.id,
+        role: 'captain',
+        status: 'accepted',
+        isActive: true
+      },
+      {
+        teamId: team2.id,
+        userId: captain2.id,
+        role: 'captain',
+        status: 'accepted',
+        isActive: true
+      },
+      {
+        teamId: team1.id,
+        userId: player1.id,
+        role: 'player',
+        status: 'accepted',
+>>>>>>> d5746ce52a439ed414daf7172bea1514c5e889ae
         isActive: true
       },
       {

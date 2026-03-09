@@ -455,6 +455,107 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
+const confirmMatchTeams = async (req, res) => {
+  try {
+    const booking = await Booking.findByPk(req.params.id, {
+      include: [
+        { model: Field, as: 'field' },
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const isOwner = booking.field && booking.field.ownerId === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to confirm this match.'
+      });
+    }
+
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Only pending bookings can be confirmed as a match. Current status: ${booking.status}`
+      });
+    }
+
+    if (!booking.teamId || !booking.opponentTeamId || !booking.team || !booking.opponentTeam) {
+      return res.status(400).json({
+        success: false,
+        message: 'Match cannot be confirmed until both teams are assigned.'
+      });
+    }
+
+    const overlappingConfirmed = await Booking.findOne({
+      where: {
+        id: { [Op.ne]: booking.id },
+        fieldId: booking.fieldId,
+        status: 'confirmed',
+        [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+      }
+    });
+    if (overlappingConfirmed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Another booking is already confirmed for this time slot.'
+      });
+    }
+
+    await booking.update({ status: 'confirmed', isMatchmaking: false });
+
+    const homeTeamName = booking.team.name;
+    const awayTeamName = booking.opponentTeam.name;
+    const recipients = new Set();
+    if (booking.team.captainId) recipients.add(booking.team.captainId);
+    if (booking.opponentTeam.captainId) recipients.add(booking.opponentTeam.captainId);
+
+    if (recipients.size > 0) {
+      await Notification.bulkCreate(
+        Array.from(recipients).map((captainId) => {
+          const isHomeCaptain = Number(captainId) === Number(booking.team.captainId);
+          const ownTeamName = isHomeCaptain ? homeTeamName : awayTeamName;
+          const otherTeamName = isHomeCaptain ? awayTeamName : homeTeamName;
+          return {
+            userId: captainId,
+            title: 'Match confirmed',
+            message: `Your match with ${otherTeamName} has been confirmed.`,
+            type: 'booking',
+            metadata: {
+              event: 'match_teams_confirmed',
+              bookingId: booking.id,
+              fieldId: booking.fieldId,
+              fieldName: booking.field?.name || null,
+              ownTeamName,
+              opponentTeamName: otherTeamName,
+              confirmedByUserId: req.user.id
+            }
+          };
+        })
+      );
+    }
+
+    const refreshed = await Booking.findByPk(booking.id, { include: BOOKING_BASE_INCLUDE });
+    res.json({
+      success: true,
+      data: serializeBooking(refreshed),
+      message: `Match confirmed: ${homeTeamName} vs ${awayTeamName}`
+    });
+  } catch (error) {
+    console.error('Confirm match teams error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm match teams',
+      error: error.message
+    });
+  }
+};
+
 const toggleOpenForOpponents = async (req, res) => {
   try {
     if (!requireCaptainRole(req, res)) return;
@@ -1253,6 +1354,7 @@ module.exports = {
   getBookingSchedule,
   getBookingById,
   updateBookingStatus,
+  confirmMatchTeams,
   toggleOpenForOpponents,
   getOpenMatches,
   requestJoinMatch,

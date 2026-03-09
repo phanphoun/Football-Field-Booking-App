@@ -39,6 +39,12 @@ const authService = {
     return response;
   },
 
+  // Get profile statistics
+  getProfileStats: async () => {
+    const response = await apiService.get('/auth/profile/stats');
+    return response;
+  },
+
   // Update user profile
   updateProfile: async (userData) => {
     const response = await apiService.put('/auth/profile', userData);
@@ -83,6 +89,12 @@ const authService = {
       }
     }
 
+    return response;
+  },
+
+  // Change password
+  changePassword: async (payload) => {
+    const response = await apiService.put('/auth/profile/password', payload);
     return response;
   },
 

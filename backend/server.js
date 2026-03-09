@@ -18,6 +18,7 @@ const bookingRoutes = require('./src/routes/bookingRoutes');
 const teamRoutes = require('./src/routes/teamRoutes');
 const teamMemberRoutes = require('./src/routes/teamMemberRoutes');
 const publicTeamRoutes = require('./src/routes/publicTeamRoutes');
+const publicScheduleRoutes = require('./src/routes/publicScheduleRoutes');
 const matchResultRoutes = require('./src/routes/matchResultRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
@@ -144,6 +145,11 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Ignore browser favicon requests to avoid noisy 404 logs
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 // API Documentation endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -191,6 +197,7 @@ app.use('/api/fields', fieldRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/public/teams', publicTeamRoutes);
+app.use('/api/public/schedule', publicScheduleRoutes);
 app.use('/api/team-members', teamMemberRoutes);
 app.use('/api/match-results', matchResultRoutes);
 app.use('/api/notifications', notificationRoutes);

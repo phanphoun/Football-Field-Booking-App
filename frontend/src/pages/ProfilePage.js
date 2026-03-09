@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import bookingService from '../services/bookingService';
-import teamService from '../services/teamService';
+import authService from '../services/authService';
 import {
-  UserIcon,
   CameraIcon,
+  PencilSquareIcon,
   TrashIcon,
-  EnvelopeIcon,
+  UserIcon,
+  CalendarIcon,
   PhoneIcon,
   MapPinIcon,
-  CalendarIcon,
+  EnvelopeIcon,
   ShieldCheckIcon,
-  PencilSquareIcon,
   ArrowRightOnRectangleIcon,
   BookmarkSquareIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ClockIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -34,10 +35,14 @@ const ProfilePage = () => {
   const [profileError, setProfileError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [stats, setStats] = useState({
     totalBookings: 0,
+    confirmedBookings: 0,
     totalTeams: 0,
-    memberSince: 'Unknown'
+    memberSince: 'Unknown',
+    yearsActive: 0,
+    fieldEfficiency: 0
   });
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
@@ -76,38 +81,28 @@ const ProfilePage = () => {
     let active = true;
 
     const loadStats = async () => {
-      const memberSince = user?.createdAt
-        ? new Date(user.createdAt).toLocaleDateString()
-        : 'Unknown';
-
       try {
-        const [bookingsResult, teamsResult] = await Promise.allSettled([
-          bookingService.getAllBookings({ limit: 1000 }),
-          teamService.getMyTeams()
-        ]);
-
-        const bookings =
-          bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value?.data)
-            ? bookingsResult.value.data
-            : [];
-
-        const teams =
-          teamsResult.status === 'fulfilled' && Array.isArray(teamsResult.value?.data)
-            ? teamsResult.value.data
-            : [];
+        const response = await authService.getProfileStats();
+        const data = response?.data || {};
 
         if (!active) return;
         setStats({
-          totalBookings: bookings.length,
-          totalTeams: teams.length,
-          memberSince
+          totalBookings: Number(data.totalBookings || 0),
+          confirmedBookings: Number(data.confirmedBookings || 0),
+          totalTeams: Number(data.teamsManaged || 0),
+          memberSince: data.memberSince || 'Unknown',
+          yearsActive: Number(data.yearsActive || 0),
+          fieldEfficiency: Number(data.fieldEfficiency || 0)
         });
       } catch {
         if (!active) return;
         setStats({
           totalBookings: 0,
+          confirmedBookings: 0,
           totalTeams: 0,
-          memberSince
+          memberSince: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown',
+          yearsActive: 0,
+          fieldEfficiency: 0
         });
       }
     };
@@ -127,6 +122,16 @@ const ProfilePage = () => {
     const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
     return `${API_ORIGIN}${normalizedPath}`;
   })();
+
+  const yearsActive = useMemo(() => Number(stats.yearsActive || 0), [stats.yearsActive]);
+  const efficiencyScore = useMemo(() => Number(stats.fieldEfficiency || 0), [stats.fieldEfficiency]);
+
+  const profileLastUpdated = useMemo(() => {
+    if (!user?.updatedAt) return 'Unknown';
+    const updated = new Date(user.updatedAt);
+    if (Number.isNaN(updated.getTime())) return 'Unknown';
+    return updated.toLocaleDateString();
+  }, [user?.updatedAt]);
 
   const handleChange = (e) => {
     setFormData({
@@ -245,6 +250,11 @@ const ProfilePage = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const fullName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.username || 'Unknown User';
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -286,229 +296,244 @@ const ProfilePage = () => {
                 {resolvedAvatarUrl ? (
                   <img
                     src={resolvedAvatarUrl}
-                    alt={`${user?.firstName || user?.username || 'User'} avatar`}
+                    alt={`${fullName} avatar`}
                     className="h-full w-full object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
                   />
                 ) : (
-                  <UserIcon className="h-14 w-14 text-emerald-700" />
+                  <UserIcon className="h-10 w-10 text-gray-500" />
                 )}
               </div>
-              <div className="mt-4">
-                <div className="inline-flex items-center gap-3">
-                  <label
-                    title="Upload photo"
-                    aria-label="Upload photo"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors"
-                  >
-                    <CameraIcon className="h-5 w-5" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
+              <label className="absolute -bottom-1 -right-1 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                <CameraIcon className="h-4 w-4" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </label>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{fullName}</h1>
+              <p className="text-sm font-medium text-emerald-600 capitalize">
+                {user?.role?.replace('_', ' ') || 'Guest'}
+              </p>
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500">
+                <ClockIcon className="h-3.5 w-3.5" />
+                Active since {stats.memberSince}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsEditing((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+            >
+              <PencilSquareIcon className="h-4 w-4" />
+              {isEditing ? 'Cancel Edit' : 'Edit Profile'}
+            </button>
+            <button
+              type="button"
+              onClick={handleAvatarDelete}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+            >
+              <TrashIcon className="h-4 w-4" />
+              Remove Photo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {profileError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{profileError}</div>
+      )}
+      {successMessage && (
+        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          {successMessage}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Personal Information</h2>
+
+          {isEditing ? (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="firstName" className="text-xs font-semibold uppercase text-gray-500">
+                    First Name
                   </label>
-                  <button
-                    type="button"
-                    onClick={handleAvatarDelete}
-                    disabled={loading}
-                    title="Remove photo"
-                    aria-label="Remove photo"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
+                  <input id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="text-xs font-semibold uppercase text-gray-500">
+                    Last Name
+                  </label>
+                  <input id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="email" className="text-xs font-semibold uppercase text-gray-500">
+                    Email
+                  </label>
+                  <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="phone" className="text-xs font-semibold uppercase text-gray-500">
+                    Phone
+                  </label>
+                  <input id="phone" name="phone" value={formData.phone} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="dateOfBirth" className="text-xs font-semibold uppercase text-gray-500">
+                    Date of Birth
+                  </label>
+                  <input id="dateOfBirth" name="dateOfBirth" type="date" value={formData.dateOfBirth} onChange={handleChange} className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="gender" className="text-xs font-semibold uppercase text-gray-500">
+                    Gender
+                  </label>
+                  <select id="gender" name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
+                    <option value="">Not specified</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
               </div>
-              <h2 className="mt-4 text-lg font-medium text-gray-900">
-                {user?.firstName && user?.lastName
-                  ? `${user.firstName} ${user.lastName}`
-                  : user?.username || 'Unknown User'}
-              </h2>
-              <p className="text-sm text-gray-500">@{user?.username || 'unknown'}</p>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 ${getRoleBadgeColor(user?.role)}`}>
-                {user?.role || 'guest'}
-              </span>
-            </div>
 
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Account Statistics</h3>
-              <dl className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <dt className="text-gray-500">Member Since</dt>
-                  <dd className="font-medium text-gray-900">{stats.memberSince}</dd>
+              <div>
+                <label htmlFor="address" className="text-xs font-semibold uppercase text-gray-500">
+                  Address
+                </label>
+                <textarea id="address" name="address" rows={3} value={formData.address} onChange={handleChange} className={inputClass} />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Full Name</p>
+                  <p className="text-sm font-medium text-gray-900 inline-flex items-center gap-2">
+                    <UserIcon className="h-4 w-4 text-emerald-600" />
+                    {fullName}
+                  </p>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <dt className="text-gray-500">Total Bookings</dt>
-                  <dd className="font-medium text-gray-900 inline-flex items-center gap-1">
-                    <BookmarkSquareIcon className="h-4 w-4 text-gray-400" />
-                    {stats.totalBookings}
-                  </dd>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Phone Number</p>
+                  <p className="text-sm font-medium text-gray-900 inline-flex items-center gap-2">
+                    <PhoneIcon className="h-4 w-4 text-emerald-600" />
+                    {user?.phone || 'Not specified'}
+                  </p>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <dt className="text-gray-500">Teams Joined</dt>
-                  <dd className="font-medium text-gray-900 inline-flex items-center gap-1">
-                    <UserGroupIcon className="h-4 w-4 text-gray-400" />
-                    {stats.totalTeams}
-                  </dd>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Physical Address</p>
+                  <p className="text-sm font-medium text-gray-900 inline-flex items-start gap-2">
+                    <MapPinIcon className="mt-0.5 h-4 w-4 text-emerald-600" />
+                    <span>{user?.address || 'Not specified'}</span>
+                  </p>
                 </div>
-              </dl>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Account Type</p>
+                  <p className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {user?.role?.replace('_', ' ') || 'guest'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Email Address</p>
+                  <p className="text-sm font-medium text-gray-900 inline-flex items-center gap-2">
+                    <EnvelopeIcon className="h-4 w-4 text-emerald-600" />
+                    {user?.email || 'Not specified'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Date of Birth</p>
+                  <p className="text-sm font-medium text-gray-900 inline-flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-emerald-600" />
+                    {formatDate(user?.dateOfBirth)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500">Gender</p>
+                  <p className="text-sm font-medium capitalize text-gray-900">{user?.gender || 'Not specified'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Account Statistics</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+              <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                <BookmarkSquareIcon className="h-4 w-4 text-blue-500" />
+                Total Bookings
+              </span>
+              <span className="text-sm font-bold text-gray-900">{stats.totalBookings}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+              <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                <UserGroupIcon className="h-4 w-4 text-violet-500" />
+                Teams Managed
+              </span>
+              <span className="text-sm font-bold text-gray-900">{stats.totalTeams}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+              <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                <ShieldCheckIcon className="h-4 w-4 text-orange-500" />
+                Years Active
+              </span>
+              <span className="text-sm font-bold text-gray-900">{yearsActive}</span>
+            </div>
+            <div className="pt-2">
+              <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                <span>Field Efficiency</span>
+                <span className="font-semibold text-emerald-600">{efficiencyScore}%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-gray-200">
+                <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${efficiencyScore}%` }} />
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white shadow-sm rounded-xl border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 inline-flex items-center gap-2">
-                  <PencilSquareIcon className="h-5 w-5 text-emerald-600" />
-                  Personal Information
-                </h3>
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  {isEditing ? 'Cancel' : 'Edit'}
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {isEditing ? (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                        First Name
-                      </label>
-                      <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                        Last Name
-                      </label>
-                      <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                      Email Address
-                    </label>
-                    <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                        Phone Number
-                      </label>
-                      <input type="tel" id="phone" name="phone" value={formData.phone} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">
-                        Date of Birth
-                      </label>
-                      <input type="date" id="dateOfBirth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
-                      Gender
-                    </label>
-                    <select id="gender" name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
-                      <option value="">Not specified</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                      Address
-                    </label>
-                    <textarea id="address" name="address" rows={3} value={formData.address} onChange={handleChange} className={inputClass} />
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 border border-transparent rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
-                    >
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <dl className="space-y-4">
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <UserIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Full Name</dt>
-                      <dd className="text-sm text-gray-900">
-                        {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Not specified'}
-                      </dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <EnvelopeIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Email</dt>
-                      <dd className="text-sm text-gray-900">{user?.email || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <PhoneIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                      <dd className="text-sm text-gray-900">{user?.phone || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <MapPinIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Address</dt>
-                      <dd className="text-sm text-gray-900">{user?.address || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <CalendarIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Date of Birth</dt>
-                      <dd className="text-sm text-gray-900">{formatDate(user?.dateOfBirth)}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <ShieldCheckIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Account Type</dt>
-                      <dd className="text-sm text-gray-900 capitalize">{user?.role || 'guest'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <UserIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Gender</dt>
-                      <dd className="text-sm text-gray-900 capitalize">{user?.gender || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                </dl>
-              )}
-            </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-900">Security & Password</h2>
+            <button
+              type="button"
+              onClick={() => setShowPasswordSection((prev) => !prev)}
+              className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+            >
+              {showPasswordSection ? 'Close' : 'Change Password'}
+            </button>
           </div>
+          <p className="mb-4 text-xs text-gray-500">Profile last updated: {profileLastUpdated}</p>
 
         </div>
       </div>
