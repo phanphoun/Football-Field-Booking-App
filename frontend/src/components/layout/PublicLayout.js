@@ -5,13 +5,15 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '../ui';
 
 const PublicLayout = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+  const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
+  const showAuthenticatedActions = !loading && isAuthenticated && hasResolvedUser;
 
   const handleLogout = () => {
     const confirmed = window.confirm('Do you want to logout?');
@@ -87,7 +89,7 @@ const PublicLayout = () => {
                 {mobileOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
               </button>
 
-              {isAuthenticated ? (
+              {showAuthenticatedActions ? (
                 <>
                   <Button as={Link} to={dashboardHref} variant="outline" size="sm" className="hidden sm:inline-flex">
                     Go to Dashboard
@@ -127,7 +129,7 @@ const PublicLayout = () => {
               </div>
 
               <div className="pt-3 flex gap-2">
-                {isAuthenticated ? (
+                {showAuthenticatedActions ? (
                   <>
                     <Button as={Link} to={dashboardHref} variant="outline" size="sm" className="flex-1">
                       Dashboard

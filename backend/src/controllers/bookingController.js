@@ -1086,6 +1086,167 @@ const cancelMatchedOpponent = async (req, res) => {
   }
 };
 
+const POPULAR_SLOT_WINDOWS = [
+  { startHour: 8, endHour: 10, label: 'Morning Session' },
+  { startHour: 10, endHour: 12, label: 'Late Morning' },
+  { startHour: 12, endHour: 14, label: 'Lunch Break' },
+  { startHour: 14, endHour: 16, label: 'Afternoon Session' },
+  { startHour: 16, endHour: 18, label: 'After Work' },
+  { startHour: 18, endHour: 20, label: 'Evening Prime Time' },
+  { startHour: 20, endHour: 22, label: 'Night Session' }
+];
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const toTwoDigits = (value) => String(value).padStart(2, '0');
+
+const formatSlotTime = (startHour, endHour) => `${toTwoDigits(startHour)}:00 - ${toTwoDigits(endHour)}:00`;
+
+const rateToTone = (rate) => {
+  if (rate >= 75) return 'limited';
+  if (rate >= 50) return 'moderate';
+  if (rate >= 25) return 'available';
+  return 'cool';
+};
+
+const rateToStatus = (rate) => {
+  if (rate >= 75) return 'Limited';
+  if (rate >= 50) return 'Moderate';
+  if (rate >= 25) return 'Available';
+  return 'Cool';
+};
+
+const toLocalMs = (dateValue, timezoneOffsetMinutes) => {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getTime() - timezoneOffsetMinutes * 60 * 1000;
+};
+
+const getStartOfLocalDayMs = (localMs) => {
+  const localDate = new Date(localMs);
+  return Date.UTC(localDate.getUTCFullYear(), localDate.getUTCMonth(), localDate.getUTCDate());
+};
+
+const calculateOverlapMinutes = (startA, endA, startB, endB) => {
+  const overlap = Math.min(endA, endB) - Math.max(startA, startB);
+  return overlap > 0 ? Math.floor(overlap / 60000) : 0;
+};
+
+// Public booking statistics for landing page (no auth required)
+const getPublicBookingStats = async (req, res) => {
+  try {
+    const lookbackDays = clamp(Number(req.query.lookbackDays) || 30, 1, 365);
+    const top = clamp(Number(req.query.top) || 4, 1, POPULAR_SLOT_WINDOWS.length);
+    const timezoneOffsetMinutes = Number(req.query.timezoneOffsetMinutes) || 0;
+    const statuses = String(req.query.statuses || 'confirmed,completed')
+      .split(',')
+      .map((status) => status.trim())
+      .filter((status) => ['pending', 'confirmed', 'cancelled', 'completed'].includes(status));
+    const effectiveStatuses = statuses.length > 0 ? statuses : ['confirmed', 'completed'];
+
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (lookbackDays - 1));
+
+    const [bookings, totalFields] = await Promise.all([
+      Booking.findAll({
+        attributes: ['id', 'fieldId', 'startTime', 'endTime'],
+        where: {
+          status: { [Op.in]: effectiveStatuses },
+          startTime: { [Op.gte]: since }
+        },
+        order: [['startTime', 'DESC']]
+      }),
+      Field.count({
+        where: {
+          status: { [Op.ne]: 'maintenance' }
+        }
+      })
+    ]);
+
+    const populatedSlots = POPULAR_SLOT_WINDOWS.map((slot) => ({
+      ...slot,
+      time: formatSlotTime(slot.startHour, slot.endHour),
+      bookedMinutes: 0,
+      bookingCount: 0
+    }));
+
+    const slotDurationMinutes = 120;
+
+    bookings.forEach((booking) => {
+      const localStartMs = toLocalMs(booking.startTime, timezoneOffsetMinutes);
+      const localEndMs = toLocalMs(booking.endTime, timezoneOffsetMinutes);
+      if (localStartMs === null || localEndMs === null || localEndMs <= localStartMs) return;
+
+      const startDayMs = getStartOfLocalDayMs(localStartMs);
+      const endDayMs = getStartOfLocalDayMs(localEndMs);
+
+      for (let dayMs = startDayMs; dayMs <= endDayMs; dayMs += 24 * 60 * 60 * 1000) {
+        const dayStartMs = dayMs;
+        const dayEndMs = dayMs + 24 * 60 * 60 * 1000;
+        const bookingSegmentStart = Math.max(localStartMs, dayStartMs);
+        const bookingSegmentEnd = Math.min(localEndMs, dayEndMs);
+        if (bookingSegmentEnd <= bookingSegmentStart) continue;
+
+        populatedSlots.forEach((slot) => {
+          const slotStartMs = dayStartMs + slot.startHour * 60 * 60 * 1000;
+          const slotEndMs = dayStartMs + slot.endHour * 60 * 60 * 1000;
+          const overlapMinutes = calculateOverlapMinutes(bookingSegmentStart, bookingSegmentEnd, slotStartMs, slotEndMs);
+          if (overlapMinutes > 0) {
+            slot.bookedMinutes += overlapMinutes;
+            slot.bookingCount += 1;
+          }
+        });
+      }
+    });
+
+    const possibleMinutesPerSlot = Math.max(totalFields, 1) * lookbackDays * slotDurationMinutes;
+
+    const timeSlots = populatedSlots
+      .map((slot) => {
+        const rate = Math.round((slot.bookedMinutes / possibleMinutesPerSlot) * 100);
+        const normalizedRate = clamp(rate, 0, 100);
+
+        return {
+          time: slot.time,
+          label: slot.label,
+          rate: normalizedRate,
+          status: rateToStatus(normalizedRate),
+          tone: rateToTone(normalizedRate),
+          bookingCount: slot.bookingCount,
+          bookedMinutes: slot.bookedMinutes,
+          startHour: slot.startHour,
+          endHour: slot.endHour
+        };
+      })
+      .sort((a, b) => {
+        if (b.bookedMinutes !== a.bookedMinutes) return b.bookedMinutes - a.bookedMinutes;
+        return a.startHour - b.startHour;
+      })
+      .slice(0, top);
+
+    res.json({
+      success: true,
+      data: {
+        timeSlots,
+        meta: {
+          lookbackDays,
+          totalFields,
+          totalBookings: bookings.length,
+          statuses: effectiveStatuses,
+          timezoneOffsetMinutes
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get public booking stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch booking statistics',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getBookings,
@@ -1097,5 +1258,6 @@ module.exports = {
   requestJoinMatch,
   getBookingJoinRequests,
   respondToJoinRequest,
-  cancelMatchedOpponent
+  cancelMatchedOpponent,
+  getPublicBookingStats
 };

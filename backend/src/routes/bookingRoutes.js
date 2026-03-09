@@ -6,6 +6,9 @@ const auth = require('../middleware/auth');
 const checkRole = require('../middleware/role');
 const { bookingValidation, idValidation } = require('../middleware/validation');
 
+// Public route for landing page statistics (no auth required)
+router.get('/public/stats', bookingController.getPublicBookingStats);
+
 router.post('/', auth, checkRole(['player', 'captain', 'admin']), ...bookingValidation.create, bookingController.createBooking);
 router.get('/', auth, bookingController.getBookings);
 router.get('/schedule', auth, bookingController.getBookingSchedule);
