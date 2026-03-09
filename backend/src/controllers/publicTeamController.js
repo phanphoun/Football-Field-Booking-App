@@ -43,27 +43,27 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
 const getRatingSummaries = async (teamIds = []) => {
   if (!teamIds.length) return {};
 
-  const [rows, recentRows] = await Promise.all([
-    Rating.findAll({
-      where: { teamIdRated: { [Op.in]: teamIds } },
-      attributes: [
-        'teamIdRated',
-        [Rating.sequelize.fn('AVG', Rating.sequelize.col('rating')), 'avgRating'],
-        [Rating.sequelize.fn('COUNT', Rating.sequelize.col('id')), 'totalRatings']
-      ],
-      group: ['teamIdRated'],
-      raw: true
-    }),
-    Rating.findAll({
-      where: {
-        teamIdRated: { [Op.in]: teamIds },
-        review: { [Op.ne]: null }
-      },
-      attributes: ['teamIdRated', 'review', 'createdAt'],
-      order: [['createdAt', 'DESC']],
-      raw: true
-    })
-  ]);
+  // use raw query for aggregation to avoid ONLY_FULL_GROUP_BY errors
+  const rows = await Rating.sequelize.query(
+    `SELECT teamIdRated, AVG(rating) AS avgRating, COUNT(id) AS totalRatings
+     FROM ratings
+     WHERE teamIdRated IN (:ids)
+     GROUP BY teamIdRated`,
+    {
+      replacements: { ids: teamIds },
+      type: Rating.sequelize.QueryTypes.SELECT
+    }
+  );
+
+  const recentRows = await Rating.findAll({
+    where: {
+      teamIdRated: { [Op.in]: teamIds },
+      review: { [Op.ne]: null }
+    },
+    attributes: ['teamIdRated', 'review', 'createdAt'],
+    order: [['createdAt', 'DESC']],
+    raw: true
+  });
 
   const byTeam = {};
   for (const row of rows) {
@@ -125,11 +125,13 @@ const getPublicTeams = async (req, res) => {
       data: teams.map((t) => mapPublicTeam(t, summaries[Number(t.id)]))
     });
   } catch (error) {
-    console.error('Get public teams error:', error);
+    console.error('Get public teams error:', error, error.stack);
+    // propagate full error details for debugging
     res.status(500).json({
       success: false,
       message: 'Failed to fetch teams',
-      error: error.message
+      error: error.message || 'Database operation failed',
+      details: error.stack
     });
   }
 };
