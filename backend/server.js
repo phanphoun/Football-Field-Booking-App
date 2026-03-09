@@ -114,7 +114,9 @@ if (serverConfig.security.rateLimiting.enabled) {
 }
 
 // Logging middleware
-app.use(morgan(serverConfig.logging.format));
+if (serverConfig.logging.enabled) {
+  app.use(morgan(serverConfig.logging.format));
+}
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from 'react';
+=======
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
 import {
@@ -11,12 +16,16 @@ import {
   MapPinIcon,
   EnvelopeIcon,
   ShieldCheckIcon,
+<<<<<<< HEAD
+=======
+  PencilSquareIcon,
+  ArrowRightOnRectangleIcon,
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   BookmarkSquareIcon,
   UserGroupIcon,
   ClockIcon,
   LockClosedIcon
 } from '@heroicons/react/24/outline';
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -28,12 +37,18 @@ const inputClass =
   'mt-1 block w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500';
 
 const ProfilePage = () => {
+<<<<<<< HEAD
   const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, loading } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+=======
+  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
+  const navigate = useNavigate();
+  const [isEditing, setIsEditing] = useState(false);
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   const [profileError, setProfileError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -64,10 +79,7 @@ const ProfilePage = () => {
     phone: user?.phone || '',
     address: user?.address || '',
     dateOfBirth: user?.dateOfBirth || '',
-    gender: user?.gender || '',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    gender: user?.gender || ''
   });
 
   useEffect(() => {
@@ -162,13 +174,12 @@ const ProfilePage = () => {
     setSuccessMessage(null);
 
     try {
-      const { currentPassword, newPassword, confirmPassword, ...profileData } = formData;
       const payload = {
-        ...profileData,
-        phone: profileData.phone?.trim() || '',
-        address: profileData.address?.trim() || '',
-        dateOfBirth: profileData.dateOfBirth || '',
-        gender: profileData.gender || ''
+        ...formData,
+        phone: formData.phone?.trim() || '',
+        address: formData.address?.trim() || '',
+        dateOfBirth: formData.dateOfBirth || '',
+        gender: formData.gender || ''
       };
 
       const result = await updateProfile(payload);
@@ -183,6 +194,7 @@ const ProfilePage = () => {
     }
   };
 
+<<<<<<< HEAD
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     setProfileError(null);
@@ -221,6 +233,8 @@ const ProfilePage = () => {
     }
   };
 
+=======
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -282,6 +296,27 @@ const ProfilePage = () => {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const handleLogout = () => {
+    const confirmed = window.confirm('Do you want to logout?');
+    if (!confirmed) return;
+    logout();
+    navigate('/login');
+  };
+
+  const getRoleBadgeColor = (role) => {
+    const colors = {
+      admin: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
+      field_owner: 'bg-sky-50 text-sky-700 border border-sky-100',
+      captain: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+      player: 'bg-amber-50 text-amber-700 border border-amber-100',
+      guest: 'bg-gray-100 text-gray-700 border border-gray-200'
+    };
+    return colors[role] || colors.guest;
+  };
+
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   const formatDate = (dateString) => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();
@@ -334,12 +369,52 @@ const ProfilePage = () => {
       : user?.username || 'Unknown User';
 
   return (
+<<<<<<< HEAD
     <div className="space-y-5">
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="h-20 w-20 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+=======
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Manage your personal information and account settings
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+          >
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+            Logout
+          </button>
+        </div>
+      </div>
+
+      {profileError && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
+          {profileError}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
+          {successMessage}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-6">
+            <div className="text-center">
+              <div className="mx-auto h-28 w-28 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 flex items-center justify-center overflow-hidden border-2 border-emerald-100 shadow-sm">
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
                 {resolvedAvatarUrl ? (
                   <img
                     src={resolvedAvatarUrl}
@@ -682,6 +757,7 @@ const ProfilePage = () => {
           </div>
           <p className="mb-4 text-xs text-gray-500">Profile last updated: {profileLastUpdated}</p>
 
+<<<<<<< HEAD
           {showPasswordSection && (
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div>
@@ -764,6 +840,8 @@ const ProfilePage = () => {
           >
             Contact Support
           </a>
+=======
+>>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
         </div>
       </div>
     </div>

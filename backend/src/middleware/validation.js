@@ -97,6 +97,34 @@ const userValidation = {
       .isIn(['male', 'female', 'other'])
       .withMessage('Gender must be one of: male, female, other'),
     handleValidationErrors
+  ],
+
+  requestRoleUpgrade: [
+    body('requestedRole')
+      .notEmpty()
+      .withMessage('Requested role is required')
+      .isIn(['captain', 'field_owner'])
+      .withMessage('Requested role must be captain or field_owner'),
+    body('note')
+      .optional({ checkFalsy: true })
+      .isLength({ max: 500 })
+      .withMessage('Note must be less than 500 characters'),
+    handleValidationErrors
+  ],
+
+  changePassword: [
+    body('currentPassword')
+      .notEmpty()
+      .withMessage('Current password is required'),
+    body('newPassword')
+      .isLength({ min: 6 })
+      .withMessage('New password must be at least 6 characters long'),
+    body('confirmPassword')
+      .notEmpty()
+      .withMessage('Please confirm your new password')
+      .custom((value, { req }) => value === req.body.newPassword)
+      .withMessage('New passwords do not match'),
+    handleValidationErrors
   ]
 };
 
