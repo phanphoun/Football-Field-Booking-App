@@ -162,6 +162,7 @@ const createTeam = asyncHandler(async (req, res) => {
       userId: req.user.id,
       role: 'captain',
       status: 'active',
+      joinedAt: new Date(),
       isActive: true
     });
 
@@ -525,6 +526,7 @@ const addTeamMember = asyncHandler(async (req, res) => {
   if (existing) {
     await existing.update({
       status: 'active',
+      joinedAt: existing.joinedAt || new Date(),
       isActive: true,
       role: role || existing.role
     });
@@ -536,6 +538,7 @@ const addTeamMember = asyncHandler(async (req, res) => {
     userId: parsedUserId,
     role: role || 'player',
     status: 'active',
+    joinedAt: new Date(),
     isActive: true
   });
 
@@ -593,6 +596,9 @@ const updateTeamMember = asyncHandler(async (req, res) => {
   if (status !== undefined) {
     updateData.status = status;
     updateData.isActive = status === 'active';
+    if (status === 'active') {
+      updateData.joinedAt = membership.joinedAt || new Date();
+    }
   }
   if (role !== undefined) updateData.role = role;
 
@@ -900,7 +906,7 @@ const acceptInvite = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'No pending invitation found' });
   }
 
-  await membership.update({ status: 'active', isActive: true });
+  await membership.update({ status: 'active', joinedAt: membership.joinedAt || new Date(), isActive: true });
   const inviteeName = await getUserDisplayName(req.user.id);
   await Notification.create({
     userId: team.captainId,

@@ -101,7 +101,8 @@ const getMyInvitations = asyncHandler(async (req, res) => {
   const invitations = await TeamMember.findAll({
     where: {
       userId: req.user.id,
-      status: 'pending'
+      status: 'pending',
+      isActive: false
     },
     include: [
       {
@@ -176,7 +177,7 @@ const createTeamMember = asyncHandler(async (req, res) => {
       role: role || 'player',
       status: 'pending',
       joinedAt: null,
-      isActive: true
+      isActive: false
     });
 
     await Notification.create({
@@ -226,10 +227,10 @@ const updateTeamMember = asyncHandler(async (req, res) => {
 
 const respondToInvitation = asyncHandler(async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['accepted', 'declined'];
+  const validStatuses = ['active', 'inactive'];
 
   if (!validStatuses.includes(status)) {
-    return res.status(400).json({ success: false, message: 'Status must be accepted or declined' });
+    return res.status(400).json({ success: false, message: 'Status must be active or inactive' });
   }
 
   const teamMemberRecord = await resolveTeamMemberFromIdentifier(req.params.id);
@@ -263,7 +264,7 @@ const respondToInvitation = asyncHandler(async (req, res) => {
 
   if (isInvitationExpired(teamMember)) {
     await teamMember.update({
-      status: 'declined',
+      status: 'inactive',
       joinedAt: null,
       isActive: false
     });
@@ -275,8 +276,8 @@ const respondToInvitation = asyncHandler(async (req, res) => {
 
   const updatedTeamMember = await teamMember.update({
     status,
-    joinedAt: status === 'accepted' ? new Date() : null,
-    isActive: status === 'accepted'
+    joinedAt: status === 'active' ? new Date() : null,
+    isActive: status === 'active'
   });
 
   if (isRecipient && teamCaptainId && teamCaptainId !== req.user.id) {

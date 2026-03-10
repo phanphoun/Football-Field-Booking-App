@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPinIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { hasGoogleMapsApiKey, loadGoogleMaps } from './googleMapsLoader';
 import { loadLeaflet } from './leafletLoader';
 
@@ -78,6 +78,48 @@ const reverseGeocodeWithOsm = async (latitude, longitude) => {
   };
 };
 
+const geocodeAddressWithGoogle = async (maps, query) => {
+  const geocoder = new maps.Geocoder();
+  const response = await geocoder.geocode({ address: query });
+  const result = Array.isArray(response.results) ? response.results[0] : null;
+
+  if (!result?.geometry?.location) {
+    throw new Error('Location search failed.');
+  }
+
+  const latitude = Number(result.geometry.location.lat().toFixed(8));
+  const longitude = Number(result.geometry.location.lng().toFixed(8));
+  return reverseGeocodeWithGoogle(maps, latitude, longitude);
+};
+
+const geocodeAddressWithOsm = async (query) => {
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('q', query);
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      Accept: 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Location search failed.');
+  }
+
+  const results = await response.json();
+  const match = Array.isArray(results) ? results[0] : null;
+
+  if (!match?.lat || !match?.lon) {
+    throw new Error('No matching location found.');
+  }
+
+  const latitude = Number(Number(match.lat).toFixed(8));
+  const longitude = Number(Number(match.lon).toFixed(8));
+  return reverseGeocodeWithOsm(latitude, longitude);
+};
+
 const FieldLocationPicker = ({ value, onChange }) => {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -91,6 +133,13 @@ const FieldLocationPicker = ({ value, onChange }) => {
   const [mapError, setMapError] = useState('');
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [searchQuery, setSearchQuery] = useState(value?.address || '');
+
+  useEffect(() => {
+    if (value?.address) {
+      setSearchQuery(value.address);
+    }
+  }, [value?.address]);
 
   useEffect(() => {
     let active = true;
@@ -141,6 +190,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
 
             try {
               const nextLocation = await reverseGeocodeWithGoogle(maps, latitude, longitude);
+              setSearchQuery(nextLocation.address || '');
               onChange(nextLocation);
             } catch (error) {
               setLocationError(error.message || 'Could not read address from the map.');
@@ -186,7 +236,31 @@ const FieldLocationPicker = ({ value, onChange }) => {
         }).addTo(mapRef.current);
 
         if (hasCoordinates) {
-          markerRef.current = L.marker(center).addTo(mapRef.current);
+          markerRef.current = L.marker(center, { draggable: true }).addTo(mapRef.current);
+          markerRef.current.on('dragend', async (event) => {
+            const latitude = Number(event.target.getLatLng().lat.toFixed(8));
+            const longitude = Number(event.target.getLatLng().lng.toFixed(8));
+
+            setLocationLoading(true);
+            setLocationError('');
+            try {
+              const nextLocation = await reverseGeocodeWithOsm(latitude, longitude);
+              setSearchQuery(nextLocation.address || '');
+              onChange(nextLocation);
+            } catch (error) {
+              setLocationError(error.message || 'Could not read address from the map.');
+              onChange({
+                latitude,
+                longitude,
+                address: '',
+                city: '',
+                province: '',
+                label: ''
+              });
+            } finally {
+              setLocationLoading(false);
+            }
+          });
         }
 
         mapRef.current.on('click', async (event) => {
@@ -194,16 +268,42 @@ const FieldLocationPicker = ({ value, onChange }) => {
           const longitude = Number(event.latlng.lng.toFixed(8));
 
           if (!markerRef.current) {
-            markerRef.current = L.marker([latitude, longitude]).addTo(mapRef.current);
+            markerRef.current = L.marker([latitude, longitude], { draggable: true }).addTo(mapRef.current);
+            markerRef.current.on('dragend', async (dragEvent) => {
+              const nextLat = Number(dragEvent.target.getLatLng().lat.toFixed(8));
+              const nextLng = Number(dragEvent.target.getLatLng().lng.toFixed(8));
+
+              setLocationLoading(true);
+              setLocationError('');
+              try {
+                const nextLocation = await reverseGeocodeWithOsm(nextLat, nextLng);
+                setSearchQuery(nextLocation.address || '');
+                onChange(nextLocation);
+              } catch (error) {
+                setLocationError(error.message || 'Could not read address from the map.');
+                onChange({
+                  latitude: nextLat,
+                  longitude: nextLng,
+                  address: '',
+                  city: '',
+                  province: '',
+                  label: ''
+                });
+              } finally {
+                setLocationLoading(false);
+              }
+            });
           } else {
             markerRef.current.setLatLng([latitude, longitude]);
           }
 
+          mapRef.current.setView([latitude, longitude], Math.max(mapRef.current.getZoom(), 15));
           setLocationLoading(true);
           setLocationError('');
 
           try {
             const nextLocation = await reverseGeocodeWithOsm(latitude, longitude);
+            setSearchQuery(nextLocation.address || '');
             onChange(nextLocation);
           } catch (error) {
             setLocationError(error.message || 'Could not read address from the map.');
@@ -255,6 +355,30 @@ const FieldLocationPicker = ({ value, onChange }) => {
           map,
           draggable: true
         });
+        markerRef.current.addListener('dragend', async (dragEvent) => {
+          const lat = Number(dragEvent.latLng.lat().toFixed(8));
+          const lng = Number(dragEvent.latLng.lng().toFixed(8));
+
+          setLocationLoading(true);
+          setLocationError('');
+          try {
+            const nextLocation = await reverseGeocodeWithGoogle(mapsApiRef.current, lat, lng);
+            setSearchQuery(nextLocation.address || '');
+            onChange(nextLocation);
+          } catch (error) {
+            setLocationError(error.message || 'Could not read address from the map.');
+            onChange({
+              latitude: lat,
+              longitude: lng,
+              address: '',
+              city: '',
+              province: '',
+              label: ''
+            });
+          } finally {
+            setLocationLoading(false);
+          }
+        });
       } else if (markerRef.current) {
         markerRef.current.setPosition(nextLatLng);
       }
@@ -264,11 +388,91 @@ const FieldLocationPicker = ({ value, onChange }) => {
     const nextLatLng = [latitude, longitude];
     map.setView(nextLatLng, 15);
     if (!markerRef.current && window.L) {
-      markerRef.current = window.L.marker(nextLatLng).addTo(map);
+      markerRef.current = window.L.marker(nextLatLng, { draggable: true }).addTo(map);
+      markerRef.current.on('dragend', async (dragEvent) => {
+        const nextLat = Number(dragEvent.target.getLatLng().lat.toFixed(8));
+        const nextLng = Number(dragEvent.target.getLatLng().lng.toFixed(8));
+
+        setLocationLoading(true);
+        setLocationError('');
+        try {
+          const nextLocation = await reverseGeocodeWithOsm(nextLat, nextLng);
+          setSearchQuery(nextLocation.address || '');
+          onChange(nextLocation);
+        } catch (error) {
+          setLocationError(error.message || 'Could not read address from the map.');
+          onChange({
+            latitude: nextLat,
+            longitude: nextLng,
+            address: '',
+            city: '',
+            province: '',
+            label: ''
+          });
+        } finally {
+          setLocationLoading(false);
+        }
+      });
     } else if (markerRef.current?.setLatLng) {
       markerRef.current.setLatLng(nextLatLng);
     }
-  }, [value?.latitude, value?.longitude]);
+  }, [onChange, value?.latitude, value?.longitude]);
+
+  const handleSearchLocation = async () => {
+    const query = String(searchQuery || '').trim();
+    if (!query) {
+      setLocationError('Enter a place or address to search.');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationError('');
+
+    try {
+      const nextLocation =
+        providerRef.current === 'google'
+          ? await geocodeAddressWithGoogle(
+              mapsApiRef.current || (await loadGoogleMaps()),
+              query
+            )
+          : await geocodeAddressWithOsm(query);
+
+      onChange(nextLocation);
+    } catch (error) {
+      setLocationError(error.message || 'Could not find that location.');
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleClearLocation = () => {
+    setLocationError('');
+    setSearchQuery('');
+    onChange({
+      latitude: '',
+      longitude: '',
+      address: '',
+      city: '',
+      province: '',
+      label: ''
+    });
+
+    if (providerRef.current === 'google' && markerRef.current?.setMap) {
+      markerRef.current.setMap(null);
+      markerRef.current = null;
+      mapRef.current?.setCenter(DEFAULT_CENTER);
+      mapRef.current?.setZoom(DEFAULT_ZOOM);
+      return;
+    }
+
+    if (providerRef.current === 'leaflet') {
+      if (markerRef.current?.remove) {
+        markerRef.current.remove();
+      }
+      markerRef.current = null;
+      mapRef.current?.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], DEFAULT_ZOOM);
+    }
+  };
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
@@ -293,6 +497,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
                   longitude
                 )
               : await reverseGeocodeWithOsm(latitude, longitude);
+          setSearchQuery(nextLocation.address || '');
           onChange(nextLocation);
         } catch (error) {
           setLocationError(error.message || 'Could not read address from the map.');
@@ -321,17 +526,60 @@ const FieldLocationPicker = ({ value, onChange }) => {
         <div>
           <h3 className="text-base font-semibold text-slate-900">Location</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Click on the map to capture the field address automatically.
+            Search for a place, click the map, or drag the pin to fine-tune the field address.
             {!hasGoogleMapsApiKey ? ' Using fallback map until a Google Maps key is added.' : ''}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleUseMyLocation}
-          className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          Use My Location
-        </button>
+        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+          {providerRef.current === 'google' ? 'Google Maps' : 'OpenStreetMap'}
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleSearchLocation();
+                }
+              }}
+              className="block w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-sm text-slate-900"
+              placeholder="Search address, district, or landmark"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleSearchLocation}
+              disabled={locationLoading}
+              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {locationLoading ? 'Searching...' : 'Search'}
+            </button>
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={locationLoading}
+              className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Use My Location
+            </button>
+            <button
+              type="button"
+              onClick={handleClearLocation}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <XMarkIcon className="h-4 w-4" />
+              Clear
+            </button>
+          </div>
+        </div>
       </div>
 
       {mapError ? (
@@ -340,7 +588,15 @@ const FieldLocationPicker = ({ value, onChange }) => {
         </div>
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-slate-200 shadow-sm">
-          <div ref={mapElementRef} className="h-[320px] w-full bg-slate-100" />
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+            <span>Tip: click anywhere to place the pin, then drag it for exact positioning.</span>
+            {Number.isFinite(Number(value?.latitude)) && Number.isFinite(Number(value?.longitude)) && (
+              <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
+                Location selected
+              </span>
+            )}
+          </div>
+          <div ref={mapElementRef} className="h-[360px] w-full bg-slate-100" />
         </div>
       )}
 
