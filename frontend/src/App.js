@@ -13,6 +13,7 @@ import TeamsPage from './pages/TeamsPage';
 import BookingsPage from './pages/BookingsPage';
 import CreateBookingPage from './pages/CreateBookingPage';
 import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import PublicTeamsPage from './pages/PublicTeamsPage';
 import PublicTeamDetailsPage from './pages/PublicTeamDetailsPage';
@@ -56,7 +57,7 @@ function App() {
             <Route
               path="/app"
               element={
-                <ProtectedRoute allowedRoles={['guest', 'player', 'captain', 'field_owner', 'admin']}>
+                <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
                   <AppLayout />
                 </ProtectedRoute>
               }
@@ -69,7 +70,7 @@ function App() {
               <Route
                 path="teams/create"
                 element={
-                  <ProtectedRoute allowedRoles={['guest', 'player', 'captain', 'field_owner', 'admin']}>
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
                     <TeamCreatePage />
                   </ProtectedRoute>
                 }
@@ -79,7 +80,7 @@ function App() {
               <Route
                 path="teams/:id/manage"
                 element={
-                  <ProtectedRoute allowedRoles={['guest', 'player', 'captain', 'field_owner', 'admin']}>
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
                     <TeamManagePage />
                   </ProtectedRoute>
                 }
@@ -96,6 +97,7 @@ function App() {
               />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="settings" element={<SettingsPage />} />
 
               {/* Admin-only (optional/minimal) */}
               <Route
@@ -109,9 +111,7 @@ function App() {
               <Route
                 path="admin/settings"
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <div>Admin Settings Page (Coming Soon)</div>
-                  </ProtectedRoute>
+                  <Navigate to="/app/settings" replace />
                 }
               />
             </Route>
@@ -120,7 +120,7 @@ function App() {
             <Route
               path="/owner"
               element={
-                <ProtectedRoute allowedRoles={['field_owner', 'admin']}>
+                <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/">
                   <OwnerLayout />
                 </ProtectedRoute>
               }

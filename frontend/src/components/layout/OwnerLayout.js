@@ -7,7 +7,6 @@ import {
   CalendarIcon,
   TrophyIcon,
   UserCircleIcon,
-  ArrowRightOnRectangleIcon,
   Bars3Icon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
@@ -17,11 +16,10 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const OwnerLayout = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [flash, setFlash] = useState(null);
 
   const pageInfo = React.useMemo(() => {
@@ -37,11 +35,13 @@ const OwnerLayout = () => {
     return current || { title: 'Owner Panel', subtitle: 'Manage your field business' };
   }, [location.pathname]);
 
-  const handleLogout = () => {
-    const confirmed = window.confirm('Do you want to logout?');
-    if (!confirmed) return;
-    logout();
-    navigate('/login');
+  const userDisplayName =
+    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
+  const profileItem = {
+    name: 'Profile',
+    href: '/owner/profile',
+    icon: UserCircleIcon,
+    current: location.pathname === '/owner/profile'
   };
 
   const navigation = [
@@ -68,25 +68,8 @@ const OwnerLayout = () => {
       href: '/owner/matches',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/matches')
-    },
-    {
-      name: 'Profile',
-      href: '/owner/profile',
-      icon: UserCircleIcon,
-      current: location.pathname === '/owner/profile'
     }
   ];
-
-  const getUserRoleColor = (role) => {
-    const colors = {
-      admin: 'bg-red-100 text-red-800',
-      field_owner: 'bg-blue-100 text-blue-800',
-      captain: 'bg-green-100 text-green-800',
-      player: 'bg-gray-100 text-gray-800',
-      guest: 'bg-yellow-100 text-yellow-800'
-    };
-    return colors[role] || colors.field_owner;
-  };
 
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : 'Field Owner';
@@ -135,56 +118,115 @@ const OwnerLayout = () => {
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  item.current
-                    ? 'bg-blue-100 text-blue-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon
-                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                    item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <nav className="flex-1 space-y-1 px-2 py-4">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    item.current
+                      ? 'bg-blue-100 text-blue-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon
+                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                      item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                    }`}
+                  />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="border-t border-gray-200 p-3">
+              <Link
+                to={profileItem.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
+                  profileItem.current
+                    ? 'bg-blue-100 text-blue-900'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <img
+                  src={resolveAvatarUrl()}
+                  alt={`${userDisplayName} avatar`}
+                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  onError={(e) => {
+                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    if (e.currentTarget.src !== fallbackUrl) {
+                      e.currentTarget.src = fallbackUrl;
+                    }
+                  }}
                 />
-                {item.name}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{userDisplayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
+                </div>
               </Link>
-            ))}
-          </nav>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 overflow-y-auto">
+        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
             <h1 className="text-lg font-semibold text-gray-900">Owner Panel</h1>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <nav className="flex-1 space-y-1 px-2 py-4">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                    item.current
+                      ? 'bg-blue-100 text-blue-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <item.icon
+                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                      item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                    }`}
+                  />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="border-t border-gray-200 p-3">
               <Link
-                key={item.name}
-                to={item.href}
-                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                  item.current
+                to={profileItem.href}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
+                  profileItem.current
                     ? 'bg-blue-100 text-blue-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <item.icon
-                  className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                    item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
-                  }`}
+                <img
+                  src={resolveAvatarUrl()}
+                  alt={`${userDisplayName} avatar`}
+                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  onError={(e) => {
+                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    if (e.currentTarget.src !== fallbackUrl) {
+                      e.currentTarget.src = fallbackUrl;
+                    }
+                  }}
                 />
-                {item.name}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{userDisplayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
+                </div>
               </Link>
-            ))}
-          </nav>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -200,73 +242,12 @@ const OwnerLayout = () => {
               <Bars3Icon className="h-6 w-6" />
             </button>
 
-            <div className="ml-3 min-w-0 md:hidden">
+            <div className="ml-3 min-w-0 md:ml-0">
               <p className="text-sm font-semibold text-gray-900 truncate">{pageInfo.title}</p>
-              <p className="text-xs text-gray-500 truncate hidden sm:block">
+              <p className="hidden truncate text-xs text-gray-500 sm:block">
                 {pageInfo.subtitle}
                 {user?.firstName ? ` | Welcome back, ${user.firstName}` : ''}
               </p>
-            </div>
-
-            <div className="flex items-center space-x-4 ml-auto">
-              <div
-                className="relative"
-                onMouseEnter={() => setProfileMenuOpen(true)}
-                onMouseLeave={() => setProfileMenuOpen(false)}
-              >
-                <button
-                  type="button"
-                  className="flex items-center space-x-3 rounded-md px-2 py-1 hover:bg-gray-50"
-                  onClick={() => setProfileMenuOpen((prev) => !prev)}
-                >
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.firstName} {user?.lastName}
-                  </p>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUserRoleColor(
-                      user?.role
-                    )}`}
-                  >
-                    {formatRole(user?.role)}
-                  </span>
-                </div>
-                <img
-                  src={resolveAvatarUrl()}
-                  alt={`${user?.firstName || user?.username || 'User'} avatar`}
-                  className="h-8 w-8 rounded-full object-cover border border-gray-200 bg-gray-100"
-                  onError={(e) => {
-                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-                    if (e.currentTarget.src !== fallbackUrl) {
-                      e.currentTarget.src = fallbackUrl;
-                    }
-                  }}
-                />
-                </button>
-
-                {profileMenuOpen && (
-                  <div className="absolute right-0 top-full pt-2 z-20">
-                    <div className="w-44 rounded-md border border-gray-200 bg-white shadow-lg py-1">
-                      <Link
-                        to="/owner/profile"
-                        onClick={() => setProfileMenuOpen(false)}
-                        className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
-                      >
-                        <UserCircleIcon className="h-4 w-4" />
-                        Profile
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
-                      >
-                        <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

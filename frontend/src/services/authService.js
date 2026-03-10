@@ -54,8 +54,26 @@ const authService = {
       const resolvedUser = response.data?.user || response.data;
       localStorage.setItem('user', JSON.stringify(resolvedUser));
     }
-    
+
     return response;
+  },
+
+  // Change account password
+  changePassword: async (passwordData) => {
+    return apiService.post('/auth/change-password', passwordData);
+  },
+
+  // Get current user's role request history and available upgrades
+  getRoleRequests: async () => {
+    return apiService.get('/auth/role-requests');
+  },
+
+  // Submit a role upgrade request
+  requestRoleUpgrade: async (requestedRole, note = '') => {
+    return apiService.post('/auth/role-requests', {
+      requestedRole,
+      note
+    });
   },
 
   // Upload profile avatar

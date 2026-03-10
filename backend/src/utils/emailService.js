@@ -1,4 +1,18 @@
-const nodemailer = require('nodemailer');
+let nodemailer = null;
+
+const getNodemailer = () => {
+  if (nodemailer) return nodemailer;
+
+  try {
+    nodemailer = require('nodemailer');
+    return nodemailer;
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[email] nodemailer is not installed, skipping email transport setup');
+    }
+    return null;
+  }
+};
 
 const hasSmtpConfig = () => {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS);
@@ -7,7 +21,10 @@ const hasSmtpConfig = () => {
 const getTransporter = () => {
   if (!hasSmtpConfig()) return null;
 
-  return nodemailer.createTransport({
+  const mailer = getNodemailer();
+  if (!mailer) return null;
+
+  return mailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
     secure: process.env.SMTP_SECURE === 'true',

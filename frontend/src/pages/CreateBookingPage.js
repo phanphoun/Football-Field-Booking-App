@@ -4,9 +4,11 @@ import { CalendarIcon, BuildingOfficeIcon, UsersIcon, CurrencyDollarIcon, ArrowL
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
+import { useAuth } from '../context/AuthContext';
 
 const CreateBookingPage = () => {
   const navigate = useNavigate();
+  const { isCaptain } = useAuth();
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -180,6 +182,12 @@ const CreateBookingPage = () => {
   const selectedField = Array.isArray(fields) ? fields.find(f => f.id === parseInt(formData.fieldId)) : null;
   const selectedTeam = Array.isArray(teams) ? teams.find(t => t.id === parseInt(formData.teamId)) : null;
   const totalPrice = calculatePrice();
+  const rawAmenities = selectedField?.amenities;
+  const selectedFieldAmenities = Array.isArray(rawAmenities)
+    ? rawAmenities
+    : typeof rawAmenities === 'string'
+    ? rawAmenities.split(',').map((item) => item.trim()).filter(Boolean)
+    : [];
 
   if (loading) {
     return (
@@ -380,6 +388,43 @@ const CreateBookingPage = () => {
                     <div>
                       <h4 className="text-sm font-medium text-gray-900">Team</h4>
                       <p className="text-sm text-gray-600">{selectedTeam.name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {isCaptain && (
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-semibold text-gray-900">Field Details for Captain</h4>
+                    <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-gray-600">
+                      <div className="flex items-center justify-between">
+                        <span>Field Type</span>
+                        <span className="font-medium text-gray-800">{selectedField.fieldType || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Surface</span>
+                        <span className="font-medium text-gray-800">{selectedField.surfaceType?.replace('_', ' ') || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Capacity</span>
+                        <span className="font-medium text-gray-800">{selectedField.capacity || 'N/A'} players</span>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <h5 className="text-xs font-semibold text-gray-900">Amenities</h5>
+                      {selectedFieldAmenities.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedFieldAmenities.map((amenity, index) => (
+                            <span
+                              key={`${amenity}-${index}`}
+                              className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700"
+                            >
+                              {String(amenity).replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-gray-500">No amenities listed for this field.</p>
+                      )}
                     </div>
                   </div>
                 )}

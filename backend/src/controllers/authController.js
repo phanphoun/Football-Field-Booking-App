@@ -1,14 +1,36 @@
-const { Op } = require('sequelize');
-const { User, Team, TeamMember, Field, Booking } = require('../models');
+const { User, RoleRequest } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const serverConfig = require('../config/serverConfig');
+const { createInAppNotification } = require('../utils/notify');
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
+const REQUESTABLE_ROLES_BY_USER_ROLE = {
+  player: ['captain', 'field_owner'],
+  captain: ['field_owner']
+};
+
+const ROLE_REQUEST_LABELS = {
+  captain: 'captain',
+  field_owner: 'field owner'
+};
+
+const serializeRoleRequest = (roleRequest) => ({
+  id: roleRequest.id,
+  requestedRole: roleRequest.requestedRole,
+  status: roleRequest.status,
+  note: roleRequest.note || '',
+  reviewedBy: roleRequest.reviewedBy,
+  reviewedAt: roleRequest.reviewedAt,
+  createdAt: roleRequest.createdAt,
+  updatedAt: roleRequest.updatedAt
+});
+
+const getAllowedRequestedRoles = (currentRole) => REQUESTABLE_ROLES_BY_USER_ROLE[currentRole] || [];
 
 const register = async (req, res) => {
   try {
@@ -234,135 +256,24 @@ const updateProfile = async (req, res) => {
   }
 };
 
-const getProfileStats = async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: ['id', 'role', 'createdAt']
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const role = user.role;
-    const userId = user.id;
-
-    let totalBookings = 0;
-    let confirmedBookings = 0;
-    let teamsManaged = 0;
-
-    if (role === 'field_owner') {
-      const fields = await Field.findAll({
-        where: { ownerId: userId },
-        attributes: ['id'],
-        raw: true
-      });
-      const fieldIds = fields.map((f) => f.id);
-
-      if (fieldIds.length > 0) {
-        const bookings = await Booking.findAll({
-          where: { fieldId: { [Op.in]: fieldIds } },
-          attributes: ['status', 'teamId', 'opponentTeamId'],
-          raw: true
-        });
-
-        totalBookings = bookings.length;
-        confirmedBookings = bookings.filter(
-          (b) => b.status === 'confirmed' || b.status === 'completed'
-        ).length;
-
-        const teamIds = new Set();
-        for (const b of bookings) {
-          if (b.teamId) teamIds.add(Number(b.teamId));
-          if (b.opponentTeamId) teamIds.add(Number(b.opponentTeamId));
-        }
-        teamsManaged = teamIds.size;
-      }
-    } else if (role === 'captain') {
-      const [captainedTeams, myBookings] = await Promise.all([
-        Team.count({ where: { captainId: userId } }),
-        Booking.findAll({
-          where: { createdBy: userId },
-          attributes: ['status'],
-          raw: true
-        })
-      ]);
-      teamsManaged = captainedTeams;
-      totalBookings = myBookings.length;
-      confirmedBookings = myBookings.filter(
-        (b) => b.status === 'confirmed' || b.status === 'completed'
-      ).length;
-    } else {
-      const [myBookings, myTeams] = await Promise.all([
-        Booking.findAll({
-          where: { createdBy: userId },
-          attributes: ['status'],
-          raw: true
-        }),
-        TeamMember.count({
-          where: { userId, status: 'accepted', isActive: true }
-        })
-      ]);
-
-      totalBookings = myBookings.length;
-      confirmedBookings = myBookings.filter(
-        (b) => b.status === 'confirmed' || b.status === 'completed'
-      ).length;
-      teamsManaged = myTeams;
-    }
-
-    const created = new Date(user.createdAt);
-    const yearsActive =
-      Number.isNaN(created.getTime())
-        ? 0
-        : Number(Math.max(0, (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24 * 365.25)).toFixed(1));
-
-    const fieldEfficiency = totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0;
-
-    res.json({
-      success: true,
-      data: {
-        role,
-        totalBookings,
-        confirmedBookings,
-        teamsManaged,
-        yearsActive,
-        fieldEfficiency,
-        memberSince: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'
-      }
-    });
-  } catch (error) {
-    console.error('Get profile stats error:', error);
-    res.status(500).json({ error: 'Internal server error while fetching profile stats.' });
-  }
-};
-
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'currentPassword and newPassword are required.' });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
-    }
 
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
       return res.status(400).json({ error: 'Current password is incorrect.' });
     }
 
-    const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
-    if (sameAsCurrent) {
-      return res.status(400).json({ error: 'New password must be different from current password.' });
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      return res.status(400).json({ error: 'New password must be different from your current password.' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -548,13 +459,116 @@ const deleteProfileAvatar = async (req, res) => {
   }
 };
 
+const getRoleRequests = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'role']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const requests = await RoleRequest.findAll({
+      where: { requesterId: user.id },
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      currentRole: user.role,
+      availableRoles: getAllowedRequestedRoles(user.role),
+      hasPendingRequest: requests.some((request) => request.status === 'pending'),
+      requests: requests.map(serializeRoleRequest)
+    });
+  } catch (error) {
+    console.error('Get role requests error:', error);
+    res.status(500).json({ error: 'Internal server error while fetching role requests.' });
+  }
+};
+
+const requestRoleUpgrade = async (req, res) => {
+  try {
+    const { requestedRole, note } = req.body;
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'email', 'username', 'firstName', 'lastName', 'role']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const allowedRoles = getAllowedRequestedRoles(user.role);
+    if (!allowedRoles.includes(requestedRole)) {
+      return res.status(400).json({
+        error: 'Your current account cannot request that role.'
+      });
+    }
+
+    const existingPendingRequest = await RoleRequest.findOne({
+      where: {
+        requesterId: user.id,
+        status: 'pending'
+      }
+    });
+
+    if (existingPendingRequest) {
+      return res.status(400).json({
+        error: `You already have a pending request to become a ${ROLE_REQUEST_LABELS[existingPendingRequest.requestedRole]}.`
+      });
+    }
+
+    const roleRequest = await RoleRequest.create({
+      requesterId: user.id,
+      requestedRole,
+      note: note?.trim() || null
+    });
+
+    const admins = await User.findAll({
+      where: { role: 'admin', status: 'active' },
+      attributes: ['id']
+    });
+
+    if (admins.length > 0) {
+      const requesterName =
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email;
+
+      await Promise.allSettled(
+        admins.map((admin) =>
+          createInAppNotification({
+            userId: admin.id,
+            type: 'system',
+            title: `${requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request`,
+            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access.`,
+            metadata: {
+              event: 'role_request',
+              requestId: roleRequest.id,
+              requesterId: user.id,
+              requestedRole,
+              status: 'pending'
+            }
+          })
+        )
+      );
+    }
+
+    res.status(201).json({
+      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted.`,
+      roleRequest: serializeRoleRequest(roleRequest)
+    });
+  } catch (error) {
+    console.error('Request role upgrade error:', error);
+    res.status(500).json({ error: 'Internal server error while submitting role request.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
-  getProfileStats,
   updateProfile,
   changePassword,
+  getRoleRequests,
+  requestRoleUpgrade,
   uploadProfileAvatar,
   deleteProfileAvatar
 };
