@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,6 +16,10 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+.khmer-brand-font {
+  font-family: 'Noto Sans Khmer', 'Khmer OS Battambang', 'Khmer OS System', 'Noto Sans', sans-serif;
 }
 
 /* Slide-in animation for hero images */

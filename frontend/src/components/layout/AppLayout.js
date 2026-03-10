@@ -111,7 +111,7 @@ const AppLayout = () => {
       { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: 'Football Booking', subtitle: 'Welcome to your workspace' };
+    return current || { title: 'អាណាចក្រភ្នំស្វាយ', subtitle: 'Welcome to your workspace' };
   }, [location.pathname]);
 
   const formatRole = (role) => {
@@ -557,7 +557,7 @@ const AppLayout = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-lg font-semibold text-gray-900">Football Booking</h1>
+            <h1 className="khmer-brand-font text-lg font-semibold text-gray-900">អាណាចក្រភ្នំស្វាយ</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -639,7 +639,7 @@ const AppLayout = () => {
       <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
-            <h1 className="text-lg font-semibold text-gray-900">Football Booking</h1>
+            <h1 className="khmer-brand-font text-lg font-semibold text-gray-900">អាណាចក្រភ្នំស្វាយ</h1>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">

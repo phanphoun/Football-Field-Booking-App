@@ -20,6 +20,7 @@ import {
   TrophyIcon,
   UsersIcon
 } from '@heroicons/react/24/outline';
+import { StarIcon } from '@heroicons/react/24/solid';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +40,17 @@ const FEATURED_CARD_IMAGES = [
   'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Wembley_Stadium_interior.jpg/1280px-Wembley_Stadium_interior.jpg',
   'https://i.pinimg.com/1200x/5c/41/fa/5c41fab583e85303594a8b24ae0132ce.jpg',
   'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg'
+];
+const QUICK_TIME_OPTIONS = [
+  'Morning Session',
+  'Afternoon Session',
+  'Evening Session'
+];
+const PREMIUM_GUARANTEE_ITEMS = [
+  { label: 'Daily Maintenance', className: 'bg-emerald-100 text-emerald-700' },
+  { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
+  { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
+  { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
 
 const FEATURED_FALLBACK_FIELDS = [
@@ -125,84 +137,149 @@ const FEATURED_FALLBACK_FIELDS = [
 ];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-const POPULAR_TIME_SLOTS = [
-  { time: '18:00 - 20:00', label: 'Evening Prime Time', rate: 95, status: 'Limited', tone: 'limited' },
-  { time: '08:00 - 10:00', label: 'Morning Session', rate: 65, status: 'Available', tone: 'available' },
-  { time: '12:00 - 14:00', label: 'Lunch Break', rate: 75, status: 'Moderate', tone: 'moderate' },
-  { time: '20:00 - 22:00', label: 'Night Session', rate: 55, status: 'Available', tone: 'cool' }
+const POPULAR_TIME_SLOT_SESSIONS = [
+  {
+    key: 'morning',
+    label: 'Morning Session',
+    time: '08:00 - 12:00',
+    startHour: 8,
+    endHour: 12,
+    fallbackRate: 68,
+    description: 'Cooler kickoff hours for teams that want an early start.'
+  },
+  {
+    key: 'afternoon',
+    label: 'Afternoon Session',
+    time: '12:00 - 18:00',
+    startHour: 12,
+    endHour: 18,
+    fallbackRate: 80,
+    description: 'Balanced midday and after-work demand for flexible match schedules.'
+  },
+  {
+    key: 'evening',
+    label: 'Evening Session',
+    time: '18:00 - 22:00',
+    startHour: 18,
+    endHour: 22,
+    fallbackRate: 92,
+    description: 'Prime-time booking window for the busiest games under the lights.'
+  }
 ];
+
+const rateToStatus = (rate) => {
+  if (rate >= 80) return 'High Demand';
+  if (rate >= 60) return 'Popular';
+  if (rate >= 40) return 'Steady';
+  return 'Open';
+};
+
+const rateToTone = (rate) => {
+  if (rate >= 80) return 'limited';
+  if (rate >= 60) return 'moderate';
+  if (rate >= 40) return 'available';
+  return 'cool';
+};
+
+const buildPopularTimeSlotCard = (session, rate, extra = {}) => ({
+  key: session.key,
+  label: session.label,
+  time: session.time,
+  description: session.description,
+  rate,
+  status: rateToStatus(rate),
+  tone: rateToTone(rate),
+  ...extra
+});
+
+const applyStarRatings = (slots) => {
+  const rankedRates = [...new Set(slots.map((slot) => Number(slot.rate || 0)))].sort((a, b) => b - a);
+
+  return slots.map((slot) => {
+    const rank = rankedRates.indexOf(Number(slot.rate || 0));
+    const stars = Math.max(3, 5 - Math.min(rank, 2));
+
+    return {
+      ...slot,
+      stars,
+      rating: `${stars}.0`
+    };
+  });
+};
+
+const POPULAR_TIME_SLOTS = applyStarRatings(
+  POPULAR_TIME_SLOT_SESSIONS.map((session) => buildPopularTimeSlotCard(session, session.fallbackRate))
+);
+
+const getSlotStartHour = (slot) => {
+  if (Number.isFinite(Number(slot?.startHour))) return Number(slot.startHour);
+
+  const startTime = String(slot?.time || '').split(' - ')[0];
+  const [hours] = startTime.split(':').map((value) => Number(value));
+  return Number.isFinite(hours) ? hours : null;
+};
+
+const buildPopularTimeSlotsFromStats = (slotStats) => {
+  if (!Array.isArray(slotStats) || slotStats.length === 0) {
+    return POPULAR_TIME_SLOTS;
+  }
+
+  const cards = POPULAR_TIME_SLOT_SESSIONS.map((session) => {
+    const matchingSlots = slotStats.filter((slot) => {
+      const startHour = getSlotStartHour(slot);
+      return Number.isFinite(startHour) && startHour >= session.startHour && startHour < session.endHour;
+    });
+
+    if (matchingSlots.length === 0) {
+      return buildPopularTimeSlotCard(session, session.fallbackRate);
+    }
+
+    const totalBookedMinutes = matchingSlots.reduce((sum, slot) => sum + Number(slot.bookedMinutes || 0), 0);
+    const weightedRate = totalBookedMinutes > 0
+      ? Math.round(
+          matchingSlots.reduce(
+            (sum, slot) => sum + (Number(slot.rate || 0) * Number(slot.bookedMinutes || 0)),
+            0
+          ) / totalBookedMinutes
+        )
+      : Math.round(
+          matchingSlots.reduce((sum, slot) => sum + Number(slot.rate || 0), 0) / matchingSlots.length
+        );
+
+    return buildPopularTimeSlotCard(session, weightedRate);
+  });
+
+  return applyStarRatings(cards);
+};
 
 // Calculate real popular time slots from booking data
 const calculatePopularTimeSlots = (bookings) => {
   if (!bookings || bookings.length === 0) {
-    return POPULAR_TIME_SLOTS; // Fallback to static data
+    return POPULAR_TIME_SLOTS;
   }
 
-  const timeSlotCounts = {};
-  
-  // Count bookings per time slot
-  bookings.forEach(booking => {
-    if (booking.startTime && booking.status === 'confirmed') {
-      // Extract time from datetime string
+  const relevantBookings = bookings.filter((booking) => {
+    const status = String(booking?.status || '').toLowerCase();
+    return booking?.startTime && (status === 'confirmed' || status === 'completed');
+  });
+
+  if (relevantBookings.length === 0) {
+    return POPULAR_TIME_SLOTS;
+  }
+
+  const cards = POPULAR_TIME_SLOT_SESSIONS.map((session) => {
+    const sessionBookings = relevantBookings.filter((booking) => {
       const bookingDate = new Date(booking.startTime);
-      const hours = bookingDate.getHours();
-      const timeSlot = `${hours.toString().padStart(2, '0')}:00`;
-      
-      // Only count if it's within our TIME_SLOTS range
-      if (TIME_SLOTS.includes(timeSlot)) {
-        timeSlotCounts[timeSlot] = (timeSlotCounts[timeSlot] || 0) + 1;
-      }
-    }
+      if (Number.isNaN(bookingDate.getTime())) return false;
+      const hour = bookingDate.getHours();
+      return hour >= session.startHour && hour < session.endHour;
+    });
+
+    const rate = Math.round((sessionBookings.length / relevantBookings.length) * 100);
+    return buildPopularTimeSlotCard(session, rate);
   });
 
-  // Calculate popularity for each time slot
-  const popularSlots = TIME_SLOTS.map((time, index) => {
-    const count = timeSlotCounts[time] || 0;
-    const rate = Math.round((count / Math.max(bookings.filter(b => b.status === 'confirmed').length, 1)) * 100);
-    
-    let status = 'Available';
-    let tone = 'available';
-    
-    if (rate >= 80) {
-      status = 'Limited';
-      tone = 'limited';
-    } else if (rate >= 60) {
-      status = 'Moderate';
-      tone = 'moderate';
-    } else if (rate >= 40) {
-      status = 'Available';
-      tone = 'available';
-    } else {
-      status = 'Cool';
-      tone = 'cool';
-    }
-
-    // Create time range
-    const hour = parseInt(time.split(':')[0]);
-    const endHour = hour + 2;
-    const endTime = endHour.toString().padStart(2, '0') + ':00';
-    
-    return {
-      time: `${time} - ${endTime}`,
-      label: getTimeLabel(hour),
-      rate: Math.min(rate, 95), // Cap at 95%
-      status,
-      tone
-    };
-  });
-
-  // Sort by rate and return top 4
-  return popularSlots
-    .sort((a, b) => b.rate - a.rate)
-    .slice(0, 4);
-};
-
-const getTimeLabel = (hour) => {
-  if (hour >= 17 && hour <= 20) return 'Evening Prime Time';
-  if (hour >= 6 && hour <= 10) return 'Morning Session';
-  if (hour >= 11 && hour <= 14) return 'Lunch Break';
-  if (hour >= 20 || hour <= 5) return 'Night Session';
-  return 'Afternoon Session';
+  return applyStarRatings(cards);
 };
 const SPECIAL_OFFERS = [
   {
@@ -242,12 +319,6 @@ const SPECIAL_OFFERS = [
     time: '20:00'
   }
 ];
-const PREMIUM_GUARANTEE_ITEMS = [
-  { label: 'Daily Maintenance', className: 'bg-emerald-100 text-emerald-700' },
-  { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
-  { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
-  { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
-];
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-16';
 const toLocalDateKey = (value) => {
   const date = new Date(value);
@@ -263,6 +334,15 @@ const parseSlotToMinutes = (slot) => {
     .map((n) => Number(n));
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
+};
+const formatSlotTo12h = (slot) => {
+  const [h, m] = String(slot || '')
+    .split(':')
+    .map((n) => Number(n));
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
@@ -303,7 +383,7 @@ const LandingPage = () => {
           fieldService.getAllFields({ limit: 12 }),
           bookingService.getPublicBookingStats({
             lookbackDays: 30,
-            top: 4,
+            top: 7,
             statuses: 'confirmed,completed',
             timezoneOffsetMinutes: new Date().getTimezoneOffset()
           })
@@ -331,7 +411,7 @@ const LandingPage = () => {
 
         // Use server-side aggregation as source of truth; fallback to client calculation if needed.
         if (slotStats.length > 0) {
-          setPopularTimeSlots(slotStats);
+          setPopularTimeSlots(buildPopularTimeSlotsFromStats(slotStats));
         } else {
           const calculatedPopularSlots = calculatePopularTimeSlots(bookings);
           setPopularTimeSlots(calculatedPopularSlots);
@@ -399,7 +479,7 @@ const LandingPage = () => {
     return Array.from({ length: 6 }).map((_, index) => {
       const day = new Date(base);
       day.setDate(base.getDate() + index);
-      const key = day.toISOString().slice(0, 10);
+      const key = toLocalDateKey(day);
       const label =
         index === 0
           ? 'Today'
@@ -505,58 +585,59 @@ const LandingPage = () => {
   }, [scheduleBookingsData, user?.id]);
 
   const availableNowCards = useMemo(() => {
-    const source = scheduleFields.length > 0 ? scheduleFields : featuredFields;
-    const today = new Date();
-    const currentTime = today.getHours() * 60 + today.getMinutes();
-    
-    return source.slice(0, 4).map((field, index) => {
-      // Calculate real availability based on current time and schedule
-      let nextAvailableTime = null;
-      let slotsLeft = 0;
-      
-      // Find next available time slot
-      for (const timeSlot of TIME_SLOTS) {
-        const [hours, minutes] = timeSlot.split(':').map(Number);
-        const slotTime = hours * 60 + minutes;
-        
-        // Check if this slot is in the future and available
-        if (slotTime > currentTime) {
-          const isBooked = scheduleEvents.some(event => 
-            event.start === timeSlot && 
-            Number(event.fieldKey) === Number(field.id) &&
-            event.status === 'confirmed'
-          );
-          
-          if (!isBooked) {
-            nextAvailableTime = timeSlot;
-            // Count remaining available slots for this field
-            slotsLeft = TIME_SLOTS.filter(slot => {
-              const [h, m] = slot.split(':').map(Number);
-              const slotTimeMinutes = h * 60 + m;
-              return slotTimeMinutes > currentTime && 
-                     !scheduleEvents.some(event => 
-                       event.start === slot && 
-                       Number(event.fieldKey) === Number(field.id) &&
-                       event.status === 'confirmed'
-                     );
-            }).length;
-            break;
-          }
-        }
-      }
-      
-      // If no available slots today, show tomorrow's first slot
-      if (!nextAvailableTime) {
-        nextAvailableTime = TIME_SLOTS[0]; // First slot tomorrow
-        slotsLeft = TIME_SLOTS.length; // All slots available tomorrow
-      }
-      
-      // Create time label
-      const hour = parseInt(nextAvailableTime.split(':')[0]);
-      const timeLabel = hour >= 12 ? 
-        `Today ${hour === 12 ? 12 : hour - 12}:${nextAvailableTime.split(':')[1]} ${hour >= 12 ? 'PM' : 'AM'}` :
-        `Today ${hour}:${nextAvailableTime.split(':')[1]} AM`;
-      
+    const source = scheduleFields.slice(0, 4);
+    if (source.length === 0) return [];
+
+    const dayKey = selectedDay || toLocalDateKey(new Date());
+    const todayKey = toLocalDateKey(new Date());
+    const isTodaySchedule = dayKey === todayKey;
+    const dayLabel = scheduleDays.find((day) => day.key === dayKey)?.label || dayKey;
+    const now = new Date();
+    const thresholdMinutes = isTodaySchedule ? now.getHours() * 60 + now.getMinutes() : -1;
+
+    return source.map((field, index) => {
+      const fieldId = Number(field.id);
+      const fieldEvents = scheduleEvents.filter(
+        (event) =>
+          Number(event.fieldKey) === fieldId &&
+          Number.isFinite(event.startMinutes) &&
+          Number.isFinite(event.endMinutes)
+      );
+
+      const currentSlot = isTodaySchedule
+        ? [...TIME_SLOTS]
+            .reverse()
+            .find((slot) => {
+              const slotMinutes = parseSlotToMinutes(slot);
+              return Number.isFinite(slotMinutes) && slotMinutes <= thresholdMinutes && thresholdMinutes < slotMinutes + 60;
+            }) || null
+        : null;
+
+      const isBookedNow =
+        isTodaySchedule &&
+        fieldEvents.some((event) => event.startMinutes <= thresholdMinutes && thresholdMinutes < event.endMinutes);
+      const isAvailableNow = Boolean(currentSlot) && !isBookedNow;
+
+      const futureSlots = TIME_SLOTS.filter((slot) => {
+        const slotMinutes = parseSlotToMinutes(slot);
+        return Number.isFinite(slotMinutes) && slotMinutes > thresholdMinutes;
+      });
+
+      const openSlots = futureSlots.filter((slot) => {
+        const slotMinutes = parseSlotToMinutes(slot);
+        return !fieldEvents.some(
+          (event) => event.startMinutes <= slotMinutes && slotMinutes < event.endMinutes
+        );
+      });
+
+      const nextAvailableTime = openSlots[0] || null;
+      const nextLabel = isAvailableNow
+        ? 'Available now'
+        : nextAvailableTime
+        ? `${isTodaySchedule ? 'Today' : dayLabel} ${formatSlotTo12h(nextAvailableTime)}`
+        : `${isTodaySchedule ? 'Today' : dayLabel} Fully booked`;
+      const openSlotCount = openSlots.length + (isAvailableNow ? 1 : 0);
+
       return {
         id: field.id,
         name: field.name || `Field ${index + 1}`,
@@ -565,11 +646,13 @@ const LandingPage = () => {
         surfaceType: String(field.surfaceType || 'artificial_turf').replace('_', ' '),
         pricePerHour: Number(field.pricePerHour || 0),
         nextTime: nextAvailableTime,
-        nextLabel: timeLabel,
-        slotsLeft: slotsLeft
+        nextLabel,
+        slotsLeft: openSlotCount,
+        isAvailableNow,
+        isFullyBooked: !isAvailableNow && !nextAvailableTime
       };
     });
-  }, [scheduleFields, featuredFields, scheduleEvents]);
+  }, [scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
 
   const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
 
@@ -620,6 +703,16 @@ const LandingPage = () => {
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
   };
+
+  const handleQuickSearch = () => {
+    const params = new URLSearchParams({
+      focus: 'search',
+      location: quickLocation || '',
+      day: quickDate || '',
+      timeSlot: quickTimeSlot || ''
+    });
+    navigate(`/fields?${params.toString()}`);
+  };
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
@@ -646,7 +739,7 @@ const LandingPage = () => {
   };
   return (
     <div className="flex flex-col gap-14 bg-gradient-to-b from-emerald-50/70 via-white to-sky-50/40">
-      <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-screen overflow-hidden text-white shadow-sm ring-1 ring-black/10">
+      <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-[640px] overflow-hidden text-white shadow-sm ring-1 ring-black/10">
         <div className="absolute inset-0 overflow-hidden">
           <div
             className="flex h-full w-full transition-transform duration-700 ease-in-out"
@@ -674,18 +767,27 @@ const LandingPage = () => {
         </div>
         <div className="absolute -left-16 top-20 h-48 w-48 rounded-full bg-emerald-400/20 blur-3xl" />
         <div className="absolute -right-20 bottom-10 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/45 to-black/65" />
-        <div className="relative mx-auto max-w-7xl px-6 py-20 sm:px-10 sm:py-28 lg:px-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="mt-5 text-3xl font-extrabold tracking-tight sm:text-5xl">Book the Perfect Football Field in Minutes</h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base text-white/90 sm:text-2xl">
-              Discover top-rated pitches near you, check live availability, and secure your slot at the best price.
-            </p>
-            <div className="mt-8 mx-auto grid w-full max-w-lg grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.24),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(34,211,238,0.22),_transparent_24%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/55 to-slate-950/80" />
+        <div className="relative mx-auto flex min-h-[640px] max-w-7xl items-center px-6 py-16 sm:px-10 sm:py-20 lg:px-16">
+          <div className="grid w-full items-center gap-10">
+            <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-emerald-200 backdrop-blur-sm">
+                <SparklesIcon className="h-4 w-4" />
+                Football booking, styled for speed
+              </span>
+              <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                Book the right field before the good slots disappear.
+              </h1>
+              <p className="mt-5 max-w-3xl text-base leading-8 text-white/85 sm:text-xl">
+                Discover highly rated pitches, compare live schedules, and lock in the best session for your team in a few clicks.
+              </p>
+
+              <div className="mt-8 grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
                 as={Link}
                 to="/app/bookings/new"
-                className="justify-center rounded-md border-2 border-emerald-300 bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 hover:bg-emerald-700"
+                className="justify-center rounded-xl border border-emerald-300/70 bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/25 hover:bg-emerald-400"
               >
                 <CalendarIcon className="mr-1 h-3.5 w-3.5" />
                 Book a Field
@@ -694,41 +796,33 @@ const LandingPage = () => {
               <Button
                 as={Link}
                 to="/fields?focus=search"
-                className="justify-center rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 hover:bg-emerald-700"
+                className="justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-950/20 backdrop-blur-sm hover:bg-white/15"
               >
                 Browse Fields
               </Button>
-
-              <Button
-                as={Link}
-                to="/register"
-                variant="neutral"
-                className="justify-center rounded-md border border-white/30 bg-white/15 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/25"
-              >
-                Get Started
-              </Button>
+              </div>
             </div>
           </div>
         </div>
-        <div className="absolute inset-x-0 bottom-8 z-20">
-          <div className="mx-auto flex w-fit items-center gap-3 rounded-full border border-white/30 bg-black/25 px-3 py-2 backdrop-blur-sm">
+        <div className="absolute inset-x-0 bottom-6 z-10">
+          <div className="mx-auto flex w-fit items-center gap-1.5 rounded-full border border-white/20 bg-black/20 px-1.5 py-1 backdrop-blur-md">
             <button
               type="button"
               aria-label="Previous hero image"
               onClick={() => setHeroIndex((prev) => (prev - 1 + HERO_IMAGES.length) % HERO_IMAGES.length)}
-              className="rounded-full border border-white/45 bg-white/10 p-2 text-white transition hover:bg-white/20"
+              className="rounded-full border border-white/35 bg-white/10 p-1 text-white transition hover:bg-white/20"
             >
-              <ChevronLeftIcon className="h-4 w-4" />
+              <ChevronLeftIcon className="h-3 w-3" />
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {HERO_IMAGES.map((_, index) => (
                 <button
                   key={`hero-dot-${index}`}
                   type="button"
                   aria-label={`Go to hero image ${index + 1}`}
                   onClick={() => setHeroIndex(index)}
-                  className={`h-2.5 rounded-full transition-all ${
-                    heroIndex === index ? 'w-8 bg-emerald-400' : 'w-2.5 bg-white/70 hover:bg-white'
+                  className={`h-1.5 rounded-full transition-all ${
+                    heroIndex === index ? 'w-5 bg-emerald-400' : 'w-1.5 bg-white/70 hover:bg-white'
                   }`}
                 />
               ))}
@@ -737,9 +831,9 @@ const LandingPage = () => {
               type="button"
               aria-label="Next hero image"
               onClick={() => setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)}
-              className="rounded-full border border-white/45 bg-white/10 p-2 text-white transition hover:bg-white/20"
+              className="rounded-full border border-white/35 bg-white/10 p-1 text-white transition hover:bg-white/20"
             >
-              <ChevronRightIcon className="h-4 w-4" />
+              <ChevronRightIcon className="h-3 w-3" />
             </button>
           </div>
         </div>
@@ -756,37 +850,39 @@ const LandingPage = () => {
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <ArrowTrendingUpIcon className="h-4 w-4" />
-              Popular Times
+              Popular Sessions
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Most Booked Time Slots</h2>
-            <p className="mt-2 text-base text-slate-600">See when others are playing and find the best time for your team</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">Popular Playing Sessions</h2>
+            <p className="mt-2 text-base text-slate-600">See which parts of the day are most popular and pick the session that fits your team</p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
             {popularTimeSlots.map((slot) => (
-              <div key={slot.time} className="group rounded-2xl border border-emerald-100 bg-white/95 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-                <div className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-                  <ClockIcon className="h-6 w-6 text-emerald-600" />
-                  <span>{slot.time}</span>
+              <div key={slot.key} className="group relative overflow-hidden rounded-[1.75rem] border border-emerald-100/80 bg-white/95 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+                <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70 blur-2xl transition group-hover:bg-emerald-200/80" />
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-900">{slot.label}</h3>
+                    <div className="mt-3 flex items-center gap-2 text-base font-medium text-slate-500">
+                      <ClockIcon className="h-5 w-5 text-emerald-600" />
+                      <span>{slot.time}</span>
+                    </div>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${slotToneClass(slot.tone)}`}>
+                    {slot.status}
+                  </span>
                 </div>
-                <p className="mt-5 text-xl font-medium text-slate-700">{slot.label}</p>
+                <p className="mt-4 text-sm leading-6 text-slate-600">{slot.description}</p>
 
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-base text-slate-600">Booking Rate:</span>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">{slot.rate}%</span>
+                <div className="mt-6 flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <StarIcon
+                      key={`${slot.key}-star-${index}`}
+                      className={`h-5 w-5 ${index < slot.stars ? 'text-amber-400' : 'text-slate-200'}`}
+                    />
+                  ))}
+                  <span className="ml-2 text-sm font-semibold text-slate-700">{slot.rating}/5</span>
                 </div>
-
-                <div className={`mt-4 rounded-xl border px-4 py-2 text-center text-base font-semibold ${slotToneClass(slot.tone)}`}>
-                  {slot.status}
-                </div>
-
-                <div className="mt-4 h-3 w-full rounded-full bg-slate-200">
-                  <div
-                    className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
-                    style={{ width: `${Math.max(10, Math.min(slot.rate, 100))}%` }}
-                  />
-                </div>
-
               </div>
             ))}
           </div>
@@ -858,9 +954,6 @@ const LandingPage = () => {
             ))}
           </div>
 
-          <div className="mt-7 rounded-2xl border border-emerald-200 bg-white px-5 py-4 text-center text-sm text-slate-700 shadow-sm">
-            Pro Tip: Combine offers with loyalty plans to maximize your football savings.
-          </div>
         </div>
       </section>
 
@@ -876,53 +969,88 @@ const LandingPage = () => {
           </div>
 
           <div className="mx-auto mt-8 grid max-w-6xl grid-cols-1 gap-4">
-            {availableNowCards.map((field, index) => (
-              <div
-                key={`live-${field.id}-${index}`}
-                className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg md:p-5"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-2xl font-bold text-slate-900">{field.name}</h3>
-                    <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                      <MapPinIcon className="h-4 w-4" />
-                      {field.location}
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-                        <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
-                        {field.fieldType}
+            {availableNowCards.length > 0 ? (
+              availableNowCards.map((field, index) => (
+                <div
+                  key={`live-${field.id}-${index}`}
+                  className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg md:p-5"
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-2xl font-bold text-slate-900">{field.name}</h3>
+                      <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
+                        <MapPinIcon className="h-4 w-4" />
+                        {field.location}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
+                          <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
+                          {field.fieldType}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
+                          {field.surfaceType}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 font-semibold ${
+                            field.isFullyBooked
+                              ? 'bg-red-100 text-red-700'
+                              : field.isAvailableNow
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {field.isFullyBooked
+                            ? 'No slots left'
+                            : field.isAvailableNow
+                            ? 'Available now'
+                            : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
+                      <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
+                      <p
+                        className={`text-sm font-semibold ${
+                          field.isFullyBooked
+                            ? 'text-red-700'
+                            : field.isAvailableNow
+                            ? 'text-emerald-700'
+                            : 'text-amber-700'
+                        }`}
+                      >
+                        {field.nextLabel}
+                      </p>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
+                        }`}
+                      >
+                        {field.isFullyBooked ? 'Sold Out' : 'Filling Fast'}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-                        {field.surfaceType}
-                      </span>
-                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700">
-                        {field.slotsLeft} slots left
-                      </span>
+                      <button
+                        type="button"
+                        disabled={!field.nextTime}
+                        onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                        className={`mt-1 rounded-lg px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition ${
+                          field.nextTime
+                            ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700'
+                            : 'cursor-not-allowed bg-slate-300'
+                        }`}
+                      >
+                        {field.nextTime ? 'Quick Book' : 'Sold Out'}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
-                    <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
-                    <p className="text-sm font-semibold text-emerald-700">{field.nextLabel}</p>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
-                      }`}
-                    >
-                      Filling Fast
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                      className="mt-1 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-emerald-700 hover:to-green-700"
-                    >
-                      Quick Book
-                    </button>
-                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 text-center text-sm text-slate-600 shadow-sm">
+                {scheduleLoading
+                  ? 'Loading live availability...'
+                  : 'No live availability data found for the selected day.'}
               </div>
-            ))}
+            )}
           </div>
 
           <div className="mt-8 text-center">
@@ -1003,7 +1131,7 @@ const LandingPage = () => {
                   <span className="h-3 w-3 rounded-sm bg-emerald-600" /> Your booking
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-red-600" /> Other team (blocked)
+                  <span className="h-3 w-3 rounded-sm bg-red-600" /> Other team (booked)
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending (still bookable)
@@ -1028,7 +1156,7 @@ const LandingPage = () => {
             </div>
 
             {TIME_SLOTS.map((slot) => {
-              const slotEventsForAllFields = scheduleEvents.filter((event) => event.start === slot);
+              const slotEventsForAllFields = findEventsForSlot(scheduleEvents, slot);
               return (
                 <div key={slot} className="flex border-b border-slate-200 last:border-b-0">
                   <div className={`w-24 p-2.5 text-left font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}>
@@ -1110,8 +1238,12 @@ const LandingPage = () => {
       <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/40 py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-10 text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Featured Football Fields</h2>
-          <p className="mt-2 text-base text-gray-600">Choose from our premium selection of football fields, each equipped with top-quality facilities</p>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
+            <BuildingOfficeIcon className="h-4 w-4" />
+            Editor&apos;s Picks
+          </span>
+          <h2 className="mt-4 text-3xl font-black text-gray-900">Featured Football Fields</h2>
+          <p className="mt-2 text-base text-gray-600">Choose from top-rated football fields and see how other players score each venue</p>
           </div>
 
           {loading ? (
@@ -1125,6 +1257,8 @@ const LandingPage = () => {
               const players = field.capacity || 22;
               const duration = field.sessionDuration || 90;
               const price = Number(field.pricePerHour || 0);
+              const rating = Math.max(0, Math.min(5, Number(field.rating || 0)));
+              const totalRatings = Number(field.totalRatings || 0);
               const preferredImage = FEATURED_CARD_IMAGES[index % FEATURED_CARD_IMAGES.length];
               const initialImage = resolveFieldImage(field.images) || preferredImage;
 
@@ -1132,7 +1266,7 @@ const LandingPage = () => {
                 <Link
                   key={field.id}
                   to={String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`}
-                  className="group overflow-hidden rounded-2xl bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-xl"
+                  className="group overflow-hidden rounded-[1.9rem] bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-2xl"
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
                     <img
@@ -1144,6 +1278,10 @@ const LandingPage = () => {
                         e.currentTarget.src = preferredImage || FIELD_FALLBACK_IMAGE;
                       }}
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/10 to-transparent opacity-80" />
+                    <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                      {field.fieldType || '11v11'}
+                    </div>
                     <span
                       className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold ${
                         isAvailable ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
@@ -1151,15 +1289,16 @@ const LandingPage = () => {
                     >
                       {isAvailable ? 'Available' : 'Booked'}
                     </span>
+                    <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                      <div className="text-2xl font-black">{field.name}</div>
+                      <div className="mt-1 flex items-center gap-2 text-sm text-white/85">
+                        <MapPinIcon className="h-4 w-4" />
+                        <span>{field.city || field.address || 'City Stadium Arena'}</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-4 p-6">
-                    <h3 className="text-2xl font-semibold text-gray-900">{field.name}</h3>
-
-                    <div className="flex items-center gap-2 text-base text-gray-600">
-                      <MapPinIcon className="h-5 w-5" />
-                      <span>{field.city || field.address || 'City Stadium Arena'}</span>
-                    </div>
 
                     <div className="flex items-center justify-between text-base text-gray-700">
                       <div className="flex items-center gap-2">
@@ -1172,9 +1311,30 @@ const LandingPage = () => {
                       </div>
                     </div>
 
-                    <div className="text-4xl font-bold leading-none text-green-600">
+                    <p className="flex flex-wrap items-center gap-1 text-sm leading-6 text-slate-600">
+                      {Array.from({ length: 5 }).map((_, starIndex) => (
+                        <StarIcon
+                          key={`${field.id}-rating-${starIndex}`}
+                          className={`h-4 w-4 ${starIndex < Math.round(rating) ? 'text-amber-400' : 'text-slate-200'}`}
+                        />
+                      ))}
+                      <span className="ml-2 font-semibold text-slate-800">
+                        {rating > 0 ? rating.toFixed(1) : 'New'}
+                      </span>
+                      <span className="text-slate-500">
+                        {totalRatings > 0 ? `(${totalRatings} ratings)` : '(No ratings yet)'}
+                      </span>
+                    </p>
+
+                    <div className="flex items-end justify-between gap-4">
+                      <div className="text-4xl font-bold leading-none text-green-600">
                       ${Number.isFinite(price) ? price.toFixed(0) : 0}
                       <span className="ml-1 text-xl font-semibold text-green-700">/session</span>
+                      </div>
+                      <p className="text-right text-sm leading-5 text-slate-600">
+                        <span className="font-semibold text-slate-700">Best for:</span>{' '}
+                        <span className="font-semibold text-emerald-800">{players >= 20 ? 'Full squads' : 'Quick matches'}</span>
+                      </p>
                     </div>
 
                     {isAvailable ? (
@@ -1278,65 +1438,76 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <footer className="order-last !mt-0 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-black text-slate-100">
+      <footer className="order-last !mt-0 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-950 text-slate-100">
         <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-8 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-600">
-                  <GlobeAltIcon className="h-6 w-6 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500">
+                  <GlobeAltIcon className="h-6 w-6 text-slate-950" />
                 </div>
-                <div className="text-4xl font-extrabold tracking-tight">FieldBook</div>
+                <div>
+                  <div className="khmer-brand-font text-3xl font-extrabold tracking-tight text-white">អាណាចក្រភ្នំស្វាយ</div>
+                  <div className="text-sm text-emerald-300">Book football fields faster</div>
+                </div>
               </div>
-              <p className="mt-5 max-w-xs text-base text-slate-300">
-                Your trusted platform for booking premium football fields. Easy, fast, and reliable.
+              <p className="mt-5 max-w-sm text-base leading-7 text-slate-300">
+                A simple platform for discovering football venues, checking live availability, and booking the best session for your team.
               </p>
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-white">Quick Links</h3>
-              <div className="mt-5 space-y-3 text-lg">
-                <Link to="/" className="block text-slate-200 hover:text-white">About Us</Link>
-                <Link to="/fields" className="block text-slate-200 hover:text-white">Browse Fields</Link>
-                <Link to="/teams" className="block text-slate-200 hover:text-white">Pricing</Link>
-                <Link to="/teams" className="block text-slate-200 hover:text-white">FAQs</Link>
+              <h3 className="text-lg font-bold text-white">Quick Links</h3>
+              <div className="mt-4 space-y-3 text-sm text-slate-300">
+                <Link to="/fields" className="block transition hover:text-white">Browse Fields</Link>
+                <Link to="/teams" className="block transition hover:text-white">Teams</Link>
+                <Link to="/register" className="block transition hover:text-white">Register</Link>
+                <Link to="/login" className="block transition hover:text-white">Login</Link>
               </div>
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-white">Contact Us</h3>
-              <div className="mt-5 space-y-4 text-lg text-slate-200">
-                <div className="flex items-center gap-3">
-                  <PhoneIcon className="h-5 w-5 text-slate-300" />
-                  <span>+1 (555) 123-4567</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <EnvelopeIcon className="h-5 w-5 text-slate-300" />
-                  <span>info@fieldbook.com</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <MapPinIcon className="h-5 w-5 text-slate-300" />
-                  <span>123 Sports Ave, City</span>
-                </div>
+              <h3 className="text-lg font-bold text-white">Booking Info</h3>
+              <div className="mt-4 space-y-3 text-sm text-slate-300">
+                <p>Open daily for football sessions from 08:00 to 22:00.</p>
+                <p>Compare field ratings, prices, and available slots in one place.</p>
+                <p>Best for quick matches, team training, and full-squad games.</p>
               </div>
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-white">Follow Us</h3>
-              <div className="mt-5 flex items-center gap-3">
-                <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white">
-                  <span className="text-2xl font-semibold leading-none">f</span>
-                </a>
-                <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="Twitter" className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700">
-                  <span className="text-2xl font-semibold leading-none">t</span>
-                </a>
-                <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-200 hover:bg-slate-700">
-                  <span className="text-2xl font-semibold leading-none">i</span>
-                </a>
+              <h3 className="text-lg font-bold text-white">Contact</h3>
+              <div className="mt-4 space-y-4 text-sm text-slate-300">
+                <div className="flex items-center gap-3">
+                  <PhoneIcon className="h-4 w-4 text-emerald-300" />
+                  <span>+855 12 345 678</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <EnvelopeIcon className="h-4 w-4 text-emerald-300" />
+                  <span>bookings@fieldbook.app</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPinIcon className="h-4 w-4 text-emerald-300" />
+                  <span>Phnom Penh, Cambodia</span>
+                </div>
               </div>
             </div>
           </div>
 
+          <div className="flex flex-col gap-4 pt-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>អាណាចក្រភ្នំស្វាយ helps players and teams book football fields with less hassle.</p>
+            <div className="flex items-center gap-3">
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white transition hover:bg-white/10">
+                <span className="text-base font-semibold leading-none">f</span>
+              </a>
+              <a href="https://x.com" target="_blank" rel="noreferrer" aria-label="Twitter" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white transition hover:bg-white/10">
+                <span className="text-base font-semibold leading-none">x</span>
+              </a>
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white transition hover:bg-white/10">
+                <span className="text-base font-semibold leading-none">i</span>
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
 
