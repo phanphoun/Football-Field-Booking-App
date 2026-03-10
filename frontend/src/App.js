@@ -29,6 +29,7 @@ import OwnerBookingsPage from './pages/OwnerBookingsPage';
 import OwnerMatchesPage from './pages/OwnerMatchesPage';
 import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
+import { getPreferredStartPath } from './utils/navigationPreferences';
 
 // Import layout components
 import AppLayout from './components/layout/AppLayout';
@@ -62,7 +63,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route index element={<Navigate to={getPreferredStartPath('app')} replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="fields" element={<FieldsPage />} />
               <Route path="league" element={<LeaguePage />} />
@@ -86,7 +87,23 @@ function App() {
                 }
               />
               <Route path="bookings" element={<BookingsPage />} />
-              <Route path="bookings/new" element={<CreateBookingPage />} />
+              <Route
+                path="bookings/new"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={['captain']}
+                    fallback={
+                      <Navigate
+                        to="/app/settings"
+                        replace
+                        state={{ errorMessage: 'Please request to become captain in Settings.' }}
+                      />
+                    }
+                  >
+                    <CreateBookingPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="open-matches"
                 element={
@@ -125,7 +142,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route index element={<Navigate to={getPreferredStartPath('owner')} replace />} />
               <Route path="dashboard" element={<OwnerDashboardPage />} />
               <Route path="fields" element={<OwnerFieldsPage />} />
               <Route path="bookings" element={<OwnerBookingsPage />} />

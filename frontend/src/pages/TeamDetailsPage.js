@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon, PhotoIcon, ArrowUpTrayIcon, ArrowLeftIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
@@ -14,6 +14,7 @@ const TeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -111,6 +112,21 @@ const TeamDetailsPage = () => {
 
     fetchTeam();
   }, [id, refreshTeam]);
+
+  useEffect(() => {
+    if (!location.state?.successMessage && !location.state?.errorMessage) {
+      return;
+    }
+
+    if (location.state.successMessage) {
+      setSuccessMessage(location.state.successMessage);
+    }
+    if (location.state.errorMessage) {
+      setError(location.state.errorMessage);
+    }
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
 
   const handleJoin = async () => {
     try {
@@ -247,7 +263,7 @@ const TeamDetailsPage = () => {
   }
 
   const activeMembers = Array.isArray(team.teamMembers)
-    ? team.teamMembers.filter((m) => m.status === 'accepted')
+    ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
     : [];
   const canViewMatchHistory = isAdmin() || isCaptainOfTeam || membership?.status === 'active';
 
@@ -445,7 +461,7 @@ const TeamDetailsPage = () => {
             </div>
           ) : membership?.status === 'pending' ? (
             <div className="text-sm text-gray-700">Join request pending approval.</div>
-          ) : membership?.status === 'accepted' ? (
+          ) : membership?.status === 'active' ? (
             <button
               onClick={handleLeave}
               disabled={actionLoading}

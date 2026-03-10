@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FieldLocationMap from '../components/maps/FieldLocationMap';
 import fieldService from '../services/fieldService';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
@@ -8,12 +9,15 @@ import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../component
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_FIELD_IMAGE =
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400"><rect width="100%25" height="100%25" fill="%23e5e7eb"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="30">No Field Image</text></svg>';
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
+const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().includes('no field image');
 
 const FieldDetailsPage = () => {
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const canCreateBooking = user?.role === 'captain';
+  const captainAccessMessage = 'Please request to become captain in Settings.';
 
   const [field, setField] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,27 +42,36 @@ const FieldDetailsPage = () => {
   }, [id]);
 
   const handleBook = () => {
+    const bookingPath = `/app/bookings/new?fieldId=${id}`;
+
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/app/bookings/new?fieldId=${id}` } });
+      navigate('/login', { state: { from: bookingPath } });
       return;
     }
 
-    navigate(`/app/bookings/new?fieldId=${id}`);
+    if (!canCreateBooking) {
+      navigate('/app/settings', {
+        state: { errorMessage: captainAccessMessage }
+      });
+      return;
+    }
+
+    navigate(bookingPath);
   };
 
   const resolveFieldImageUrl = (rawImage) => {
-    if (!rawImage) return DEFAULT_FIELD_IMAGE;
+    if (!rawImage || isPlaceholderImage(rawImage)) return DEFAULT_FIELD_IMAGE;
     if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
     if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
     return rawImage;
   };
 
   const normalizeImages = (imagesValue) => {
-    if (Array.isArray(imagesValue)) return imagesValue;
+    if (Array.isArray(imagesValue)) return imagesValue.filter((image) => !isPlaceholderImage(image));
     if (typeof imagesValue === 'string') {
       try {
         const parsed = JSON.parse(imagesValue);
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? parsed.filter((image) => !isPlaceholderImage(image)) : [];
       } catch {
         return [];
       }
@@ -128,7 +141,9 @@ const FieldDetailsPage = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button onClick={handleBook}>Book Now</Button>
+              <Button onClick={handleBook}>
+                {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
+              </Button>
               <Button as={Link} to="/fields" variant="outline">
                 Back
               </Button>
@@ -145,6 +160,15 @@ const FieldDetailsPage = () => {
           </div>
 
           {field.description && <p className="mt-6 text-gray-700">{field.description}</p>}
+
+          {Number.isFinite(Number(field.latitude)) && Number.isFinite(Number(field.longitude)) && (
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold text-gray-900">Location Map</h2>
+              <div className="mt-3">
+                <FieldLocationMap latitude={field.latitude} longitude={field.longitude} />
+              </div>
+            </div>
+          )}
 
           {Array.isArray(field.amenities) && field.amenities.length > 0 && (
             <div className="mt-6">

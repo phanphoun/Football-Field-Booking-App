@@ -21,6 +21,86 @@ const addColumnIfMissing = async (sequelize, tableName, columnName, definition) 
   return true;
 };
 
+const normalizeTeamMemberStatuses = async (sequelize) => {
+  const [rows] = await sequelize.query(
+    `
+    SELECT COLUMN_TYPE AS columnType
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'team_members'
+      AND COLUMN_NAME = 'status'
+    LIMIT 1
+    `
+  );
+
+  const columnType = rows?.[0]?.columnType || '';
+  if (!columnType) return false;
+
+  const usesLegacyStatuses = columnType.includes("'accepted'") || columnType.includes("'declined'");
+  const usesCurrentStatuses = columnType.includes("'active'") && columnType.includes("'inactive'");
+
+  if (!usesLegacyStatuses && usesCurrentStatuses) {
+    return false;
+  }
+
+  await sequelize.query(`
+    UPDATE \`team_members\`
+    SET \`status\` = CASE
+      WHEN \`status\` = 'accepted' THEN 'pending'
+      WHEN \`status\` = 'declined' THEN 'pending'
+      ELSE \`status\`
+    END
+    WHERE \`status\` IN ('accepted', 'declined')
+  `);
+
+  await sequelize.query(`
+    ALTER TABLE \`team_members\`
+    MODIFY COLUMN \`status\` ENUM('pending','active','inactive') NOT NULL DEFAULT 'pending'
+  `);
+
+  await sequelize.query(`
+    UPDATE \`team_members\`
+    SET \`status\` = CASE
+      WHEN \`isActive\` = 1 AND \`status\` = 'pending' THEN 'active'
+      WHEN \`isActive\` = 0 AND \`status\` = 'pending' THEN 'inactive'
+      ELSE \`status\`
+    END
+  `);
+
+  return true;
+};
+
+const ensureTeamMemberJoinedAtNullable = async (sequelize) => {
+  const [rows] = await sequelize.query(
+    `
+    SELECT IS_NULLABLE AS isNullable
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'team_members'
+      AND COLUMN_NAME = 'joinedAt'
+    LIMIT 1
+    `
+  );
+
+  const isNullable = rows?.[0]?.isNullable || '';
+  if (!isNullable || isNullable === 'YES') {
+    return false;
+  }
+
+  await sequelize.query(`
+    UPDATE \`team_members\`
+    SET \`joinedAt\` = COALESCE(\`joinedAt\`, \`createdAt\`, NOW())
+    WHERE \`joinedAt\` IS NULL
+  `);
+
+  await sequelize.query(`
+    ALTER TABLE \`team_members\`
+    MODIFY COLUMN \`joinedAt\` DATETIME NULL DEFAULT NULL
+  `);
+
+  return true;
+};
+
 const applyLegacySchemaFixes = async (sequelize) => {
   const changes = [];
 
@@ -58,6 +138,13 @@ const applyLegacySchemaFixes = async (sequelize) => {
   }
   if (await addColumnIfMissing(sequelize, 'users', 'lastLogin', 'DATETIME NULL')) {
     changes.push('users.lastLogin');
+  }
+
+  if (await normalizeTeamMemberStatuses(sequelize)) {
+    changes.push('team_members.status');
+  }
+  if (await ensureTeamMemberJoinedAtNullable(sequelize)) {
+    changes.push('team_members.joinedAt');
   }
 
   if (changes.length > 0) {

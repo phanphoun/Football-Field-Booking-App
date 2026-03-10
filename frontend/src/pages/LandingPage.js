@@ -41,11 +41,6 @@ const FEATURED_CARD_IMAGES = [
   'https://i.pinimg.com/1200x/5c/41/fa/5c41fab583e85303594a8b24ae0132ce.jpg',
   'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg'
 ];
-const QUICK_TIME_OPTIONS = [
-  'Morning Session',
-  'Afternoon Session',
-  'Evening Session'
-];
 const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Daily Maintenance', className: 'bg-emerald-100 text-emerald-700' },
   { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
@@ -359,15 +354,15 @@ const findEventsForSlot = (events, slot) => {
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const canCreateBooking = user?.role === 'captain';
+  const captainAccessMessage = 'Please request to become captain in Settings.';
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [popularTimeSlots, setPopularTimeSlots] = useState(POPULAR_TIME_SLOTS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
-  const [quickLocation, setQuickLocation] = useState('');
   const [quickDate] = useState(toLocalDateKey(new Date()));
-  const [quickTimeSlot, setQuickTimeSlot] = useState('Afternoon (12PM - 5PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
@@ -697,22 +692,38 @@ const LandingPage = () => {
       return;
     }
 
+    if (!canCreateBooking) {
+      navigate('/app/settings', {
+        state: { errorMessage: captainAccessMessage }
+      });
+      return;
+    }
+
     navigate(bookingPath);
+  };
+
+  const handleStartBooking = () => {
+    const fieldsPath = '/fields?focus=search';
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: fieldsPath } });
+      return;
+    }
+
+    if (!canCreateBooking) {
+      navigate('/app/settings', {
+        state: { errorMessage: captainAccessMessage }
+      });
+      return;
+    }
+
+    navigate(fieldsPath);
   };
 
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
   };
 
-  const handleQuickSearch = () => {
-    const params = new URLSearchParams({
-      focus: 'search',
-      location: quickLocation || '',
-      day: quickDate || '',
-      timeSlot: quickTimeSlot || ''
-    });
-    navigate(`/fields?${params.toString()}`);
-  };
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
@@ -787,10 +798,11 @@ const LandingPage = () => {
               <Button
                 as={Link}
                 to="/app/bookings/new"
+                onClick={handleStartBooking}
                 className="justify-center rounded-xl border border-emerald-300/70 bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/25 hover:bg-emerald-400"
               >
                 <CalendarIcon className="mr-1 h-3.5 w-3.5" />
-                Book a Field
+                {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book a Field'}
               </Button>
 
               <Button
@@ -1041,6 +1053,25 @@ const LandingPage = () => {
                         {field.nextTime ? 'Quick Book' : 'Sold Out'}
                       </button>
                     </div>
+                  </div>
+
+                  <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
+                    <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
+                    <p className="text-sm font-semibold text-emerald-700">{field.nextLabel}</p>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
+                      }`}
+                    >
+                      Filling Fast
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                      className="mt-1 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-emerald-700 hover:to-green-700"
+                    >
+                      {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Quick Book'}
+                    </button>
                   </div>
                 </div>
               ))
@@ -1347,7 +1378,7 @@ const LandingPage = () => {
                         }}
                         className="w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                       >
-                        Book Now
+                        {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
                       </button>
                     ) : (
                       <button

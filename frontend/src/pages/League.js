@@ -20,7 +20,7 @@ const LEAGUES = [
   {
     code: 'PL',
     name: 'Premier League',
-    logo: getPublicAssetUrl('/logos/PremierLeague.png')
+    logo: getPublicAssetUrl('/logos/PremierLeague.svg')
   },
   {
     code: 'PD',
