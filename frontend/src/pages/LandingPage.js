@@ -269,6 +269,8 @@ const isBookingActiveOnSchedule = (booking) =>
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const canCreateBooking = user?.role === 'captain';
+  const captainAccessMessage = 'Please request to become captain in Settings.';
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [popularTimeSlots, setPopularTimeSlots] = useState(POPULAR_TIME_SLOTS);
@@ -602,7 +604,32 @@ const LandingPage = () => {
       return;
     }
 
+    if (!canCreateBooking) {
+      navigate('/app/settings', {
+        state: { errorMessage: captainAccessMessage }
+      });
+      return;
+    }
+
     navigate(bookingPath);
+  };
+
+  const handleStartBooking = () => {
+    const fieldsPath = '/fields?focus=search';
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: fieldsPath } });
+      return;
+    }
+
+    if (!canCreateBooking) {
+      navigate('/app/settings', {
+        state: { errorMessage: captainAccessMessage }
+      });
+      return;
+    }
+
+    navigate(fieldsPath);
   };
 
   const handleTimeSlotClick = (field, slot) => {
@@ -671,12 +698,11 @@ const LandingPage = () => {
             </p>
             <div className="mt-8 mx-auto grid w-full max-w-lg grid-cols-1 gap-2 sm:grid-cols-3">
               <Button
-                as={Link}
-                to="/app/bookings/new"
+                onClick={handleStartBooking}
                 className="justify-center rounded-md border-2 border-emerald-300 bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 hover:bg-emerald-700"
               >
                 <CalendarIcon className="mr-1 h-3.5 w-3.5" />
-                Book a Field
+                {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book a Field'}
               </Button>
 
               <Button
@@ -905,7 +931,7 @@ const LandingPage = () => {
                       onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
                       className="mt-1 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-emerald-700 hover:to-green-700"
                     >
-                      Quick Book
+                      {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Quick Book'}
                     </button>
                   </div>
                 </div>
@@ -1175,7 +1201,7 @@ const LandingPage = () => {
                         }}
                         className="w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                       >
-                        Book Now
+                        {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
                       </button>
                     ) : (
                       <button

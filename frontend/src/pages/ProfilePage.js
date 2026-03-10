@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import {
-  UserIcon,
-  CameraIcon,
-  TrashIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  MapPinIcon,
-  CalendarIcon,
-  ShieldCheckIcon,
-  PencilSquareIcon,
   ArrowRightOnRectangleIcon,
   BookmarkSquareIcon,
-  UserGroupIcon
+  CameraIcon,
+  CalendarIcon,
+  ClockIcon,
+  EnvelopeIcon,
+  LifebuoyIcon,
+  MapPinIcon,
+  PencilSquareIcon,
+  PhoneIcon,
+  TrashIcon,
+  UserGroupIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -25,7 +26,67 @@ const MAX_AVATAR_SIZE_MB = 5;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 
 const inputClass =
-  'mt-1 block w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500';
+  'mt-1 block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100';
+
+const getInitialFormData = (user) => ({
+  firstName: user?.firstName || '',
+  lastName: user?.lastName || '',
+  email: user?.email || '',
+  phone: user?.phone || '',
+  address: user?.address || '',
+  dateOfBirth: user?.dateOfBirth ? String(user.dateOfBirth).slice(0, 10) : '',
+  gender: user?.gender || ''
+});
+
+const formatDate = (dateString, fallback = 'Not specified') => {
+  if (!dateString) return fallback;
+
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return fallback;
+
+  return date.toLocaleDateString();
+};
+
+const formatRoleLabel = (role) => {
+  if (!role) return 'Guest';
+  return role.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatRolePill = (role) => {
+  const colors = {
+    admin: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
+    field_owner: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    captain: 'bg-sky-50 text-sky-700 border border-sky-100',
+    player: 'bg-amber-50 text-amber-700 border border-amber-100',
+    guest: 'bg-slate-100 text-slate-600 border border-slate-200'
+  };
+
+  return colors[role] || colors.guest;
+};
+
+const formatGender = (gender) => {
+  if (!gender) return 'Not specified';
+  return gender.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getYearsActive = (createdAt) => {
+  if (!createdAt) return 0;
+
+  const created = new Date(createdAt);
+  if (Number.isNaN(created.getTime())) return 0;
+
+  const now = new Date();
+  let years = now.getFullYear() - created.getFullYear();
+  const hasNotReachedAnniversary =
+    now.getMonth() < created.getMonth() ||
+    (now.getMonth() === created.getMonth() && now.getDate() < created.getDate());
+
+  if (hasNotReachedAnniversary) {
+    years -= 1;
+  }
+
+  return Math.max(0, years);
+};
 
 const ProfilePage = () => {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
@@ -37,31 +98,13 @@ const ProfilePage = () => {
   const [stats, setStats] = useState({
     totalBookings: 0,
     totalTeams: 0,
-    memberSince: 'Unknown'
+    memberSince: 'Unknown',
+    yearsActive: 0
   });
-  const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    dateOfBirth: user?.dateOfBirth || '',
-    gender: user?.gender || ''
-  });
+  const [formData, setFormData] = useState(getInitialFormData(user));
 
   useEffect(() => {
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        dateOfBirth: user.dateOfBirth || '',
-        gender: user.gender || ''
-      }));
-    }
+    setFormData(getInitialFormData(user));
   }, [user]);
 
   useEffect(() => {
@@ -76,9 +119,8 @@ const ProfilePage = () => {
     let active = true;
 
     const loadStats = async () => {
-      const memberSince = user?.createdAt
-        ? new Date(user.createdAt).toLocaleDateString()
-        : 'Unknown';
+      const memberSince = user?.createdAt ? formatDate(user.createdAt, 'Unknown') : 'Unknown';
+      const yearsActive = getYearsActive(user?.createdAt);
 
       try {
         const [bookingsResult, teamsResult] = await Promise.allSettled([
@@ -97,17 +139,21 @@ const ProfilePage = () => {
             : [];
 
         if (!active) return;
+
         setStats({
           totalBookings: bookings.length,
           totalTeams: teams.length,
-          memberSince
+          memberSince,
+          yearsActive
         });
       } catch {
         if (!active) return;
+
         setStats({
           totalBookings: 0,
           totalTeams: 0,
-          memberSince
+          memberSince,
+          yearsActive
         });
       }
     };
@@ -119,6 +165,9 @@ const ProfilePage = () => {
     };
   }, [user?.id, user?.createdAt]);
 
+  const displayName =
+    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'Unknown User';
+  const roleLabel = formatRoleLabel(user?.role);
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
     const rawAvatar = user?.avatarUrl || user?.avatar_url;
@@ -127,16 +176,53 @@ const ProfilePage = () => {
     const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
     return `${API_ORIGIN}${normalizedPath}`;
   })();
+  const teamStatLabel = user?.role === 'captain' || user?.role === 'field_owner' ? 'Teams Managed' : 'Teams Joined';
+  const statCards = [
+    {
+      label: 'Total Bookings',
+      value: stats.totalBookings,
+      icon: BookmarkSquareIcon,
+      iconClass: 'text-sky-500 bg-sky-50'
+    },
+    {
+      label: teamStatLabel,
+      value: stats.totalTeams,
+      icon: UserGroupIcon,
+      iconClass: 'text-violet-500 bg-violet-50'
+    },
+    {
+      label: 'Years Active',
+      value: stats.yearsActive,
+      icon: ClockIcon,
+      iconClass: 'text-amber-500 bg-amber-50'
+    }
+  ];
+  const infoItems = [
+    { label: 'Full Name', value: displayName, icon: UserIcon },
+    { label: 'Email Address', value: user?.email || 'Not specified', icon: EnvelopeIcon },
+    { label: 'Phone Number', value: user?.phone || 'Not specified', icon: PhoneIcon },
+    { label: 'Date of Birth', value: formatDate(user?.dateOfBirth), icon: CalendarIcon },
+    { label: 'Physical Address', value: user?.address || 'Not specified', icon: MapPinIcon },
+    { label: 'Gender', value: formatGender(user?.gender), icon: UserIcon }
+  ];
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({
+      ...current,
+      [name]: value
+    }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleCancelEdit = () => {
+    setFormData(getInitialFormData(user));
+    setProfileError(null);
+    setSuccessMessage(null);
+    setIsEditing(false);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setProfileError(null);
     setSuccessMessage(null);
 
@@ -151,18 +237,19 @@ const ProfilePage = () => {
 
       const result = await updateProfile(payload);
       if (result.success) {
-        setSuccessMessage('Profile updated successfully!');
+        setSuccessMessage('Profile updated successfully.');
         setIsEditing(false);
-      } else {
-        setProfileError(result.error || 'Failed to update profile');
+        return;
       }
-    } catch (err) {
-      setProfileError(err.error || 'Failed to update profile');
+
+      setProfileError(result.error || 'Failed to update profile');
+    } catch (error) {
+      setProfileError(error.error || 'Failed to update profile');
     }
   };
 
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setProfileError(null);
@@ -170,13 +257,13 @@ const ProfilePage = () => {
 
     if (!file.type.startsWith('image/')) {
       setProfileError('Please select an image file');
-      e.target.value = '';
+      event.target.value = '';
       return;
     }
 
     if (file.size > MAX_AVATAR_SIZE_BYTES) {
       setProfileError(`Avatar file size must be less than ${MAX_AVATAR_SIZE_MB}MB`);
-      e.target.value = '';
+      event.target.value = '';
       return;
     }
 
@@ -184,6 +271,7 @@ const ProfilePage = () => {
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview);
       }
+
       setAvatarPreview(URL.createObjectURL(file));
 
       const formDataUpload = new FormData();
@@ -195,11 +283,11 @@ const ProfilePage = () => {
       }
 
       setAvatarPreview(null);
-      setSuccessMessage('Profile picture updated successfully!');
-    } catch (err) {
-      setProfileError(err.message || err.error || 'Failed to upload avatar');
+      setSuccessMessage('Profile picture updated successfully.');
+    } catch (error) {
+      setProfileError(error.message || error.error || 'Failed to upload avatar');
     } finally {
-      e.target.value = '';
+      event.target.value = '';
     }
   };
 
@@ -212,304 +300,300 @@ const ProfilePage = () => {
       if (!result.success) {
         throw new Error(result.error || 'Failed to remove avatar');
       }
+
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview);
         setAvatarPreview(null);
       }
-      setSuccessMessage('Profile picture removed successfully!');
-    } catch (err) {
-      setProfileError(err.message || err.error || 'Failed to remove avatar');
+
+      setSuccessMessage('Profile picture removed successfully.');
+    } catch (error) {
+      setProfileError(error.message || error.error || 'Failed to remove avatar');
     }
   };
 
   const handleLogout = () => {
     const confirmed = window.confirm('Do you want to logout?');
     if (!confirmed) return;
+
     logout();
     navigate('/login');
   };
 
-  const getRoleBadgeColor = (role) => {
-    const colors = {
-      admin: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
-      field_owner: 'bg-sky-50 text-sky-700 border border-sky-100',
-      captain: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-      player: 'bg-amber-50 text-amber-700 border border-amber-100',
-      guest: 'bg-gray-100 text-gray-700 border border-gray-200'
-    };
-    return colors[role] || colors.guest;
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not specified';
-    return new Date(dateString).toLocaleDateString();
-  };
-
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Profile Settings</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Manage your personal information and account settings
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
-          >
-            <ArrowRightOnRectangleIcon className="h-5 w-5" />
-            Logout
-          </button>
-        </div>
-      </div>
-
       {profileError && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {profileError}
         </div>
       )}
 
       {successMessage && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {successMessage}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-6">
-            <div className="text-center">
-              <div className="mx-auto h-28 w-28 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 flex items-center justify-center overflow-hidden border-2 border-emerald-100 shadow-sm">
-                {resolvedAvatarUrl ? (
-                  <img
-                    src={resolvedAvatarUrl}
-                    alt={`${user?.firstName || user?.username || 'User'} avatar`}
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <UserIcon className="h-14 w-14 text-emerald-700" />
-                )}
-              </div>
-              <div className="mt-4">
-                <div className="inline-flex items-center gap-3">
-                  <label
-                    title="Upload photo"
-                    aria-label="Upload photo"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer transition-colors"
-                  >
-                    <CameraIcon className="h-5 w-5" />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleAvatarDelete}
-                    disabled={loading}
-                    title="Remove photo"
-                    aria-label="Remove photo"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              <h2 className="mt-4 text-lg font-medium text-gray-900">
-                {user?.firstName && user?.lastName
-                  ? `${user.firstName} ${user.lastName}`
-                  : user?.username || 'Unknown User'}
-              </h2>
-              <p className="text-sm text-gray-500">@{user?.username || 'unknown'}</p>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-2 ${getRoleBadgeColor(user?.role)}`}>
-                {user?.role || 'guest'}
-              </span>
+      <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="relative h-24 w-24 shrink-0">
+              <img
+                src={resolvedAvatarUrl}
+                alt={`${displayName} avatar`}
+                className="h-24 w-24 rounded-full border-4 border-emerald-100 object-cover shadow-sm"
+                onError={(event) => {
+                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
+                  if (event.currentTarget.src !== fallbackUrl) {
+                    event.currentTarget.src = fallbackUrl;
+                  }
+                }}
+              />
+              <label className="absolute bottom-0 left-0 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm transition hover:bg-emerald-100">
+                <CameraIcon className="h-4 w-4" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </label>
             </div>
 
-            <div className="mt-6 border-t border-gray-200 pt-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Account Statistics</h3>
-              <dl className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <dt className="text-gray-500">Member Since</dt>
-                  <dd className="font-medium text-gray-900">{stats.memberSince}</dd>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <dt className="text-gray-500">Total Bookings</dt>
-                  <dd className="font-medium text-gray-900 inline-flex items-center gap-1">
-                    <BookmarkSquareIcon className="h-4 w-4 text-gray-400" />
-                    {stats.totalBookings}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <dt className="text-gray-500">Teams Joined</dt>
-                  <dd className="font-medium text-gray-900 inline-flex items-center gap-1">
-                    <UserGroupIcon className="h-4 w-4 text-gray-400" />
-                    {stats.totalTeams}
-                  </dd>
-                </div>
-              </dl>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">{displayName}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${formatRolePill(user?.role)}`}>
+                  {roleLabel}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+                  <ClockIcon className="h-4 w-4" />
+                  Active since {stats.memberSince}
+                </span>
+              </div>
             </div>
           </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setIsEditing((current) => !current)}
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+            >
+              <PencilSquareIcon className="h-5 w-5" />
+              {isEditing ? 'Close Edit' : 'Edit Profile'}
+            </button>
+            <button
+              type="button"
+              onClick={handleAvatarDelete}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <TrashIcon className="h-5 w-5" />
+              Remove Photo
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5" />
+              Logout
+            </button>
+          </div>
         </div>
+      </section>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white shadow-sm rounded-xl border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900 inline-flex items-center gap-2">
-                  <PencilSquareIcon className="h-5 w-5 text-emerald-600" />
-                  Personal Information
-                </h3>
-                <button
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  {isEditing ? 'Cancel' : 'Edit'}
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {isEditing ? (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                        First Name
-                      </label>
-                      <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                        Last Name
-                      </label>
-                      <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-6 py-5">
+            <h2 className="text-2xl font-semibold text-slate-900">Personal Information</h2>
+          </div>
 
+          <div className="p-6">
+            {isEditing ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="firstName" className="text-sm font-medium text-slate-700">
+                      First Name
+                    </label>
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      type="text"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="text-sm font-medium text-slate-700">
+                      Last Name
+                    </label>
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="text-sm font-medium text-slate-700">
                       Email Address
                     </label>
-                    <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} className={inputClass} />
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                        Phone Number
-                      </label>
-                      <input type="tel" id="phone" name="phone" value={formData.phone} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">
-                        Date of Birth
-                      </label>
-                      <input type="date" id="dateOfBirth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-
                   <div>
-                    <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="phone" className="text-sm font-medium text-slate-700">
+                      Phone Number
+                    </label>
+                    <input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-700">
+                      Date of Birth
+                    </label>
+                    <input
+                      id="dateOfBirth"
+                      name="dateOfBirth"
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="gender" className="text-sm font-medium text-slate-700">
                       Gender
                     </label>
-                    <select id="gender" name="gender" value={formData.gender} onChange={handleChange} className={inputClass}>
+                    <select
+                      id="gender"
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className={inputClass}
+                    >
                       <option value="">Not specified</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
+                </div>
 
-                  <div>
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                      Address
-                    </label>
-                    <textarea id="address" name="address" rows={3} value={formData.address} onChange={handleChange} className={inputClass} />
-                  </div>
+                <div>
+                  <label htmlFor="address" className="text-sm font-medium text-slate-700">
+                    Physical Address
+                  </label>
+                  <textarea
+                    id="address"
+                    name="address"
+                    rows={4}
+                    value={formData.address}
+                    onChange={handleChange}
+                    className={inputClass}
+                  />
+                </div>
 
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 border border-transparent rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-50"
-                    >
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <dl className="space-y-4">
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <UserIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Full Name</dt>
-                      <dd className="text-sm text-gray-900">
-                        {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Not specified'}
-                      </dd>
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {infoItems.map((item) => (
+                  <div key={item.label} className="rounded-2xl bg-slate-50 px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {item.label}
+                    </p>
+                    <div className="mt-3 flex items-start gap-3">
+                      <item.icon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                      <p className="text-base font-semibold text-slate-900">{item.value}</p>
                     </div>
                   </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <EnvelopeIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Email</dt>
-                      <dd className="text-sm text-gray-900">{user?.email || 'Not specified'}</dd>
-                    </div>
+                ))}
+
+                <div className="rounded-2xl bg-slate-50 px-4 py-4 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Account Type
+                  </p>
+                  <div className="mt-3">
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${formatRolePill(user?.role)}`}>
+                      {roleLabel}
+                    </span>
                   </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <PhoneIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                      <dd className="text-sm text-gray-900">{user?.phone || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <MapPinIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Address</dt>
-                      <dd className="text-sm text-gray-900">{user?.address || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <CalendarIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Date of Birth</dt>
-                      <dd className="text-sm text-gray-900">{formatDate(user?.dateOfBirth)}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <ShieldCheckIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Account Type</dt>
-                      <dd className="text-sm text-gray-900 capitalize">{user?.role || 'guest'}</dd>
-                    </div>
-                  </div>
-                  <div className="flex items-center p-3 rounded-lg border border-gray-100 bg-gray-50/60">
-                    <UserIcon className="h-5 w-5 text-emerald-600 mr-3" />
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Gender</dt>
-                      <dd className="text-sm text-gray-900 capitalize">{user?.gender || 'Not specified'}</dd>
-                    </div>
-                  </div>
-                </dl>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </div>
+        </section>
 
+        <div className="space-y-6">
+          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold text-slate-900">Account Statistics</h2>
+            <div className="mt-5 space-y-3">
+              {statCards.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${item.iconClass}`}>
+                      <item.icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-sm font-medium text-slate-600">{item.label}</span>
+                  </div>
+                  <span className="text-lg font-bold text-slate-900">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-[28px] border border-emerald-200 bg-emerald-50/60 p-6 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+                <LifebuoyIcon className="h-6 w-6" />
+              </span>
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-900">Need Help?</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Contact support if you need help with your account or profile information.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href="mailto:support@football.com"
+              className="mt-6 inline-flex w-full items-center justify-center rounded-2xl border border-emerald-300 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            >
+              Contact Support
+            </a>
+          </section>
         </div>
       </div>
     </div>
