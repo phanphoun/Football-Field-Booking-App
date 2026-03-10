@@ -6,6 +6,7 @@ import {
   BuildingOfficeIcon,
   CalendarIcon,
   TrophyIcon,
+  ArrowLeftIcon,
   UserCircleIcon,
   BellAlertIcon,
   ClipboardDocumentCheckIcon,
@@ -32,19 +33,6 @@ const OwnerLayout = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
   const notificationsMenuRef = useRef(null);
-
-  const pageInfo = useMemo(() => {
-    const path = location.pathname;
-    const entries = [
-      { match: '/owner/dashboard', title: 'Owner Dashboard', subtitle: 'Track field performance and booking flow' },
-      { match: '/owner/fields', title: 'My Fields', subtitle: 'Create, update, and manage your fields' },
-      { match: '/owner/bookings', title: 'Booking Requests', subtitle: 'Confirm or cancel incoming booking requests' },
-      { match: '/owner/matches', title: 'Matches', subtitle: 'View team vs team matches and enter final results' },
-      { match: '/owner/profile', title: 'Profile', subtitle: 'Manage your owner account settings' }
-    ];
-    const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: 'Owner Panel', subtitle: 'Manage your field business' };
-  }, [location.pathname]);
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
@@ -388,11 +376,13 @@ const OwnerLayout = () => {
             </button>
 
             <div className="ml-3 min-w-0 md:ml-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{pageInfo.title}</p>
-              <p className="hidden truncate text-xs text-gray-500 sm:block">
-                {pageInfo.subtitle}
-                {user?.firstName ? ` | Welcome back, ${user.firstName}` : ''}
-              </p>
+              <Link
+                to="/"
+                className="inline-flex items-center gap-2 rounded-[18px] border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50"
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+                Back
+              </Link>
             </div>
 
             <div className="ml-auto flex items-center space-x-4">

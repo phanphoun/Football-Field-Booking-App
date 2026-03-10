@@ -98,6 +98,7 @@ const AppLayout = () => {
   ];
 
   const showBackHomeButton = location.pathname.startsWith('/app');
+  const isAppFieldsRoute = location.pathname.startsWith('/app/fields');
 
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Player';
@@ -760,9 +761,13 @@ const AppLayout = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+                  className={`inline-flex items-center border bg-white transition ${
+                    isAppFieldsRoute
+                      ? 'gap-2 rounded-full border-slate-200 px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:border-emerald-200 hover:bg-emerald-50/60 hover:text-emerald-700'
+                      : 'gap-2 rounded-xl border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-900'
+                  }`}
                 >
-                  <ArrowLeftIcon className="h-4 w-4" />
+                  <ArrowLeftIcon className={isAppFieldsRoute ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
                   <span className="hidden sm:inline">Back</span>
                 </button>
               )}
