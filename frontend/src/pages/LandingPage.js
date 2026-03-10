@@ -225,7 +225,7 @@ const LandingPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDay, setSelectedDay] = useState(toLocalDateKey(new Date()));
-  const [quickDate] = useState(toLocalDateKey(new Date()));
+  const [quickDate, setQuickDate] = useState(toLocalDateKey(new Date()));
   const [quickLocation, setQuickLocation] = useState('');
   const [quickTimeSlot, setQuickTimeSlot] = useState('Evening (5PM - 9PM)');
   const [scheduleLoading, setScheduleLoading] = useState(false);

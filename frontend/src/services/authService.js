@@ -1,11 +1,8 @@
-import apiService, { clearAuth, fetchCsrfToken } from './api';
+import apiService, { clearAuth } from './api';
 
 const authService = {
   // Register new user (token now in httpOnly cookie)
   register: async (userData) => {
-    // Fetch CSRF token before registration
-    await fetchCsrfToken();
-    
     const response = await apiService.post('/auth/register', userData);
     
     // Store user data (token is in httpOnly cookie)
@@ -18,9 +15,6 @@ const authService = {
 
   // Login user (token now in httpOnly cookie)
   login: async (credentials) => {
-    // Fetch CSRF token before login
-    await fetchCsrfToken();
-    
     const response = await apiService.post('/auth/login', credentials);
     
     // Store user data (token is in httpOnly cookie)

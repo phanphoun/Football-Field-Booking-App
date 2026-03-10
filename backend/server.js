@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const axios = require("axios");
+const cookieParser = require('cookie-parser');
 const { sequelize } = require('./src/models');
 const serverConfig = require('./src/config/serverConfig');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
@@ -22,9 +23,6 @@ const matchResultRoutes = require('./src/routes/matchResultRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
-
-// Import security middleware
-const { csrfProtection, csrfErrorHandler, cookieParser } = require('./src/middleware/csrfMiddleware');
 
 // Import Swagger documentation
 const setupSwagger = require('./src/config/swagger');
@@ -117,12 +115,7 @@ app.set('trust proxy', 1);
 app.use(helmet(serverConfig.security.helmet));
 app.use(cors(serverConfig.cors));
 app.use(compression());
-
-// Cookie parser for CSRF protection
 app.use(cookieParser());
-
-// CSRF protection middleware
-app.use(csrfProtection);
 
 // Rate limiting
 if (serverConfig.security.rateLimiting.enabled) {
@@ -152,15 +145,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Setup Swagger documentation
 setupSwagger(app);
-
-// CSRF token endpoint
-app.get('/api/csrf-token', csrfProtection, (req, res) => {
-  res.json({ 
-    success: true,
-    csrfToken: req.csrfToken(),
-    message: 'CSRF token generated'
-  });
-});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -401,7 +385,6 @@ app.get("/api/v1/leagues/standings", async (req, res) => {
 });
 
 // Error handling middleware (must be after routes)
-app.use(csrfErrorHandler);
 app.use(notFound);
 app.use(errorHandler);
 

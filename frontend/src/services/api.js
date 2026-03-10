@@ -18,47 +18,12 @@ const api = axios.create({
   withCredentials: true,  // IMPORTANT: Allow cookie transmission
 });
 
-// =====================================
-// Authentication Helpers
-// =====================================
-// No longer store token in localStorage - token is in httpOnly cookie
 export const clearAuth = () => {
   localStorage.removeItem('user');
-  localStorage.removeItem('csrfToken');
 };
 
-// =====================================
-// CSRF Token Management
-// =====================================
-export const fetchCsrfToken = async () => {
-  try {
-    const response = await api.get('/csrf-token');
-    const csrfToken = response.data?.csrfToken;
-    if (csrfToken) {
-      localStorage.setItem('csrfToken', csrfToken);
-      api.defaults.headers.common['X-CSRF-Token'] = csrfToken;
-    }
-    return csrfToken;
-  } catch (error) {
-    console.error('Failed to fetch CSRF token:', error);
-    return null;
-  }
-};
-
-// =====================================
-// Request Interceptor
-// Add CSRF token to state-changing requests
-// =====================================
 api.interceptors.request.use(
   (config) => {
-    // Token is automatically sent via cookie, no need to add to headers
-    
-    // Add CSRF token for state-changing operations
-    const csrfToken = localStorage.getItem('csrfToken');
-    if (csrfToken && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(config.method?.toUpperCase())) {
-      config.headers['X-CSRF-Token'] = csrfToken;
-    }
-
     // Let the browser set multipart boundaries automatically for file uploads
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
       if (typeof config.headers?.set === 'function') {
