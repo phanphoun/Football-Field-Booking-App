@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 const { Op } = require('sequelize');
-const { User, Team, TeamMember, Field, Booking } = require('../models');
-=======
-const { User, RoleRequest } = require('../models');
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
+const { User, Team, TeamMember, Field, Booking, RoleRequest } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -261,7 +257,6 @@ const updateProfile = async (req, res) => {
   }
 };
 
-<<<<<<< HEAD
 const getProfileStats = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
@@ -365,14 +360,11 @@ const getProfileStats = async (req, res) => {
   }
 };
 
-=======
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
-<<<<<<< HEAD
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'currentPassword and newPassword are required.' });
     }
@@ -381,14 +373,11 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
     }
 
-=======
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-<<<<<<< HEAD
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return res.status(400).json({ error: 'Current password is incorrect.' });
@@ -397,16 +386,6 @@ const changePassword = async (req, res) => {
     const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
     if (sameAsCurrent) {
       return res.status(400).json({ error: 'New password must be different from current password.' });
-=======
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isCurrentPasswordValid) {
-      return res.status(400).json({ error: 'Current password is incorrect.' });
-    }
-
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
-    if (isSamePassword) {
-      return res.status(400).json({ error: 'New password must be different from your current password.' });
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -701,11 +680,8 @@ module.exports = {
   getProfileStats,
   updateProfile,
   changePassword,
-<<<<<<< HEAD
-=======
   getRoleRequests,
   requestRoleUpgrade,
->>>>>>> 213091dce9910aacf1e0729325582b7720d3a154
   uploadProfileAvatar,
   deleteProfileAvatar
 };
