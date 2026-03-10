@@ -193,6 +193,18 @@ const bookingService = {
     return response;
   },
 
+  // Public booking stats for landing page (no auth required)
+  getPublicBookingStats: async (filters = {}) => {
+    const params = {
+      lookbackDays: filters.lookbackDays,
+      top: filters.top,
+      statuses: filters.statuses,
+      timezoneOffsetMinutes: filters.timezoneOffsetMinutes
+    };
+    const response = await apiService.get('/bookings/public/stats', params);
+    return response;
+  },
+
   // Helper method to format booking data for API
   formatBookingData: (rawData) => {
     return {

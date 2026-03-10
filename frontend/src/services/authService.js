@@ -92,12 +92,6 @@ const authService = {
     return response;
   },
 
-  // Change password
-  changePassword: async (payload) => {
-    const response = await apiService.put('/auth/profile/password', payload);
-    return response;
-  },
-
   // Delete profile avatar
   deleteAvatar: async () => {
     const response = await apiService.delete('/auth/profile/avatar');

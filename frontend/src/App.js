@@ -57,7 +57,7 @@ function App() {
             <Route
               path="/app"
               element={
-                <ProtectedRoute allowedRoles={['guest', 'player', 'captain', 'field_owner', 'admin']}>
+                <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
                   <AppLayout />
                 </ProtectedRoute>
               }
@@ -70,7 +70,7 @@ function App() {
               <Route
                 path="teams/create"
                 element={
-                  <ProtectedRoute allowedRoles={['guest', 'player', 'captain', 'field_owner', 'admin']}>
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
                     <TeamCreatePage />
                   </ProtectedRoute>
                 }
@@ -80,7 +80,7 @@ function App() {
               <Route
                 path="teams/:id/manage"
                 element={
-                  <ProtectedRoute allowedRoles={['guest', 'player', 'captain', 'field_owner', 'admin']}>
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
                     <TeamManagePage />
                   </ProtectedRoute>
                 }
@@ -120,7 +120,7 @@ function App() {
             <Route
               path="/owner"
               element={
-                <ProtectedRoute allowedRoles={['field_owner', 'admin']}>
+                <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/">
                   <OwnerLayout />
                 </ProtectedRoute>
               }

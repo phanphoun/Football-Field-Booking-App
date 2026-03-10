@@ -89,13 +89,15 @@ api.interceptors.response.use(
         error.message ||
         'An unexpected error occurred';
 
-    // Handle Unauthorized (Token expired / invalid)
+    // Handle Unauthorized (token expired/invalid)
     if (status === 401) {
       clearAuth();
+      const currentPath = window.location.pathname || '/';
+      const isProtectedPath = currentPath.startsWith('/app') || currentPath.startsWith('/owner');
 
-      // Avoid redirect loop
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // Keep first-time/public users on Home. Only force leave protected areas.
+      if (isProtectedPath && currentPath !== '/') {
+        window.location.href = '/';
       }
     }
 

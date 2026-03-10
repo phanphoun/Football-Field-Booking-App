@@ -12,7 +12,7 @@ const BookingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [openForOpponentsFilter] = useState('all');
+  const [openForOpponentsFilter, setOpenForOpponentsFilter] = useState('all');
   const [toggleLoadingMap, setToggleLoadingMap] = useState({});
   const [cancelMatchedLoadingMap, setCancelMatchedLoadingMap] = useState({});
   const [joinRequestsByBooking, setJoinRequestsByBooking] = useState({});
