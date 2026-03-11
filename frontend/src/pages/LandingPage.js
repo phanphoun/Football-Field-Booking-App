@@ -1050,28 +1050,13 @@ const LandingPage = () => {
                             : 'cursor-not-allowed bg-slate-300'
                         }`}
                       >
-                        {field.nextTime ? 'Quick Book' : 'Sold Out'}
+                        {field.nextTime
+                          ? isAuthenticated && !canCreateBooking
+                            ? 'Request Captain Access'
+                            : 'Quick Book'
+                          : 'Sold Out'}
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
-                    <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
-                    <p className="text-sm font-semibold text-emerald-700">{field.nextLabel}</p>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                        field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
-                      }`}
-                    >
-                      Filling Fast
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                      className="mt-1 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:from-emerald-700 hover:to-green-700"
-                    >
-                      {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Quick Book'}
-                    </button>
                   </div>
                 </div>
               ))
