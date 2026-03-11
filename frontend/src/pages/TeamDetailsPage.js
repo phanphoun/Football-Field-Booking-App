@@ -266,6 +266,7 @@ const TeamDetailsPage = () => {
     ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
     : [];
   const canViewMatchHistory = isAdmin() || isCaptainOfTeam || membership?.status === 'active';
+  const isAdminUser = isAdmin();
 
   const resolveUserAvatarUrl = (memberUser) => {
     const rawAvatar = memberUser?.avatarUrl || memberUser?.avatar_url || null;
@@ -312,7 +313,7 @@ const TeamDetailsPage = () => {
               Match History
             </Link>
           )}
-          {(isCaptainOfTeam || isAdmin()) && (
+          {isCaptainOfTeam && (
             <Link
               to={`/app/teams/${team.id}/manage`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
@@ -437,7 +438,9 @@ const TeamDetailsPage = () => {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {isCaptainOfTeam ? (
+          {isAdminUser ? (
+            <div className="text-sm text-gray-700">Admin view: you can only view team details and match history.</div>
+          ) : isCaptainOfTeam ? (
             <div className="text-sm text-gray-700">You are the captain of this team.</div>
           ) : isInvited ? (
             <div className="flex flex-wrap gap-3">

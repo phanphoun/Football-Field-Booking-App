@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
+import notificationService from '../services/notificationService';
 import { UsersIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, EmptyState, Spinner } from '../components/ui';
 
@@ -22,11 +23,16 @@ const PublicTeamsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [deletingTeamId, setDeletingTeamId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState('');
+  const isAdmin = user?.role === 'admin';
 
   const canRequestJoin = (team) => {
     if (!isAuthenticated) return false;
     if (!user) return false;
-    if (!['player', 'captain', 'admin'].includes(user?.role || '')) return false;
+    if (!['player', 'captain'].includes(user?.role || '')) return false;
     // Prevent captains from joining their own teams
     if (team.captainId === user?.id) return false;
     return true;
@@ -69,6 +75,60 @@ const PublicTeamsPage = () => {
     }
   };
 
+  const openDeleteDialog = (team) => {
+    setTeamToDelete(team);
+    setDeleteMessage('');
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setTeamToDelete(null);
+    setDeleteMessage('');
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!teamToDelete?.id) return;
+    const message = deleteMessage.trim();
+    if (!message) {
+      setError('Please enter a message to captain before deleting.');
+      return;
+    }
+
+    const teamId = teamToDelete.id;
+
+    try {
+      setDeletingTeamId(teamId);
+      setError(null);
+      setSuccessMessage(null);
+
+      const captainUserId = teamToDelete?.captainId || teamToDelete?.captain?.id;
+      if (captainUserId) {
+        await notificationService.create({
+          userId: captainUserId,
+          type: 'system',
+          title: `Team deleted by admin: ${teamToDelete.name}`,
+          message,
+          metadata: {
+            event: 'team_deleted_by_admin',
+            teamId: teamToDelete.id,
+            teamName: teamToDelete.name,
+            actorId: user?.id
+          }
+        });
+      }
+
+      await teamService.deleteTeam(teamId);
+      setTeams((prev) => prev.filter((team) => team.id !== teamId));
+      setSuccessMessage('Team deleted successfully.');
+      closeDeleteDialog();
+    } catch (err) {
+      setError(err?.error || 'Failed to delete team');
+    } finally {
+      setDeletingTeamId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -82,7 +142,9 @@ const PublicTeamsPage = () => {
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Teams</h1>
-          <p className="mt-1 text-sm text-gray-600">Discover football teams and request to join.</p>
+          <p className="mt-1 text-sm text-gray-600">
+            {isAdmin ? 'Admin view: view and delete teams.' : 'Discover football teams and request to join.'}
+          </p>
         </div>
         <Badge tone="gray">{teams.length} results</Badge>
       </div>
@@ -154,7 +216,15 @@ const PublicTeamsPage = () => {
                   View Details
                 </Button>
 
-                {canRequestJoin(team) ? (
+                {isAdmin ? (
+                  <Button
+                    onClick={() => openDeleteDialog(team)}
+                    className="flex-1 bg-red-600 hover:bg-red-700"
+                    disabled={deletingTeamId === team.id}
+                  >
+                    {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
+                  </Button>
+                ) : canRequestJoin(team) ? (
                   <Button
                     onClick={() => handleRequestJoin(team.id)}
                     className="flex-1"
@@ -185,6 +255,47 @@ const PublicTeamsPage = () => {
           </div>
         )}
       </div>
+
+      {deleteDialogOpen && teamToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Delete Team</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Send a message to captain before deleting <span className="font-semibold">{teamToDelete.name}</span>.
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">Message to captain</label>
+              <textarea
+                value={deleteMessage}
+                onChange={(e) => setDeleteMessage(e.target.value)}
+                rows={4}
+                placeholder="Explain why this team is being deleted..."
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                disabled={deletingTeamId === teamToDelete.id}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTeam}
+                disabled={deletingTeamId === teamToDelete.id}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {deletingTeamId === teamToDelete.id ? 'Deleting...' : 'Send & Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

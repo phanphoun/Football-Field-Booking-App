@@ -76,6 +76,19 @@ const authService = {
     });
   },
 
+  // Admin: list all role requests
+  getAdminRoleRequests: async (status = '') => {
+    return apiService.get('/auth/admin/role-requests', status ? { status } : {});
+  },
+
+  // Admin: approve/reject role request
+  reviewRoleRequest: async (requestId, action, note = '') => {
+    return apiService.patch(`/auth/admin/role-requests/${requestId}/review`, {
+      action,
+      note
+    });
+  },
+
   // Upload profile avatar
   uploadAvatar: async (formData) => {
     const response = await apiService.upload('/auth/profile/avatar', formData, {

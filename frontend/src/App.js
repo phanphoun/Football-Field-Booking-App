@@ -29,6 +29,8 @@ import OwnerBookingsPage from './pages/OwnerBookingsPage';
 import OwnerMatchesPage from './pages/OwnerMatchesPage';
 import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
 
 // Import layout components
@@ -71,7 +73,7 @@ function App() {
               <Route
                 path="teams/create"
                 element={
-                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner']} redirectTo="/app/teams">
                     <TeamCreatePage />
                   </ProtectedRoute>
                 }
@@ -81,22 +83,29 @@ function App() {
               <Route
                 path="teams/:id/manage"
                 element={
-                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner', 'admin']} redirectTo="/">
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner']} redirectTo="/app/teams">
                     <TeamManagePage />
                   </ProtectedRoute>
                 }
               />
-              <Route path="bookings" element={<BookingsPage />} />
+              <Route
+                path="bookings"
+                element={
+                  <ProtectedRoute allowedRoles={['player', 'captain', 'field_owner']} redirectTo="/app/dashboard">
+                    <BookingsPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="bookings/new"
                 element={
                   <ProtectedRoute
-                    allowedRoles={['captain']}
+                    allowedRoles={['captain', 'field_owner']}
                     fallback={
                       <Navigate
                         to="/app/settings"
                         replace
-                        state={{ errorMessage: 'Please request to become captain in Settings.' }}
+                        state={{ errorMessage: 'Access denied for creating bookings.' }}
                       />
                     }
                   >
@@ -107,7 +116,7 @@ function App() {
               <Route
                 path="open-matches"
                 element={
-                  <ProtectedRoute allowedRoles={['captain']}>
+                  <ProtectedRoute allowedRoles={['captain', 'field_owner']}>
                     <OpenMatchesPage />
                   </ProtectedRoute>
                 }
@@ -121,7 +130,15 @@ function App() {
                 path="admin/users"
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
-                    <div>Admin Users Page (Coming Soon)</div>
+                    <AdminUsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/role-requests"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminRoleRequestsPage />
                   </ProtectedRoute>
                 }
               />
@@ -146,6 +163,32 @@ function App() {
               <Route path="dashboard" element={<OwnerDashboardPage />} />
               <Route path="fields" element={<OwnerFieldsPage />} />
               <Route path="bookings" element={<OwnerBookingsPage />} />
+              <Route
+                path="bookings/new"
+                element={
+                  <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/bookings">
+                    <CreateBookingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="league" element={<LeaguePage />} />
+              <Route path="teams" element={<TeamsPage />} />
+              <Route
+                path="teams/create"
+                element={
+                  <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                    <TeamCreatePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="open-matches"
+                element={
+                  <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/dashboard">
+                    <OpenMatchesPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="matches" element={<OwnerMatchesPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>

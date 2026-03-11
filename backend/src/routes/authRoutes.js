@@ -3,6 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const improvedAuthController = require('../controllers/improvedAuthController');
 const auth = require('../middleware/auth');
+const checkRole = require('../middleware/role');
 const { userValidation } = require('../middleware/validation');
 const authValidator = require('../validators/authValidator');
 
@@ -14,6 +15,8 @@ router.put('/profile', auth, userValidation.updateProfile, authController.update
 router.post('/change-password', auth, userValidation.changePassword, authController.changePassword);
 router.get('/role-requests', auth, authController.getRoleRequests);
 router.post('/role-requests', auth, userValidation.requestRoleUpgrade, authController.requestRoleUpgrade);
+router.get('/admin/role-requests', auth, checkRole(['admin']), authController.getAllRoleRequestsForAdmin);
+router.patch('/admin/role-requests/:id/review', auth, checkRole(['admin']), authController.reviewRoleRequest);
 router.post('/profile/avatar', auth, authController.uploadProfileAvatar);
 router.delete('/profile/avatar', auth, authController.deleteProfileAvatar);
 router.post('/request-field-owner', auth, authValidator.requestFieldOwner, improvedAuthController.requestFieldOwnerRole);

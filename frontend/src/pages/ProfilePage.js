@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useEffect, useMemo, useState } from 'react';
-=======
 import React, { useEffect, useState } from 'react';
->>>>>>> 9f39085887a02703fc3c851c1aea50621613f89f
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
@@ -18,11 +14,7 @@ import {
   PhoneIcon,
   TrashIcon,
   UserGroupIcon,
-<<<<<<< HEAD
-  ClockIcon
-=======
   UserIcon
->>>>>>> 9f39085887a02703fc3c851c1aea50621613f89f
 } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -54,41 +46,8 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [stats, setStats] = useState({ totalBookings: 0, totalTeams: 0 });
   const [avatarPreview, setAvatarPreview] = useState(null);
-<<<<<<< HEAD
-  const [showPasswordSection, setShowPasswordSection] = useState(false);
-  const [stats, setStats] = useState({
-    totalBookings: 0,
-    confirmedBookings: 0,
-    totalTeams: 0,
-    memberSince: 'Unknown',
-    yearsActive: 0,
-    fieldEfficiency: 0
-  });
-
-  // request field owner UI state
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [requestData, setRequestData] = useState({
-    fieldName: '',
-    location: '',
-    phone: '',
-    description: ''
-  });
-  const [requestError, setRequestError] = useState(null);
-  const [requestSuccess, setRequestSuccess] = useState(null);
-  const [requestPending, setRequestPending] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    dateOfBirth: user?.dateOfBirth || '',
-    gender: user?.gender || ''
-  });
-=======
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
->>>>>>> 9f39085887a02703fc3c851c1aea50621613f89f
 
   useEffect(() => {
     setFormData(getInitialFormData(user));
@@ -228,60 +187,6 @@ const ProfilePage = () => {
     navigate('/login');
   };
 
-<<<<<<< HEAD
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not specified';
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // Handlers for request form
-  const handleRequestChange = (e) => {
-    setRequestData({
-      ...requestData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleRequestSubmit = async (e) => {
-    e.preventDefault();
-    setRequestError(null);
-    setRequestSuccess(null);
-
-    // simple validation
-    if (!requestData.fieldName.trim()) {
-      setRequestError('Field name is required.');
-      return;
-    }
-    if (!requestData.location.trim()) {
-      setRequestError('Location is required.');
-      return;
-    }
-
-    setRequestPending(true);
-    try {
-      const result = await authService.requestFieldOwnerRole(requestData);
-      if (result.success) {
-        setRequestSuccess('Request submitted successfully. Waiting for admin approval.');
-        setShowRequestForm(false);
-        setRequestData({ fieldName: '', location: '', phone: '', description: '' });
-      } else {
-        setRequestError(result.error || result.message || 'Failed to submit request');
-        setRequestPending(false);
-      }
-    } catch (err) {
-      console.error('Request error:', err);
-      setRequestError(err.error || err.message || 'Failed to submit request');
-      setRequestPending(false);
-    }
-  };
-
-  const fullName =
-    user?.firstName && user?.lastName
-      ? `${user.firstName} ${user.lastName}`
-      : user?.username || 'Unknown User';
-
-=======
->>>>>>> 9f39085887a02703fc3c851c1aea50621613f89f
   return (
     <div className="space-y-6">
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -348,124 +253,9 @@ const ProfilePage = () => {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {profileError && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{profileError}</div>
-      )}
-      {successMessage && (
-        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          {successMessage}
-        </div>
-      )}
-
-      {/* role upgrade section */}
-      {user && user.role !== 'field_owner' && !user.role.startsWith('admin') && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-          <h2 className="mb-2 text-base font-semibold text-gray-900">Role Upgrade</h2>
-          {requestPending && (
-            <p className="mb-2 text-sm text-orange-700">Your request is pending approval.</p>
-          )}
-          {requestSuccess && (
-            <p className="mb-2 text-sm text-green-700">{requestSuccess}</p>
-          )}
-          {requestError && (
-            <p className="mb-2 text-sm text-red-700">{requestError}</p>
-          )}
-
-          {!requestPending && !requestSuccess && !showRequestForm && (
-            <button
-              type="button"
-              onClick={() => setShowRequestForm(true)}
-              className="inline-flex items-center gap-2 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-            >
-              Request Field Owner
-            </button>
-          )}
-
-          {showRequestForm && (
-            <form onSubmit={handleRequestSubmit} className="mt-4 space-y-4">
-              <div>
-                <label htmlFor="fieldName" className="block text-sm font-medium text-gray-700">
-                  Field Name
-                </label>
-                <input
-                  id="fieldName"
-                  name="fieldName"
-                  value={requestData.fieldName}
-                  onChange={handleRequestChange}
-                  className={inputClass}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-                  Location
-                </label>
-                <input
-                  id="location"
-                  name="location"
-                  value={requestData.location}
-                  onChange={handleRequestChange}
-                  className={inputClass}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                  Phone Number
-                </label>
-                <input
-                  id="phone"
-                  name="phone"
-                  value={requestData.phone}
-                  onChange={handleRequestChange}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={3}
-                  value={requestData.description}
-                  onChange={handleRequestChange}
-                  className={inputClass}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRequestForm(false);
-                    setRequestError(null);
-                  }}
-                  className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
-                >
-                  Submit Request
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-semibold text-gray-900">Personal Information</h2>
-=======
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Personal Information</h2>
->>>>>>> 9f39085887a02703fc3c851c1aea50621613f89f
 
           {isEditing ? (
             <form onSubmit={handleSubmit} className="space-y-4">

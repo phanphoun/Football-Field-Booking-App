@@ -673,6 +673,108 @@ const requestRoleUpgrade = async (req, res) => {
   }
 };
 
+const getAllRoleRequestsForAdmin = async (req, res) => {
+  try {
+    const statusFilter = req.query.status;
+    const where = {};
+    if (['pending', 'approved', 'rejected'].includes(statusFilter)) {
+      where.status = statusFilter;
+    }
+
+    const requests = await RoleRequest.findAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'role', 'status']
+        },
+        {
+          model: User,
+          as: 'reviewer',
+          attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+          required: false
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({ requests });
+  } catch (error) {
+    console.error('Get all role requests for admin error:', error);
+    res.status(500).json({ error: 'Internal server error while fetching role requests.' });
+  }
+};
+
+const reviewRoleRequest = async (req, res) => {
+  try {
+    const requestId = Number(req.params.id);
+    const { action, note } = req.body;
+
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      return res.status(400).json({ error: 'Invalid request id.' });
+    }
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'Action must be approve or reject.' });
+    }
+
+    const roleRequest = await RoleRequest.findByPk(requestId, {
+      include: [
+        {
+          model: User,
+          as: 'requester',
+          attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'role']
+        }
+      ]
+    });
+
+    if (!roleRequest) {
+      return res.status(404).json({ error: 'Role request not found.' });
+    }
+
+    if (roleRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'This role request has already been reviewed.' });
+    }
+
+    const isApproved = action === 'approve';
+    roleRequest.status = isApproved ? 'approved' : 'rejected';
+    roleRequest.reviewedBy = req.user.id;
+    roleRequest.reviewedAt = new Date();
+    roleRequest.note = note?.trim() ? note.trim() : roleRequest.note;
+    await roleRequest.save();
+
+    if (isApproved && roleRequest.requester) {
+      await roleRequest.requester.update({ role: roleRequest.requestedRole });
+    }
+
+    if (roleRequest.requester?.id) {
+      await createInAppNotification({
+        userId: roleRequest.requester.id,
+        type: 'system',
+        title: `${roleRequest.requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request ${isApproved ? 'approved' : 'rejected'}`,
+        message: isApproved
+          ? `Your request for ${ROLE_REQUEST_LABELS[roleRequest.requestedRole]} access was approved.`
+          : `Your request for ${ROLE_REQUEST_LABELS[roleRequest.requestedRole]} access was rejected.`,
+        metadata: {
+          event: 'role_request_reviewed',
+          requestId: roleRequest.id,
+          requestedRole: roleRequest.requestedRole,
+          status: roleRequest.status
+        }
+      });
+    }
+
+    res.json({
+      message: `Role request ${isApproved ? 'approved' : 'rejected'} successfully.`,
+      roleRequest: serializeRoleRequest(roleRequest)
+    });
+  } catch (error) {
+    console.error('Review role request error:', error);
+    res.status(500).json({ error: 'Internal server error while reviewing role request.' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -682,6 +784,8 @@ module.exports = {
   changePassword,
   getRoleRequests,
   requestRoleUpgrade,
+  getAllRoleRequestsForAdmin,
+  reviewRoleRequest,
   uploadProfileAvatar,
   deleteProfileAvatar
 };

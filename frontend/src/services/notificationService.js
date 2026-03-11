@@ -14,6 +14,11 @@ const notificationService = {
   markAllRead: async () => {
     const response = await apiService.put('/notifications/mark-all-read');
     return response;
+  },
+
+  create: async (payload) => {
+    const response = await apiService.post('/notifications', payload);
+    return response;
   }
 };
 

@@ -79,13 +79,33 @@ const AppLayout = () => {
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
     },
-    {
-      name: 'Bookings',
-      href: '/app/bookings',
-      icon: CalendarIcon,
-      current: location.pathname.startsWith('/app/bookings')
-    },
-    ...(user?.role === 'captain'
+    ...(['player', 'captain', 'field_owner'].includes(user?.role)
+      ? [
+          {
+            name: 'Bookings',
+            href: '/app/bookings',
+            icon: CalendarIcon,
+            current: location.pathname.startsWith('/app/bookings')
+          }
+        ]
+      : []),
+    ...(user?.role === 'admin'
+      ? [
+          {
+            name: 'Manage Users',
+            href: '/app/admin/users',
+            icon: UserCircleIcon,
+            current: location.pathname.startsWith('/app/admin/users')
+          },
+          {
+            name: 'Role Requests',
+            href: '/app/admin/role-requests',
+            icon: ClipboardDocumentCheckIcon,
+            current: location.pathname.startsWith('/app/admin/role-requests')
+          }
+        ]
+      : []),
+    ...(['captain', 'field_owner'].includes(user?.role)
       ? [
           {
             name: 'Open Matches',
