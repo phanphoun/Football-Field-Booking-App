@@ -4,6 +4,7 @@ import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as Sparkle
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
+import notificationService from '../services/notificationService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -17,11 +18,16 @@ const FieldsPage = () => {
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
   const canCreateBooking = user?.role === 'captain';
+  const isAdmin = user?.role === 'admin';
   const captainAccessMessage = 'Please request to become captain in Settings.';
   const [fields, setFields] = useState([]);
   const [filteredFields, setFilteredFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deletingFieldId, setDeletingFieldId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fieldToDelete, setFieldToDelete] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [fieldTypeFilter, setFieldTypeFilter] = useState('');
   const [surfaceTypeFilter, setSurfaceTypeFilter] = useState('');
@@ -107,6 +113,58 @@ const FieldsPage = () => {
 
   const handleViewDetails = (fieldId) => {
     navigate(`/fields/${fieldId}`);
+  };
+
+  const openDeleteDialog = (field) => {
+    setFieldToDelete(field);
+    setDeleteMessage('');
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setFieldToDelete(null);
+    setDeleteMessage('');
+  };
+
+  const handleDeleteField = async () => {
+    if (!fieldToDelete?.id) return;
+    const message = deleteMessage.trim();
+    if (!message) {
+      setError('Please enter a message to owner before deleting.');
+      return;
+    }
+
+    const fieldId = fieldToDelete.id;
+
+    try {
+      setDeletingFieldId(fieldId);
+      setError(null);
+      const ownerUserId = fieldToDelete?.ownerId || fieldToDelete?.owner?.id;
+
+      if (ownerUserId) {
+        await notificationService.create({
+          userId: ownerUserId,
+          type: 'system',
+          title: `Field deleted by admin: ${fieldToDelete.name}`,
+          message,
+          metadata: {
+            event: 'field_deleted_by_admin',
+            fieldId: fieldToDelete.id,
+            fieldName: fieldToDelete.name,
+            actorId: user?.id
+          }
+        });
+      }
+
+      await fieldService.deleteField(fieldId);
+      setFields((prev) => prev.filter((field) => field.id !== fieldId));
+      closeDeleteDialog();
+    } catch (err) {
+      setError(err?.error || 'Failed to delete field');
+    } finally {
+      setDeletingFieldId(null);
+    }
   };
 
   const getRatingDisplay = (rating, totalRatings) => {
@@ -280,22 +338,33 @@ const FieldsPage = () => {
                 </div>
 
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleBookField(field.id)}
-                    className={`flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium ${
-                      isAuthenticated && !canCreateBooking
-                        ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                    }`}
-                  >
-                    Book Now
-                  </button>
+                  {!isAdmin && (
+                    <button
+                      onClick={() => handleBookField(field.id)}
+                      className={`flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium ${
+                        isAuthenticated && !canCreateBooking
+                          ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      Book Now
+                    </button>
+                  )}
                   <button
                     onClick={() => handleViewDetails(field.id)}
                     className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
                   >
                     View Details
                   </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => openDeleteDialog(field)}
+                      disabled={deletingFieldId === field.id}
+                      className="border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                      {deletingFieldId === field.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -324,6 +393,47 @@ const FieldsPage = () => {
           <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
             Load More Fields
           </button>
+        </div>
+      )}
+
+      {deleteDialogOpen && fieldToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Delete Field</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Send a message to owner before deleting <span className="font-semibold">{fieldToDelete.name}</span>.
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">Message to owner</label>
+              <textarea
+                value={deleteMessage}
+                onChange={(e) => setDeleteMessage(e.target.value)}
+                rows={4}
+                placeholder="Explain why this field is being deleted..."
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                disabled={deletingFieldId === fieldToDelete.id}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteField}
+                disabled={deletingFieldId === fieldToDelete.id}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {deletingFieldId === fieldToDelete.id ? 'Deleting...' : 'Send & Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

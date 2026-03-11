@@ -63,7 +63,7 @@ const createUser = asyncHandler(async (req, res) => {
 
 const updateUser = asyncHandler(async (req, res) => {
   try {
-    const { username, email, firstName, lastName, phone, role } = req.body;
+    const { username, email, firstName, lastName, phone, role, status } = req.body;
     const user = await User.findByPk(req.params.id);
     
     if (!user) {
@@ -81,7 +81,8 @@ const updateUser = asyncHandler(async (req, res) => {
       firstName,
       lastName,
       phone,
-      role
+      role,
+      status
     });
     
     res.json({ success: true, data: user });

@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 const CreateBookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canCreateBooking = user?.role === 'captain';
+  const canCreateBooking = ['captain', 'field_owner', 'admin'].includes(user?.role);
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -201,9 +201,9 @@ const CreateBookingPage = () => {
   if (!canCreateBooking) {
     return (
       <div className="bg-white shadow rounded-lg p-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Captain Access Required</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Access Required</h1>
         <p className="mt-3 text-sm text-gray-600">
-          Captain access is required to book fields.
+          You need captain, field owner, or admin access to book fields.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <button
@@ -211,7 +211,7 @@ const CreateBookingPage = () => {
             onClick={() => navigate('/app/settings')}
             className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
           >
-            Request Captain Access
+            Open Settings
           </button>
           <button
             type="button"

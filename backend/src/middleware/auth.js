@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { User } = require('../models');
 
-const auth = (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
     
@@ -25,7 +26,29 @@ const auth = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id: ..., role: ... }
+
+    // Always resolve the latest role/status from DB so role upgrades work
+    // immediately without forcing users to re-login.
+    const user = await User.findByPk(decoded.id, {
+      attributes: ['id', 'role', 'status']
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        error: 'Invalid token user.'
+      });
+    }
+
+    if (user.status && user.status !== 'active') {
+      return res.status(401).json({
+        error: 'Account is not active.'
+      });
+    }
+
+    req.user = {
+      id: user.id,
+      role: user.role
+    };
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

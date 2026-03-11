@@ -17,6 +17,7 @@ const FieldDetailsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const canCreateBooking = user?.role === 'captain';
+  const isAdmin = user?.role === 'admin';
   const captainAccessMessage = 'Please request to become captain in Settings.';
 
   const [field, setField] = useState(null);
@@ -141,9 +142,11 @@ const FieldDetailsPage = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button onClick={handleBook}>
-                {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
-              </Button>
+              {!isAdmin && (
+                <Button onClick={handleBook}>
+                  {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
+                </Button>
+              )}
               <Button as={Link} to="/fields" variant="outline">
                 Back
               </Button>
