@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import React, { useEffect, useMemo, useState } from 'react';
-=======
-import React, { useState, useEffect, useMemo } from 'react';
->>>>>>> c85dc3b141aa419b615abd61c2b72a31a204f06d
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
@@ -59,7 +55,6 @@ const ProfilePage = () => {
   const [requestError, setRequestError] = useState(null);
   const [requestSuccess, setRequestSuccess] = useState(null);
   const [requestPending, setRequestPending] = useState(false);
-  const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -250,20 +245,6 @@ const ProfilePage = () => {
     navigate('/login');
   };
 
-<<<<<<< HEAD
-=======
-  const getRoleBadgeColor = (role) => {
-    const colors = {
-      admin: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
-      field_owner: 'bg-sky-50 text-sky-700 border border-sky-100',
-      captain: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-      player: 'bg-amber-50 text-amber-700 border border-amber-100',
-      guest: 'bg-gray-100 text-gray-700 border border-gray-200'
-    };
-    return colors[role] || colors.guest;
-  };
-
->>>>>>> c85dc3b141aa419b615abd61c2b72a31a204f06d
   const formatDate = (dateString) => {
     if (!dateString) return 'Not specified';
     return new Date(dateString).toLocaleDateString();

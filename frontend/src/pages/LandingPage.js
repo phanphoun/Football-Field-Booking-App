@@ -335,6 +335,18 @@ const parseSlotToMinutes = (slot) => {
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
 };
+const findEventsForSlot = (events, slot) => {
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (!Number.isFinite(slotMinutes)) return [];
+  const slotEndMinutes = slotMinutes + 60;
+  return events.filter(
+    (event) =>
+      Number.isFinite(event.startMinutes) &&
+      Number.isFinite(event.endMinutes) &&
+      event.startMinutes < slotEndMinutes &&
+      slotMinutes < event.endMinutes
+  );
+};
 const formatSlotTo12h = (slot) => {
   const [h, m] = String(slot || '')
     .split(':')
@@ -692,18 +704,6 @@ const LandingPage = () => {
     handleBookNow(field, selectedDay, slot);
   };
 
-<<<<<<< HEAD
-=======
-  const handleQuickSearch = () => {
-    const params = new URLSearchParams({
-      focus: 'search',
-      location: quickLocation || '',
-      day: quickDate || '',
-      timeSlot: quickTimeSlot || ''
-    });
-    navigate(`/fields?${params.toString()}`);
-  };
->>>>>>> c85dc3b141aa419b615abd61c2b72a31a204f06d
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
