@@ -16,9 +16,9 @@ const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const canCreateBooking = user?.role === 'captain';
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
-  const captainAccessMessage = 'Please request to become captain in Settings.';
+  const bookingAccessMessage = 'Booking access is required.';
 
   const [field, setField] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ const FieldDetailsPage = () => {
 
     if (!canCreateBooking) {
       navigate('/app/settings', {
-        state: { errorMessage: captainAccessMessage }
+        state: { errorMessage: bookingAccessMessage }
       });
       return;
     }
@@ -144,7 +144,7 @@ const FieldDetailsPage = () => {
             <div className="flex items-center gap-3">
               {!isAdmin && (
                 <Button onClick={handleBook}>
-                  {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
+                  {isAuthenticated && !canCreateBooking ? 'Request Booking Access' : 'Book Now'}
                 </Button>
               )}
               <Button as={Link} to="/fields" variant="outline">

@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -46,7 +47,10 @@ const parseAmenities = (value) =>
     .filter(Boolean);
 
 const OwnerFieldsPage = () => {
+  const { user } = useAuth();
   const [fields, setFields] = useState([]);
+  const [allFields, setAllFields] = useState([]);
+  const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -69,12 +73,24 @@ const OwnerFieldsPage = () => {
     [imageFiles]
   );
 
+  const visibleFields = useMemo(() => {
+    return viewMode === 'all' ? allFields : fields;
+  }, [viewMode, allFields, fields]);
+
+  const isOwnedByCurrentUser = useCallback(
+    (field) => {
+      const ownerId = field?.ownerId || field?.owner?.id;
+      return Number(ownerId) === Number(user?.id);
+    },
+    [user?.id]
+  );
+
   const fieldStats = useMemo(() => {
-    const totalFields = fields.length;
-    const totalCapacity = fields.reduce((sum, field) => sum + Number(field?.capacity || 0), 0);
+    const totalFields = visibleFields.length;
+    const totalCapacity = visibleFields.reduce((sum, field) => sum + Number(field?.capacity || 0), 0);
     const averagePrice =
       totalFields > 0
-        ? fields.reduce((sum, field) => sum + Number(field?.pricePerHour || 0), 0) / totalFields
+        ? visibleFields.reduce((sum, field) => sum + Number(field?.pricePerHour || 0), 0) / totalFields
         : 0;
 
     return {
@@ -82,13 +98,17 @@ const OwnerFieldsPage = () => {
       totalCapacity,
       averagePrice: averagePrice.toFixed(2)
     };
-  }, [fields]);
+  }, [visibleFields]);
 
   const amenitiesList = useMemo(() => parseAmenities(form.amenities), [form.amenities]);
 
   const refresh = async () => {
-    const res = await fieldService.getMyFields();
-    setFields(Array.isArray(res.data) ? res.data : []);
+    const [myRes, allRes] = await Promise.all([
+      fieldService.getMyFields(),
+      fieldService.getAllFields({ limit: 200 })
+    ]);
+    setFields(Array.isArray(myRes.data) ? myRes.data : []);
+    setAllFields(Array.isArray(allRes.data) ? allRes.data : []);
   };
 
   useEffect(() => {
@@ -355,14 +375,32 @@ const OwnerFieldsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Create and manage your football fields.</p>
+          <p className="mt-1 text-sm text-gray-600">Create and manage your football fields, or view all fields.</p>
         </div>
-        <button
-          onClick={startCreate}
-          className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          Add Field
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="rounded-xl border border-gray-200 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('mine')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'mine' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
+            >
+              My Fields
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('all')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
+            >
+              All Fields
+            </button>
+          </div>
+          <button
+            onClick={startCreate}
+            className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Add Field
+          </button>
+        </div>
       </div>
 
       {successMessage && (
@@ -710,15 +748,16 @@ const OwnerFieldsPage = () => {
             <p className="mt-1 text-sm text-gray-500">Manage each field from a visual card instead of a table row.</p>
           </div>
           <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            {fields.length} field{fields.length === 1 ? '' : 's'}
+            {visibleFields.length} field{visibleFields.length === 1 ? '' : 's'}
           </div>
         </div>
 
-        {fields.length > 0 ? (
+        {visibleFields.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            {fields.map((f) => {
+            {visibleFields.map((f) => {
               const images = normalizeImages(f.images);
               const amenities = Array.isArray(f.amenities) ? f.amenities : [];
+              const isOwned = isOwnedByCurrentUser(f);
 
               return (
                 <div
@@ -773,6 +812,11 @@ const OwnerFieldsPage = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${isOwned ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-700'}`}
+                      >
+                        {isOwned ? 'Your field' : 'Other owner'}
+                      </span>
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                         {f.fieldType || 'Field'}
                       </span>
@@ -818,17 +862,17 @@ const OwnerFieldsPage = () => {
 
                     <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
                       <button
-                        disabled={actionLoading}
+                        disabled={actionLoading || !isOwned}
                         onClick={() => startEdit(f)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                       >
                         <PencilSquareIcon className="h-4 w-4" />
                         Edit
                       </button>
                       <button
-                        disabled={actionLoading}
+                        disabled={actionLoading || !isOwned}
                         onClick={() => setFieldPendingDelete(f)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50 sm:w-auto"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                       >
                         <TrashIcon className="h-4 w-4" />
                         Delete

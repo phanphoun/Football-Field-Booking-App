@@ -17,9 +17,9 @@ const FieldsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
-  const canCreateBooking = user?.role === 'captain';
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
-  const captainAccessMessage = 'Please request to become captain in Settings.';
+  const bookingAccessMessage = 'Booking access is required.';
   const [fields, setFields] = useState([]);
   const [filteredFields, setFilteredFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +104,7 @@ const FieldsPage = () => {
     }
 
     if (!canCreateBooking) {
-      window.alert(captainAccessMessage);
+      window.alert(bookingAccessMessage);
       return;
     }
 
@@ -298,7 +298,22 @@ const FieldsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFields.length > 0 ? (
           filteredFields.map((field) => (
-            <div key={field.id} className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+            <div
+              key={field.id}
+              onClick={() => !isAdmin && handleBookField(field.id)}
+              role={!isAdmin ? 'button' : undefined}
+              tabIndex={!isAdmin ? 0 : -1}
+              onKeyDown={(event) => {
+                if (isAdmin) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleBookField(field.id);
+                }
+              }}
+              className={`bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow ${
+                isAdmin ? '' : 'cursor-pointer'
+              }`}
+            >
               <div className="h-48 bg-gray-200 overflow-hidden">
                 <img
                   src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
@@ -340,7 +355,10 @@ const FieldsPage = () => {
                 <div className="flex space-x-2">
                   {!isAdmin && (
                     <button
-                      onClick={() => handleBookField(field.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleBookField(field.id);
+                      }}
                       className={`flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium ${
                         isAuthenticated && !canCreateBooking
                           ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -351,14 +369,20 @@ const FieldsPage = () => {
                     </button>
                   )}
                   <button
-                    onClick={() => handleViewDetails(field.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleViewDetails(field.id);
+                    }}
                     className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
                   >
                     View Details
                   </button>
                   {isAdmin && (
                     <button
-                      onClick={() => openDeleteDialog(field)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openDeleteDialog(field);
+                      }}
                       disabled={deletingFieldId === field.id}
                       className="border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
