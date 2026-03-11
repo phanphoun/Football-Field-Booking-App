@@ -8,7 +8,8 @@ import { useAuth } from '../context/AuthContext';
 
 const CreateBookingPage = () => {
   const navigate = useNavigate();
-  const { isCaptain } = useAuth();
+  const { user } = useAuth();
+  const canCreateBooking = user?.role === 'captain';
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -193,6 +194,33 @@ const CreateBookingPage = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
+
+  if (!canCreateBooking) {
+    return (
+      <div className="bg-white shadow rounded-lg p-8 text-center">
+        <h1 className="text-2xl font-bold text-gray-900">Captain Access Required</h1>
+        <p className="mt-3 text-sm text-gray-600">
+          Captain access is required to book fields.
+        </p>
+        <div className="mt-6 flex justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/app/settings')}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+          >
+            Request Captain Access
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/app/bookings')}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Back to Bookings
+          </button>
+        </div>
       </div>
     );
   }
@@ -392,7 +420,7 @@ const CreateBookingPage = () => {
                   </div>
                 )}
 
-                {isCaptain && (
+                {canCreateBooking && (
                   <div className="border-t pt-4">
                     <h4 className="text-sm font-semibold text-gray-900">Field Details for Captain</h4>
                     <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-gray-600">

@@ -84,6 +84,8 @@ class BookingService {
         metadata: {
           bookingId: booking.id,
           fieldId: field.id,
+          teamId: team.id,
+          requesterId: userId,
           type: 'new_booking'
         }
       });

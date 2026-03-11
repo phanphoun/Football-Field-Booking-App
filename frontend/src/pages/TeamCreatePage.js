@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
+
+const MAX_TEAM_LOGO_SIZE_MB = 5;
+const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 
 const TeamCreatePage = () => {
   const navigate = useNavigate();
@@ -10,6 +14,8 @@ const TeamCreatePage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedLogoFile, setSelectedLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -35,12 +41,46 @@ const TeamCreatePage = () => {
     fetchFields();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (logoPreview) {
+        URL.revokeObjectURL(logoPreview);
+      }
+    };
+  }, [logoPreview]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: name === 'maxPlayers' ? Number(value) : value
     }));
+  };
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file for the team picture.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_TEAM_LOGO_SIZE_BYTES) {
+      setError(`Team picture must be smaller than ${MAX_TEAM_LOGO_SIZE_MB}MB.`);
+      e.target.value = '';
+      return;
+    }
+
+    setError(null);
+    setSelectedLogoFile(file);
+    setLogoPreview((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return URL.createObjectURL(file);
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -59,9 +99,37 @@ const TeamCreatePage = () => {
 
       const response = await teamService.createTeam(payload);
       if (response.success) {
-        const createdTeamId = response.data?.id;
+        let createdTeamId = response.data?.id || response.data?.team?.id || response.data?.data?.id || null;
+
+        if (!createdTeamId) {
+          try {
+            const captainedTeamsResponse = await teamService.getCaptainedTeams();
+            const captainedTeams = Array.isArray(captainedTeamsResponse.data) ? captainedTeamsResponse.data : [];
+            const matchingTeam = captainedTeams.find((team) => team?.name === payload.name);
+            createdTeamId = matchingTeam?.id || captainedTeams[0]?.id || null;
+          } catch {
+            createdTeamId = null;
+          }
+        }
+
+        let navigationState = { successMessage: 'Team created successfully!' };
+
+        if (createdTeamId && selectedLogoFile) {
+          try {
+            const uploadFormData = new FormData();
+            uploadFormData.append('logo', selectedLogoFile);
+            await teamService.uploadTeamLogo(createdTeamId, uploadFormData);
+            navigationState = { successMessage: 'Team created successfully with team picture!' };
+          } catch (uploadErr) {
+            navigationState = {
+              errorMessage: uploadErr?.error || 'Team created, but the team picture upload failed.'
+            };
+          }
+        }
+
         navigate(createdTeamId ? `/app/teams/${createdTeamId}` : '/app/teams', {
-          state: { successMessage: 'Team created successfully!' }
+          replace: true,
+          state: navigationState
         });
       }
     } catch (err) {
@@ -106,15 +174,35 @@ const TeamCreatePage = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Description</label>
-          <textarea
-            name="description"
-            rows={3}
-            value={formData.description}
-            onChange={handleChange}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="About your team..."
-          />
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">Team Picture</label>
+            <span className="text-xs text-gray-500">Optional, up to {MAX_TEAM_LOGO_SIZE_MB}MB</span>
+          </div>
+          <div className="mt-2 flex items-center gap-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+            <div className="h-24 w-24 overflow-hidden rounded-xl border border-gray-200 bg-white flex items-center justify-center shrink-0">
+              {logoPreview ? (
+                <img src={logoPreview} alt="Team logo preview" className="h-full w-full object-cover" />
+              ) : (
+                <div className="text-center">
+                  <PhotoIcon className="mx-auto h-8 w-8 text-gray-400" />
+                  <p className="mt-1 text-[11px] text-gray-500">No picture</p>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <ArrowUpTrayIcon className="h-4 w-4" />
+                Upload Picture
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoChange}
+                />
+              </label>
+              <p className="text-xs text-gray-500">PNG, JPG, GIF, or WEBP. Best result: square image.</p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,6 +250,18 @@ const TeamCreatePage = () => {
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Description</label>
+          <textarea
+            name="description"
+            rows={3}
+            value={formData.description}
+            onChange={handleChange}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+            placeholder="About your team..."
+          />
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

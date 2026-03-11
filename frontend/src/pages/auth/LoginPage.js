@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, CardBody, CardHeader } from '../../components/ui';
+import { getPreferredStartPath } from '../../utils/navigationPreferences';
 
 const LoginPage = () => {
   const { login, loading, error } = useAuth();
@@ -28,7 +29,7 @@ const LoginPage = () => {
     const result = await login(formData);
     if (result.success) {
       const role = result.data?.user?.role;
-      const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+      const defaultPath = getPreferredStartPath(role === 'field_owner' ? 'owner' : 'app');
       navigate(from || defaultPath, { replace: true });
     }
   };

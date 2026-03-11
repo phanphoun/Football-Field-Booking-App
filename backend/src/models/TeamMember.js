@@ -35,7 +35,7 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'player'
     },
     status: {
-      type: DataTypes.ENUM('pending', 'accepted', 'declined'),
+      type: DataTypes.ENUM('pending', 'active', 'inactive'),
       defaultValue: 'pending',
       allowNull: false
     },
