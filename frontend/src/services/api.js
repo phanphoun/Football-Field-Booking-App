@@ -111,12 +111,14 @@ api.interceptors.response.use(
       });
     }
 
-    return Promise.reject({
-      success: false,
-      status,
-      error: message,
-      data: error.response?.data || null,
-    });
+    const appError = new Error(message);
+    appError.success = false;
+    appError.status = status;
+    appError.error = message;
+    appError.data = error.response?.data || null;
+    appError.original = error;
+
+    return Promise.reject(appError);
   }
 );
 

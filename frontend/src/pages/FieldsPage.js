@@ -2,17 +2,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
+import { useAuth } from '../context/AuthContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_FIELD_IMAGE =
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%236b7280" font-family="Arial" font-size="28">No Field Image</text></svg>';
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
+const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().includes('no field image');
 
 const FieldsPage = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
+  const canCreateBooking = user?.role === 'captain';
+  const captainAccessMessage = 'Please request to become captain in Settings.';
   const [fields, setFields] = useState([]);
   const [filteredFields, setFilteredFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +90,19 @@ const FieldsPage = () => {
   }, [searchParams]);
 
   const handleBookField = (fieldId) => {
-    navigate(`/app/bookings/new?fieldId=${fieldId}`);
+    const bookingPath = `/app/bookings/new?fieldId=${fieldId}`;
+
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: bookingPath } });
+      return;
+    }
+
+    if (!canCreateBooking) {
+      window.alert(captainAccessMessage);
+      return;
+    }
+
+    navigate(bookingPath);
   };
 
   const handleViewDetails = (fieldId) => {
@@ -104,18 +121,18 @@ const FieldsPage = () => {
   };
 
   const resolveFieldImageUrl = (rawImage) => {
-    if (!rawImage) return DEFAULT_FIELD_IMAGE;
+    if (!rawImage || isPlaceholderImage(rawImage)) return DEFAULT_FIELD_IMAGE;
     if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
     if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
     return rawImage;
   };
 
   const normalizeImages = (imagesValue) => {
-    if (Array.isArray(imagesValue)) return imagesValue;
+    if (Array.isArray(imagesValue)) return imagesValue.filter((image) => !isPlaceholderImage(image));
     if (typeof imagesValue === 'string') {
       try {
         const parsed = JSON.parse(imagesValue);
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? parsed.filter((image) => !isPlaceholderImage(image)) : [];
       } catch {
         return [];
       }
@@ -136,7 +153,7 @@ const FieldsPage = () => {
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Browse and book football fields in your area.</p>
+          <p className="mt-1 text-sm text-gray-600">Browse football fields near you.</p>
         </div>
         <Badge tone="gray">{filteredFields.length} results</Badge>
       </div>
@@ -265,7 +282,11 @@ const FieldsPage = () => {
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleBookField(field.id)}
-                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                    className={`flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium ${
+                      isAuthenticated && !canCreateBooking
+                        ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
                   >
                     Book Now
                   </button>

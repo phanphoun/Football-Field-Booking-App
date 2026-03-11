@@ -7,6 +7,7 @@ const compression = require('compression');
 const axios = require("axios");
 const { sequelize } = require('./src/models');
 const serverConfig = require('./src/config/serverConfig');
+const { applyLegacySchemaFixes } = require('./src/utils/legacySchemaFix');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
 const { generalLimiter, authLimiter, searchLimiter, createLimiter } = require('./src/middleware/rateLimiter');
 
@@ -346,6 +347,11 @@ const startServer = async () => {
   try {
     // Database connection check
     await sequelize.authenticate();
+    try {
+      await applyLegacySchemaFixes(sequelize);
+    } catch (schemaFixErr) {
+      console.warn('Legacy schema fix failed:', schemaFixErr.message);
+    }
     console.log('✅ Database connected successfully.');
     
     // Environment-safe database sync

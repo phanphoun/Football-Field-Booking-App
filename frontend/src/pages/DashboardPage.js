@@ -27,6 +27,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
 
   const role = user?.role;
+  const canCreateBooking = role === 'captain';
 
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -237,7 +238,7 @@ const DashboardPage = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div>
         <Card>
           <CardHeader className="px-4 py-5 sm:px-6 flex items-center justify-between">
             <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -297,33 +298,19 @@ const DashboardPage = () => {
                 <EmptyState
                   icon={CalendarIcon}
                   title="No upcoming bookings"
-                  description="Browse fields and create your next booking."
-                  actionLabel="Book a field"
-                  onAction={() => navigate('/app/bookings/new')}
+                  description={
+                    canCreateBooking
+                      ? 'Browse fields and create your next booking.'
+                      : 'Please request to become captain in Settings.'
+                  }
+                  actionLabel={canCreateBooking ? 'Book a field' : 'Request Captain Access'}
+                  onAction={() => navigate(canCreateBooking ? '/app/bookings/new' : '/app/settings')}
                 />
               </div>
             )}
           </div>
         </Card>
 
-        <Card>
-          <CardHeader className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">Quick actions</h3>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            <Button variant="outline" onClick={() => navigate('/fields')} className="w-full justify-between">
-              Browse fields <span className="text-gray-400">→</span>
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/teams')} className="w-full justify-between">
-              Browse teams <span className="text-gray-400">→</span>
-            </Button>
-            {(role === 'player' || role === 'captain') && (
-              <Button onClick={() => navigate('/app/bookings/new')} className="w-full justify-between">
-                Create booking <span className="text-white/70">→</span>
-              </Button>
-            )}
-          </CardBody>
-        </Card>
       </div>
 
       {role === 'player' && (

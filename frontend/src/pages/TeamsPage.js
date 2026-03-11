@@ -127,13 +127,13 @@ const TeamsPage = () => {
 
   // eslint-disable-next-line no-unused-vars
   const getMemberCount = (team) => {
-    return team.TeamMembers?.filter(member => member.status === 'accepted').length || 0;
+    return team.TeamMembers?.filter(member => member.status === 'active' && member.isActive !== false).length || 0;
   };
 
   // eslint-disable-next-line no-unused-vars
   const isUserInTeam = (team) => {
     return team.TeamMembers?.some(member => 
-      member.userId === user?.id && member.status === 'accepted'
+      member.userId === user?.id && member.status === 'active' && member.isActive !== false
     );
   };
 

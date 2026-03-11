@@ -8,6 +8,7 @@ import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../component
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
   const navigate = useNavigate();
+  const canCreateBooking = user?.role === 'captain';
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,6 +85,12 @@ const BookingsPage = () => {
   }, [loadBookings]);
 
   const handleCreateBooking = () => {
+    if (!canCreateBooking) {
+      navigate('/app/settings', {
+        state: { errorMessage: 'Please request to become captain in Settings.' }
+      });
+      return;
+    }
     navigate('/app/bookings/new');
   };
 
@@ -180,6 +187,11 @@ const BookingsPage = () => {
 
   const getStatusActions = (booking) => {
     const actions = [];
+    const canUserCancelBooking =
+      booking.createdBy === user?.id ||
+      booking.team?.captainId === user?.id ||
+      booking.opponentTeam?.captainId === user?.id ||
+      isAdmin();
 
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
@@ -196,6 +208,14 @@ const BookingsPage = () => {
           </Button>
         );
       }
+    }
+
+    if (booking.status === 'confirmed' && canUserCancelBooking) {
+      actions.push(
+        <Button key="cancel-confirmed" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
+          Cancel Booking
+        </Button>
+      );
     }
 
     if (booking.status === 'confirmed' && (isAdmin() || isFieldOwner())) {
@@ -246,14 +266,16 @@ const BookingsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <p className="mt-1 text-sm text-gray-600">Manage your football field bookings</p>
+          <p className="mt-1 text-sm text-gray-600">
+            {canCreateBooking ? 'Manage your football field bookings' : 'Track your bookings here.'}
+          </p>
         </div>
         <Button
           onClick={handleCreateBooking}
           className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
-          New Booking
+          {canCreateBooking ? 'New Booking' : 'Request Captain Access'}
         </Button>
       </div>
 
@@ -338,8 +360,15 @@ const BookingsPage = () => {
                       {formatDate(booking.createdAt)}
                     </div>
 
+                    {booking.status === 'pending' && isCaptainOwner(booking) && (
+                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Waiting for field owner approval. Other captains can still request this same slot until owner confirms
+                        one booking.
+                      </div>
+                    )}
+
                     {booking.opponentTeam?.name && (
-                      <div className="mt-2 text-sm text-green-700">
+                      <div className="mt-2 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
                         Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
                       </div>
                     )}
@@ -452,10 +481,12 @@ const BookingsPage = () => {
                 title="No bookings found"
                 description={
                   statusFilter === 'all' && openForOpponentsFilter === 'all'
-                    ? 'Create your first booking to get started.'
+                    ? canCreateBooking
+                      ? 'Create your first booking to get started.'
+                      : 'Please request to become captain in Settings.'
                     : 'No bookings found for the selected filters.'
                 }
-                actionLabel="New Booking"
+                actionLabel={canCreateBooking ? 'New Booking' : 'Request Captain Access'}
                 onAction={handleCreateBooking}
               />
             </div>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -9,6 +9,7 @@ import {
   UserCircleIcon,
   Cog6ToothIcon,
   BellAlertIcon,
+  ArrowLeftIcon,
   CheckIcon,
   ClipboardDocumentCheckIcon,
   EyeIcon,
@@ -36,6 +37,7 @@ const AppLayout = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
   const [flash, setFlash] = useState(null);
+  const notificationsMenuRef = useRef(null);
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
@@ -66,7 +68,7 @@ const AppLayout = () => {
       current: location.pathname.startsWith('/app/fields')
     },
     {
-      name: 'League',
+      name: 'Leagues',
       href: '/app/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/app/league')
@@ -111,11 +113,23 @@ const AppLayout = () => {
       { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: 'Football Booking', subtitle: 'Welcome to your workspace' };
+    return current || { title: 'អាណាចក្រភ្នំស្វាយ', subtitle: 'Welcome to your workspace' };
   }, [location.pathname]);
+  const showBackHomeButton = location.pathname.startsWith('/app');
+  const isAppFieldsRoute = location.pathname.startsWith('/app/fields');
 
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Player';
+  };
+
+  const renderNavIcon = (item) => {
+    return (
+      <item.icon
+        className={`mr-3 h-5 w-5 flex-shrink-0 ${
+          item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
+        }`}
+      />
+    );
   };
 
   const resolveAvatarUrl = () => {
@@ -521,6 +535,28 @@ const AppLayout = () => {
     }
   };
 
+  const handleNotificationClick = async (notification) => {
+    if (!notification || notificationActionLoading) return;
+
+    try {
+      if (!notification.isRead) {
+        setNotificationActionLoading(true);
+        await markNotificationRead(notification.id);
+        await loadNotifications();
+      }
+    } finally {
+      setNotificationActionLoading(false);
+      setNotificationsMenuOpen(false);
+    }
+
+    if (notification.metadata?.teamId) {
+      navigate(`/app/teams/${notification.metadata.teamId}`);
+      return;
+    }
+
+    navigate('/app/notifications');
+  };
+
   const handleMarkAllAsRead = async () => {
     try {
       setNotificationActionLoading(true);
@@ -550,6 +586,32 @@ const AppLayout = () => {
     });
   }, [location, navigate]);
 
+  useEffect(() => {
+    if (!notificationsMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!notificationsMenuRef.current?.contains(event.target)) {
+        setNotificationsMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setNotificationsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [notificationsMenuOpen]);
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Mobile sidebar */}
@@ -557,7 +619,7 @@ const AppLayout = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-lg font-semibold text-gray-900">Football Booking</h1>
+            <h1 className="khmer-brand-font text-lg font-semibold text-gray-900">អាណាចក្រភ្នំស្វាយ</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -578,11 +640,7 @@ const AppLayout = () => {
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon
-                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                      item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
-                    }`}
-                  />
+                  {renderNavIcon(item)}
                   {item.name}
                 </Link>
               ))}
@@ -639,7 +697,7 @@ const AppLayout = () => {
       <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
-            <h1 className="text-lg font-semibold text-gray-900">Football Booking</h1>
+            <h1 className="khmer-brand-font text-lg font-semibold text-gray-900">អាណាចក្រភ្នំស្វាយ</h1>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">
@@ -653,11 +711,7 @@ const AppLayout = () => {
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <item.icon
-                    className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                      item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
-                    }`}
-                  />
+                  {renderNavIcon(item)}
                   {item.name}
                 </Link>
               ))}
@@ -713,32 +767,42 @@ const AppLayout = () => {
         {/* Top navigation */}
         <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
           <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="text-gray-500 hover:text-gray-700 md:hidden"
-            >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="text-gray-500 hover:text-gray-700 md:hidden"
+              >
+                <Bars3Icon className="h-6 w-6" />
+              </button>
 
-            <div className="ml-3 min-w-0 md:hidden">
-              <p className="text-sm font-semibold text-gray-900 truncate">{pageInfo.title}</p>
-              <p className="text-xs text-gray-500 truncate hidden sm:block">
-                {pageInfo.subtitle}
-                {user?.firstName ? ` | Welcome back, ${user.firstName}` : ''}
-              </p>
+              {showBackHomeButton && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className={`inline-flex items-center border bg-white transition ${
+                    isAppFieldsRoute
+                      ? 'gap-2 rounded-full border-slate-200 px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:border-emerald-200 hover:bg-emerald-50/60 hover:text-emerald-700'
+                      : 'gap-2 rounded-xl border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <ArrowLeftIcon className={isAppFieldsRoute ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
+                  <span className="hidden sm:inline">Back</span>
+                </button>
+              )}
             </div>
 
             <div className="ml-auto flex items-center space-x-4">
               {/* Notifications dropdown */}
               <div
                 className="relative"
-                onMouseEnter={() => setNotificationsMenuOpen(true)}
-                onMouseLeave={() => setNotificationsMenuOpen(false)}
+                ref={notificationsMenuRef}
               >
                 <button
                   onClick={() => setNotificationsMenuOpen((prev) => !prev)}
                   className="relative p-2 text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-100"
                   aria-label="Notifications"
+                  aria-expanded={notificationsMenuOpen}
+                  aria-haspopup="menu"
                 >
                   <BellAlertIcon className="h-6 w-6" />
                   {unreadNotifications > 0 && (
@@ -762,7 +826,10 @@ const AppLayout = () => {
                             Mark all read
                           </button>
                           <button
-                            onClick={() => navigate('/app/notifications')}
+                            onClick={() => {
+                              setNotificationsMenuOpen(false);
+                              navigate('/app/notifications');
+                            }}
                             className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                           >
                             View all
@@ -783,7 +850,16 @@ const AppLayout = () => {
                             {latestNotifications.map((notification) => (
                               <div
                                 key={notification.id}
-                                className={`px-4 py-3 ${notification.isRead ? 'bg-white' : 'bg-emerald-50/40'}`}
+                                className={`px-4 py-3 cursor-pointer transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-inset ${notification.isRead ? 'bg-white' : 'bg-emerald-50/40'}`}
+                                onClick={() => handleNotificationClick(notification)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    handleNotificationClick(notification);
+                                  }
+                                }}
+                                role="button"
+                                tabIndex={0}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="min-w-0">
@@ -834,7 +910,7 @@ const AppLayout = () => {
                                   )}
                                 </div>
 
-                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                <div className="mt-2 flex flex-wrap gap-1.5" onClick={(event) => event.stopPropagation()}>
                                   {canRespondToInvite(notification) && (
                                     <>
                                       <button
