@@ -55,14 +55,14 @@ const PublicLayout = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-20">
+      <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2">
-              <span className="h-8 w-8 rounded-lg bg-green-600 text-white flex items-center justify-center text-sm font-bold">
+          <div className="flex h-16 items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-sm font-bold text-white">
                 FB
               </span>
-              <span className="text-sm sm:text-base font-semibold text-gray-900">Football Booking</span>
+              <span className="khmer-brand-font text-base font-semibold text-gray-900 sm:text-xl">អាណាចក្រភ្នំស្វាយ</span>
             </Link>
 
             <nav className="hidden md:flex items-center space-x-1 text-sm font-medium text-gray-700">
@@ -70,8 +70,8 @@ const PublicLayout = () => {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  className={`px-3 py-2 rounded-md hover:text-gray-900 hover:bg-gray-100 ${
-                    isActivePath(item.to) ? 'text-gray-900 bg-gray-100' : 'text-gray-700'
+                  className={`rounded-md px-3 py-2 transition hover:bg-gray-100 hover:text-gray-900 ${
+                    isActivePath(item.to) ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                   }`}
                 >
                   {item.label}
@@ -83,7 +83,7 @@ const PublicLayout = () => {
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
-                className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-gray-100 text-gray-700"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-700 hover:bg-gray-100 md:hidden"
                 aria-label="Toggle menu"
               >
                 {mobileOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
