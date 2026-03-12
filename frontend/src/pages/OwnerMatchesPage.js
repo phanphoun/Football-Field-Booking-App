@@ -210,6 +210,19 @@ const OwnerMatchesPage = () => {
     }
   };
 
+  const markMatchCompleted = async (bookingId) => {
+    try {
+      setSavingId(bookingId);
+      setError(null);
+      await bookingService.completeBooking(bookingId);
+      await refresh();
+    } catch (err) {
+      setError(err?.error || 'Failed to mark match as completed');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -310,6 +323,15 @@ const OwnerMatchesPage = () => {
                         </div>
                       )}
                     </button>
+
+                    {m.status === 'confirmed' && (
+                      <div className="mt-3 flex items-center justify-end">
+                        <Button size="sm" disabled={isSaving} onClick={() => markMatchCompleted(m.id)}>
+                          <CheckCircleIcon className="h-4 w-4" />
+                          Confirm Match Completed
+                        </Button>
+                      </div>
+                    )}
 
                     {isOpen && (
                       <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-3">

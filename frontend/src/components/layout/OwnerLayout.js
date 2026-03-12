@@ -6,7 +6,6 @@ import {
   BuildingOfficeIcon,
   CalendarIcon,
   TrophyIcon,
-  UserGroupIcon,
   ArrowLeftIcon,
   UserCircleIcon,
   BellAlertIcon,
@@ -64,22 +63,10 @@ const OwnerLayout = () => {
       current: location.pathname.startsWith('/owner/league')
     },
     {
-      name: 'Teams',
-      href: '/owner/teams',
-      icon: UserGroupIcon,
-      current: location.pathname.startsWith('/owner/teams')
-    },
-    {
       name: 'Bookings',
       href: '/owner/bookings',
       icon: CalendarIcon,
       current: location.pathname.startsWith('/owner/bookings')
-    },
-    {
-      name: 'Open Matches',
-      href: '/owner/open-matches',
-      icon: UserGroupIcon,
-      current: location.pathname.startsWith('/owner/open-matches')
     },
     {
       name: 'Matches',
