@@ -99,7 +99,7 @@ const NotificationsPage = () => {
       setError(null);
       const unread = notifications.filter((item) => !item.isRead);
       if (unread.length === 0) return;
-      await Promise.all(
+      await Promise.allSettled(
         unread.map((item) =>
           apiService.put(`/notifications/${item.id}`, {
             isRead: true,

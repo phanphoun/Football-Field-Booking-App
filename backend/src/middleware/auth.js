@@ -27,11 +27,26 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Always resolve the latest role/status from DB so role upgrades work
-    // immediately without forcing users to re-login.
-    const user = await User.findByPk(decoded.id, {
-      attributes: ['id', 'role', 'status']
-    });
+    // Always resolve latest role/status from DB so role upgrades apply immediately.
+    // Fallback for legacy databases that may not have `users.status` yet.
+    let user;
+    try {
+      user = await User.findByPk(decoded.id, {
+        attributes: ['id', 'role', 'status']
+      });
+    } catch (dbError) {
+      const missingStatusColumn =
+        /unknown column/i.test(dbError?.message || '') &&
+        /status/i.test(dbError?.message || '');
+
+      if (!missingStatusColumn) {
+        throw dbError;
+      }
+
+      user = await User.findByPk(decoded.id, {
+        attributes: ['id', 'role']
+      });
+    }
 
     if (!user) {
       return res.status(401).json({

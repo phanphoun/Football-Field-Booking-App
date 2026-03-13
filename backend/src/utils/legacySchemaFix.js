@@ -139,6 +139,9 @@ const applyLegacySchemaFixes = async (sequelize) => {
   if (await addColumnIfMissing(sequelize, 'users', 'lastLogin', 'DATETIME NULL')) {
     changes.push('users.lastLogin');
   }
+  if (await addColumnIfMissing(sequelize, 'users', 'status', "ENUM('active','inactive','suspended') NOT NULL DEFAULT 'active'")) {
+    changes.push('users.status');
+  }
 
   if (await normalizeTeamMemberStatuses(sequelize)) {
     changes.push('team_members.status');
