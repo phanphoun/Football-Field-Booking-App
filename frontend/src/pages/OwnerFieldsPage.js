@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -50,7 +51,10 @@ const resolveFieldImageUrl = (rawImage) => {
 };
 
 const OwnerFieldsPage = () => {
+  const { user } = useAuth();
   const [fields, setFields] = useState([]);
+  const [allFields, setAllFields] = useState([]);
+  const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
