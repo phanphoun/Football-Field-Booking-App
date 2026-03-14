@@ -301,28 +301,26 @@ const TeamsPage = () => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
 
             return (
-            <div key={team.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+            <div key={team.id} className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
+              <div className="relative h-48">
+                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                  <UsersIcon className="h-14 w-14 text-gray-300" />
+                </div>
+                {teamLogoUrl && (
+                  <img
+                    src={teamLogoUrl}
+                    alt={`${team.name} logo`}
+                    className="relative z-10 h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
               <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex relative overflow-hidden shrink-0">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <UsersIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                      {teamLogoUrl && (
-                        <img
-                          src={teamLogoUrl}
-                          alt={`${team.name} logo`}
-                          className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white relative z-10"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 truncate">{team.name}</h3>
-                  </div>
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-between mb-4 gap-3">
+                  <h3 className="text-lg font-medium text-gray-900 truncate">{team.name}</h3>
+                  <div className="flex items-center space-x-2 shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSkillLevelColor(team.skillLevel)}`}>
                       {team.skillLevel}
                     </span>
@@ -342,18 +340,16 @@ const TeamsPage = () => {
                   )}
                 </div>
 
-                {team.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {team.description}
-                  </p>
-                )}
+                <p className="text-sm text-gray-600 mb-4 min-h-[40px] line-clamp-2">
+                  {team.description || 'No description available.'}
+                </p>
 
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleViewTeam(team.id)}
-                    className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
+                    className="flex-1 bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-black transition-colors text-sm font-medium"
                   >
-                    Open
+                    View Details
                   </button>
                   {isAdmin && (
                     <button

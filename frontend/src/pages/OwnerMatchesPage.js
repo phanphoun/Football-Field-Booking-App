@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   CalendarIcon,
   CheckCircleIcon,
@@ -9,6 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
+import userService from '../services/userService';
+import notificationService from '../services/notificationService';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -53,13 +56,18 @@ const TeamAvatar = ({ teamName, logoUrl }) => {
 };
 
 const OwnerMatchesPage = () => {
+  const { user } = useAuth();
+  const PAGE_SIZE = 10;
+  const RESULT_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [activeCardId, setActiveCardId] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [resultDrafts, setResultDrafts] = useState({});
   const [teamLogosById, setTeamLogosById] = useState({});
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const refresh = async () => {
     const res = await bookingService.getAllBookings({ limit: 300 });
@@ -84,8 +92,15 @@ const OwnerMatchesPage = () => {
   const matches = useMemo(() => {
     return bookings
       .filter((b) => ['confirmed', 'completed'].includes(b.status) && b.team?.id && b.opponentTeam?.id)
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [bookings]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [matches.length]);
+
+  const visibleMatches = useMemo(() => matches.slice(0, visibleCount), [matches, visibleCount]);
+  const canShowMore = matches.length > visibleCount;
 
   useEffect(() => {
     const teamIds = Array.from(
@@ -159,9 +174,65 @@ const OwnerMatchesPage = () => {
     }));
   };
 
+  const isWithinEditWindow = (booking) => {
+    const startMs = booking?.startTime ? new Date(booking.startTime).getTime() : null;
+    if (!startMs || Number.isNaN(startMs)) return false;
+    return Date.now() - startMs <= RESULT_EDIT_WINDOW_MS;
+  };
+
+  const requestAdminChange = async (booking) => {
+    try {
+      setSavingId(booking.id);
+      setError(null);
+      setSuccessMessage(null);
+
+      const usersRes = await userService.getAllUsers();
+      const allUsers = Array.isArray(usersRes?.data) ? usersRes.data : [];
+      const admins = allUsers.filter((u) => u?.role === 'admin' && u?.id);
+
+      if (admins.length === 0) {
+        setError('No admin account found to receive this request.');
+        return;
+      }
+
+      const homeTeamName = booking?.team?.name || 'Home Team';
+      const awayTeamName = booking?.opponentTeam?.name || 'Away Team';
+      const when = booking?.startTime ? new Date(booking.startTime).toLocaleString() : 'Unknown date';
+
+      await Promise.all(
+        admins.map((admin) =>
+          notificationService.create({
+            userId: admin.id,
+            type: 'system',
+            title: 'Match result change request',
+            message: `Owner requested admin review to change result for ${homeTeamName} vs ${awayTeamName} (${when}).`,
+            metadata: {
+              event: 'match_result_change_request',
+              bookingId: booking.id,
+              requesterId: user?.id,
+              teamA: homeTeamName,
+              teamB: awayTeamName,
+              startTime: booking?.startTime || null
+            }
+          })
+        )
+      );
+
+      setSuccessMessage('Request sent to admin. They will review this match result change.');
+    } catch (err) {
+      setError(err?.error || 'Failed to send admin change request');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const saveResult = async (booking) => {
     if (booking.status !== 'completed') {
       setError('Result can only be entered after the match is completed.');
+      return;
+    }
+    if (!isWithinEditWindow(booking)) {
+      setError('Result editing is locked after 24 hours. Please request admin to change it.');
       return;
     }
 
@@ -184,6 +255,7 @@ const OwnerMatchesPage = () => {
     try {
       setSavingId(booking.id);
       setError(null);
+      setSuccessMessage(null);
 
       if (booking?.matchResult?.id) {
         await bookingService.updateMatchResult(booking.matchResult.id, {
@@ -244,6 +316,9 @@ const OwnerMatchesPage = () => {
         </Button>
       </div>
 
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">{successMessage}</div>
+      )}
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
 
       <Card>
@@ -263,11 +338,12 @@ const OwnerMatchesPage = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {matches.map((m) => {
+              {visibleMatches.map((m) => {
                 const isOpen = activeCardId === m.id;
                 const draft = resultDrafts[m.id] || getInitialDraft(m);
                 const hasResult = !!m.matchResult?.id;
-                const canInputResult = m.status === 'completed';
+                const canEditWindow = isWithinEditWindow(m);
+                const canInputResult = m.status === 'completed' && canEditWindow;
                 const homeTeamName = m.team?.name || 'Home Team';
                 const awayTeamName = m.opponentTeam?.name || 'Away Team';
                 const homeTeamLogo = teamLogosById[m.team?.id] ?? resolveTeamLogoUrl(m.team);
@@ -319,7 +395,9 @@ const OwnerMatchesPage = () => {
                       <div className="mt-4 text-xs text-gray-500 truncate">{m.field?.name || 'Field'}</div>
                       {!canInputResult && (
                         <div className="mt-2 text-xs text-amber-700">
-                          Input is locked until this match is marked completed.
+                          {m.status !== 'completed'
+                            ? 'Input is locked until this match is marked completed.'
+                            : 'Result editing is locked after 24 hours.'}
                         </div>
                       )}
                     </button>
@@ -329,6 +407,13 @@ const OwnerMatchesPage = () => {
                         <Button size="sm" disabled={isSaving} onClick={() => markMatchCompleted(m.id)}>
                           <CheckCircleIcon className="h-4 w-4" />
                           Confirm Match Completed
+                        </Button>
+                      </div>
+                    )}
+                    {m.status === 'completed' && !canEditWindow && (
+                      <div className="mt-3 flex items-center justify-end">
+                        <Button size="sm" variant="outline" disabled={isSaving} onClick={() => requestAdminChange(m)}>
+                          Request Admin Change
                         </Button>
                       </div>
                     )}
@@ -389,6 +474,19 @@ const OwnerMatchesPage = () => {
             </div>
           )}
         </div>
+
+        {matches.length > 0 && (
+          <div className="border-t border-gray-200 px-6 py-4 flex items-center justify-between gap-3">
+            <div className="text-xs text-gray-500">
+              Showing {Math.min(visibleCount, matches.length)} of {matches.length} matches
+            </div>
+            {canShowMore && (
+              <Button variant="outline" size="sm" onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}>
+                Show more
+              </Button>
+            )}
+          </div>
+        )}
 
         <CardBody className="px-6 py-4 text-xs text-gray-500">
           Click any match card to open the result form.
