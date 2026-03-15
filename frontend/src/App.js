@@ -32,6 +32,7 @@ import OpenMatchesPage from './pages/OpenMatchesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
+import { DialogProvider } from './components/ui';
 
 // Import layout components
 import AppLayout from './components/layout/AppLayout';
@@ -41,9 +42,10 @@ import OwnerLayout from './components/layout/OwnerLayout';
 function App() {
   return (
     <AuthProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <div className="App">
-          <Routes>
+      <DialogProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <div className="App">
+            <Routes>
             {/* Public (Guest) routes */}
             <Route element={<PublicLayout />}>
               <Route index element={<LandingPage />} />
@@ -178,9 +180,10 @@ function App() {
 
             {/* Catch all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </Router>
+            </Routes>
+          </div>
+        </Router>
+      </DialogProvider>
     </AuthProvider>
   );
 }

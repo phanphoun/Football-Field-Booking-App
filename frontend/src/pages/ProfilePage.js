@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
@@ -16,6 +16,7 @@ import {
   UserGroupIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
+import { ImagePreviewModal } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -39,13 +40,22 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime()) ? 'Not specified' : date.toLocaleDateString();
 };
 
+const resolveTeamLogoUrl = (rawLogo) => {
+  if (!rawLogo) return null;
+  if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
+  const normalizedLogoPath = rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
+  return `${API_ORIGIN}${normalizedLogoPath}`;
+};
+
 const ProfilePage = () => {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState(getInitialFormData(user));
   const [isEditing, setIsEditing] = useState(false);
   const [stats, setStats] = useState({ totalBookings: 0, totalTeams: 0 });
+  const [currentTeams, setCurrentTeams] = useState([]);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -64,16 +74,19 @@ const ProfilePage = () => {
 
       if (!active) return;
 
+       const teams =
+         teamsResult.status === 'fulfilled' && Array.isArray(teamsResult.value?.data)
+           ? teamsResult.value.data
+           : [];
+
       setStats({
         totalBookings:
           bookingsResult.status === 'fulfilled' && Array.isArray(bookingsResult.value?.data)
             ? bookingsResult.value.data.length
             : 0,
-        totalTeams:
-          teamsResult.status === 'fulfilled' && Array.isArray(teamsResult.value?.data)
-            ? teamsResult.value.data.length
-            : 0
+        totalTeams: teams.length
       });
+      setCurrentTeams(teams);
     };
 
     loadStats();
@@ -201,7 +214,8 @@ const ProfilePage = () => {
               <img
                 src={resolvedAvatarUrl}
                 alt="Profile avatar"
-                className="h-24 w-24 rounded-full border-4 border-emerald-100 object-cover"
+                className="h-24 w-24 cursor-zoom-in rounded-full border-4 border-emerald-100 object-cover"
+                onClick={() => setImagePreviewOpen(true)}
                 onError={(event) => {
                   const fallbackUrl = `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
                   if (event.currentTarget.src !== fallbackUrl) {
@@ -352,8 +366,74 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-gray-900">Current Teams</h2>
+              <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                {currentTeams.length}
+              </span>
+            </div>
+
+            {currentTeams.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                You are not in any team yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {currentTeams.map((team) => {
+                  const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+
+                  return (
+                    <div key={team.id} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white">
+                          {teamLogoUrl ? (
+                            <img
+                              src={teamLogoUrl}
+                              alt={`${team.name} logo`}
+                              className="h-full w-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <UserGroupIcon className="h-6 w-6 text-gray-300" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">{team.name}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {team.homeField?.name || 'No home field assigned'}
+                          </p>
+                          {team.skillLevel && (
+                            <p className="mt-1 text-xs capitalize text-emerald-700">{team.skillLevel}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-gray-500">
+                        <span>{team.memberCount || 0} members</span>
+                        <Link
+                          to={`/app/teams/${team.id}`}
+                          className="font-semibold text-emerald-700 hover:text-emerald-800"
+                        >
+                          View team
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+      <ImagePreviewModal
+        open={imagePreviewOpen}
+        imageUrl={resolvedAvatarUrl}
+        title="Profile photo"
+        onClose={() => setImagePreviewOpen(false)}
+      />
     </div>
   );
 };

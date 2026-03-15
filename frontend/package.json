@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Frontend for Football Field Booking App",
   "private": true,
-  "proxy": "http://localhost:5000",
   "dependencies": {
     "@heroicons/react": "^2.0.18",
     "@testing-library/dom": "^10.4.1",
@@ -19,7 +18,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^6.8.1",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "stream-browserify": "^3.0.0",
     "url": "^0.11.0",
     "util": "^0.12.4"

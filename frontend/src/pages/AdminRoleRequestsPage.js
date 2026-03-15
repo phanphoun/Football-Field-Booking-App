@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
+import { useDialog } from '../components/ui';
 
 const FILTER_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -26,8 +27,9 @@ const AdminRoleRequestsPage = () => {
   const [search, setSearch] = useState('');
   const [submittingId, setSubmittingId] = useState(null);
   const [flash, setFlash] = useState(null);
+  const { confirm } = useDialog();
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
       const response = await authService.getAdminRoleRequests(filter);
@@ -37,11 +39,11 @@ const AdminRoleRequestsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     loadRequests();
-  }, [filter]);
+  }, [loadRequests]);
 
   const stats = useMemo(() => {
     return {
@@ -69,7 +71,9 @@ const AdminRoleRequestsPage = () => {
   }, [requests, search]);
 
   const handleReview = async (requestId, action) => {
-    const confirmed = window.confirm(`Are you sure you want to ${action} this request?`);
+    const confirmed = await confirm(`Are you sure you want to ${action} this request?`, {
+      title: `${action === 'approve' ? 'Approve' : 'Reject'} Request`
+    });
     if (!confirmed) return;
 
     try {

@@ -8,7 +8,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
@@ -22,6 +22,7 @@ const formatMoney = (value) => {
 
 const OwnerBookingsPage = () => {
   const [searchParams] = useSearchParams();
+  const { confirm } = useDialog();
   const fieldIdFilter = searchParams.get('fieldId');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,12 +76,14 @@ const OwnerBookingsPage = () => {
           setError('Match cannot be confirmed until both teams are assigned.');
           return;
         }
-        const confirmed = window.confirm('Do you want to confirm this match between two teams?');
+        const confirmed = await confirm('Do you want to confirm this match between two teams?', {
+          title: 'Confirm Match'
+        });
         if (!confirmed) return;
         await bookingService.confirmMatchTeams(booking.id);
       }
       if (nextStatus === 'cancelled') {
-        const confirmed = window.confirm('Do you want to cancel booking?');
+        const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
         if (!confirmed) return;
         await bookingService.cancelBooking(booking.id);
       }

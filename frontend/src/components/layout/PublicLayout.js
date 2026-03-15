@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import { Button } from '../ui';
+import { Button, useDialog } from '../ui';
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
@@ -10,13 +10,14 @@ const PublicLayout = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [flash, setFlash] = useState(null);
+  const { confirm } = useDialog();
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
   const showAuthenticatedActions = !loading && isAuthenticated && hasResolvedUser;
 
-  const handleLogout = () => {
-    const confirmed = window.confirm('Do you want to logout?');
+  const handleLogout = async () => {
+    const confirmed = await confirm('Do you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
     logout();
     navigate('/');

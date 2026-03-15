@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon, PhotoIcon, ArrowUpTrayIcon, ArrowLeftIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
+import { ImagePreviewModal } from '../components/ui';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
@@ -25,6 +26,7 @@ const TeamDetailsPage = () => {
   const [inviteSuccess, setInviteSuccess] = useState(null);
   const [logoCandidateIndex, setLogoCandidateIndex] = useState(0);
   const [pendingLogoPreview, setPendingLogoPreview] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -499,7 +501,13 @@ const TeamDetailsPage = () => {
                       <img
                         src={resolveUserAvatarUrl(m.user)}
                         alt={`${m.user?.firstName || m.user?.username || 'User'} avatar`}
-                        className="w-8 h-8 rounded-full object-cover border border-gray-200 bg-gray-100"
+                        className="h-8 w-8 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                        onClick={() =>
+                          setPreviewImage({
+                            url: resolveUserAvatarUrl(m.user),
+                            title: `${m.user?.firstName || m.user?.username || 'User'} photo`
+                          })
+                        }
                         onError={(e) => {
                           const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                           if (e.currentTarget.src !== fallbackUrl) {
@@ -535,6 +543,12 @@ const TeamDetailsPage = () => {
           </div>
         </div>
       </div>
+      <ImagePreviewModal
+        open={Boolean(previewImage)}
+        imageUrl={previewImage?.url}
+        title={previewImage?.title || 'Member photo'}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };

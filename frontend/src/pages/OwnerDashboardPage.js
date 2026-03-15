@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
@@ -25,6 +25,7 @@ const formatMoney = (value) => {
 
 const OwnerDashboardPage = () => {
   const navigate = useNavigate();
+  const { confirm } = useDialog();
   const [fields, setFields] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,12 +86,12 @@ const OwnerDashboardPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') {
-        const confirmed = window.confirm('Do you want to confirm booking?');
+        const confirmed = await confirm('Do you want to confirm booking?', { title: 'Confirm Booking' });
         if (!confirmed) return;
         await bookingService.confirmBooking(bookingId);
       }
       if (nextStatus === 'cancelled') {
-        const confirmed = window.confirm('Do you want to cancel booking?');
+        const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
         if (!confirmed) return;
         await bookingService.cancelBooking(bookingId);
       }

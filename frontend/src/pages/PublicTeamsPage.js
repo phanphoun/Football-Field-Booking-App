@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { UsersIcon } from '@heroicons/react/24/outline';
-import { Badge, Button, EmptyState, Spinner } from '../components/ui';
+import { Badge, Button, EmptyState, ImagePreviewModal, Spinner } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -27,6 +27,7 @@ const PublicTeamsPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
   const isAdmin = user?.role === 'admin';
 
   const canRequestJoin = (team) => {
@@ -188,7 +189,11 @@ const PublicTeamsPage = () => {
                   <img
                     src={teamLogoUrl}
                     alt={`${team.name} logo`}
-                    className="absolute inset-0 z-10 h-full w-full object-cover object-center"
+                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-cover object-center"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
+                    }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
@@ -319,6 +324,12 @@ const PublicTeamsPage = () => {
           </div>
         </div>
       )}
+      <ImagePreviewModal
+        open={Boolean(previewImage)}
+        imageUrl={previewImage?.url}
+        title={previewImage?.title || 'Team image'}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };

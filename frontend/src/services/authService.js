@@ -58,11 +58,6 @@ const authService = {
     return response;
   },
 
-  // Change account password
-  changePassword: async (passwordData) => {
-    return apiService.post('/auth/change-password', passwordData);
-  },
-
   // Get current user's role request history and available upgrades
   getRoleRequests: async () => {
     return apiService.get('/auth/role-requests');

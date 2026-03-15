@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import userService from '../services/userService';
+import { useDialog } from '../components/ui';
 
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
 const STATUSES = ['active', 'inactive', 'suspended'];
@@ -18,6 +19,7 @@ const AdminUsersPage = () => {
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { confirm } = useDialog();
 
   const loadUsers = async () => {
     try {
@@ -86,7 +88,7 @@ const AdminUsersPage = () => {
   };
 
   const handleDelete = async (userId, username) => {
-    const confirmed = window.confirm(`Delete user @${username}? This cannot be undone.`);
+    const confirmed = await confirm(`Delete user @${username}? This cannot be undone.`, { title: 'Delete User' });
     if (!confirmed) return;
 
     try {

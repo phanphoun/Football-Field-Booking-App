@@ -16,6 +16,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../services/api';
+import { ImagePreviewModal } from '../ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -28,6 +29,7 @@ const OwnerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [flash, setFlash] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -299,7 +301,12 @@ const OwnerLayout = () => {
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  className="h-10 w-10 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setImagePreviewOpen(true);
+                  }}
                   onError={(e) => {
                     const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                     if (e.currentTarget.src !== fallbackUrl) {
@@ -357,7 +364,12 @@ const OwnerLayout = () => {
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  className="h-10 w-10 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setImagePreviewOpen(true);
+                  }}
                   onError={(e) => {
                     const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                     if (e.currentTarget.src !== fallbackUrl) {
@@ -559,6 +571,12 @@ const OwnerLayout = () => {
           </div>
         </main>
       </div>
+      <ImagePreviewModal
+        open={imagePreviewOpen}
+        imageUrl={resolveAvatarUrl()}
+        title="Profile photo"
+        onClose={() => setImagePreviewOpen(false)}
+      />
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
-import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import notificationService from '../services/notificationService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -15,6 +15,7 @@ const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().in
 const FieldsPage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { showAlert } = useDialog();
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
@@ -95,7 +96,7 @@ const FieldsPage = () => {
     searchInputRef.current?.focus();
   }, [searchParams]);
 
-  const handleBookField = (fieldId) => {
+  const handleBookField = async (fieldId) => {
     const bookingPath = `/app/bookings/new?fieldId=${fieldId}`;
 
     if (!isAuthenticated) {
@@ -104,7 +105,7 @@ const FieldsPage = () => {
     }
 
     if (!canCreateBooking) {
-      window.alert(bookingAccessMessage);
+      await showAlert(bookingAccessMessage, { title: 'Booking Access' });
       return;
     }
 

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
+import { ImagePreviewModal } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -34,6 +35,7 @@ const TeamsPage = () => {
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
   const [error, setError] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const isAdmin = user?.role === 'admin';
   const canCreateTeam = !!user && !isAdmin && user?.role !== 'player';
 
@@ -315,7 +317,11 @@ const TeamsPage = () => {
                   <img
                     src={teamLogoUrl}
                     alt={`${team.name} logo`}
-                    className="relative z-10 h-full w-full object-cover object-center"
+                    className="relative z-10 h-full w-full cursor-zoom-in object-cover object-center"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
+                    }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
@@ -440,6 +446,12 @@ const TeamsPage = () => {
           </div>
         </div>
       )}
+      <ImagePreviewModal
+        open={Boolean(previewImage)}
+        imageUrl={previewImage?.url}
+        title={previewImage?.title || 'Team image'}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };

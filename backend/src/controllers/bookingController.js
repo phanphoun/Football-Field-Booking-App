@@ -43,6 +43,82 @@ const serializeBooking = (booking) => {
   };
 };
 
+const SCHEDULE_SHOWCASE_START_HOURS = [8, 10, 12, 14, 16, 18, 20];
+
+const getScheduleShowcaseTarget = (date) => {
+  const [year, month, day] = String(date || '').split('-').map(Number);
+  if (![year, month, day].every(Number.isFinite)) return 2;
+  return (year + month + day) % 2 === 0 ? 2 : 4;
+};
+
+const buildDateAtHour = (date, hour) => {
+  const bookingDate = new Date(`${date}T00:00:00`);
+  bookingDate.setHours(hour, 0, 0, 0);
+  return bookingDate;
+};
+
+const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
+  const serializedBookings = bookings.map(serializeBooking);
+  const targetCount = getScheduleShowcaseTarget(date);
+
+  if (serializedBookings.length >= targetCount || fields.length === 0) {
+    return serializedBookings;
+  }
+
+  const occupiedSlots = new Set(
+    serializedBookings.map((booking) => {
+      const start = new Date(booking.startTime);
+      return `${booking.fieldId}-${start.getHours()}`;
+    })
+  );
+
+  const showcaseTeams = [
+    'Sunrise FC',
+    'Mekong United',
+    'City Warriors',
+    'Night Strikers',
+    'Golden Boots',
+    'Weekend Rangers'
+  ];
+
+  const showcaseBookings = [];
+  let showcaseIndex = 0;
+
+  for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
+    for (const field of fields) {
+      if (serializedBookings.length + showcaseBookings.length >= targetCount) {
+        return [...serializedBookings, ...showcaseBookings];
+      }
+
+      const slotKey = `${field.id}-${hour}`;
+      if (occupiedSlots.has(slotKey)) continue;
+
+      const startTime = buildDateAtHour(date, hour);
+      const endTime = buildDateAtHour(date, hour + 2);
+      const teamName = showcaseTeams[(showcaseIndex + hour) % showcaseTeams.length];
+
+      showcaseBookings.push({
+        id: `showcase-${date}-${field.id}-${hour}`,
+        fieldId: field.id,
+        teamId: null,
+        teamName,
+        startTime,
+        endTime,
+        status: showcaseIndex % 3 === 0 ? 'pending' : 'confirmed',
+        createdBy: null,
+        isMatchmaking: false,
+        openForOpponents: false,
+        team: null
+      });
+
+      occupiedSlots.add(slotKey);
+      showcaseIndex += 1;
+    }
+  }
+
+  return [...serializedBookings, ...showcaseBookings];
+};
+
 const requireCaptainRole = (req, res) => {
   if (req.user.role !== 'captain') {
     res.status(403).json({
@@ -258,7 +334,7 @@ const getBookingSchedule = async (req, res) => {
       success: true,
       data: {
         fields,
-        bookings: bookings.map(serializeBooking)
+        bookings: enrichScheduleWithShowcaseBookings({ date, fields, bookings })
       }
     });
   } catch (error) {
@@ -325,7 +401,7 @@ const getPublicBookingSchedule = async (req, res) => {
       success: true,
       data: {
         fields,
-        bookings: bookings.map(serializeBooking)
+        bookings: enrichScheduleWithShowcaseBookings({ date, fields, bookings })
       }
     });
   } catch (error) {

@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
-import { Button, Card, CardBody, CardHeader } from '../../components/ui';
+import { Button, Card, CardBody, CardHeader, useDialog } from '../../components/ui';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
 
 const LoginPage = () => {
   const { login, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showAlert } = useDialog();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
 
@@ -144,7 +145,7 @@ const LoginPage = () => {
                   <button
                     type="button"
                     className="text-sm font-medium text-green-700 hover:text-green-800 transition-colors duration-200"
-                    onClick={() => alert('Forgot password is not implemented yet.')}
+                    onClick={() => showAlert('Forgot password is not implemented yet.', { title: 'Not Available Yet' })}
                   >
                     Forgot password?
                   </button>

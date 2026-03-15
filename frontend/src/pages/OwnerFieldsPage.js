@@ -3,6 +3,7 @@ import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/r
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
+import { useDialog } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -46,6 +47,7 @@ const resolveFieldImageUrl = (rawImage) => {
 
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
+  const { confirm } = useDialog();
   const [fields, setFields] = useState([]);
   const [allFields, setAllFields] = useState([]);
   const [viewMode, setViewMode] = useState('mine');
@@ -195,7 +197,7 @@ const OwnerFieldsPage = () => {
   };
 
   const handleDelete = async (field) => {
-    const confirmed = window.confirm(`Delete "${field.name}"?`);
+    const confirmed = await confirm(`Delete "${field.name}"?`, { title: 'Delete Field' });
     if (!confirmed) return;
 
     try {

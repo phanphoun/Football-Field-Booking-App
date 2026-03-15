@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
+import { useDialog } from '../components/ui';
 
 const SETTINGS_DEVICE_PREFS_KEY = 'app_settings_device_preferences';
 
@@ -131,6 +132,7 @@ const PreferenceToggle = ({ title, description, enabled, onChange }) => (
 const SettingsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { confirm } = useDialog();
   const [roleRequests, setRoleRequests] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
@@ -226,7 +228,9 @@ const SettingsPage = () => {
     const option = ROLE_OPTIONS[requestedRole];
     if (!option) return;
 
-    const confirmed = window.confirm(`Send a request for ${option.title.toLowerCase()}?`);
+    const confirmed = await confirm(`Send a request for ${option.title.toLowerCase()}?`, {
+      title: 'Role Request'
+    });
     if (!confirmed) return;
 
     try {

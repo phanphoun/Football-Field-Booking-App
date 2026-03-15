@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { ImagePreviewModal } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -25,6 +26,7 @@ const PublicTeamDetailsPage = () => {
   const [successMessage, setSuccessMessage] = useState(null);
   const [history, setHistory] = useState({ stats: { total: 0, wins: 0, losses: 0, draws: 0 }, matches: [] });
   const [historyAvailable, setHistoryAvailable] = useState(true);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
 
   const canRequestJoin = () => {
     if (!isAuthenticated) return false;
@@ -42,7 +44,7 @@ const PublicTeamDetailsPage = () => {
         setError(null);
         const [teamResponse, historyResponse] = await Promise.all([
           teamService.getPublicTeamById(id),
-          teamService.getTeamMatchHistory(id, { limit: 5 }).catch(() => null)
+          teamService.getPublicTeamMatchHistory(id, { limit: 5 }).catch(() => null)
         ]);
 
         setTeam(teamResponse.data || null);
@@ -119,7 +121,8 @@ const PublicTeamDetailsPage = () => {
             <img
               src={teamLogoUrl}
               alt={`${team.name} logo`}
-              className="relative z-10 h-full w-full object-cover"
+              className="relative z-10 h-full w-full cursor-zoom-in object-cover"
+              onClick={() => setImagePreviewOpen(true)}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}
@@ -266,6 +269,12 @@ const PublicTeamDetailsPage = () => {
         </div>
         </div>
       </div>
+      <ImagePreviewModal
+        open={imagePreviewOpen}
+        imageUrl={teamLogoUrl}
+        title={`${team.name} image`}
+        onClose={() => setImagePreviewOpen(false)}
+      />
     </div>
   );
 };

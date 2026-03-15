@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
+import { ImagePreviewModal } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -37,6 +38,7 @@ const TeamManagePage = () => {
   const [inviteError, setInviteError] = useState(null);
   const [inviteSuccess, setInviteSuccess] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [selectedInvite, setSelectedInvite] = useState(null);
   const [searchingPlayers, setSearchingPlayers] = useState(false);
@@ -458,7 +460,13 @@ const TeamManagePage = () => {
                       <img
                         src={resolveUserAvatarUrl(m.user)}
                         alt={`${m.user?.firstName || m.user?.username || 'User'} avatar`}
-                        className="h-9 w-9 rounded-full object-cover border border-gray-200 bg-gray-100"
+                        className="h-9 w-9 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                        onClick={() =>
+                          setPreviewImage({
+                            url: resolveUserAvatarUrl(m.user),
+                            title: `${m.user?.firstName || m.user?.username || 'User'} photo`
+                          })
+                        }
                         onError={(e) => {
                           const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                           if (e.currentTarget.src !== fallbackUrl) {
@@ -491,6 +499,12 @@ const TeamManagePage = () => {
           </div>
         </div>
       </div>
+      <ImagePreviewModal
+        open={Boolean(previewImage)}
+        imageUrl={previewImage?.url}
+        title={previewImage?.title || 'Member photo'}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 };

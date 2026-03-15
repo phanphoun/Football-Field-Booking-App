@@ -510,16 +510,6 @@ const LandingPage = () => {
     const fetchSchedule = async () => {
       try {
         setScheduleLoading(true);
-        if (isAuthenticated) {
-          const scheduleResponse = await bookingService.getSchedule(selectedDay);
-          const payload = scheduleResponse.data || {};
-          const fields = Array.isArray(payload.fields) ? payload.fields : [];
-          const bookings = Array.isArray(payload.bookings) ? payload.bookings : [];
-          setScheduleFieldsData(fields);
-          setScheduleBookingsData(bookings);
-          return;
-        }
-
         const response = await bookingService.getPublicSchedule(selectedDay, 6);
         const payload = response.data || {};
         const fields = Array.isArray(payload.fields) ? payload.fields : [];
@@ -536,7 +526,7 @@ const LandingPage = () => {
     };
 
     fetchSchedule();
-  }, [isAuthenticated, selectedDay]);
+  }, [selectedDay]);
 
   const scheduleFields = useMemo(() => {
     if (scheduleFieldsData.length > 0) return scheduleFieldsData;

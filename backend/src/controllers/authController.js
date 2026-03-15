@@ -215,15 +215,23 @@ const updateProfile = async (req, res) => {
       if (existingUser && existingUser.id !== userId) {
         return res.status(400).json({ error: 'Email is already in use.' });
       }
-      updateData.email = email;
+      updateData.email = String(email).trim();
     }
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) updateData.phone = phone || null;
-    if (address !== undefined) updateData.address = address || null;
+    if (firstName !== undefined) updateData.firstName = String(firstName).trim();
+    if (lastName !== undefined) updateData.lastName = String(lastName).trim();
+    if (phone !== undefined) updateData.phone = phone ? String(phone).trim() : null;
+    if (address !== undefined) updateData.address = address ? String(address).trim() : null;
     if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth || null;
     if (gender !== undefined) updateData.gender = gender || null;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+
+    if (updateData.firstName !== undefined && !updateData.firstName) {
+      return res.status(400).json({ error: 'First name is required.' });
+    }
+
+    if (updateData.lastName !== undefined && !updateData.lastName) {
+      return res.status(400).json({ error: 'Last name is required.' });
+    }
 
     await user.update(updateData);
 
@@ -252,6 +260,10 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+      const message = error.errors?.[0]?.message || 'Invalid profile data.';
+      return res.status(400).json({ error: message });
+    }
     res.status(500).json({ error: 'Internal server error while updating profile.' });
   }
 };
