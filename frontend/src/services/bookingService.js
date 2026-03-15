@@ -113,6 +113,12 @@ const bookingService = {
     return response;
   },
 
+  // Field owner/admin: confirm a match only when both teams exist
+  confirmMatchTeams: async (bookingId) => {
+    const response = await apiService.patch(`/bookings/${bookingId}/confirm-match`);
+    return response;
+  },
+
   // Complete booking
   completeBooking: async (bookingId) => {
     const response = await apiService.put(`/bookings/${bookingId}`, { status: 'completed' });

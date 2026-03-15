@@ -16,6 +16,7 @@ router.get('/schedule', auth, bookingController.getBookingSchedule);
 router.get('/open-matches', auth, bookingController.getOpenMatches);
 router.get('/:id', auth, ...idValidation, bookingController.getBookingById);
 router.put('/:id', auth, ...idValidation, bookingController.updateBookingStatus);
+router.patch('/:id/confirm-match', auth, checkRole(['field_owner', 'admin']), ...idValidation, bookingController.confirmMatchTeams);
 router.patch('/:id/open-for-opponents', auth, ...idValidation, bookingController.toggleOpenForOpponents);
 router.post('/:id/join-requests', auth, ...idValidation, bookingController.requestJoinMatch);
 router.get('/:id/join-requests', auth, ...idValidation, bookingController.getBookingJoinRequests);
