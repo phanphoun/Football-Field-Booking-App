@@ -301,7 +301,19 @@ const TeamsPage = () => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
 
             return (
-            <div key={team.id} className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
+            <div
+              key={team.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleViewTeam(team.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleViewTeam(team.id);
+                }
+              }}
+              className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
               <div className="relative h-48">
                 <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
                   <UsersIcon className="h-14 w-14 text-gray-300" />
@@ -353,7 +365,10 @@ const TeamsPage = () => {
                   </button>
                   {isAdmin && (
                     <button
-                      onClick={() => openDeleteDialog(team)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openDeleteDialog(team);
+                      }}
                       disabled={deletingTeamId === team.id}
                       className="border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
