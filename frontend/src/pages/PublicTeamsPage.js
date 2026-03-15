@@ -167,7 +167,19 @@ const PublicTeamsPage = () => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
 
             return (
-            <div key={team.id} className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+            <div
+              key={team.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/teams/${team.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/teams/${team.id}`);
+                }
+              }}
+              className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
               <div className="relative h-44">
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                   <UsersIcon className="h-12 w-12 text-gray-300" />
@@ -176,7 +188,7 @@ const PublicTeamsPage = () => {
                   <img
                     src={teamLogoUrl}
                     alt={`${team.name} logo`}
-                    className="relative z-10 h-full w-full object-cover"
+                    className="absolute inset-0 z-10 h-full w-full object-cover object-center"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}
@@ -211,6 +223,7 @@ const PublicTeamsPage = () => {
                 <Button
                   as={Link}
                   to={`/teams/${team.id}`}
+                  onClick={(event) => event.stopPropagation()}
                   variant="outline"
                   className="flex-1"
                 >
@@ -219,7 +232,10 @@ const PublicTeamsPage = () => {
 
                 {isAdmin ? (
                   <Button
-                    onClick={() => openDeleteDialog(team)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openDeleteDialog(team);
+                    }}
                     className="flex-1 bg-red-600 hover:bg-red-700"
                     disabled={deletingTeamId === team.id}
                   >
@@ -227,7 +243,10 @@ const PublicTeamsPage = () => {
                   </Button>
                 ) : canRequestJoin(team) ? (
                   <Button
-                    onClick={() => handleRequestJoin(team.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRequestJoin(team.id);
+                    }}
                     className="flex-1"
                   >
                     Request Join
@@ -241,7 +260,10 @@ const PublicTeamsPage = () => {
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => navigate('/login', { state: { from: `/teams/${team.id}` } })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate('/login', { state: { from: `/teams/${team.id}` } });
+                    }}
                     className="flex-1"
                   >
                     Login to Join
