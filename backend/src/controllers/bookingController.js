@@ -271,6 +271,73 @@ const getBookingSchedule = async (req, res) => {
   }
 };
 
+const getPublicBookingSchedule = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const limitValue = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? Math.min(limitValue, 24) : 6;
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'date query is required (YYYY-MM-DD)'
+      });
+    }
+
+    const dayStart = new Date(`${date}T00:00:00`);
+    const dayEnd = new Date(`${date}T23:59:59.999`);
+    if (Number.isNaN(dayStart.getTime()) || Number.isNaN(dayEnd.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format. Use YYYY-MM-DD.'
+      });
+    }
+
+    const fields = await Field.findAll({
+      attributes: ['id', 'name', 'address', 'pricePerHour', 'images'],
+      order: [['name', 'ASC']],
+      limit
+    });
+
+    const fieldIds = fields.map((field) => field.id);
+    if (fieldIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          fields: [],
+          bookings: []
+        }
+      });
+    }
+
+    const bookings = await Booking.findAll({
+      attributes: ['id', 'fieldId', 'teamId', 'startTime', 'endTime', 'status', 'createdBy', 'isMatchmaking'],
+      where: {
+        fieldId: { [Op.in]: fieldIds },
+        status: { [Op.notIn]: ['cancelled', 'completed'] },
+        [Op.and]: [{ startTime: { [Op.lt]: dayEnd } }, { endTime: { [Op.gt]: dayStart } }]
+      },
+      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'], required: false }],
+      order: [['startTime', 'ASC']]
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        fields,
+        bookings: bookings.map(serializeBooking)
+      }
+    });
+  } catch (error) {
+    console.error('Get public booking schedule error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch public booking schedule',
+      error: error.message
+    });
+  }
+};
+
 const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -319,6 +386,27 @@ const updateBookingStatus = async (req, res) => {
     }
 
     const previousStatus = booking.status;
+    const validTransitions = {
+      pending: ['confirmed', 'cancelled'],
+      confirmed: ['completed', 'cancelled'],
+      cancelled: [],
+      completed: []
+    };
+
+    if (!validTransitions[previousStatus]?.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot change status from ${previousStatus} to ${status}.`
+      });
+    }
+
+    // Completing a booking is restricted to field owner/admin approval.
+    if (status === 'completed' && !(isOwner || isAdmin)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only field owner or admin can mark this booking as completed.'
+      });
+    }
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const overlappingConfirmed = await Booking.findOne({
@@ -1352,6 +1440,7 @@ module.exports = {
   createBooking,
   getBookings,
   getBookingSchedule,
+  getPublicBookingSchedule,
   getBookingById,
   updateBookingStatus,
   confirmMatchTeams,

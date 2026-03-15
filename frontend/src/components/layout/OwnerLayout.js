@@ -6,7 +6,6 @@ import {
   BuildingOfficeIcon,
   CalendarIcon,
   TrophyIcon,
-  UserGroupIcon,
   ArrowLeftIcon,
   UserCircleIcon,
   BellAlertIcon,
@@ -64,22 +63,10 @@ const OwnerLayout = () => {
       current: location.pathname.startsWith('/owner/league')
     },
     {
-      name: 'Teams',
-      href: '/owner/teams',
-      icon: UserGroupIcon,
-      current: location.pathname.startsWith('/owner/teams')
-    },
-    {
       name: 'Bookings',
       href: '/owner/bookings',
       icon: CalendarIcon,
       current: location.pathname.startsWith('/owner/bookings')
-    },
-    {
-      name: 'Open Matches',
-      href: '/owner/open-matches',
-      icon: UserGroupIcon,
-      current: location.pathname.startsWith('/owner/open-matches')
     },
     {
       name: 'Matches',
@@ -164,6 +151,8 @@ const OwnerLayout = () => {
       setNotificationActionLoading(true);
       await markNotificationRead(notificationId);
       await loadNotifications();
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     } finally {
       setNotificationActionLoading(false);
     }
@@ -174,8 +163,10 @@ const OwnerLayout = () => {
       setNotificationActionLoading(true);
       const unread = latestNotifications.filter((item) => !item.isRead);
       if (unread.length === 0) return;
-      await Promise.all(unread.map((item) => markNotificationRead(item.id)));
+      await Promise.allSettled(unread.map((item) => markNotificationRead(item.id)));
       await loadNotifications();
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
     } finally {
       setNotificationActionLoading(false);
     }
@@ -190,6 +181,8 @@ const OwnerLayout = () => {
         await markNotificationRead(notification.id);
         await loadNotifications();
       }
+    } catch (error) {
+      console.error('Failed to process notification click:', error);
     } finally {
       setNotificationActionLoading(false);
       setNotificationsMenuOpen(false);

@@ -8,6 +8,7 @@ const { bookingValidation, idValidation } = require('../middleware/validation');
 
 // Public route for landing page statistics (no auth required)
 router.get('/public/stats', bookingController.getPublicBookingStats);
+router.get('/public/schedule', bookingController.getPublicBookingSchedule);
 
 router.post('/', auth, checkRole(['captain']), ...bookingValidation.create, bookingController.createBooking);
 router.get('/', auth, bookingController.getBookings);

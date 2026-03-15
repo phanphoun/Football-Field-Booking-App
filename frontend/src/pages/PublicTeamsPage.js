@@ -167,33 +167,46 @@ const PublicTeamsPage = () => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
 
             return (
-            <div key={team.id} className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex relative overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <UsersIcon className="h-6 w-6 text-gray-400" />
-                    </div>
-                    {teamLogoUrl && (
-                      <img 
-                        src={teamLogoUrl}
-                        alt={`${team.name} logo`}
-                        className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white relative z-10"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{team.name}</h3>
-                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description}</p>
-                  </div>
+            <div
+              key={team.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/teams/${team.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  navigate(`/teams/${team.id}`);
+                }
+              }}
+              className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              <div className="relative h-44">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <UsersIcon className="h-12 w-12 text-gray-300" />
                 </div>
-                <Badge tone="gray">{team.memberCount || 0} members</Badge>
+                {teamLogoUrl && (
+                  <img
+                    src={teamLogoUrl}
+                    alt={`${team.name} logo`}
+                    className="absolute inset-0 z-10 h-full w-full object-cover object-center"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
               </div>
 
-              <div className="mt-4 text-sm text-gray-600 space-y-1">
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">{team.name}</h3>
+                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'No description available.'}</p>
+                  </div>
+                  <Badge tone="gray">{team.memberCount || 0} members</Badge>
+                </div>
+              </div>
+
+              <div className="px-6 text-sm text-gray-600 space-y-1">
                 <div>Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}</div>
                 {team.homeField?.name && <div>Home Field: {team.homeField.name}</div>}
                 {team.skillLevel && (
@@ -206,10 +219,11 @@ const PublicTeamsPage = () => {
                 )}
               </div>
 
-              <div className="mt-5 flex gap-2">
+              <div className="mt-5 flex gap-2 p-6 pt-5">
                 <Button
                   as={Link}
                   to={`/teams/${team.id}`}
+                  onClick={(event) => event.stopPropagation()}
                   variant="outline"
                   className="flex-1"
                 >
@@ -218,7 +232,10 @@ const PublicTeamsPage = () => {
 
                 {isAdmin ? (
                   <Button
-                    onClick={() => openDeleteDialog(team)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openDeleteDialog(team);
+                    }}
                     className="flex-1 bg-red-600 hover:bg-red-700"
                     disabled={deletingTeamId === team.id}
                   >
@@ -226,7 +243,10 @@ const PublicTeamsPage = () => {
                   </Button>
                 ) : canRequestJoin(team) ? (
                   <Button
-                    onClick={() => handleRequestJoin(team.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleRequestJoin(team.id);
+                    }}
                     className="flex-1"
                   >
                     Request Join
@@ -240,7 +260,10 @@ const PublicTeamsPage = () => {
                   </Button>
                 ) : (
                   <Button
-                    onClick={() => navigate('/login', { state: { from: `/teams/${team.id}` } })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate('/login', { state: { from: `/teams/${team.id}` } });
+                    }}
                     className="flex-1"
                   >
                     Login to Join

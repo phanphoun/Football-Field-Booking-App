@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
-import { UsersIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -23,6 +23,8 @@ const PublicTeamDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [history, setHistory] = useState({ stats: { total: 0, wins: 0, losses: 0, draws: 0 }, matches: [] });
+  const [historyAvailable, setHistoryAvailable] = useState(true);
 
   const canRequestJoin = () => {
     if (!isAuthenticated) return false;
@@ -34,12 +36,27 @@ const PublicTeamDetailsPage = () => {
   };
 
   useEffect(() => {
-    const fetchTeam = async () => {
+    const fetchTeamAndHistory = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await teamService.getPublicTeamById(id);
-        setTeam(response.data || null);
+        const [teamResponse, historyResponse] = await Promise.all([
+          teamService.getPublicTeamById(id),
+          teamService.getTeamMatchHistory(id, { limit: 5 }).catch(() => null)
+        ]);
+
+        setTeam(teamResponse.data || null);
+
+        const historyData = historyResponse?.data;
+        if (historyData && (Array.isArray(historyData.matches) || historyData.stats)) {
+          setHistory({
+            stats: historyData.stats || { total: 0, wins: 0, losses: 0, draws: 0 },
+            matches: Array.isArray(historyData.matches) ? historyData.matches : []
+          });
+          setHistoryAvailable(true);
+        } else {
+          setHistoryAvailable(false);
+        }
       } catch (err) {
         console.error('Failed to fetch team:', err);
         setError('Failed to load team');
@@ -48,7 +65,7 @@ const PublicTeamDetailsPage = () => {
       }
     };
 
-    fetchTeam();
+    fetchTeamAndHistory();
   }, [id]);
 
   const handleRequestJoin = async () => {
@@ -89,33 +106,33 @@ const PublicTeamDetailsPage = () => {
   }
 
   const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+  const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
 
   return (
     <div className="space-y-6">
-      <div className="bg-white shadow rounded-lg p-6">
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="h-52 bg-gray-100 relative">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <UsersIcon className="h-16 w-16 text-gray-300" />
+          </div>
+          {teamLogoUrl && (
+            <img
+              src={teamLogoUrl}
+              alt={`${team.name} logo`}
+              className="relative z-10 h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          )}
+        </div>
+        <div className="p-6">
         <div className="flex items-start justify-between">
-          <div className="flex items-start space-x-6">
-            <div className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex relative overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <UsersIcon className="h-10 w-10 text-gray-400" />
-              </div>
-              {teamLogoUrl && (
-                <img 
-                  src={teamLogoUrl}
-                  alt={`${team.name} logo`}
-                  className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white relative z-10"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
+            </p>
           </div>
           <div className="text-sm text-gray-600 flex items-center">
             <UsersIcon className="h-5 w-5 mr-1 text-gray-400" />
@@ -125,7 +142,7 @@ const PublicTeamDetailsPage = () => {
 
         {team.description && <p className="mt-4 text-gray-700">{team.description}</p>}
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
           {team.homeField && (
             <div className="flex items-start">
               <MapPinIcon className="h-5 w-5 mr-2 text-gray-400 mt-0.5" />
@@ -145,6 +162,63 @@ const PublicTeamDetailsPage = () => {
               <div className="capitalize">{team.skillLevel}</div>
             </div>
           )}
+
+          <div>
+            <div className="font-medium text-gray-900">Team Created</div>
+            <div>{team.createdAt ? new Date(team.createdAt).toLocaleDateString() : 'Not available'}</div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="text-xs text-gray-500">Matches</div>
+            <div className="text-lg font-semibold text-gray-900">{history.stats?.total || 0}</div>
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+            <div className="text-xs text-emerald-700">Wins</div>
+            <div className="text-lg font-semibold text-emerald-800">{history.stats?.wins || 0}</div>
+          </div>
+          <div className="rounded-lg border border-rose-200 bg-rose-50 p-3">
+            <div className="text-xs text-rose-700">Losses</div>
+            <div className="text-lg font-semibold text-rose-800">{history.stats?.losses || 0}</div>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <div className="text-xs text-amber-700">Draws</div>
+            <div className="text-lg font-semibold text-amber-800">{history.stats?.draws || 0}</div>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 bg-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900 inline-flex items-center gap-2">
+              <TrophyIcon className="h-4 w-4 text-gray-500" />
+              Recent Match History
+            </h2>
+            <span className="text-xs text-gray-500">Last 5 matches</span>
+          </div>
+
+          <div className="p-4">
+            {!historyAvailable ? (
+              <p className="text-sm text-gray-500">Match history is not available for this team yet.</p>
+            ) : recentMatches.length === 0 ? (
+              <p className="text-sm text-gray-500">No completed matches recorded yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {recentMatches.map((match, idx) => (
+                  <div key={match.id || `${match.opponentTeamName || 'opponent'}-${idx}`} className="flex items-center justify-between rounded-md border border-gray-200 p-3">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{match.opponentTeamName || 'Opponent'}</div>
+                      <div className="text-xs text-gray-500 inline-flex items-center gap-1 mt-1">
+                        <CalendarDaysIcon className="h-3.5 w-3.5" />
+                        {match.dateTime ? new Date(match.dateTime).toLocaleDateString() : 'Date unavailable'}
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-800">{match.result || match.score || '-'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {successMessage && (
@@ -189,6 +263,7 @@ const PublicTeamDetailsPage = () => {
               Login to Request
             </button>
           )}
+        </div>
         </div>
       </div>
     </div>

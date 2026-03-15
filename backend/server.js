@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -132,6 +133,25 @@ app.use('/uploads', (req, res, next) => {
 app.use('/uploads', express.static(path.join(__dirname, '..', 'frontend', 'public', 'uploads')));
 // Backward compatibility for previously uploaded files in backend/uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads/fields', (req, res, next) => {
+  const requestedPath = decodeURIComponent(req.path || '').replace(/^\/+/, '');
+  if (!requestedPath) {
+    return next();
+  }
+
+  const frontendUploadFile = path.join(__dirname, '..', 'frontend', 'public', 'uploads', 'fields', requestedPath);
+  const backendUploadFile = path.join(__dirname, 'uploads', 'fields', requestedPath);
+  const hasFrontendFile = fs.existsSync(frontendUploadFile);
+  const hasBackendFile = fs.existsSync(backendUploadFile);
+
+  if (hasFrontendFile || hasBackendFile) {
+    return next();
+  }
+
+  const fallbackImage = path.join(__dirname, '..', 'frontend', 'public', 'hero-manu.jpg');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  return res.sendFile(fallbackImage);
+});
 
 // ============= API ROUTES =============
 

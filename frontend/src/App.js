@@ -41,7 +41,7 @@ import OwnerLayout from './components/layout/OwnerLayout';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="App">
           <Routes>
             {/* Public (Guest) routes */}
@@ -172,23 +172,6 @@ function App() {
                 }
               />
               <Route path="league" element={<LeaguePage />} />
-              <Route path="teams" element={<TeamsPage />} />
-              <Route
-                path="teams/create"
-                element={
-                  <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
-                    <TeamCreatePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="open-matches"
-                element={
-                  <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/dashboard">
-                    <OpenMatchesPage />
-                  </ProtectedRoute>
-                }
-              />
               <Route path="matches" element={<OwnerMatchesPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>

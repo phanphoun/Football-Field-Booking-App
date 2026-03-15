@@ -1,11 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  MapPinIcon,
-  PencilSquareIcon,
-  PhotoIcon,
-  PlusIcon,
-  TrashIcon
-} from '@heroicons/react/24/outline';
+import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
@@ -53,8 +47,6 @@ const resolveFieldImageUrl = (rawImage) => {
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const [fields, setFields] = useState([]);
-  const [allFields, setAllFields] = useState([]);
-  const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -83,8 +75,19 @@ const OwnerFieldsPage = () => {
   };
 
   useEffect(() => {
-    loadFields();
-  }, []);
+    const run = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        await loadFields();
+      } catch (err) {
+        setError(err?.error || 'Failed to load fields');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [loadFields]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -141,9 +144,7 @@ const OwnerFieldsPage = () => {
   };
 
   const handleImageChange = (event) => {
-    const nextFiles = Array.from(event.target.files || []).filter((file) =>
-      String(file.type || '').startsWith('image/')
-    );
+    const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
     setImageFiles(nextFiles.slice(0, 5));
   };
 
@@ -166,9 +167,7 @@ const OwnerFieldsPage = () => {
         capacity: Number(form.capacity),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
-        amenities: form.amenities
-          ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean)
-          : []
+        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : []
       };
 
       if (editingFieldId) {
@@ -239,9 +238,7 @@ const OwnerFieldsPage = () => {
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {successMessage && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>
-      )}
+      {successMessage && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
 
       {isOpen && (
         <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -294,9 +291,7 @@ const OwnerFieldsPage = () => {
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Photos</label>
             <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm" />
-            {imageFiles.length > 0 && (
-              <p className="text-xs text-gray-500">{imageFiles.length} image(s) selected</p>
-            )}
+            {imageFiles.length > 0 && <p className="text-xs text-gray-500">{imageFiles.length} image(s) selected</p>}
           </div>
 
           <div className="flex justify-end gap-3">
@@ -372,10 +367,6 @@ const OwnerFieldsPage = () => {
           </div>
         )}
       </div>
-
-      {selectedField && !isOpen && (
-        <div className="hidden">{selectedField.name}</div>
-      )}
     </div>
   );
 };
