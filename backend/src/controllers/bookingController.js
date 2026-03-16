@@ -1493,6 +1493,7 @@ const getPublicBookingStats = async (req, res) => {
       success: true,
       data: {
         timeSlots,
+        bookings: bookings.slice(0, 50), // Return a sample of recent bookings for client-side stats if needed
         meta: {
           lookbackDays,
           totalFields,

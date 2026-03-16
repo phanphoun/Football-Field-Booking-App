@@ -48,88 +48,6 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
 
-const FEATURED_FALLBACK_FIELDS = [
-  {
-    id: 'fallback-1',
-    name: 'Premium Outdoor Field',
-    address: 'Downtown Sports Complex',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 80,
-    status: 'available',
-    images: [
-      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
-    ]
-  },
-  {
-    id: 'fallback-2',
-    name: 'Stadium Football Pitch',
-    address: 'City Stadium Arena',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 120,
-    status: 'available',
-    images: [
-      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
-    ]
-  },
-  {
-    id: 'fallback-3',
-    name: 'Indoor Football Arena',
-    address: 'Sports Hub Indoor',
-    city: 'Phnom Penh',
-    capacity: 14,
-    sessionDuration: 60,
-    pricePerHour: 100,
-    status: 'booked',
-    images: [
-      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
-    ]
-  },
-  {
-    id: 'fallback-4',
-    name: 'City Center Pitch',
-    address: 'Central Sports Park',
-    city: 'Phnom Penh',
-    capacity: 18,
-    sessionDuration: 90,
-    pricePerHour: 95,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
-    ]
-  },
-  
-  {
-    id: 'fallback-5',
-    name: 'Night Lights Field',
-    address: 'North Arena',
-    city: 'Phnom Penh',
-    capacity: 20,
-    sessionDuration: 90,
-    pricePerHour: 110,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
-    ]
-  },
-  {
-    id: 'fallback-6',
-    name: 'Champions Ground',
-    address: 'West Stadium',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 130,
-    status: 'booked',
-    images: [
-      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
-    ]
-  }
-  
-];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 const POPULAR_TIME_SLOT_SESSIONS = [
@@ -139,7 +57,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
     time: '08:00 - 12:00',
     startHour: 8,
     endHour: 12,
-    fallbackRate: 68,
+    fallbackRate: 0,
     description: 'Cooler kickoff hours for teams that want an early start.'
   },
   {
@@ -148,7 +66,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
     time: '12:00 - 18:00',
     startHour: 12,
     endHour: 18,
-    fallbackRate: 80,
+    fallbackRate: 0,
     description: 'Balanced midday and after-work demand for flexible match schedules.'
   },
   {
@@ -157,7 +75,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
     time: '18:00 - 22:00',
     startHour: 18,
     endHour: 22,
-    fallbackRate: 92,
+    fallbackRate: 0,
     description: 'Prime-time booking window for the busiest games under the lights.'
   }
 ];
@@ -192,12 +110,13 @@ const applyStarRatings = (slots) => {
 
   return slots.map((slot) => {
     const rank = rankedRates.indexOf(Number(slot.rate || 0));
-    const stars = Math.max(3, 5 - Math.min(rank, 2));
+    const stars = Number(slot.rate || 0) > 0 ? Math.max(3, 5 - Math.min(rank, 2)) : 0;
+    const rating = stars > 0 ? `${stars}.0` : '0.0';
 
     return {
       ...slot,
       stars,
-      rating: `${stars}.0`
+      rating
     };
   });
 };
@@ -391,7 +310,9 @@ const LandingPage = () => {
         const slotStats = bookingsResponse?.success && Array.isArray(bookingsResponse?.data?.timeSlots)
           ? bookingsResponse.data.timeSlots
           : [];
-        const bookings = bookingsResponse?.success && Array.isArray(bookingsResponse?.data) ? bookingsResponse.data : [];
+        const bookings = bookingsResponse?.success && Array.isArray(bookingsResponse?.data?.bookings)
+          ? bookingsResponse.data.bookings
+          : [];
 
         const topFields = [...fields]
           .sort((a, b) => {
@@ -460,11 +381,7 @@ const LandingPage = () => {
   );
 
   const featuredFields = useMemo(() => {
-    const merged = [...popularFields];
-    for (let i = merged.length; i < 6; i += 1) {
-      merged.push(FEATURED_FALLBACK_FIELDS[i]);
-    }
-    return merged.slice(0, 6);
+    return popularFields.slice(0, 6);
   }, [popularFields]);
 
   const scheduleDays = useMemo(() => {
@@ -530,8 +447,8 @@ const LandingPage = () => {
 
   const scheduleFields = useMemo(() => {
     if (scheduleFieldsData.length > 0) return scheduleFieldsData;
-    return featuredFields.slice(0, 3);
-  }, [scheduleFieldsData, featuredFields]);
+    return popularFields.slice(0, 3);
+  }, [scheduleFieldsData, popularFields]);
   const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * 170 + 96}px`;
 
   const formatHHMM = (value) =>
@@ -1216,8 +1133,7 @@ const LandingPage = () => {
                             </div>
                           );
                         }
-
-                        // If no booking, show empty cell
+                        // If no booking, show
                         return (
                           <div
                             key={`${field.id}-${slot}`}
@@ -1375,7 +1291,7 @@ const LandingPage = () => {
               title="No fields yet"
               description="Once owners add fields, they will appear here for guests."
               actionLabel="Browse Fields"
-              onAction={() => (window.location.href = '/fields')}
+              onAction={() => navigate('/fields')}
             />
           )}
         </div>
