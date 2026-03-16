@@ -14,9 +14,11 @@ import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -52,7 +54,10 @@ const OwnerDashboardPage = () => {
     fetchOwnerData();
   }, []);
 
-  const pendingBookings = useMemo(() => bookings.filter((b) => b.status === 'pending'), [bookings]);
+  const pendingBookings = useMemo(
+    () => bookings.filter((b) => b.status === 'pending' || b.status === 'cancellation_pending'),
+    [bookings]
+  );
   const confirmedBookings = useMemo(() => bookings.filter((b) => b.status === 'confirmed'), [bookings]);
   const completedBookings = useMemo(() => bookings.filter((b) => b.status === 'completed'), [bookings]);
   const upcomingConfirmed = useMemo(() => {
@@ -176,9 +181,9 @@ const OwnerDashboardPage = () => {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
-                          <Badge tone={statusTone(b.status)} className="capitalize">
-                            {b.status}
-                          </Badge>
+                        <Badge tone={statusTone(b.status)} className="capitalize">
+                          {formatStatusLabel(b.status)}
+                        </Badge>
                         </div>
                         <div className="mt-1 text-xs text-gray-600">
                           {new Date(b.startTime).toLocaleString()} • {b.team?.name || 'Team'}

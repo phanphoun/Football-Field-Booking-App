@@ -11,9 +11,11 @@ import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -29,6 +31,7 @@ const OwnerBookingsPage = () => {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedMembers, setExpandedMembers] = useState({});
+  const [decisionLoading, setDecisionLoading] = useState(null);
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -53,7 +56,7 @@ const OwnerBookingsPage = () => {
   }, [refresh]);
 
   const counts = useMemo(() => {
-    const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+    const base = { all: bookings.length, pending: 0, confirmed: 0, cancellation_pending: 0, completed: 0, cancelled: 0 };
     for (const b of bookings) {
       if (b?.status && Object.prototype.hasOwnProperty.call(base, b.status)) base[b.status] += 1;
     }
@@ -93,6 +96,25 @@ const OwnerBookingsPage = () => {
     }
   };
 
+  const handleCancellationDecision = async (booking, action) => {
+    try {
+      setDecisionLoading(booking.id);
+      setError(null);
+      const confirmed = window.confirm(
+        action === 'approve'
+          ? 'Approve this cancellation request? The booking will be cancelled.'
+          : 'Reject this cancellation request? The booking will stay active.'
+      );
+      if (!confirmed) return;
+      await bookingService.decideCancellation(booking.id, action);
+      await refresh();
+    } catch (err) {
+      setError(err?.error || 'Failed to respond to cancellation request');
+    } finally {
+      setDecisionLoading(null);
+    }
+  };
+
   const toggleMembers = (bookingId) => {
     setExpandedMembers((prev) => ({
       ...prev,
@@ -110,6 +132,7 @@ const OwnerBookingsPage = () => {
 
   const tabs = [
     { key: 'pending', label: 'Pending', count: counts.pending },
+    { key: 'cancellation_pending', label: 'Cancellation Pending', count: counts.cancellation_pending },
     { key: 'confirmed', label: 'Confirmed', count: counts.confirmed },
     { key: 'completed', label: 'Completed', count: counts.completed },
     { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },
@@ -182,7 +205,7 @@ const OwnerBookingsPage = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {filtered.map((b) => {
-                const isUpdating = updatingId === b.id;
+                const isUpdating = updatingId === b.id || decisionLoading === b.id;
                 const start = b?.startTime ? new Date(b.startTime) : null;
                 const end = b?.endTime ? new Date(b.endTime) : null;
                 const captainName =
@@ -202,7 +225,7 @@ const OwnerBookingsPage = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
                         <Badge tone={statusTone(b.status)} className="capitalize">
-                          {b.status}
+                          {formatStatusLabel(b.status)}
                         </Badge>
                         <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
                       </div>
@@ -267,6 +290,18 @@ const OwnerBookingsPage = () => {
                             Cancel
                           </Button>
                           {!canConfirmMatch && <Badge tone="gray">Need two teams</Badge>}
+                        </>
+                      )}
+                      {b.status === 'cancellation_pending' && (
+                        <>
+                          <Button size="sm" disabled={isUpdating} onClick={() => handleCancellationDecision(b, 'approve')}>
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Approve Cancellation
+                          </Button>
+                          <Button size="sm" variant="danger" disabled={isUpdating} onClick={() => handleCancellationDecision(b, 'reject')}>
+                            <XCircleIcon className="h-4 w-4" />
+                            Reject
+                          </Button>
                         </>
                       )}
                       {b.status === 'confirmed' && <Badge tone="blue">Use Matches page to complete</Badge>}

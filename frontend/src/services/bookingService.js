@@ -48,6 +48,21 @@ const bookingService = {
     return response;
   },
 
+  // Captain: request booking cancellation
+  requestCancellation: async (bookingId, reason = '') => {
+    const response = await apiService.post(`/bookings/${bookingId}/cancellation-requests`, { reason });
+    return response;
+  },
+
+  // Field owner/admin: approve or reject cancellation
+  decideCancellation: async (bookingId, action, decisionNote = '') => {
+    const response = await apiService.patch(`/bookings/${bookingId}/cancellation-requests/decision`, {
+      action,
+      decisionNote
+    });
+    return response;
+  },
+
   // Delete booking
   deleteBooking: async (bookingId) => {
     const response = await apiService.delete(`/bookings/${bookingId}`);

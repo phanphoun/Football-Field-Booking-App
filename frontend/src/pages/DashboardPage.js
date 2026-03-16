@@ -18,9 +18,11 @@ import {
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const DashboardPage = () => {
   const { user } = useAuth();
@@ -107,7 +109,7 @@ const DashboardPage = () => {
   const upcomingBookings = useMemo(() => {
     const now = Date.now();
     return bookings
-      .filter((b) => b?.startTime && (b.status === 'pending' || b.status === 'confirmed'))
+      .filter((b) => b?.startTime && (b.status === 'pending' || b.status === 'confirmed' || b.status === 'cancellation_pending'))
       .filter((b) => new Date(b.startTime).getTime() >= now)
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
       .slice(0, 5);
@@ -288,7 +290,7 @@ const DashboardPage = () => {
                       <div className="text-xs text-gray-500">{new Date(b.startTime).toLocaleString()}</div>
                     </div>
                     <Badge tone={statusTone(b.status)} className="capitalize">
-                      {b.status}
+                      {formatStatusLabel(b.status)}
                     </Badge>
                   </div>
                 ))}

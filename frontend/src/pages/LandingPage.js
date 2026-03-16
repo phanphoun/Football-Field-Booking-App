@@ -574,6 +574,8 @@ const LandingPage = () => {
           tone:
             booking.status === 'pending'
               ? 'bg-amber-500'
+              : booking.status === 'cancellation_pending'
+              ? 'bg-orange-500'
               : isOwnBooking
               ? 'bg-emerald-600'
               : 'bg-red-600'

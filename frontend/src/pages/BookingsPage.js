@@ -19,6 +19,7 @@ const BookingsPage = () => {
   const [joinRequestsByBooking, setJoinRequestsByBooking] = useState({});
   const [joinRequestsLoadingMap, setJoinRequestsLoadingMap] = useState({});
   const [joinActionLoadingMap, setJoinActionLoadingMap] = useState({});
+  const [cancellationLoadingMap, setCancellationLoadingMap] = useState({});
 
   const loadBookings = useCallback(async () => {
     try {
@@ -35,7 +36,8 @@ const BookingsPage = () => {
             booking?.openForOpponents &&
             !booking?.opponentTeam?.name &&
             booking?.status !== 'cancelled' &&
-            booking?.status !== 'completed'
+            booking?.status !== 'completed' &&
+            booking?.status !== 'cancellation_pending'
         );
 
         if (targetBookings.length > 0) {
@@ -114,6 +116,23 @@ const BookingsPage = () => {
     }
   };
 
+  const handleRequestCancellation = async (booking) => {
+    const confirmed = window.confirm('Do you want to request cancellation for this booking?');
+    if (!confirmed) return;
+    const reason = window.prompt('Optional: provide a reason for cancellation') || '';
+
+    try {
+      setCancellationLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
+      await bookingService.requestCancellation(booking.id, reason.trim());
+      await loadBookings();
+    } catch (err) {
+      console.error('Failed to request cancellation:', err);
+      setError(err.error || 'Failed to request cancellation');
+    } finally {
+      setCancellationLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
   const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
   const isCaptainInMatchedBooking = (booking) =>
     user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
@@ -169,11 +188,14 @@ const BookingsPage = () => {
     const tones = {
       pending: 'yellow',
       confirmed: 'green',
+      cancellation_pending: 'orange',
       cancelled: 'red',
       completed: 'blue'
     };
     return tones[status] || 'gray';
   };
+
+  const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
   // const getStatusIcon = (status) => {
   //   const icons = {
@@ -187,11 +209,8 @@ const BookingsPage = () => {
 
   const getStatusActions = (booking) => {
     const actions = [];
-    const canUserCancelBooking =
-      booking.createdBy === user?.id ||
-      booking.team?.captainId === user?.id ||
-      booking.opponentTeam?.captainId === user?.id ||
-      isAdmin();
+    const canDirectCancel = isAdmin() || isFieldOwner();
+    const canRequestCancellation = isCaptainOwner(booking) && ['pending', 'confirmed'].includes(booking.status);
 
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
@@ -201,7 +220,7 @@ const BookingsPage = () => {
           </Button>
         );
       }
-      if (booking.creator?.id === user?.id || isAdmin()) {
+      if (canDirectCancel) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
             Cancel Booking
@@ -210,10 +229,24 @@ const BookingsPage = () => {
       }
     }
 
-    if (booking.status === 'confirmed' && canUserCancelBooking) {
+    if (booking.status === 'confirmed' && canDirectCancel) {
       actions.push(
         <Button key="cancel-confirmed" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
           Cancel Booking
+        </Button>
+      );
+    }
+
+    if (canRequestCancellation) {
+      actions.push(
+        <Button
+          key="request-cancel"
+          size="sm"
+          variant="danger"
+          onClick={() => handleRequestCancellation(booking)}
+          disabled={!!cancellationLoadingMap[booking.id]}
+        >
+          {cancellationLoadingMap[booking.id] ? 'Requesting...' : 'Request Cancellation'}
         </Button>
       );
     }
@@ -293,6 +326,7 @@ const BookingsPage = () => {
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
+              <option value="cancellation_pending">Cancellation Pending</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -325,7 +359,7 @@ const BookingsPage = () => {
                     <div className="flex items-center flex-wrap gap-3 mb-2">
                       <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
-                        {booking.status}
+                        {formatStatusLabel(booking.status)}
                       </Badge>
                       {booking.opponentTeam?.name ? (
                         <Badge tone="green">Matched</Badge>
@@ -367,6 +401,12 @@ const BookingsPage = () => {
                       </div>
                     )}
 
+                    {booking.status === 'cancellation_pending' && (
+                      <div className="mt-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+                        Cancellation requested. Waiting for field owner review.
+                      </div>
+                    )}
+
                     {booking.opponentTeam?.name && (
                       <div className="mt-2 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
                         Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
@@ -376,7 +416,8 @@ const BookingsPage = () => {
                     {booking.opponentTeam?.name &&
                       isCaptainInMatchedBooking(booking) &&
                       booking.status !== 'cancelled' &&
-                      booking.status !== 'completed' && (
+                      booking.status !== 'completed' &&
+                      booking.status !== 'cancellation_pending' && (
                         <div className="mt-3">
                           <Button
                             size="sm"
@@ -389,7 +430,10 @@ const BookingsPage = () => {
                         </div>
                       )}
 
-                    {isCaptainOwner(booking) && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                    {isCaptainOwner(booking) &&
+                      booking.status !== 'cancelled' &&
+                      booking.status !== 'completed' &&
+                      booking.status !== 'cancellation_pending' && (
                       <div className="mt-4">
                         <div className="flex items-center flex-wrap gap-2">
                           {!booking.opponentTeam?.name && (
