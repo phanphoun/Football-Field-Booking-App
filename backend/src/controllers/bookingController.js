@@ -54,6 +54,82 @@ const serializeBooking = (booking) => {
   };
 };
 
+const SCHEDULE_SHOWCASE_START_HOURS = [8, 10, 12, 14, 16, 18, 20];
+
+const getScheduleShowcaseTarget = (date) => {
+  const [year, month, day] = String(date || '').split('-').map(Number);
+  if (![year, month, day].every(Number.isFinite)) return 2;
+  return (year + month + day) % 2 === 0 ? 2 : 4;
+};
+
+const buildDateAtHour = (date, hour) => {
+  const bookingDate = new Date(`${date}T00:00:00`);
+  bookingDate.setHours(hour, 0, 0, 0);
+  return bookingDate;
+};
+
+const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
+  const serializedBookings = bookings.map(serializeBooking);
+  const targetCount = getScheduleShowcaseTarget(date);
+
+  if (serializedBookings.length >= targetCount || fields.length === 0) {
+    return serializedBookings;
+  }
+
+  const occupiedSlots = new Set(
+    serializedBookings.map((booking) => {
+      const start = new Date(booking.startTime);
+      return `${booking.fieldId}-${start.getHours()}`;
+    })
+  );
+
+  const showcaseTeams = [
+    'Sunrise FC',
+    'Mekong United',
+    'City Warriors',
+    'Night Strikers',
+    'Golden Boots',
+    'Weekend Rangers'
+  ];
+
+  const showcaseBookings = [];
+  let showcaseIndex = 0;
+
+  for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
+    for (const field of fields) {
+      if (serializedBookings.length + showcaseBookings.length >= targetCount) {
+        return [...serializedBookings, ...showcaseBookings];
+      }
+
+      const slotKey = `${field.id}-${hour}`;
+      if (occupiedSlots.has(slotKey)) continue;
+
+      const startTime = buildDateAtHour(date, hour);
+      const endTime = buildDateAtHour(date, hour + 2);
+      const teamName = showcaseTeams[(showcaseIndex + hour) % showcaseTeams.length];
+
+      showcaseBookings.push({
+        id: `showcase-${date}-${field.id}-${hour}`,
+        fieldId: field.id,
+        teamId: null,
+        teamName,
+        startTime,
+        endTime,
+        status: showcaseIndex % 3 === 0 ? 'pending' : 'confirmed',
+        createdBy: null,
+        isMatchmaking: false,
+        openForOpponents: false,
+        team: null
+      });
+
+      occupiedSlots.add(slotKey);
+      showcaseIndex += 1;
+    }
+  }
+
+  return [...serializedBookings, ...showcaseBookings];
+};
+
 const requireCaptainRole = (req, res) => {
   if (req.user.role !== 'captain') {
     res.status(403).json({
@@ -270,7 +346,7 @@ const getBookingSchedule = async (req, res) => {
       success: true,
       data: {
         fields,
-        bookings: bookings.map(serializeBooking)
+        bookings: enrichScheduleWithShowcaseBookings({ date, fields, bookings })
       }
     });
   } catch (error) {
@@ -337,7 +413,7 @@ const getPublicBookingSchedule = async (req, res) => {
       success: true,
       data: {
         fields,
-        bookings: bookings.map(serializeBooking)
+        bookings: enrichScheduleWithShowcaseBookings({ date, fields, bookings })
       }
     });
   } catch (error) {
@@ -443,18 +519,22 @@ const updateBookingStatus = async (req, res) => {
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
       const opponentTeamName = booking.opponentTeam?.name || null;
-      const actorName = req.user.firstName || req.user.username || 'Field owner';
+      const actorName =
+        req.user.role === 'field_owner'
+          ? req.user.firstName || req.user.username || 'Field owner'
+          : req.user.firstName || req.user.username || 'Admin';
       const fieldName = booking.field?.name || 'the field';
 
       const recipients = new Set();
       if (booking.team?.captainId) recipients.add(booking.team.captainId);
+      else if (booking.createdBy) recipients.add(booking.createdBy);
       if (booking.opponentTeam?.captainId) recipients.add(booking.opponentTeam.captainId);
 
       if (recipients.size > 0) {
         await Notification.bulkCreate(
           Array.from(recipients).map((captainId) => ({
             userId: captainId,
-            title: 'Booking confirmed',
+            title: req.user.role === 'field_owner' ? 'Booking accepted by field owner' : 'Booking confirmed',
             message: opponentTeamName
               ? `${actorName} confirmed your booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
               : `${actorName} confirmed your booking at ${fieldName} for ${teamName}.`,
@@ -518,30 +598,57 @@ const updateBookingStatus = async (req, res) => {
       const teamName = booking.team?.name || 'Team';
       const opponentTeamName = booking.opponentTeam?.name || null;
       const cancellerName =
-        req.user.role === 'field_owner' ? 'Field owner' : req.user.firstName || req.user.username || 'A user';
+        req.user.role === 'field_owner'
+          ? req.user.firstName || req.user.username || 'Field owner'
+          : req.user.firstName || req.user.username || 'A user';
+      const fieldName = booking.field?.name || 'the field';
 
       const recipients = new Set();
       if (booking.team?.captainId) recipients.add(booking.team.captainId);
+      else if (booking.createdBy) recipients.add(booking.createdBy);
       if (booking.opponentTeam?.captainId) recipients.add(booking.opponentTeam.captainId);
 
       if (recipients.size > 0) {
         await Notification.bulkCreate(
           Array.from(recipients).map((captainId) => ({
             userId: captainId,
-            title: 'Booking cancelled',
+            title: req.user.role === 'field_owner' ? 'Booking cancelled by field owner' : 'Booking cancelled',
             message: opponentTeamName
-              ? `${cancellerName} cancelled the booking for ${teamName} vs ${opponentTeamName}.`
-              : `${cancellerName} cancelled the booking for ${teamName}.`,
+              ? `${cancellerName} cancelled your booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+              : `${cancellerName} cancelled your booking at ${fieldName} for ${teamName}.`,
             type: 'booking',
             metadata: {
               event: 'booking_cancelled',
               bookingId: booking.id,
+              fieldName,
               teamName,
               opponentTeamName,
               cancelledByUserId: req.user.id
             }
           }))
         );
+      }
+
+      const ownerRecipientId = booking.field?.ownerId;
+      const cancelledByOwner = req.user.role === 'field_owner';
+      if (!cancelledByOwner && ownerRecipientId) {
+        await Notification.create({
+          userId: ownerRecipientId,
+          title: 'Captain cancelled a booking',
+          message: opponentTeamName
+            ? `${cancellerName} cancelled the confirmed booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+            : `${cancellerName} cancelled the booking at ${fieldName} for ${teamName}.`,
+          type: 'booking',
+          metadata: {
+            event: 'booking_cancelled_by_captain',
+            bookingId: booking.id,
+            fieldId: booking.fieldId,
+            fieldName,
+            teamName,
+            opponentTeamName,
+            cancelledByUserId: req.user.id
+          }
+        });
       }
     }
 

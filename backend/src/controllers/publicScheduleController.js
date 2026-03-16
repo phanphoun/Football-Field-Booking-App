@@ -24,12 +24,16 @@ const getPublicSchedule = async (req, res) => {
       });
     }
 
-    const limit = Math.max(1, Math.min(Number(req.query.limit) || 6, 20));
+    const requestedLimit = Number(req.query.limit);
+    const limit =
+      Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.max(1, Math.min(requestedLimit, 50))
+        : null;
 
     const fields = await Field.findAll({
       attributes: ['id', 'name', 'fieldType', 'city', 'capacity', 'status'],
       order: [['id', 'ASC']],
-      limit
+      ...(limit ? { limit } : {})
     });
 
     const fieldIds = fields.map((f) => f.id);

@@ -216,15 +216,23 @@ const updateProfile = async (req, res) => {
       if (existingUser && existingUser.id !== userId) {
         return res.status(400).json({ error: 'Email is already in use.' });
       }
-      updateData.email = email;
+      updateData.email = String(email).trim();
     }
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) updateData.phone = phone || null;
-    if (address !== undefined) updateData.address = address || null;
+    if (firstName !== undefined) updateData.firstName = String(firstName).trim();
+    if (lastName !== undefined) updateData.lastName = String(lastName).trim();
+    if (phone !== undefined) updateData.phone = phone ? String(phone).trim() : null;
+    if (address !== undefined) updateData.address = address ? String(address).trim() : null;
     if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth || null;
     if (gender !== undefined) updateData.gender = gender || null;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+
+    if (updateData.firstName !== undefined && !updateData.firstName) {
+      return res.status(400).json({ error: 'First name is required.' });
+    }
+
+    if (updateData.lastName !== undefined && !updateData.lastName) {
+      return res.status(400).json({ error: 'Last name is required.' });
+    }
 
     await user.update(updateData);
 
@@ -253,6 +261,10 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('Update profile error:', error);
+    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+      const message = error.errors?.[0]?.message || 'Invalid profile data.';
+      return res.status(400).json({ error: message });
+    }
     res.status(500).json({ error: 'Internal server error while updating profile.' });
   }
 };
@@ -673,6 +685,78 @@ const requestRoleUpgrade = async (req, res) => {
   }
 };
 
+const cancelRoleRequest = async (req, res) => {
+  try {
+    const requestId = Number(req.params.id);
+
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      return res.status(400).json({ error: 'Invalid request id.' });
+    }
+
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'email', 'username', 'firstName', 'lastName']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const roleRequest = await RoleRequest.findOne({
+      where: {
+        id: requestId,
+        requesterId: user.id
+      }
+    });
+
+    if (!roleRequest) {
+      return res.status(404).json({ error: 'Role request not found.' });
+    }
+
+    if (roleRequest.status !== 'pending') {
+      return res.status(400).json({ error: 'Only pending role requests can be deleted.' });
+    }
+
+    const requestedRole = roleRequest.requestedRole;
+
+    await roleRequest.destroy();
+
+    const admins = await User.findAll({
+      where: { role: 'admin', status: 'active' },
+      attributes: ['id']
+    });
+
+    if (admins.length > 0) {
+      const requesterName =
+        `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || user.email;
+
+      await Promise.allSettled(
+        admins.map((admin) =>
+          createInAppNotification({
+            userId: admin.id,
+            type: 'system',
+            title: `${requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request cancelled`,
+            message: `${requesterName} deleted their ${ROLE_REQUEST_LABELS[requestedRole]} request.`,
+            metadata: {
+              event: 'role_request_cancelled',
+              requestId,
+              requesterId: user.id,
+              requestedRole,
+              status: 'cancelled'
+            }
+          })
+        )
+      );
+    }
+
+    res.json({
+      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been deleted.`
+    });
+  } catch (error) {
+    console.error('Cancel role request error:', error);
+    res.status(500).json({ error: 'Internal server error while deleting role request.' });
+  }
+};
+
 const getAllRoleRequestsForAdmin = async (req, res) => {
   try {
     const statusFilter = req.query.status;
@@ -687,7 +771,7 @@ const getAllRoleRequestsForAdmin = async (req, res) => {
         {
           model: User,
           as: 'requester',
-          attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'role', 'status']
+          attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'role', 'status', 'phone', 'address', 'dateOfBirth', 'avatarUrl']
         },
         {
           model: User,
@@ -784,6 +868,7 @@ module.exports = {
   changePassword,
   getRoleRequests,
   requestRoleUpgrade,
+  cancelRoleRequest,
   getAllRoleRequestsForAdmin,
   reviewRoleRequest,
   uploadProfileAvatar,

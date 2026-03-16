@@ -3,11 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
   const navigate = useNavigate();
+  const { confirm } = useDialog();
   const canCreateBooking = user?.role === 'captain';
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +88,7 @@ const BookingsPage = () => {
   const handleCreateBooking = () => {
     if (!canCreateBooking) {
       navigate('/app/settings', {
-        state: { errorMessage: 'Please request to become captain in Settings.' }
+        state: { focusRoleRequest: 'captain' }
       });
       return;
     }
@@ -101,7 +102,7 @@ const BookingsPage = () => {
       } else if (newStatus === 'completed') {
         await bookingService.completeBooking(bookingId);
       } else if (newStatus === 'cancelled') {
-        const confirmed = window.confirm('Do you want to cancel your booking?');
+        const confirmed = await confirm('Do you want to cancel your booking?', { title: 'Cancel Booking' });
         if (!confirmed) return;
         await bookingService.cancelBooking(bookingId);
       } else {
@@ -132,10 +133,11 @@ const BookingsPage = () => {
   };
 
   const handleCancelMatchedOpponent = async (booking) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirm(
       `Do you want to cancel this matched game: ${booking.team?.name || 'Team A'} vs ${
         booking.opponentTeam?.name || 'Team B'
-      }?`
+      }?`,
+      { title: 'Cancel Matched Game' }
     );
     if (!confirmed) return;
 

@@ -5,6 +5,7 @@ const { idValidation } = require('../middleware/validation');
 
 // Public team browsing (safe fields only)
 router.get('/', publicTeamController.getPublicTeams);
+router.get('/:id/matches', ...idValidation, publicTeamController.getPublicTeamMatchHistory);
 router.get('/:id', ...idValidation, publicTeamController.getPublicTeamById);
 
 module.exports = router;
