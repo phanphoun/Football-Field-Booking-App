@@ -47,7 +47,7 @@ const getPublicSchedule = async (req, res) => {
     const bookings = await Booking.findAll({
       where: {
         fieldId: { [Op.in]: fieldIds },
-        status: { [Op.in]: ['pending', 'confirmed', 'completed'] },
+        status: { [Op.in]: ['pending', 'confirmed', 'cancellation_pending', 'completed'] },
         startTime: { [Op.lt]: range.end },
         endTime: { [Op.gt]: range.start }
       },

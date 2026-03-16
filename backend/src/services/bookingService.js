@@ -260,8 +260,9 @@ class BookingService {
     
     // Validate status transition
     const validTransitions = {
-      'pending': ['confirmed', 'cancelled'],
-      'confirmed': ['completed', 'cancelled'],
+      'pending': ['confirmed', 'cancelled', 'cancellation_pending'],
+      'confirmed': ['completed', 'cancelled', 'cancellation_pending'],
+      'cancellation_pending': ['pending', 'confirmed', 'cancelled'],
       'cancelled': [],
       'completed': []
     };

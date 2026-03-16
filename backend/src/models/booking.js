@@ -34,6 +34,8 @@ module.exports = (sequelize, DataTypes) => {
 
       // Booking can receive join requests from other teams
       Booking.hasMany(models.BookingJoinRequest, { foreignKey: 'bookingId', as: 'joinRequests' });
+      // Booking can receive cancellation requests
+      Booking.hasMany(models.BookingCancellationRequest, { foreignKey: 'bookingId', as: 'cancellationRequests' });
 
     }
 
@@ -134,7 +136,7 @@ module.exports = (sequelize, DataTypes) => {
 
     status: {
 
-      type: DataTypes.ENUM('pending', 'confirmed', 'cancelled', 'completed'),
+      type: DataTypes.ENUM('pending', 'confirmed', 'cancellation_pending', 'cancelled', 'completed'),
 
       defaultValue: 'pending',
 

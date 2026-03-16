@@ -101,6 +101,32 @@ const ensureTeamMemberJoinedAtNullable = async (sequelize) => {
   return true;
 };
 
+const ensureBookingStatusEnum = async (sequelize) => {
+  const [rows] = await sequelize.query(
+    `
+    SELECT COLUMN_TYPE AS columnType
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'bookings'
+      AND COLUMN_NAME = 'status'
+    LIMIT 1
+    `
+  );
+
+  const columnType = rows?.[0]?.columnType || '';
+  if (!columnType) return false;
+
+  const hasCancellationPending = columnType.includes("'cancellation_pending'");
+  if (hasCancellationPending) return false;
+
+  await sequelize.query(`
+    ALTER TABLE \`bookings\`
+    MODIFY COLUMN \`status\` ENUM('pending','confirmed','cancellation_pending','cancelled','completed') NOT NULL DEFAULT 'pending'
+  `);
+
+  return true;
+};
+
 const applyLegacySchemaFixes = async (sequelize) => {
   const changes = [];
 
@@ -148,6 +174,9 @@ const applyLegacySchemaFixes = async (sequelize) => {
   }
   if (await ensureTeamMemberJoinedAtNullable(sequelize)) {
     changes.push('team_members.joinedAt');
+  }
+  if (await ensureBookingStatusEnum(sequelize)) {
+    changes.push('bookings.status');
   }
 
   if (changes.length > 0) {

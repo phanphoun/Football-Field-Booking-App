@@ -63,7 +63,7 @@ const resolveScope = async (req) => {
  * Ensures all statuses are present even with zero counts
  */
 const normalizeStatusCounts = (rows) => {
-  const defaultStatuses = { pending: 0, confirmed: 0, cancelled: 0, completed: 0 };
+  const defaultStatuses = { pending: 0, confirmed: 0, cancellation_pending: 0, cancelled: 0, completed: 0 };
   
   return rows.reduce((acc, row) => {
     acc[row.status] = Number(row.count || 0);

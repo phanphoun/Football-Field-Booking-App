@@ -1,4 +1,15 @@
-const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult, Notification, sequelize } = require('../models');
+const {
+  Booking,
+  Field,
+  User,
+  Team,
+  TeamMember,
+  BookingJoinRequest,
+  BookingCancellationRequest,
+  MatchResult,
+  Notification,
+  sequelize
+} = require('../models');
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
@@ -54,7 +65,8 @@ const requireCaptainRole = (req, res) => {
   return true;
 };
 
-const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
+const isClosedStatus = (booking) =>
+  booking.status === 'cancelled' || booking.status === 'completed' || booking.status === 'cancellation_pending';
 const isUnavailableForJoin = (booking) =>
   isClosedStatus(booking) || new Date(booking.startTime) <= new Date();
 
@@ -342,7 +354,7 @@ const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+    const allowedStatuses = ['pending', 'confirmed', 'cancellation_pending', 'cancelled', 'completed'];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -387,8 +399,9 @@ const updateBookingStatus = async (req, res) => {
 
     const previousStatus = booking.status;
     const validTransitions = {
-      pending: ['confirmed', 'cancelled'],
-      confirmed: ['completed', 'cancelled'],
+      pending: ['confirmed', 'cancelled', 'cancellation_pending'],
+      confirmed: ['completed', 'cancelled', 'cancellation_pending'],
+      cancellation_pending: ['pending', 'confirmed', 'cancelled'],
       cancelled: [],
       completed: []
     };
@@ -676,7 +689,7 @@ const toggleOpenForOpponents = async (req, res) => {
     if (isClosedStatus(booking)) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot open or close matchmaking for cancelled/completed bookings.'
+        message: 'Cannot open or close matchmaking for cancelled/completed/cancellation-pending bookings.'
       });
     }
 
@@ -1275,6 +1288,214 @@ const cancelMatchedOpponent = async (req, res) => {
   }
 };
 
+const isEligibleForCancellationRequest = (booking) => {
+  if (!booking) return false;
+  if (booking.status === 'cancelled' || booking.status === 'completed' || booking.status === 'cancellation_pending') {
+    return false;
+  }
+  const start = new Date(booking.startTime);
+  return !(Number.isNaN(start.getTime()) || start <= new Date());
+};
+
+const requestBookingCancellation = async (req, res) => {
+  try {
+    if (!requireCaptainRole(req, res)) return;
+    const bookingId = Number(req.params.id);
+    const { reason } = req.body || {};
+
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        { model: Field, as: 'field', attributes: ['id', 'name', 'ownerId'] },
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (!booking.team || booking.team.captainId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the booking team captain can request cancellation.'
+      });
+    }
+
+    if (!isEligibleForCancellationRequest(booking)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This booking is not eligible for cancellation.'
+      });
+    }
+
+    const existingPending = await BookingCancellationRequest.findOne({
+      where: { bookingId, status: 'pending' }
+    });
+    if (existingPending) {
+      return res.status(400).json({
+        success: false,
+        message: 'A cancellation request is already pending for this booking.'
+      });
+    }
+
+    const cancellationRequest = await sequelize.transaction(async (transaction) => {
+      const request = await BookingCancellationRequest.create(
+        {
+          bookingId,
+          requestedBy: req.user.id,
+          reason: reason || null,
+          status: 'pending',
+          previousStatus: booking.status
+        },
+        { transaction }
+      );
+
+      await booking.update({ status: 'cancellation_pending' }, { transaction });
+
+      return request;
+    });
+
+    if (booking.field?.ownerId) {
+      await Notification.create({
+        userId: booking.field.ownerId,
+        title: `Cancellation request for ${booking.field?.name || 'your field'}`,
+        message: `${booking.team?.name || 'A team'} requested to cancel their booking.`,
+        type: 'booking',
+        metadata: {
+          event: 'booking_cancellation_requested',
+          bookingId: booking.id,
+          requestId: cancellationRequest.id,
+          fieldId: booking.field?.id || null,
+          fieldName: booking.field?.name || null,
+          teamId: booking.team?.id || null,
+          teamName: booking.team?.name || null,
+          reason: reason || null
+        }
+      });
+    }
+
+    const updatedBooking = await Booking.findByPk(booking.id, { include: BOOKING_BASE_INCLUDE });
+    res.status(201).json({
+      success: true,
+      data: {
+        booking: serializeBooking(updatedBooking),
+        request: cancellationRequest
+      },
+      message: 'Cancellation request submitted'
+    });
+  } catch (error) {
+    console.error('Request booking cancellation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request cancellation',
+      error: error.message
+    });
+  }
+};
+
+const respondToCancellationRequest = async (req, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const { action, decisionNote } = req.body || {};
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'action must be "approve" or "reject"'
+      });
+    }
+
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        { model: Field, as: 'field', attributes: ['id', 'name', 'ownerId'] },
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const isOwner = booking.field && booking.field.ownerId === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only field owner or admin can respond to cancellation requests.'
+      });
+    }
+
+    const pendingRequest = await BookingCancellationRequest.findOne({
+      where: { bookingId, status: 'pending' },
+      order: [['createdAt', 'DESC']]
+    });
+
+    if (!pendingRequest) {
+      return res.status(404).json({ success: false, message: 'No pending cancellation request found.' });
+    }
+    if (booking.status !== 'cancellation_pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is not marked as cancellation pending.'
+      });
+    }
+
+    const nextStatus = action === 'approve'
+      ? 'cancelled'
+      : pendingRequest.previousStatus || 'confirmed';
+
+    const updatedRequest = await sequelize.transaction(async (transaction) => {
+      await booking.update({ status: nextStatus }, { transaction });
+      await pendingRequest.update(
+        {
+          status: action === 'approve' ? 'approved' : 'rejected',
+          reviewedBy: req.user.id,
+          reviewedAt: new Date(),
+          decisionNote: decisionNote || null
+        },
+        { transaction }
+      );
+      return pendingRequest;
+    });
+
+    if (pendingRequest.requestedBy) {
+      await Notification.create({
+        userId: pendingRequest.requestedBy,
+        title: `Cancellation request ${action === 'approve' ? 'approved' : 'rejected'}`,
+        message:
+          action === 'approve'
+            ? `Your booking cancellation request has been approved.`
+            : `Your booking cancellation request was rejected.`,
+        type: 'booking',
+        metadata: {
+          event: 'booking_cancellation_decision',
+          bookingId: booking.id,
+          requestId: pendingRequest.id,
+          status: action === 'approve' ? 'approved' : 'rejected',
+          decisionNote: decisionNote || null
+        }
+      });
+    }
+
+    const updatedBooking = await Booking.findByPk(booking.id, { include: BOOKING_BASE_INCLUDE });
+    res.json({
+      success: true,
+      data: {
+        booking: serializeBooking(updatedBooking),
+        request: updatedRequest
+      },
+      message: `Cancellation request ${action === 'approve' ? 'approved' : 'rejected'}`
+    });
+  } catch (error) {
+    console.error('Respond cancellation request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to respond to cancellation request',
+      error: error.message
+    });
+  }
+};
+
 const POPULAR_SLOT_WINDOWS = [
   { startHour: 8, endHour: 10, label: 'Morning Session' },
   { startHour: 10, endHour: 12, label: 'Late Morning' },
@@ -1329,7 +1550,7 @@ const getPublicBookingStats = async (req, res) => {
     const statuses = String(req.query.statuses || 'confirmed,completed')
       .split(',')
       .map((status) => status.trim())
-      .filter((status) => ['pending', 'confirmed', 'cancelled', 'completed'].includes(status));
+      .filter((status) => ['pending', 'confirmed', 'cancellation_pending', 'cancelled', 'completed'].includes(status));
     const effectiveStatuses = statuses.length > 0 ? statuses : ['confirmed', 'completed'];
 
     const since = new Date();
@@ -1450,5 +1671,7 @@ module.exports = {
   getBookingJoinRequests,
   respondToJoinRequest,
   cancelMatchedOpponent,
+  requestBookingCancellation,
+  respondToCancellationRequest,
   getPublicBookingStats
 };

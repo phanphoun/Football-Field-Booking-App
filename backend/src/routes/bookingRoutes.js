@@ -22,5 +22,13 @@ router.post('/:id/join-requests', auth, ...idValidation, bookingController.reque
 router.get('/:id/join-requests', auth, ...idValidation, bookingController.getBookingJoinRequests);
 router.patch('/:id/join-requests/:requestId', auth, ...idValidation, bookingController.respondToJoinRequest);
 router.patch('/:id/cancel-matched-opponent', auth, ...idValidation, bookingController.cancelMatchedOpponent);
+router.post('/:id/cancellation-requests', auth, checkRole(['captain']), ...idValidation, bookingController.requestBookingCancellation);
+router.patch(
+  '/:id/cancellation-requests/decision',
+  auth,
+  checkRole(['field_owner', 'admin']),
+  ...idValidation,
+  bookingController.respondToCancellationRequest
+);
 
 module.exports = router;

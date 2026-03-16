@@ -50,7 +50,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       Field.count({ where: { ownerId: userId } }),
       fieldIds.length ? Booking.count({ where: { fieldId: { [Op.in]: fieldIds } } }) : 0,
       fieldIds.length
-        ? Booking.count({ where: { fieldId: { [Op.in]: fieldIds }, status: { [Op.in]: ['pending', 'confirmed'] } } })
+        ? Booking.count({
+            where: { fieldId: { [Op.in]: fieldIds }, status: { [Op.in]: ['pending', 'confirmed', 'cancellation_pending'] } }
+          })
         : 0
     ]);
 
@@ -71,7 +73,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const [totalFields, bookingCount, activeBookings] = await Promise.all([
       Field.count(),
       Booking.count({ where: { createdBy: userId } }),
-      Booking.count({ where: { createdBy: userId, status: { [Op.in]: ['pending', 'confirmed'] } } })
+      Booking.count({
+        where: { createdBy: userId, status: { [Op.in]: ['pending', 'confirmed', 'cancellation_pending'] } }
+      })
     ]);
 
     const activeMembershipTeams = await TeamMember.findAll({
