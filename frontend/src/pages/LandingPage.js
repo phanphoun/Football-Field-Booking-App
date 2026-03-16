@@ -1050,11 +1050,18 @@ const LandingPage = () => {
                             : 'cursor-not-allowed bg-slate-300'
                         }`}
                       >
-                        {field.nextTime ? 'Quick Book' : 'Sold Out'}
+                        {field.nextTime
+                          ? isAuthenticated && !canCreateBooking
+                            ? 'Request Captain Access'
+                            : 'Quick Book'
+                          : 'Sold Out'}
                       </button>
                     </div>
                   </div>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 311ccd2d4b323da06d13a3c60cbd2fd410e8a2b1
                 </div>
               ))
             ) : (

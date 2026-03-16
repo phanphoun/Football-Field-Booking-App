@@ -26,11 +26,9 @@ const OwnerBookingsPage = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
-  const [resultSavingId, setResultSavingId] = useState(null);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [expandedMembers, setExpandedMembers] = useState({});
-  const [resultDrafts, setResultDrafts] = useState({});
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -81,7 +79,6 @@ const OwnerBookingsPage = () => {
         if (!confirmed) return;
         await bookingService.confirmMatchTeams(booking.id);
       }
-      if (nextStatus === 'completed') await bookingService.completeBooking(booking.id);
       if (nextStatus === 'cancelled') {
         const confirmed = window.confirm('Do you want to cancel booking?');
         if (!confirmed) return;
@@ -101,78 +98,6 @@ const OwnerBookingsPage = () => {
       ...prev,
       [bookingId]: !prev[bookingId]
     }));
-  };
-
-  const getInitialResultDraft = (booking) => ({
-    homeScore: booking?.matchResult?.homeScore ?? '',
-    awayScore: booking?.matchResult?.awayScore ?? '',
-    matchNotes: booking?.matchResult?.matchNotes || ''
-  });
-
-  const openResultEditor = (booking) => {
-    setResultDrafts((prev) => ({
-      ...prev,
-      [booking.id]: getInitialResultDraft(booking)
-    }));
-  };
-
-  const closeResultEditor = (bookingId) => {
-    setResultDrafts((prev) => {
-      const next = { ...prev };
-      delete next[bookingId];
-      return next;
-    });
-  };
-
-  const updateResultDraft = (bookingId, key, value) => {
-    setResultDrafts((prev) => ({
-      ...prev,
-      [bookingId]: {
-        ...(prev[bookingId] || {}),
-        [key]: value
-      }
-    }));
-  };
-
-  const submitResult = async (booking) => {
-    const draft = resultDrafts[booking.id] || getInitialResultDraft(booking);
-    const homeRaw = String(draft.homeScore ?? '').trim();
-    const awayRaw = String(draft.awayScore ?? '').trim();
-    if (homeRaw === '' || awayRaw === '') {
-      setError('Please enter both home score and away score.');
-      return;
-    }
-    const homeScore = Number(homeRaw);
-    const awayScore = Number(awayRaw);
-
-    if (!Number.isInteger(homeScore) || homeScore < 0 || !Number.isInteger(awayScore) || awayScore < 0) {
-      setError('Home score and away score must be non-negative whole numbers.');
-      return;
-    }
-
-    try {
-      setResultSavingId(booking.id);
-      setError(null);
-      const payload = {
-        bookingId: booking.id,
-        homeScore,
-        awayScore,
-        matchNotes: draft.matchNotes || null
-      };
-
-      if (booking?.matchResult?.id) {
-        await bookingService.updateMatchResult(booking.matchResult.id, payload);
-      } else {
-        await bookingService.createMatchResult(payload);
-      }
-
-      await refresh();
-      closeResultEditor(booking.id);
-    } catch (err) {
-      setError(err?.error || 'Failed to save match result');
-    } finally {
-      setResultSavingId(null);
-    }
   };
 
   if (loading) {
@@ -196,10 +121,7 @@ const OwnerBookingsPage = () => {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Booking requests</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Confirm, complete, or cancel bookings for your fields.
-            {fieldIdFilter ? ` (Filtered by field #${fieldIdFilter})` : ''}
-          </p>
+          <p className="mt-1 text-sm text-gray-600">Confirm or cancel booking requests. Match completion is managed in Matches.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button as={Link} to="/owner/fields" variant="outline" size="sm">
@@ -214,6 +136,16 @@ const OwnerBookingsPage = () => {
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <div className="text-xs uppercase tracking-wide text-blue-700">Booked</div>
+          <div className="mt-1 text-2xl font-bold text-blue-900">{counts.confirmed}</div>
+        </div>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+          <div className="text-xs uppercase tracking-wide text-emerald-700">Completed</div>
+          <div className="mt-1 text-2xl font-bold text-emerald-900">{counts.completed}</div>
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {tabs.map((t) => (
@@ -259,13 +191,10 @@ const OwnerBookingsPage = () => {
                     : b?.team?.captain?.username || 'Unknown';
                 const members = Array.isArray(b?.team?.teamMembers) ? b.team.teamMembers : [];
                 const isMembersExpanded = !!expandedMembers[b.id];
-                const isResultEditing = !!resultDrafts[b.id];
-                const resultDraft = resultDrafts[b.id] || getInitialResultDraft(b);
-                const canInputResult = b.status === 'completed' && b.team?.id && b.opponentTeam?.id;
-                const canConfirmMatch = b.status === 'pending' && b.team?.id && b.opponentTeam?.id;
                 const homeTeamName = b.team?.name || 'Home Team';
                 const awayTeamName = b.opponentTeam?.name || 'Away Team';
                 const hasResult = !!b.matchResult?.id;
+                const canConfirmMatch = Boolean(b?.team?.id && b?.opponentTeam?.id);
 
                 return (
                   <div key={b.id} className="px-6 py-4 flex flex-col gap-3">
@@ -289,11 +218,6 @@ const OwnerBookingsPage = () => {
                       <div className="mt-1 text-xs text-gray-600">
                         Captain: <span className="font-medium text-gray-800">{captainName}</span>
                       </div>
-                      {canInputResult && (
-                        <div className="mt-1 text-xs text-gray-700">
-                          Match: <span className="font-medium">{homeTeamName}</span> vs <span className="font-medium">{awayTeamName}</span>
-                        </div>
-                      )}
                       {hasResult && (
                         <div className="mt-1 text-xs text-emerald-700">
                           Result recorded: {homeTeamName} {b.matchResult.homeScore} - {b.matchResult.awayScore} {awayTeamName}
@@ -329,59 +253,6 @@ const OwnerBookingsPage = () => {
                           )}
                         </div>
                       )}
-                      {isResultEditing && (
-                        <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3 space-y-3">
-                          <div className="text-xs font-semibold text-blue-900">Input Match Result</div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700">{homeTeamName} score</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={resultDraft.homeScore}
-                                onChange={(e) => updateResultDraft(b.id, 'homeScore', e.target.value)}
-                                className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700">{awayTeamName} score</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={resultDraft.awayScore}
-                                onChange={(e) => updateResultDraft(b.id, 'awayScore', e.target.value)}
-                                className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700">Match notes (optional)</label>
-                            <textarea
-                              rows={2}
-                              value={resultDraft.matchNotes}
-                              onChange={(e) => updateResultDraft(b.id, 'matchNotes', e.target.value)}
-                              className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              disabled={resultSavingId === b.id}
-                              onClick={() => submitResult(b)}
-                            >
-                              {resultSavingId === b.id ? 'Saving...' : hasResult ? 'Update Result' : 'Save Result'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={resultSavingId === b.id}
-                              onClick={() => closeResultEditor(b.id)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
@@ -398,18 +269,8 @@ const OwnerBookingsPage = () => {
                           {!canConfirmMatch && <Badge tone="gray">Need two teams</Badge>}
                         </>
                       )}
-                      {b.status === 'confirmed' && (
-                        <Button size="sm" disabled={isUpdating} onClick={() => handleStatus(b, 'completed')}>
-                          <CheckCircleIcon className="h-4 w-4" />
-                          Complete
-                        </Button>
-                      )}
-                      {b.status === 'completed' && canInputResult && (
-                        <Button size="sm" variant="outline" onClick={() => openResultEditor(b)}>
-                          {hasResult ? 'Edit Result' : 'Input Result'}
-                        </Button>
-                      )}
-                      {b.status === 'completed' && !canInputResult && <Badge tone="gray">No matched teams</Badge>}
+                      {b.status === 'confirmed' && <Badge tone="blue">Use Matches page to complete</Badge>}
+                      {b.status === 'completed' && <Badge tone="blue">Completed</Badge>}
                       {b.status === 'cancelled' && <Badge tone="gray">No actions</Badge>}
                     </div>
                   </div>

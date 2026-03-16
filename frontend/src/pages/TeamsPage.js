@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { UsersIcon, MapPinIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
+import notificationService from '../services/notificationService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -14,6 +15,13 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+const normalizeTeamsResponse = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.teams)) return payload.teams;
+  return [];
+};
+
 const TeamsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -21,17 +29,23 @@ const TeamsPage = () => {
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [deletingTeamId, setDeletingTeamId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState('');
   const [error, setError] = useState(null);
+  const isAdmin = user?.role === 'admin';
+  const canCreateTeam = !!user && !isAdmin && user?.role !== 'player';
 
   useEffect(() => {
     const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
         const [teamsRes, invitationsRes] = await Promise.all([
-          teamService.getMyTeams(),
-          teamService.getMyInvitations()
+          isAdmin ? teamService.getAllTeams({ limit: 200 }) : teamService.getMyTeams(),
+          isAdmin ? Promise.resolve({ data: [] }) : teamService.getMyInvitations()
         ]);
-        setTeams(Array.isArray(teamsRes.data) ? teamsRes.data : []);
+        setTeams(normalizeTeamsResponse(teamsRes.data));
         setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
       } catch (err) {
         console.error('Failed to fetch teams:', err);
@@ -42,7 +56,7 @@ const TeamsPage = () => {
     };
 
     fetchTeamsAndInvitations();
-  }, [user?.id]);
+  }, [user?.id, isAdmin]);
 
   const handleCreateTeam = () => {
     navigate('/app/teams/create');
@@ -54,7 +68,7 @@ const TeamsPage = () => {
       await teamService.joinTeam(teamId);
       // Refresh teams list
       const response = await teamService.getAllTeams();
-      const teamsData = Array.isArray(response.data) ? response.data : [];
+      const teamsData = normalizeTeamsResponse(response.data);
       setTeams(teamsData);
     } catch (err) {
       console.error('Failed to join team:', err);
@@ -66,6 +80,57 @@ const TeamsPage = () => {
     navigate(`/app/teams/${teamId}`);
   };
 
+  const openDeleteDialog = (team) => {
+    setTeamToDelete(team);
+    setDeleteMessage('');
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setTeamToDelete(null);
+    setDeleteMessage('');
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!teamToDelete?.id) return;
+    const message = deleteMessage.trim();
+    if (!message) {
+      setError('Please enter a message to captain before deleting.');
+      return;
+    }
+
+    const teamId = teamToDelete.id;
+    try {
+      setDeletingTeamId(teamId);
+      setError(null);
+      const captainUserId = teamToDelete?.captainId || teamToDelete?.captain?.id;
+
+      if (captainUserId) {
+        await notificationService.create({
+          userId: captainUserId,
+          type: 'system',
+          title: `Team deleted by admin: ${teamToDelete.name}`,
+          message,
+          metadata: {
+            event: 'team_deleted_by_admin',
+            teamId: teamToDelete.id,
+            teamName: teamToDelete.name,
+            actorId: user?.id
+          }
+        });
+      }
+
+      await teamService.deleteTeam(teamId);
+      setTeams((prev) => prev.filter((item) => item.id !== teamId));
+      closeDeleteDialog();
+    } catch (err) {
+      setError(err?.error || 'Failed to delete team');
+    } finally {
+      setDeletingTeamId(null);
+    }
+  };
+
   const handleAcceptInvite = async (teamId) => {
     try {
       setActionLoading(true);
@@ -75,7 +140,7 @@ const TeamsPage = () => {
         teamService.getMyTeams(),
         teamService.getMyInvitations()
       ]);
-      setTeams(Array.isArray(teamsRes.data) ? teamsRes.data : []);
+      setTeams(normalizeTeamsResponse(teamsRes.data));
       setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
     } catch (err) {
       setError(err?.error || 'Failed to accept invitation');
@@ -96,16 +161,6 @@ const TeamsPage = () => {
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const getSkillLevelColor = (level) => {
-    const colors = {
-      beginner: 'bg-green-100 text-green-800',
-      intermediate: 'bg-yellow-100 text-yellow-800',
-      advanced: 'bg-red-100 text-red-800',
-      professional: 'bg-purple-100 text-purple-800'
-    };
-    return colors[level] || 'bg-gray-100 text-gray-800';
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -147,21 +202,26 @@ const TeamsPage = () => {
 
   return (
     <div>
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Teams</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{isAdmin ? 'All Teams' : 'My Teams'}</h1>
           <p className="mt-1 text-sm text-gray-600">
-            View your active teams and manage membership requests if you are a captain
+            {isAdmin
+              ? 'Admin view of all teams. You can open or delete any team.'
+              : 'View your active teams and manage membership requests if you are a captain'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+            {teams.length} results
+          </span>
           <button
             onClick={() => navigate('/teams')}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             Browse Teams
           </button>
-          {user && (
+          {canCreateTeam && (
             <button
               onClick={handleCreateTeam}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -234,60 +294,80 @@ const TeamsPage = () => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
 
             return (
-            <div key={team.id} className="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 flex relative overflow-hidden shrink-0">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <UsersIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                      {teamLogoUrl && (
-                        <img
-                          src={teamLogoUrl}
-                          alt={`${team.name} logo`}
-                          className="w-full h-full object-contain rounded-lg border border-gray-200 bg-white relative z-10"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 truncate">{team.name}</h3>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSkillLevelColor(team.skillLevel)}`}>
-                      {team.skillLevel}
-                    </span>
-                  </div>
+            <div
+              key={team.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => handleViewTeam(team.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  handleViewTeam(team.id);
+                }
+              }}
+              className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              <div className="relative h-44">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                  <UsersIcon className="h-12 w-12 text-gray-300" />
                 </div>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <UsersIcon className="h-4 w-4 mr-1" />
-                    Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}
+                {teamLogoUrl && (
+                  <img
+                    src={teamLogoUrl}
+                    alt={`${team.name} logo`}
+                    className="relative z-10 h-full w-full object-cover object-center"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+              <div className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">{team.name}</h3>
+                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'No description available.'}</p>
                   </div>
-                  {team.homeField && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPinIcon className="h-4 w-4 mr-1" />
-                      {team.homeField.name}
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 shrink-0">
+                    {getMemberCount(team)} members
+                  </span>
+                </div>
+
+                <div className="mt-5 text-sm text-gray-600 space-y-1">
+                  <div>Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}</div>
+                  {team.homeField && <div>Home Field: {team.homeField.name}</div>}
+                  {team.skillLevel && (
+                    <div className="flex items-center gap-2">
+                      <span>Skill:</span>
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 capitalize">
+                        {team.skillLevel}
+                      </span>
                     </div>
                   )}
                 </div>
 
-                {team.description && (
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                    {team.description}
-                  </p>
-                )}
-
-                <div className="flex space-x-2">
+                <div className="mt-5 flex gap-2">
                   <button
-                    onClick={() => handleViewTeam(team.id)}
-                    className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleViewTeam(team.id);
+                    }}
+                    className="flex-1 border border-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-semibold"
                   >
-                    Open
+                    View Details
                   </button>
+                  {isAdmin && (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openDeleteDialog(team);
+                      }}
+                      disabled={deletingTeamId === team.id}
+                      className="flex-1 border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-semibold disabled:opacity-60"
+                    >
+                      {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -306,7 +386,7 @@ const TeamsPage = () => {
               >
                 Browse Teams
               </button>
-              {user && (
+              {canCreateTeam && (
                 <button
                   onClick={handleCreateTeam}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -319,6 +399,47 @@ const TeamsPage = () => {
           </div>
         )}
       </div>
+
+      {deleteDialogOpen && teamToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Delete Team</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Send a message to captain before deleting <span className="font-semibold">{teamToDelete.name}</span>.
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">Message to captain</label>
+              <textarea
+                value={deleteMessage}
+                onChange={(e) => setDeleteMessage(e.target.value)}
+                rows={4}
+                placeholder="Explain why this team is being deleted..."
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+              <button
+                type="button"
+                onClick={closeDeleteDialog}
+                disabled={deletingTeamId === teamToDelete.id}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTeam}
+                disabled={deletingTeamId === teamToDelete.id}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {deletingTeamId === teamToDelete.id ? 'Deleting...' : 'Send & Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

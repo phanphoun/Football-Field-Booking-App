@@ -79,13 +79,33 @@ const AppLayout = () => {
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
     },
-    {
-      name: 'Bookings',
-      href: '/app/bookings',
-      icon: CalendarIcon,
-      current: location.pathname.startsWith('/app/bookings')
-    },
-    ...(user?.role === 'captain'
+    ...(['player', 'captain', 'field_owner'].includes(user?.role)
+      ? [
+          {
+            name: 'Bookings',
+            href: '/app/bookings',
+            icon: CalendarIcon,
+            current: location.pathname.startsWith('/app/bookings')
+          }
+        ]
+      : []),
+    ...(user?.role === 'admin'
+      ? [
+          {
+            name: 'Manage Users',
+            href: '/app/admin/users',
+            icon: UserCircleIcon,
+            current: location.pathname.startsWith('/app/admin/users')
+          },
+          {
+            name: 'Role Requests',
+            href: '/app/admin/role-requests',
+            icon: ClipboardDocumentCheckIcon,
+            current: location.pathname.startsWith('/app/admin/role-requests')
+          }
+        ]
+      : []),
+    ...(['captain', 'field_owner'].includes(user?.role)
       ? [
           {
             name: 'Open Matches',
@@ -512,6 +532,8 @@ const AppLayout = () => {
       setNotificationActionLoading(true);
       await markNotificationRead(notificationId);
       await loadNotifications();
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
     } finally {
       setNotificationActionLoading(false);
     }
@@ -526,6 +548,8 @@ const AppLayout = () => {
         await markNotificationRead(notification.id);
         await loadNotifications();
       }
+    } catch (error) {
+      console.error('Failed to process notification click:', error);
     } finally {
       setNotificationActionLoading(false);
       setNotificationsMenuOpen(false);
@@ -544,8 +568,10 @@ const AppLayout = () => {
       setNotificationActionLoading(true);
       const unread = latestNotifications.filter((item) => !item.isRead);
       if (unread.length === 0) return;
-      await Promise.all(unread.map((item) => markNotificationRead(item.id)));
+      await Promise.allSettled(unread.map((item) => markNotificationRead(item.id)));
       await loadNotifications();
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
     } finally {
       setNotificationActionLoading(false);
     }

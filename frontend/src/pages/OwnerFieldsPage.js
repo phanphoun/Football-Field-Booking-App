@@ -1,13 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  MapPinIcon,
-  PencilSquareIcon,
-  PhotoIcon,
-  PlusIcon,
-  TrashIcon
-} from '@heroicons/react/24/outline';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -50,7 +45,10 @@ const resolveFieldImageUrl = (rawImage) => {
 };
 
 const OwnerFieldsPage = () => {
+  const { user } = useAuth();
   const [fields, setFields] = useState([]);
+  const [allFields, setAllFields] = useState([]);
+  const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -60,27 +58,36 @@ const OwnerFieldsPage = () => {
   const [imageFiles, setImageFiles] = useState([]);
   const [form, setForm] = useState(emptyForm);
 
-  const selectedField = useMemo(
-    () => fields.find((field) => Number(field.id) === Number(editingFieldId)) || null,
-    [editingFieldId, fields]
+  const visibleFields = useMemo(() => (viewMode === 'all' ? allFields : fields), [viewMode, allFields, fields]);
+
+  const isOwnedByCurrentUser = useCallback(
+    (field) => {
+      const ownerId = field?.ownerId || field?.owner?.id;
+      return Number(ownerId) === Number(user?.id);
+    },
+    [user?.id]
   );
 
-  const loadFields = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await fieldService.getMyFields();
-      setFields(Array.isArray(response?.data) ? response.data : []);
-    } catch (err) {
-      setError(err?.error || 'Failed to load fields');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadFields = useCallback(async () => {
+    const [myRes, allRes] = await Promise.all([fieldService.getMyFields(), fieldService.getAllFields({ limit: 200 })]);
+    setFields(Array.isArray(myRes.data) ? myRes.data : []);
+    setAllFields(Array.isArray(allRes.data) ? allRes.data : []);
+  }, []);
 
   useEffect(() => {
-    loadFields();
-  }, []);
+    const run = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        await loadFields();
+      } catch (err) {
+        setError(err?.error || 'Failed to load fields');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [loadFields]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -137,9 +144,7 @@ const OwnerFieldsPage = () => {
   };
 
   const handleImageChange = (event) => {
-    const nextFiles = Array.from(event.target.files || []).filter((file) =>
-      String(file.type || '').startsWith('image/')
-    );
+    const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
     setImageFiles(nextFiles.slice(0, 5));
   };
 
@@ -162,9 +167,7 @@ const OwnerFieldsPage = () => {
         capacity: Number(form.capacity),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
-        amenities: form.amenities
-          ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean)
-          : []
+        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : []
       };
 
       if (editingFieldId) {
@@ -222,22 +225,33 @@ const OwnerFieldsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Create, edit, and manage your field listings.</p>
+          <p className="mt-1 text-sm text-gray-600">Create and manage your football fields, or view all fields.</p>
         </div>
-        <button
-          type="button"
-          onClick={startCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add Field
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="rounded-xl border border-gray-200 p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('mine')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'mine' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
+            >
+              My Fields
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('all')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
+            >
+              All Fields
+            </button>
+          </div>
+          <button onClick={startCreate} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+            Add Field
+          </button>
+        </div>
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {successMessage && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>
-      )}
+      {successMessage && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
 
       {isOpen && (
         <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -290,9 +304,7 @@ const OwnerFieldsPage = () => {
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Photos</label>
             <input type="file" accept="image/*" multiple onChange={handleImageChange} className="block w-full text-sm" />
-            {imageFiles.length > 0 && (
-              <p className="text-xs text-gray-500">{imageFiles.length} image(s) selected</p>
-            )}
+            {imageFiles.length > 0 && <p className="text-xs text-gray-500">{imageFiles.length} image(s) selected</p>}
           </div>
 
           <div className="flex justify-end gap-3">
@@ -307,60 +319,62 @@ const OwnerFieldsPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {fields.map((field) => {
-          const images = normalizeImages(field.images);
-          const coverImage = resolveFieldImageUrl(images[0]);
+        {visibleFields.length > 0 ? (
+          visibleFields.map((field) => {
+            const images = normalizeImages(field.images);
+            const coverImage = resolveFieldImageUrl(images[0]);
+            const isOwned = isOwnedByCurrentUser(field);
 
-          return (
-            <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <img
-                src={coverImage}
-                alt={field.name}
-                className="h-48 w-full object-cover"
-                onError={(event) => {
-                  if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                    event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                  }
-                }}
-              />
-              <div className="space-y-4 p-5">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                  <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                    <MapPinIcon className="h-4 w-4" />
-                    {field.address}, {field.city}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>${field.pricePerHour}/hr</span>
-                  <span>{field.capacity} players</span>
-                </div>
-                {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(field)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <PencilSquareIcon className="h-4 w-4" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(field)}
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete
-                  </button>
+            return (
+              <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <img
+                  src={coverImage}
+                  alt={field.name}
+                  className="h-48 w-full object-cover"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                    }
+                  }}
+                />
+                <div className="space-y-4 p-5">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+                      <MapPinIcon className="h-4 w-4" />
+                      {field.address}, {field.city}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>${field.pricePerHour}/hr</span>
+                    <span>{field.capacity} players</span>
+                  </div>
+                  {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(field)}
+                      disabled={!isOwned || saving}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <PencilSquareIcon className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(field)}
+                      disabled={!isOwned || saving}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-
-        {fields.length === 0 && (
+            );
+          })
+        ) : (
           <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center">
             <PhotoIcon className="mx-auto h-10 w-10 text-gray-400" />
             <h3 className="mt-4 text-lg font-semibold text-gray-900">No fields yet</h3>
@@ -368,10 +382,6 @@ const OwnerFieldsPage = () => {
           </div>
         )}
       </div>
-
-      {selectedField && !isOpen && (
-        <div className="hidden">{selectedField.name}</div>
-      )}
     </div>
   );
 };

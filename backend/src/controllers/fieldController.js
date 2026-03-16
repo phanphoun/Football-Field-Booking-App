@@ -4,12 +4,34 @@ const multer = require('multer');
 const { Field, Booking } = require('../models');
 const serverConfig = require('../config/serverConfig');
 
+const isManagedFieldImagePath = (imagePath) =>
+  typeof imagePath === 'string' && imagePath.startsWith('/uploads/fields/');
+
+const getCandidateImagePaths = (imagePath) => {
+  if (!isManagedFieldImagePath(imagePath)) return [];
+  const relative = imagePath.slice(1);
+  return [
+    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', relative),
+    path.resolve(__dirname, '..', '..', 'uploads', 'fields', path.basename(relative))
+  ];
+};
+
 const removeFieldImageFile = (imagePath) => {
-  if (typeof imagePath !== 'string' || !imagePath.startsWith('/uploads/fields/')) return;
-  const absolute = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', imagePath.slice(1));
-  if (fs.existsSync(absolute)) {
-    fs.unlinkSync(absolute);
-  }
+  const candidates = getCandidateImagePaths(imagePath);
+  candidates.forEach((absolute) => {
+    try {
+      if (fs.existsSync(absolute)) {
+        fs.unlinkSync(absolute);
+      }
+    } catch (error) {
+      console.warn(`Failed to remove field image file at ${absolute}:`, error.message);
+    }
+  });
+};
+
+const resolvePrimaryFieldImagePath = (imagePath) => {
+  if (!isManagedFieldImagePath(imagePath)) return null;
+  return path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', imagePath.slice(1));
 };
 
 const getFields = async (req, res) => {
@@ -161,7 +183,16 @@ const updateField = async (req, res) => {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
     }
 
+    const currentImages = Array.isArray(field.images) ? field.images : [];
+    const nextImages =
+      updateData.images !== undefined && Array.isArray(updateData.images) ? updateData.images : currentImages;
+
+    const removedImages = currentImages.filter(
+      (imgPath) => isManagedFieldImagePath(imgPath) && !nextImages.includes(imgPath)
+    );
+
     const updatedField = await field.update(updateData);
+    removedImages.forEach((imgPath) => removeFieldImageFile(imgPath));
     res.json({ success: true, data: updatedField });
   } catch (error) {
     console.error('Update field error:', error);
@@ -281,12 +312,39 @@ const uploadFieldImages = async (req, res) => {
       }
 
       const currentImages = Array.isArray(field.images) ? field.images : [];
-      const newImages = req.files.map((file) => `/uploads/fields/${file.filename}`);
       const replaceExisting = String(req.body?.replaceExisting || '').toLowerCase() === 'true';
-      const mergedImages = replaceExisting ? newImages : [...currentImages, ...newImages];
+      let mergedImages;
 
-      if (replaceExisting && currentImages.length > 0) {
-        currentImages.forEach((oldPath) => removeFieldImageFile(oldPath));
+      if (replaceExisting) {
+        const remappedImages = req.files.map((file, index) => {
+          const oldPath = currentImages[index];
+          if (!isManagedFieldImagePath(oldPath)) {
+            return `/uploads/fields/${file.filename}`;
+          }
+
+          const targetAbs = resolvePrimaryFieldImagePath(oldPath);
+          if (!targetAbs) return `/uploads/fields/${file.filename}`;
+
+          const sourceAbs = file.path;
+          try {
+            if (sourceAbs !== targetAbs) {
+              if (fs.existsSync(targetAbs)) {
+                fs.unlinkSync(targetAbs);
+              }
+              fs.renameSync(sourceAbs, targetAbs);
+            }
+            return oldPath;
+          } catch {
+            return `/uploads/fields/${file.filename}`;
+          }
+        });
+
+        const removedOldImages = currentImages.slice(req.files.length);
+        removedOldImages.forEach((oldPath) => removeFieldImageFile(oldPath));
+        mergedImages = remappedImages;
+      } else {
+        const newImages = req.files.map((file) => `/uploads/fields/${file.filename}`);
+        mergedImages = [...currentImages, ...newImages];
       }
 
       await field.update({ images: mergedImages });
