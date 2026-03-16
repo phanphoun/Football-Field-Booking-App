@@ -97,24 +97,6 @@ const AppLayout = () => {
       : [])
   ];
 
-  const pageInfo = useMemo(() => {
-    const path = location.pathname;
-    const entries = [
-      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
-      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
-      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
-      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
-      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
-      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
-      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
-      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
-      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
-      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
-    ];
-    const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: 'អាណាចក្រភ្នំស្វាយ', subtitle: 'Welcome to your workspace' };
-  }, [location.pathname]);
   const showBackHomeButton = location.pathname.startsWith('/app');
   const isAppFieldsRoute = location.pathname.startsWith('/app/fields');
 
