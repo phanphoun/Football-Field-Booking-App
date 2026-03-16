@@ -492,6 +492,11 @@ const AppLayout = () => {
       await teamService.respondLeaveRequest(teamId, requesterId, action);
       await markNotificationRead(notification.id);
       await loadNotifications();
+    } catch (err) {
+      setFlash({
+        type: 'error',
+        message: err?.error || 'Failed to process leave request'
+      });
     } finally {
       setNotificationActionLoading(false);
     }
