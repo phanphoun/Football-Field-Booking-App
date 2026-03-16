@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,7 @@ const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().in
 
 const FieldsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { showAlert } = useDialog();
   const [searchParams] = useSearchParams();
@@ -100,7 +101,7 @@ const FieldsPage = () => {
     const bookingPath = `/app/bookings/new?fieldId=${fieldId}`;
 
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: bookingPath } });
+      navigate('/login', { state: { from: bookingPath, backgroundLocation: location } });
       return;
     }
 

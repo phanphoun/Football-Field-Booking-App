@@ -10,6 +10,12 @@ const formatMoney = (value) => {
 };
 
 const AnalyticsPage = () => {
+  const openNativeDatePicker = (event) => {
+    if (typeof event.currentTarget.showPicker === 'function') {
+      event.currentTarget.showPicker();
+    }
+  };
+
   const { user } = useAuth();
   const role = user?.role;
 
@@ -97,8 +103,8 @@ const AnalyticsPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="gray">{role || 'unknown'}</Badge>
-          <input type="date" className="h-9 rounded-md border border-slate-300 px-2 text-sm" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
-          <input type="date" className="h-9 rounded-md border border-slate-300 px-2 text-sm" value={toDate} onChange={(event) => setToDate(event.target.value)} />
+          <input type="date" className="h-9 rounded-md border border-slate-300 px-2 text-sm" value={fromDate} onChange={(event) => setFromDate(event.target.value)} onClick={openNativeDatePicker} />
+          <input type="date" className="h-9 rounded-md border border-slate-300 px-2 text-sm" value={toDate} onChange={(event) => setToDate(event.target.value)} onClick={openNativeDatePicker} />
           <button className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700 hover:bg-slate-50" onClick={loadAnalytics}>Apply</button>
           <button className="h-9 rounded-md border border-slate-300 px-3 text-sm text-slate-700 hover:bg-slate-50" onClick={downloadReport}>Export CSV</button>
         </div>

@@ -88,7 +88,7 @@ const BookingsPage = () => {
   const handleCreateBooking = () => {
     if (!canCreateBooking) {
       navigate('/app/settings', {
-        state: { errorMessage: 'Please request to become captain in Settings.' }
+        state: { focusRoleRequest: 'captain' }
       });
       return;
     }

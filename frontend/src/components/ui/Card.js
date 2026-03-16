@@ -1,11 +1,11 @@
 import React from 'react';
 
 const Card = ({ className = '', children }) => (
-  <div className={`bg-white shadow-sm ring-1 ring-gray-200 rounded-xl ${className}`}>{children}</div>
+  <div className={`rounded-[24px] border border-slate-200 bg-white shadow-sm shadow-slate-200/50 ${className}`}>{children}</div>
 );
 
 export const CardHeader = ({ className = '', children }) => (
-  <div className={`px-6 py-4 border-b border-gray-200 ${className}`}>{children}</div>
+  <div className={`border-b border-slate-200 bg-white/90 px-6 py-5 ${className}`}>{children}</div>
 );
 
 export const CardBody = ({ className = '', children }) => <div className={`p-6 ${className}`}>{children}</div>;

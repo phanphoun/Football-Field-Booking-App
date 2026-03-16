@@ -71,6 +71,10 @@ const authService = {
     });
   },
 
+  cancelRoleRequest: async (requestId) => {
+    return apiService.delete(`/auth/role-requests/${requestId}`);
+  },
+
   // Admin: list all role requests
   getAdminRoleRequests: async (status = '') => {
     return apiService.get('/auth/admin/role-requests', status ? { status } : {});

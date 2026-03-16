@@ -1,22 +1,24 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { ExclamationTriangleIcon, InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import ConfirmationModal from './ConfirmationModal';
 
 const DialogContext = createContext(null);
 
 const DIALOG_STYLES = {
   confirm: {
-    icon: ExclamationTriangleIcon,
-    iconClassName: 'text-amber-600',
-    confirmClassName: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-    confirmText: 'OK',
-    cancelText: 'Cancel'
+    title: 'Please Confirm',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    badgeLabel: 'Confirmation',
+    variant: 'default',
+    showCancel: true
   },
   alert: {
-    icon: InformationCircleIcon,
-    iconClassName: 'text-blue-600',
-    confirmClassName: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+    title: 'Notice',
     confirmText: 'OK',
-    cancelText: ''
+    cancelText: 'Cancel',
+    badgeLabel: 'Notice',
+    variant: 'default',
+    showCancel: false
   }
 };
 
@@ -37,10 +39,13 @@ export const DialogProvider = ({ children }) => {
       resolverRef.current = resolve;
       setDialogState({
         type: 'confirm',
-        title: options.title || 'Please Confirm',
+        title: options.title || DIALOG_STYLES.confirm.title,
         message,
         confirmText: options.confirmText || DIALOG_STYLES.confirm.confirmText,
-        cancelText: options.cancelText || DIALOG_STYLES.confirm.cancelText
+        cancelText: options.cancelText || DIALOG_STYLES.confirm.cancelText,
+        badgeLabel: options.badgeLabel || DIALOG_STYLES.confirm.badgeLabel,
+        variant: options.variant || DIALOG_STYLES.confirm.variant,
+        showCancel: true
       });
     });
   }, []);
@@ -50,78 +55,34 @@ export const DialogProvider = ({ children }) => {
       resolverRef.current = resolve;
       setDialogState({
         type: 'alert',
-        title: options.title || 'Notice',
+        title: options.title || DIALOG_STYLES.alert.title,
         message,
-        confirmText: options.confirmText || DIALOG_STYLES.alert.confirmText
+        confirmText: options.confirmText || DIALOG_STYLES.alert.confirmText,
+        cancelText: options.cancelText || DIALOG_STYLES.alert.cancelText,
+        badgeLabel: options.badgeLabel || DIALOG_STYLES.alert.badgeLabel,
+        variant: options.variant || DIALOG_STYLES.alert.variant,
+        showCancel: false
       });
     });
   }, []);
 
   const contextValue = useMemo(() => ({ confirm, showAlert }), [confirm, showAlert]);
-  const config = dialogState ? DIALOG_STYLES[dialogState.type] : null;
-  const Icon = config?.icon;
 
   return (
     <DialogContext.Provider value={contextValue}>
       {children}
-      {dialogState && (
-        <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
-          onClick={() => closeDialog(dialogState.type === 'confirm' ? false : true)}
-        >
-          <div
-            className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="app-dialog-title"
-          >
-            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
-              <div className="flex items-center gap-3">
-                {Icon ? (
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100">
-                    <Icon className={`h-6 w-6 ${config.iconClassName}`} />
-                  </span>
-                ) : null}
-                <div>
-                  <h2 id="app-dialog-title" className="text-base font-semibold text-slate-900">
-                    {dialogState.title}
-                  </h2>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => closeDialog(dialogState.type === 'confirm' ? false : true)}
-                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                aria-label="Close dialog"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-5 py-5">
-              <p className="text-sm leading-6 text-slate-600">{dialogState.message}</p>
-            </div>
-            <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-5 py-4">
-              {dialogState.type === 'confirm' && (
-                <button
-                  type="button"
-                  onClick={() => closeDialog(false)}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  {dialogState.cancelText}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => closeDialog(true)}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${config.confirmClassName}`}
-              >
-                {dialogState.confirmText}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationModal
+        isOpen={Boolean(dialogState)}
+        title={dialogState?.title}
+        message={dialogState?.message}
+        confirmLabel={dialogState?.confirmText}
+        cancelLabel={dialogState?.cancelText}
+        badgeLabel={dialogState?.badgeLabel}
+        variant={dialogState?.variant || 'default'}
+        showCancel={dialogState?.showCancel}
+        onConfirm={() => closeDialog(true)}
+        onClose={() => closeDialog(dialogState?.type === 'confirm' ? false : true)}
+      />
     </DialogContext.Provider>
   );
 };

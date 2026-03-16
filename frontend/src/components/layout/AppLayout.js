@@ -680,14 +680,14 @@ const AppLayout = () => {
                 onClick={() => setSidebarOpen(false)}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
                   profileItem.current
-                    ? 'bg-green-100 text-green-900'
+                    ? 'bg-white text-gray-900'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  className="h-10 w-10 cursor-zoom-in rounded-full bg-gray-100 object-cover"
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -755,14 +755,14 @@ const AppLayout = () => {
                 to={profileItem.href}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
                   profileItem.current
-                    ? 'bg-green-100 text-green-900'
+                    ? 'bg-white text-gray-900'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  className="h-10 w-10 cursor-zoom-in rounded-full bg-gray-100 object-cover"
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();

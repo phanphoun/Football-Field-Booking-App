@@ -14,7 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
-import { ImagePreviewModal } from '../components/ui';
+import { ImagePreviewModal, useDialog } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -42,7 +42,7 @@ const TeamManagePage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedInvite, setSelectedInvite] = useState(null);
   const [searchingPlayers, setSearchingPlayers] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { confirm } = useDialog();
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -137,13 +137,29 @@ const TeamManagePage = () => {
     }
   };
 
-  const handleRemoveMember = async (memberUserId) => {
+  const handleRemoveMember = async (member) => {
+    const memberName = `${member.user?.firstName || member.user?.username || 'This member'} ${member.user?.lastName || ''}`.trim();
+    const confirmed = await confirm(`Are you sure you want to remove ${memberName} from this team?`, {
+      title: 'Remove Member',
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      badgeLabel: 'Team Member',
+      variant: 'danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       setActionLoading(true);
       setError(null);
       setSuccessMessage(null);
-      await teamService.removeMember(id, memberUserId);
-      setSuccessMessage('Member removed.');
+      await teamService.removeMember(id, member.userId);
+      setSuccessMessage(`${memberName} was removed from the team.`);
+      if (selectedMember?.userId === member.userId) {
+        setSelectedMember(null);
+      }
       await refresh();
     } catch (err) {
       setError(err?.error || 'Failed to remove member');
@@ -237,6 +253,18 @@ const TeamManagePage = () => {
   const closeMemberDetails = () => setSelectedMember(null);
 
   const handleDeleteTeam = async () => {
+    const confirmed = await confirm(`Are you sure you want to delete ${team.name}? This action cannot be undone and all team data will be permanently deleted.`, {
+      title: 'Delete Team',
+      confirmText: 'Delete Team',
+      cancelText: 'Cancel',
+      badgeLabel: 'Danger Zone',
+      variant: 'danger'
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       setActionLoading(true);
       setError(null);
@@ -247,7 +275,6 @@ const TeamManagePage = () => {
       }, 1000);
     } catch (err) {
       setError(err?.error || 'Failed to delete team');
-      setShowDeleteConfirm(false);
     } finally {
       setActionLoading(false);
     }
@@ -284,7 +311,7 @@ const TeamManagePage = () => {
             </Link>
             {isCaptainOfTeam && (
               <button
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={handleDeleteTeam}
                 disabled={actionLoading}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
@@ -295,31 +322,6 @@ const TeamManagePage = () => {
           </div>
         </div>
       </div>
-
-      {showDeleteConfirm && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-red-900 mb-2">Delete Team</h3>
-          <p className="text-red-800 mb-4">
-            Are you sure you want to delete <strong>{team.name}</strong>? This action cannot be undone and all team data will be permanently deleted.
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={handleDeleteTeam}
-              disabled={actionLoading}
-              className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
-            >
-              {actionLoading ? 'Deleting...' : 'Yes, Delete Team'}
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(false)}
-              disabled={actionLoading}
-              className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {successMessage && (
         <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
@@ -455,18 +457,30 @@ const TeamManagePage = () => {
             {activeMembers.length > 0 ? (
               <div className="space-y-3">
                 {activeMembers.map((m) => (
-                  <div key={m.userId} className="flex items-center justify-between border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
+                  <div
+                    key={m.userId}
+                    className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 p-3 transition-colors hover:bg-gray-50"
+                    onClick={() => openMemberDetails(m)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openMemberDetails(m);
+                      }
+                    }}
+                    tabIndex={0}
+                  >
                     <div className="text-sm text-gray-900 flex items-center gap-3">
                       <img
                         src={resolveUserAvatarUrl(m.user)}
                         alt={`${m.user?.firstName || m.user?.username || 'User'} avatar`}
                         className="h-9 w-9 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
-                        onClick={() =>
+                        onClick={(event) => {
+                          event.stopPropagation();
                           setPreviewImage({
                             url: resolveUserAvatarUrl(m.user),
                             title: `${m.user?.firstName || m.user?.username || 'User'} photo`
-                          })
-                        }
+                          });
+                        }}
                         onError={(e) => {
                           const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                           if (e.currentTarget.src !== fallbackUrl) {
@@ -474,16 +488,19 @@ const TeamManagePage = () => {
                           }
                         }}
                       />
-                      <button onClick={() => openMemberDetails(m)} className="text-left">
+                      <button onClick={() => openMemberDetails(m)} className="text-left" type="button">
                         <div className="font-medium">{m.user?.firstName || m.user?.username || 'User'}</div>
                         <div className="text-xs text-gray-500">{m.user?.username}</div>
                       </button>
                       <span className="ml-2 text-xs text-gray-500 capitalize">({m.role})</span>
                     </div>
-                    {m.userId !== team.captainId && (
+                    {isCaptainOfTeam && m.userId !== team.captainId && (
                       <button
                         disabled={actionLoading}
-                        onClick={() => handleRemoveMember(m.userId)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleRemoveMember(m);
+                        }}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-50"
                       >
                         <TrashIcon className="h-3.5 w-3.5" />

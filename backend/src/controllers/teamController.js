@@ -29,7 +29,7 @@ const getTeamDetailsIncludes = () => [
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
+        attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role']
       }
     ],
     required: false
@@ -360,7 +360,7 @@ const getTeamMembers = asyncHandler(async (req, res) => {
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
+        attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role']
       }
     ],
     order: [
@@ -482,7 +482,7 @@ const getJoinRequests = asyncHandler(async (req, res) => {
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
+        attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role']
       }
     ],
     order: [['createdAt', 'DESC']]

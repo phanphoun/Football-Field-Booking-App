@@ -1,10 +1,47 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MagnifyingGlassIcon, MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, MagnifyingGlassIcon, MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { hasGoogleMapsApiKey, loadGoogleMaps } from './googleMapsLoader';
 import { loadLeaflet } from './leafletLoader';
 
 const DEFAULT_CENTER = { lat: 11.5564, lng: 104.9282 };
 const DEFAULT_ZOOM = 12;
+const MAP_THEME_OPTIONS = [
+  { id: 'roadmap', label: 'Map' },
+  { id: 'satellite', label: 'Satellite' },
+  { id: 'terrain', label: 'Terrain' },
+  { id: 'dark', label: 'Dark' }
+];
+const LEAFLET_THEME_CONFIG = {
+  roadmap: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors'
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri'
+  },
+  terrain: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap'
+  },
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    options: {
+      subdomains: 'abcd'
+    }
+  }
+};
+const GOOGLE_MAP_STYLES = {
+  dark: [
+    { elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#0f172a' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#cbd5e1' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#1e293b' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0ea5e9' }] }
+  ]
+};
 
 const extractAddressComponent = (components, types) => {
   const match = components.find((component) => types.some((type) => component.types.includes(type)));
@@ -124,6 +161,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const providerRef = useRef(hasGoogleMapsApiKey ? 'google' : 'leaflet');
   const mapsApiRef = useRef(null);
   const initialCoordinatesRef = useRef({
@@ -134,6 +172,8 @@ const FieldLocationPicker = ({ value, onChange }) => {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [searchQuery, setSearchQuery] = useState(value?.address || '');
+  const [mapTheme, setMapTheme] = useState('roadmap');
+  const [mapThemeMenuOpen, setMapThemeMenuOpen] = useState(false);
 
   useEffect(() => {
     if (value?.address) {
@@ -162,7 +202,9 @@ const FieldLocationPicker = ({ value, onChange }) => {
             zoom: hasCoordinates ? 15 : DEFAULT_ZOOM,
             mapTypeControl: false,
             streetViewControl: false,
-            fullscreenControl: false
+            fullscreenControl: false,
+            mapTypeId: 'roadmap',
+            styles: []
           });
 
           const updateLocation = async (latitude, longitude) => {
@@ -231,8 +273,9 @@ const FieldLocationPicker = ({ value, onChange }) => {
           scrollWheelZoom: true
         });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
+        tileLayerRef.current = L.tileLayer(LEAFLET_THEME_CONFIG.roadmap.url, {
+          attribution: LEAFLET_THEME_CONFIG.roadmap.attribution,
+          ...(LEAFLET_THEME_CONFIG.roadmap.options || {})
         }).addTo(mapRef.current);
 
         if (hasCoordinates) {
@@ -333,8 +376,35 @@ const FieldLocationPicker = ({ value, onChange }) => {
       }
       mapRef.current = null;
       markerRef.current = null;
+      tileLayerRef.current = null;
     };
   }, [onChange]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (providerRef.current === 'google') {
+      const googleTheme = mapTheme === 'dark' ? 'roadmap' : mapTheme;
+      map.setMapTypeId(googleTheme);
+      map.setOptions({
+        styles: mapTheme === 'dark' ? GOOGLE_MAP_STYLES.dark : []
+      });
+      return;
+    }
+
+    const config = LEAFLET_THEME_CONFIG[mapTheme] || LEAFLET_THEME_CONFIG.roadmap;
+    if (!window.L || !config) return;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    tileLayerRef.current = window.L.tileLayer(config.url, {
+      attribution: config.attribution,
+      ...(config.options || {})
+    }).addTo(map);
+  }, [mapTheme]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -526,12 +596,9 @@ const FieldLocationPicker = ({ value, onChange }) => {
         <div>
           <h3 className="text-base font-semibold text-slate-900">Location</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Search for a place, click the map, or drag the pin to fine-tune the field address.
-            {!hasGoogleMapsApiKey ? ' Using fallback map until a Google Maps key is added.' : ''}
+            Search, click, or drag the pin to set the field location.
+            {!hasGoogleMapsApiKey ? ' Using the basic map view.' : ''}
           </p>
-        </div>
-        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-          {providerRef.current === 'google' ? 'Google Maps' : 'OpenStreetMap'}
         </div>
       </div>
 
@@ -596,7 +663,43 @@ const FieldLocationPicker = ({ value, onChange }) => {
               </span>
             )}
           </div>
-          <div ref={mapElementRef} className="h-[360px] w-full bg-slate-100" />
+          <div className="relative">
+            <div className="absolute bottom-3 left-3 z-[500] flex max-w-[calc(100%-24px)] flex-wrap items-end gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMapThemeMenuOpen((current) => !current)}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-lg backdrop-blur transition hover:bg-white"
+                >
+                  {MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme)?.label || 'Map'}
+                  <ChevronDownIcon className={`h-3.5 w-3.5 transition ${mapThemeMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {mapThemeMenuOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 min-w-[140px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    {MAP_THEME_OPTIONS.map((theme) => {
+                      const isActive = mapTheme === theme.id;
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => {
+                            setMapTheme(theme.id);
+                            setMapThemeMenuOpen(false);
+                          }}
+                          className={`block w-full px-3 py-2 text-left text-xs font-semibold transition ${
+                            isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          {theme.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div ref={mapElementRef} className="h-[360px] w-full bg-slate-100" />
+          </div>
         </div>
       )}
 
