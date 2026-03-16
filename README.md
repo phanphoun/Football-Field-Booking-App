@@ -64,9 +64,9 @@ The Football Field Booking App is a centralized platform that bridges field owne
 ## 🛠️ **Technology Stack**
 
 ### **Backend**
-- **Node.js** - JavaScript runtime environment
-- **Express.js** - Fast, minimalist web framework
-- **MySQL** - Relational database
+- **Node.js** - JavaScript runtime environment (v18+ recommended)
+- **Express.js 5** - Fast, minimalist web framework
+- **MySQL / MariaDB** - Relational database
 - **Sequelize** - ORM for database management
 - **JWT** - Authentication tokens
 - **bcryptjs** - Password hashing
@@ -74,6 +74,8 @@ The Football Field Booking App is a centralized platform that bridges field owne
 - **Express Rate Limit** - API rate limiting
 - **Helmet** - Security headers
 - **CORS** - Cross-origin resource sharing
+- **Swagger** - API documentation (`swagger-jsdoc`, `swagger-ui-express`)
+- **Jest & Supertest** - Testing framework
 
 ### **Frontend**
 - **React 19** - Modern UI framework
@@ -83,6 +85,7 @@ The Football Field Booking App is a centralized platform that bridges field owne
 - **Axios** - HTTP client for API calls
 - **React Hook Form** - Form management
 - **date-fns** - Date manipulation
+- **React App Rewired** - Custom CRA configuration
 
 ---
 
@@ -92,55 +95,30 @@ The Football Field Booking App is a centralized platform that bridges field owne
 Football-Field-Booking-App/
 ├── backend/                    # Node.js API server
 │   ├── src/
+│   │   ├── config/             # Database & app configuration
 │   │   ├── controllers/        # Route handlers
-│   │   │   ├── authController.js
-│   │   │   ├── userController.js
-│   │   │   ├── fieldController.js
-│   │   │   ├── bookingController.js
-│   │   │   ├── teamController.js
-│   │   │   ├── ratingController.js
-│   │   │   └── dashboardController.js
-│   ├── routes/            # API routes
-│   ├── middleware/        # Authentication & validation
-│   ├── models/            # Sequelize models
-│   ├── config/            # Configuration files
-│   └── utils/             # Utility functions
-│   ├── .env                  # Environment variables
-│   ├── package.json          # Dependencies
-│   └── server.js              # Main server file
+│   │   ├── middleware/         # Auth, validation, error handling
+│   │   ├── models/             # Sequelize models
+│   │   ├── realtime/           # Real-time features
+│   │   ├── routes/             # API route definitions
+│   │   ├── services/           # Business logic layer
+│   │   └── utils/              # Utility functions & seeding
+│   ├── .env                    # Environment variables
+│   ├── package.json            # Backend dependencies & scripts
+│   └── server.js               # Main server entry point
 ├── frontend/                   # React frontend
-│   ├── public/               # Static assets
+│   ├── public/                 # Static assets & logos
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── common/
-│   │   │   │   └── ProtectedRoute.js
-│   │   │   └── layout/
-│   │   │       └── AppLayout.js
-│   │   ├── context/
-│   │   │   └── AuthContext.js
-│   │   ├── pages/
-│   │   │   ├── auth/
-│   │   │   │   ├── LoginPage.js
-│   │   │   │   └── RegisterPage.js
-│   │   │   ├── DashboardPage.js
-│   │   │   ├── FieldsPage.js
-│   │   │   ├── TeamsPage.js
-│   │   │   ├── BookingsPage.js
-│   │   │   ├── CreateBookingPage.js
-│   │   │   └── ProfilePage.js
-│   │   ├── services/
-│   │   │   ├── api.js
-│   │   │   ├── authService.js
-│   │   │   ├── fieldService.js
-│   │   │   ├── bookingService.js
-│   │   │   ├── teamService.js
-│   │   │   └── dashboardService.js
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── package.json
-│   └── README.md
-├── .gitignore                  # Git ignore rules
-└── README.md                  # This file
+│   │   ├── components/         # Reusable UI components
+│   │   ├── context/            # React Context (Auth, etc.)
+│   │   ├── pages/              # Page components
+│   │   ├── services/           # API service layer
+│   │   ├── App.js              # Main App component
+│   │   └── index.js            # Frontend entry point
+│   ├── package.json            # Frontend dependencies & scripts
+│   └── tailwind.config.js      # Tailwind CSS configuration
+├── LICENSE                     # Apache License 2.0
+└── README.md                   # Project documentation
 ```
 
 ---
@@ -148,8 +126,8 @@ Football-Field-Booking-App/
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
-- Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
+- Node.js (v18 or higher)
+- MySQL or MariaDB (v8.0/v11.0 or higher)
 - Git
 
 ### **1. Clone Repository**
@@ -163,13 +141,15 @@ cd Football-Field-Booking-App
 cd backend
 npm install
 
-# Create .env file (example provided)
+# Create .env file from example
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env with your database credentials (DB_USER, DB_PASSWORD, etc.)
 
-# Create database
-mysql -u root -p
-CREATE DATABASE football_booking;
+# Create database (ensure MySQL/MariaDB is running)
+npm run db:create
+
+# Seed database with sample data
+npm run seed
 
 # Start backend server
 npm run dev
@@ -177,11 +157,8 @@ npm run dev
 
 ### **3. Frontend Setup**
 ```bash
-cd frontend
+cd ../frontend
 npm install
-
-# Create .env file
-echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
 
 # Start frontend server
 npm start
@@ -189,8 +166,27 @@ npm start
 
 ### **4. Access Application**
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **API Documentation**: http://localhost:5000/
+- **Backend API**: http://localhost:5000/api
+- **Swagger API Docs**: http://localhost:5000/api-docs
+
+---
+
+## 📜 **Available Scripts**
+
+### **Backend (`/backend`)**
+- `npm start`: Starts the production server (`node server.js`).
+- `npm run dev`: Starts the server with `nodemon` for development.
+- `npm run seed`: Seeds the database with sample data (`src/utils/seed.js`).
+- `npm test`: Runs backend tests using `Jest`.
+- `npm run test:watch`: Runs tests in watch mode.
+- `npm run db:create`: Utility script to create the database (`src/utils/createDb.js`).
+
+### **Frontend (`/frontend`)**
+- `npm start`: Runs the app in development mode using `react-app-rewired`.
+- `npm run build`: Builds the app for production.
+- `npm test`: Launches the test runner.
+- `npm run lint`: Runs ESLint to check for code quality issues.
+- `npm run lint:fix`: Fixes linting issues automatically.
 
 ---
 
@@ -201,6 +197,7 @@ npm start
 # Server Configuration
 NODE_ENV=development
 PORT=5000
+FOOTBALL_API_KEY=your_football_data_org_api_key  # Required for external football data
 
 # Database Configuration
 DB_HOST=localhost
@@ -215,10 +212,6 @@ JWT_EXPIRES_IN=7d
 
 # CORS Configuration
 CORS_ORIGIN=http://localhost:3000
-
-# Development Settings
-RATE_LIMITING=true
-LOG_LEVEL=dev
 ```
 
 ### **Frontend .env**
@@ -229,6 +222,8 @@ REACT_APP_API_URL=http://localhost:5000/api
 ---
 
 ## 📚 **API Documentation**
+
+Full API documentation is available via Swagger at `/api-docs`.
 
 ### **🔐 Authentication**
 - `POST /api/auth/register` - Register new user
@@ -253,16 +248,22 @@ REACT_APP_API_URL=http://localhost:5000/api
 - `POST /api/bookings` - Create booking
 - `PUT /api/bookings/:id` - Update booking status
 
-### **👥 Teams**
+### **👥 Teams & Members**
 - `GET /api/teams` - List teams (Protected)
 - `GET /api/teams/:id` - Get team details
 - `POST /api/teams` - Create team (Captain/Admin)
 - `PUT /api/teams/:id` - Update team
 - `DELETE /api/teams/:id` - Delete team
+- `POST /api/team-members/join` - Request to join a team
+- `PUT /api/team-members/:id/status` - Update membership status
+
+### **📢 Notifications & Matches**
+- `GET /api/notifications` - Get user notifications
+- `GET /api/match-results` - Get recent match results
+- `POST /api/match-results` - Record match result
 
 ### **⭐ Ratings**
 - `GET /api/ratings` - List ratings (Protected)
-- `GET /api/ratings/:id` - Get rating details
 - `POST /api/ratings` - Create rating
 - `PUT /api/ratings/:id` - Update rating
 - `DELETE /api/ratings/:id` - Delete rating
