@@ -106,7 +106,6 @@ const LoginPage = () => {
                 ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
             }`}
-            placeholder="you@example.com"
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -131,7 +130,6 @@ const LoginPage = () => {
                   ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                   : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
               }`}
-              placeholder="Password"
             />
             <button
               type="button"

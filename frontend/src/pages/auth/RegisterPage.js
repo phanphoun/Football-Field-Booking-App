@@ -145,7 +145,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder="John"
             />
             {validationErrors.firstName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.firstName}</p>
@@ -165,7 +164,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder="Doe"
             />
             {validationErrors.lastName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.lastName}</p>
@@ -188,7 +186,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.username ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder="yourname"
             />
             {validationErrors.username && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.username}</p>
@@ -205,7 +202,6 @@ const RegisterPage = () => {
               value={formData.phone}
               onChange={handleChange}
               className={inputClassName}
-              placeholder="+1234567890"
             />
           </div>
         </div>
@@ -225,7 +221,6 @@ const RegisterPage = () => {
             className={`${inputClassName} ${
               validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
             }`}
-            placeholder="you@example.com"
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -248,7 +243,6 @@ const RegisterPage = () => {
                 className={`${inputClassName} pr-11 ${
                   validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
                 }`}
-                placeholder="Password"
               />
               <button
                 type="button"
@@ -282,7 +276,6 @@ const RegisterPage = () => {
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : ''
                 }`}
-                placeholder="Confirm password"
               />
               <button
                 type="button"

@@ -233,10 +233,9 @@ const OwnerDashboardPage = () => {
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
-                        <Badge tone={statusTone(b.status)} className="capitalize">
-                          {formatStatusLabel(b.status)}
-                        </Badge>
+                          <Badge tone={statusTone(booking.status)} className="capitalize">
+                            {formatStatusLabel(booking.status)}
+                          </Badge>
                         </div>
                       </div>
                     </div>
