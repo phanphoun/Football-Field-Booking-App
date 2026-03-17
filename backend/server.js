@@ -202,14 +202,12 @@ app.get('/', (req, res) => {
   });
 });
 
-// Apply authentication rate limiting
-app.use('/api/auth', authLimiter);
-
-// Apply search rate limiting
-app.use('/api/dashboard/search', searchLimiter);
-
-// Apply creation rate limiting
-app.use('/api', createLimiter);
+// Apply authentication/search/creation rate limiting
+if (serverConfig.security.rateLimiting.enabled) {
+  app.use('/api/auth', authLimiter);
+  app.use('/api/dashboard/search', searchLimiter);
+  app.use('/api', createLimiter);
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);

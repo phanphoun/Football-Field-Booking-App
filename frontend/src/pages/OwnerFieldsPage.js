@@ -1,14 +1,7 @@
-<<<<<<< HEAD
-import React, { useEffect, useMemo, useState } from 'react';
-import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
-=======
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
->>>>>>> 86ef1e72ecc2a9947dba37d3a2a402e3e34f34e5
+import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
-import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -52,9 +45,7 @@ const resolveFieldImageUrl = (rawImage) => {
 };
 
 const OwnerFieldsPage = () => {
-  const { user } = useAuth();
   const { confirm } = useDialog();
-  const navigate = useNavigate();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,12 +57,7 @@ const OwnerFieldsPage = () => {
   const [existingImages, setExistingImages] = useState([]);
   const [form, setForm] = useState(emptyForm);
 
-  const selectedField = useMemo(
-    () => fields.find((field) => Number(field.id) === Number(editingFieldId)) || null,
-    [editingFieldId, fields]
-  );
-
-  const loadFields = async () => {
+  const loadFields = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -82,7 +68,7 @@ const OwnerFieldsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const run = async () => {
@@ -292,7 +278,7 @@ const OwnerFieldsPage = () => {
                 onClick={resetForm}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -434,7 +420,6 @@ const OwnerFieldsPage = () => {
           const images = normalizeImages(field.images);
           const coverImage = resolveFieldImageUrl(images[0]);
 
-<<<<<<< HEAD
           return (
             <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
               <img
@@ -478,71 +463,6 @@ const OwnerFieldsPage = () => {
                     <TrashIcon className="h-4 w-4" />
                     Delete
                   </button>
-=======
-            return (
-              <div
-                key={field.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/fields/${field.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    navigate(`/fields/${field.id}`);
-                  }
-                }}
-                className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              >
-                <img
-                  src={coverImage}
-                  alt={field.name}
-                  className="h-48 w-full object-cover"
-                  onError={(event) => {
-                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                    }
-                  }}
-                />
-                <div className="space-y-4 p-5">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                    <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                      <MapPinIcon className="h-4 w-4" />
-                      {field.address}, {field.city}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>${field.pricePerHour}/hr</span>
-                    <span>{field.capacity} players</span>
-                  </div>
-                  {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        startEdit(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <PencilSquareIcon className="h-4 w-4" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDelete(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                      Delete
-                    </button>
-                  </div>
->>>>>>> 86ef1e72ecc2a9947dba37d3a2a402e3e34f34e5
                 </div>
               </div>
             </div>

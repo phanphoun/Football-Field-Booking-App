@@ -167,8 +167,6 @@ const FieldDetailsPage = () => {
     });
   }, [scheduleDay, slotBookings]);
 
-  const fieldRating = Number(field?.rating || 0);
-  const totalRatings = Number(field?.totalRatings || 0);
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'live-booking', label: 'Live Booking' },

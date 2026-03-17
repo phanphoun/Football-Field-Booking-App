@@ -26,14 +26,6 @@ const formatMoney = (value) => {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
-const formatBookingSchedule = (startValue, endValue) => {
-  const start = startValue ? new Date(startValue) : null;
-  const end = endValue ? new Date(endValue) : null;
-
-  if (!start) return '-';
-  return `${start.toLocaleString()}${end ? ` - ${end.toLocaleTimeString()}` : ''}`;
-};
-
 const formatDateTime = (value) => {
   if (!value) return '-';
   const parsed = new Date(value);
