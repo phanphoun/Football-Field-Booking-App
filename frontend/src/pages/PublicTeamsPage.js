@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
@@ -19,6 +19,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
 const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -60,7 +61,7 @@ const PublicTeamsPage = () => {
 
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/teams/${teamId}` } });
+      navigate('/login', { state: { from: `/teams/${teamId}`, backgroundLocation: location } });
       return;
     }
 
@@ -267,7 +268,7 @@ const PublicTeamsPage = () => {
                   <Button
                     onClick={(event) => {
                       event.stopPropagation();
-                      navigate('/login', { state: { from: `/teams/${team.id}` } });
+                      navigate('/login', { state: { from: `/teams/${team.id}`, backgroundLocation: location } });
                     }}
                     className="flex-1"
                   >

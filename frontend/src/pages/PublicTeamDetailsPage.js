@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
@@ -19,6 +19,7 @@ const PublicTeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +73,7 @@ const PublicTeamDetailsPage = () => {
 
   const handleRequestJoin = async () => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/teams/${id}` } });
+      navigate('/login', { state: { from: `/teams/${id}`, backgroundLocation: location } });
       return;
     }
 
@@ -260,7 +261,7 @@ const PublicTeamDetailsPage = () => {
             </button>
           ) : (
             <button
-              onClick={() => navigate('/login', { state: { from: `/teams/${id}` } })}
+              onClick={() => navigate('/login', { state: { from: `/teams/${id}`, backgroundLocation: location } })}
               className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
             >
               Login to Request

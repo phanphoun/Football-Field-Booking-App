@@ -187,8 +187,11 @@ const bookingService = {
   },
 
   // Public schedule for landing page (no auth required)
-  getPublicSchedule: async (date, limit = 6) => {
-    const params = { date, limit };
+  getPublicSchedule: async (date, limit = null) => {
+    const params = { date };
+    if (Number.isFinite(limit) && limit > 0) {
+      params.limit = limit;
+    }
     const response = await apiService.get('/bookings/public/schedule', params);
     return response;
   },

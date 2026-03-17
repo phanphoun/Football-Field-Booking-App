@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BellAlertIcon,
   BuildingOffice2Icon,
@@ -132,12 +132,15 @@ const PreferenceToggle = ({ title, description, enabled, onChange }) => (
 const SettingsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { confirm } = useDialog();
+  const accessRequestsRef = useRef(null);
   const [roleRequests, setRoleRequests] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submittingRole, setSubmittingRole] = useState('');
+  const [cancellingRequestId, setCancellingRequestId] = useState(null);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [preferences, setPreferences] = useState(getStoredPreferences);
@@ -149,6 +152,7 @@ const SettingsPage = () => {
   });
   const [passwordError, setPasswordError] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [focusedRoleKey, setFocusedRoleKey] = useState('');
   const [showPassword, setShowPassword] = useState({
     current: false,
     next: false,
@@ -173,6 +177,20 @@ const SettingsPage = () => {
   useEffect(() => {
     loadRoleRequests();
   }, [loadRoleRequests]);
+
+  useEffect(() => {
+    const requestedRole = location.state?.focusRoleRequest;
+    if (!requestedRole) return;
+
+    setFocusedRoleKey(requestedRole);
+    accessRequestsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const timeoutId = window.setTimeout(() => {
+      setFocusedRoleKey('');
+    }, 2200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [location.state]);
 
   const latestRequestByRole = useMemo(
     () =>
@@ -228,9 +246,13 @@ const SettingsPage = () => {
     const option = ROLE_OPTIONS[requestedRole];
     if (!option) return;
 
-    const confirmed = await confirm(`Send a request for ${option.title.toLowerCase()}?`, {
-      title: 'Role Request'
-    });
+    const confirmed = await confirm(
+      `Send a request for ${option.title.toLowerCase()}? Only admins can approve or reject this role request.`,
+      {
+        title: 'Role Request',
+        confirmText: 'Send Request'
+      }
+    );
     if (!confirmed) return;
 
     try {
@@ -239,12 +261,42 @@ const SettingsPage = () => {
       setSuccessMessage('');
 
       const response = await authService.requestRoleUpgrade(requestedRole);
-      setSuccessMessage(response.message || `${option.title} requested successfully.`);
+      setSuccessMessage(
+        response.message || `${option.title} request sent successfully. Only admins can approve or reject it.`
+      );
       await loadRoleRequests();
     } catch (err) {
       setError(err.error || 'Failed to submit role request');
     } finally {
       setSubmittingRole('');
+    }
+  };
+
+  const handleCancelRoleRequest = async (request) => {
+    const confirmed = await confirm(
+      `Delete your pending ${formatRoleLabel(request.requestedRole).toLowerCase()} request? Admins will be notified that you cancelled it.`,
+      {
+        title: 'Delete Request',
+        confirmText: 'Delete Request'
+      }
+    );
+    if (!confirmed) return;
+
+    try {
+      setCancellingRequestId(request.id);
+      setError('');
+      setSuccessMessage('');
+
+      const response = await authService.cancelRoleRequest(request.id);
+      setSuccessMessage(
+        response.message ||
+          `Your ${formatRoleLabel(request.requestedRole).toLowerCase()} request was deleted. Admins have been notified.`
+      );
+      await loadRoleRequests();
+    } catch (err) {
+      setError(err.error || 'Failed to delete role request');
+    } finally {
+      setCancellingRequestId(null);
     }
   };
 
@@ -441,7 +493,7 @@ const SettingsPage = () => {
             </div>
           </section>
 
-          <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <section ref={accessRequestsRef} className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-6 py-5">
               <h2 className="inline-flex items-center gap-2 text-2xl font-semibold text-slate-900">
                 <ShieldCheckIcon className="h-6 w-6 text-emerald-600" />
@@ -473,7 +525,7 @@ const SettingsPage = () => {
                         ? 'border-sky-100 bg-sky-50 text-sky-700'
                         : 'border-emerald-100 bg-emerald-50 text-emerald-700';
                     const isPendingThisRole = latestRequest?.status === 'pending';
-                    const isDisabled = Boolean(hasPendingRequest || submittingRole);
+                    const isDisabled = Boolean(hasPendingRequest || submittingRole || cancellingRequestId);
                     const buttonLabel = isPendingThisRole
                       ? 'Pending review'
                       : latestRequest?.status === 'rejected'
@@ -481,7 +533,14 @@ const SettingsPage = () => {
                         : `Request ${option.title}`;
 
                     return (
-                      <div key={roleKey} className="rounded-[24px] border border-slate-200 bg-white p-5">
+                      <div
+                        key={roleKey}
+                        className={`rounded-[24px] border bg-white p-5 transition ${
+                          focusedRoleKey === roleKey
+                            ? 'border-emerald-400 ring-4 ring-emerald-100'
+                            : 'border-slate-200'
+                        }`}
+                      >
                         <div className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl border ${accentClasses}`}>
                           <Icon className="h-6 w-6" />
                         </div>
@@ -503,6 +562,17 @@ const SettingsPage = () => {
                         >
                           {submittingRole === roleKey ? 'Submitting...' : buttonLabel}
                         </button>
+
+                        {isPendingThisRole && latestRequest && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelRoleRequest(latestRequest)}
+                            disabled={cancellingRequestId === latestRequest.id}
+                            className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {cancellingRequestId === latestRequest.id ? 'Deleting...' : 'Delete Request'}
+                          </button>
+                        )}
 
                         {hasPendingRequest && !isPendingThisRole && (
                           <p className="mt-3 text-xs text-amber-700">
@@ -536,6 +606,7 @@ const SettingsPage = () => {
                 <div className="space-y-4">
                   {sortedRoleRequests.map((request) => {
                     const StatusIcon = getStatusIcon(request.status);
+                    const isPendingRequest = request.status === 'pending';
                     return (
                       <div key={request.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -555,6 +626,17 @@ const SettingsPage = () => {
 
                         {request.note && (
                           <p className="mt-3 text-sm leading-6 text-slate-600">{request.note}</p>
+                        )}
+
+                        {isPendingRequest && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelRoleRequest(request)}
+                            disabled={cancellingRequestId === request.id}
+                            className="mt-4 inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {cancellingRequestId === request.id ? 'Deleting...' : 'Delete Request'}
+                          </button>
                         )}
 
                         {request.reviewedAt && (

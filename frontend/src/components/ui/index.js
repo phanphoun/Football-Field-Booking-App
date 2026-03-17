@@ -1,6 +1,7 @@
 export { default as Button } from './Button';
 export { default as Badge } from './Badge';
 export { default as Card, CardBody, CardHeader } from './Card';
+export { default as ConfirmationModal } from './ConfirmationModal';
 export { DialogProvider, useDialog } from './DialogProvider';
 export { default as EmptyState } from './EmptyState';
 export { default as ImagePreviewModal } from './ImagePreviewModal';

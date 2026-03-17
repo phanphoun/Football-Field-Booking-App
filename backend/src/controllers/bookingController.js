@@ -506,18 +506,22 @@ const updateBookingStatus = async (req, res) => {
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
       const opponentTeamName = booking.opponentTeam?.name || null;
-      const actorName = req.user.firstName || req.user.username || 'Field owner';
+      const actorName =
+        req.user.role === 'field_owner'
+          ? req.user.firstName || req.user.username || 'Field owner'
+          : req.user.firstName || req.user.username || 'Admin';
       const fieldName = booking.field?.name || 'the field';
 
       const recipients = new Set();
       if (booking.team?.captainId) recipients.add(booking.team.captainId);
+      else if (booking.createdBy) recipients.add(booking.createdBy);
       if (booking.opponentTeam?.captainId) recipients.add(booking.opponentTeam.captainId);
 
       if (recipients.size > 0) {
         await Notification.bulkCreate(
           Array.from(recipients).map((captainId) => ({
             userId: captainId,
-            title: 'Booking confirmed',
+            title: req.user.role === 'field_owner' ? 'Booking accepted by field owner' : 'Booking confirmed',
             message: opponentTeamName
               ? `${actorName} confirmed your booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
               : `${actorName} confirmed your booking at ${fieldName} for ${teamName}.`,
@@ -581,30 +585,57 @@ const updateBookingStatus = async (req, res) => {
       const teamName = booking.team?.name || 'Team';
       const opponentTeamName = booking.opponentTeam?.name || null;
       const cancellerName =
-        req.user.role === 'field_owner' ? 'Field owner' : req.user.firstName || req.user.username || 'A user';
+        req.user.role === 'field_owner'
+          ? req.user.firstName || req.user.username || 'Field owner'
+          : req.user.firstName || req.user.username || 'A user';
+      const fieldName = booking.field?.name || 'the field';
 
       const recipients = new Set();
       if (booking.team?.captainId) recipients.add(booking.team.captainId);
+      else if (booking.createdBy) recipients.add(booking.createdBy);
       if (booking.opponentTeam?.captainId) recipients.add(booking.opponentTeam.captainId);
 
       if (recipients.size > 0) {
         await Notification.bulkCreate(
           Array.from(recipients).map((captainId) => ({
             userId: captainId,
-            title: 'Booking cancelled',
+            title: req.user.role === 'field_owner' ? 'Booking cancelled by field owner' : 'Booking cancelled',
             message: opponentTeamName
-              ? `${cancellerName} cancelled the booking for ${teamName} vs ${opponentTeamName}.`
-              : `${cancellerName} cancelled the booking for ${teamName}.`,
+              ? `${cancellerName} cancelled your booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+              : `${cancellerName} cancelled your booking at ${fieldName} for ${teamName}.`,
             type: 'booking',
             metadata: {
               event: 'booking_cancelled',
               bookingId: booking.id,
+              fieldName,
               teamName,
               opponentTeamName,
               cancelledByUserId: req.user.id
             }
           }))
         );
+      }
+
+      const ownerRecipientId = booking.field?.ownerId;
+      const cancelledByOwner = req.user.role === 'field_owner';
+      if (!cancelledByOwner && ownerRecipientId) {
+        await Notification.create({
+          userId: ownerRecipientId,
+          title: 'Captain cancelled a booking',
+          message: opponentTeamName
+            ? `${cancellerName} cancelled the confirmed booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+            : `${cancellerName} cancelled the booking at ${fieldName} for ${teamName}.`,
+          type: 'booking',
+          metadata: {
+            event: 'booking_cancelled_by_captain',
+            bookingId: booking.id,
+            fieldId: booking.fieldId,
+            fieldName,
+            teamName,
+            opponentTeamName,
+            cancelledByUserId: req.user.id
+          }
+        });
       }
     }
 

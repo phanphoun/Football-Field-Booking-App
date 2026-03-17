@@ -8,6 +8,7 @@ import {
   TrophyIcon,
   ArrowLeftIcon,
   UserCircleIcon,
+  Cog6ToothIcon,
   BellAlertIcon,
   ClipboardDocumentCheckIcon,
   EyeIcon,
@@ -43,6 +44,12 @@ const OwnerLayout = () => {
     href: '/owner/profile',
     icon: UserCircleIcon,
     current: location.pathname === '/owner/profile'
+  };
+  const settingsItem = {
+    name: 'Settings',
+    href: '/owner/settings',
+    icon: Cog6ToothIcon,
+    current: location.pathname === '/owner/settings'
   };
 
   const navigation = [
@@ -288,20 +295,20 @@ const OwnerLayout = () => {
               ))}
             </nav>
 
-            <div className="border-t border-gray-200 p-3">
+            <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
                 to={profileItem.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
                   profileItem.current
-                    ? 'bg-blue-100 text-blue-900'
+                    ? 'bg-white text-gray-900'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  className="h-10 w-10 cursor-zoom-in rounded-full bg-gray-100 object-cover"
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -318,6 +325,22 @@ const OwnerLayout = () => {
                   <p className="text-sm font-medium truncate">{userDisplayName}</p>
                   <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
                 </div>
+              </Link>
+              <Link
+                to={settingsItem.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                  settingsItem.current
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <settingsItem.icon
+                  className={`h-5 w-5 flex-shrink-0 ${
+                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
+                  }`}
+                />
+                {settingsItem.name}
               </Link>
             </div>
           </div>
@@ -352,19 +375,19 @@ const OwnerLayout = () => {
               ))}
             </nav>
 
-            <div className="border-t border-gray-200 p-3">
+            <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
                 to={profileItem.href}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
                   profileItem.current
-                    ? 'bg-blue-100 text-blue-900'
+                    ? 'bg-white text-gray-900'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 cursor-zoom-in rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  className="h-10 w-10 cursor-zoom-in rounded-full bg-gray-100 object-cover"
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -381,6 +404,21 @@ const OwnerLayout = () => {
                   <p className="text-sm font-medium truncate">{userDisplayName}</p>
                   <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
                 </div>
+              </Link>
+              <Link
+                to={settingsItem.href}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                  settingsItem.current
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <settingsItem.icon
+                  className={`h-5 w-5 flex-shrink-0 ${
+                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
+                  }`}
+                />
+                {settingsItem.name}
               </Link>
             </div>
           </div>

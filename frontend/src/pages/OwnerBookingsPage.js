@@ -5,10 +5,16 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   ClockIcon,
+  MapPinIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
+import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
+import MemberDetailsModal from '../components/ui/MemberDetailsModal';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
@@ -20,6 +26,35 @@ const formatMoney = (value) => {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+const formatBookingSchedule = (startValue, endValue) => {
+  const start = startValue ? new Date(startValue) : null;
+  const end = endValue ? new Date(endValue) : null;
+
+  if (!start) return '-';
+  return `${start.toLocaleString()}${end ? ` - ${end.toLocaleTimeString()}` : ''}`;
+};
+
+const formatDateTime = (value) => {
+  if (!value) return '-';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleString();
+};
+
+const formatTimeOnly = (value) => {
+  if (!value) return '-';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleTimeString();
+};
+
+const resolveAvatarUrl = (user) => {
+  const rawAvatar = user?.avatarUrl || user?.avatar_url;
+  if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+  if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+  return `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`;
+};
+
 const OwnerBookingsPage = () => {
   const [searchParams] = useSearchParams();
   const { confirm } = useDialog();
@@ -29,7 +64,8 @@ const OwnerBookingsPage = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [expandedMembers, setExpandedMembers] = useState({});
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [captainDetailsOpen, setCaptainDetailsOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -72,15 +108,11 @@ const OwnerBookingsPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') {
-        if (!booking?.team?.id || !booking?.opponentTeam?.id) {
-          setError('Match cannot be confirmed until both teams are assigned.');
-          return;
-        }
-        const confirmed = await confirm('Do you want to confirm this match between two teams?', {
-          title: 'Confirm Match'
+        const confirmed = await confirm('Do you want to accept this booking request?', {
+          title: 'Accept Booking'
         });
         if (!confirmed) return;
-        await bookingService.confirmMatchTeams(booking.id);
+        await bookingService.confirmBooking(booking.id);
       }
       if (nextStatus === 'cancelled') {
         const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
@@ -96,11 +128,11 @@ const OwnerBookingsPage = () => {
     }
   };
 
-  const toggleMembers = (bookingId) => {
-    setExpandedMembers((prev) => ({
-      ...prev,
-      [bookingId]: !prev[bookingId]
-    }));
+  const captainDisplayName = (booking) => {
+    if (booking?.team?.captain?.firstName || booking?.team?.captain?.lastName) {
+      return `${booking.team?.captain?.firstName || ''} ${booking.team?.captain?.lastName || ''}`.trim();
+    }
+    return booking?.team?.captain?.username || 'Unknown';
   };
 
   if (loading) {
@@ -139,14 +171,30 @@ const OwnerBookingsPage = () => {
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-          <div className="text-xs uppercase tracking-wide text-blue-700">Booked</div>
-          <div className="mt-1 text-2xl font-bold text-blue-900">{counts.confirmed}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/80 p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Booked</div>
+              <div className="mt-3 text-4xl font-bold leading-none text-blue-950">{counts.confirmed}</div>
+              <p className="mt-2 text-sm text-blue-700/80">Confirmed bookings ready for play.</p>
+            </div>
+            <div className="rounded-2xl bg-white/80 p-3 text-blue-600 shadow-sm ring-1 ring-blue-100">
+              <CalendarIcon className="h-6 w-6" />
+            </div>
+          </div>
         </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-          <div className="text-xs uppercase tracking-wide text-emerald-700">Completed</div>
-          <div className="mt-1 text-2xl font-bold text-emerald-900">{counts.completed}</div>
+        <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/80 p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Completed</div>
+              <div className="mt-3 text-4xl font-bold leading-none text-emerald-950">{counts.completed}</div>
+              <p className="mt-2 text-sm text-emerald-700/80">Finished matches recorded successfully.</p>
+            </div>
+            <div className="rounded-2xl bg-white/80 p-3 text-emerald-600 shadow-sm ring-1 ring-emerald-100">
+              <CheckCircleIcon className="h-6 w-6" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -188,26 +236,32 @@ const OwnerBookingsPage = () => {
                 const isUpdating = updatingId === b.id;
                 const start = b?.startTime ? new Date(b.startTime) : null;
                 const end = b?.endTime ? new Date(b.endTime) : null;
-                const captainName =
-                  b?.team?.captain?.firstName || b?.team?.captain?.lastName
-                    ? `${b.team?.captain?.firstName || ''} ${b.team?.captain?.lastName || ''}`.trim()
-                    : b?.team?.captain?.username || 'Unknown';
-                const members = Array.isArray(b?.team?.teamMembers) ? b.team.teamMembers : [];
-                const isMembersExpanded = !!expandedMembers[b.id];
+                const captainName = captainDisplayName(b);
                 const homeTeamName = b.team?.name || 'Home Team';
                 const awayTeamName = b.opponentTeam?.name || 'Away Team';
                 const hasResult = !!b.matchResult?.id;
-                const canConfirmMatch = Boolean(b?.team?.id && b?.opponentTeam?.id);
 
                 return (
-                  <div key={b.id} className="px-6 py-4 flex flex-col gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
-                        <Badge tone={statusTone(b.status)} className="capitalize">
-                          {b.status}
-                        </Badge>
-                        <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
+                  <div
+                    key={b.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedBooking(b)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedBooking(b);
+                      }
+                    }}
+                    className="flex cursor-pointer flex-col gap-4 px-6 py-4 transition hover:bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-blue-200 lg:flex-row lg:items-start lg:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
+                          <Badge tone={statusTone(b.status)} className="capitalize">
+                            {b.status}
+                          </Badge>
+                          <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
                         <span className="inline-flex items-center gap-1">
@@ -226,55 +280,45 @@ const OwnerBookingsPage = () => {
                           Result recorded: {homeTeamName} {b.matchResult.homeScore} - {b.matchResult.awayScore} {awayTeamName}
                         </div>
                       )}
-                      <div className="mt-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleMembers(b.id)}
-                          className="text-xs font-medium text-blue-700 hover:text-blue-800 underline"
-                        >
-                          {isMembersExpanded ? 'Hide team members' : `View all members (${members.length})`}
-                        </button>
-                      </div>
-                      {isMembersExpanded && (
-                        <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-                          {members.length > 0 ? (
-                            <div className="space-y-1">
-                              {members.map((member) => {
-                                const userName =
-                                  member?.user?.firstName || member?.user?.lastName
-                                    ? `${member.user?.firstName || ''} ${member.user?.lastName || ''}`.trim()
-                                    : member?.user?.username || `User #${member.userId}`;
-                                return (
-                                  <div key={`${b.id}-${member.userId}`} className="text-xs text-gray-700">
-                                    {userName} ({member.role}, {member.status})
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-500">No members found.</div>
-                          )}
-                        </div>
-                      )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 self-start sm:self-end">
+                    <div className="flex justify-start lg:justify-end">
+                      <div className="flex flex-col items-start gap-3 lg:items-end">
+                        <div className="flex flex-wrap items-center gap-2">
                       {b.status === 'pending' && (
                         <>
-                          <Button size="sm" disabled={isUpdating || !canConfirmMatch} onClick={() => handleStatus(b, 'confirmed')}>
+                          <Button
+                            size="sm"
+                            className="h-7 px-2.5 text-xs"
+                            disabled={isUpdating}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleStatus(b, 'confirmed');
+                            }}
+                          >
                             <CheckCircleIcon className="h-4 w-4" />
-                            Confirm Match
+                            Accept Booking
                           </Button>
-                          <Button size="sm" variant="danger" disabled={isUpdating} onClick={() => handleStatus(b, 'cancelled')}>
-                            <XCircleIcon className="h-4 w-4" />
-                            Cancel
-                          </Button>
-                          {!canConfirmMatch && <Badge tone="gray">Need two teams</Badge>}
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          className="h-7 px-2.5 text-xs"
+                          disabled={isUpdating}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleStatus(b, 'cancelled');
+                          }}
+                        >
+                          <XCircleIcon className="h-4 w-4" />
+                          Cancel
+                        </Button>
                         </>
                       )}
                       {b.status === 'confirmed' && <Badge tone="blue">Use Matches page to complete</Badge>}
                       {b.status === 'completed' && <Badge tone="blue">Completed</Badge>}
                       {b.status === 'cancelled' && <Badge tone="gray">No actions</Badge>}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -287,6 +331,164 @@ const OwnerBookingsPage = () => {
           Tip: Confirm pending requests quickly to improve your field booking rate.
         </CardBody>
       </Card>
+
+      <ConfirmationModal
+        isOpen={Boolean(selectedBooking)}
+        title={selectedBooking?.field?.name || 'Booking details'}
+        message="View the full booking information and manage the request."
+        confirmLabel="Close"
+        badgeLabel="Booking Details"
+        variant="default"
+        showCancel={false}
+        showConfirm={false}
+        onConfirm={() => setSelectedBooking(null)}
+        onClose={() => setSelectedBooking(null)}
+      >
+        {selectedBooking && (
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={statusTone(selectedBooking.status)} className="capitalize">
+                {selectedBooking.status}
+              </Badge>
+              <Badge tone="green">{formatMoney(selectedBooking.totalPrice)}</Badge>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Booking Information</div>
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Date</div>
+                  <div className="mt-1.5 text-sm font-medium text-slate-900">{formatDateTime(selectedBooking.startTime).split(',')[0]}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Start Time</div>
+                  <div className="mt-1.5 text-sm font-medium text-slate-900">{formatTimeOnly(selectedBooking.startTime)}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">End Time</div>
+                  <div className="mt-1.5 text-sm font-medium text-slate-900">{formatTimeOnly(selectedBooking.endTime)}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Booking ID</div>
+                  <div className="mt-1.5 text-sm font-medium text-slate-900">#{selectedBooking.id}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-2 lg:grid-cols-[1.08fr_0.92fr]">
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Captain Account</div>
+                  <div className="mt-1 text-xs text-slate-500">Who created this booking</div>
+                </div>
+                <div className="mt-2.5 flex items-center gap-3 rounded-xl bg-slate-50 p-2.5">
+                  <img
+                    src={resolveAvatarUrl(selectedBooking?.team?.captain)}
+                    alt={`${captainDisplayName(selectedBooking)} avatar`}
+                    className="h-12 w-12 rounded-full border border-slate-200 bg-slate-100 object-cover"
+                    onError={(event) => {
+                      const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                      if (event.currentTarget.src !== fallbackUrl) {
+                        event.currentTarget.src = fallbackUrl;
+                      }
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold leading-tight text-slate-900">{captainDisplayName(selectedBooking)}</div>
+                    <div className="mt-0.5 text-xs text-slate-600">@{selectedBooking?.team?.captain?.username || 'captain'}</div>
+                    <div className="mt-1.5 inline-flex rounded-full bg-white px-2 py-1 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
+                      {selectedBooking.team?.name || 'No team assigned'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Teams</div>
+                <div className="mt-2.5 space-y-2">
+                  <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Home Team</div>
+                    <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.team?.name || 'Team not assigned'}</div>
+                    <div className="mt-1 text-xs text-slate-600">Captain: {captainDisplayName(selectedBooking)}</div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Opponent Team</div>
+                    <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.opponentTeam?.name || 'Not assigned yet'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Field</div>
+                <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.field?.name || 'Field'}</div>
+                {selectedBooking.field?.address && (
+                  <div className="mt-1 inline-flex items-start gap-1 text-xs text-slate-600">
+                    <MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{selectedBooking.field.address}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Other Information</div>
+                <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.field?.name || 'Field'}</div>
+                <div className="mt-1 text-xs text-slate-600">
+                  {selectedBooking.field?.city || selectedBooking.field?.province
+                    ? [selectedBooking.field?.city, selectedBooking.field?.province].filter(Boolean).join(', ')
+                    : 'Location details not available'}
+                </div>
+              </div>
+            </div>
+
+            {selectedBooking.matchResult?.id && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Result</div>
+                <div className="mt-1.5 text-sm font-medium text-emerald-900">
+                  {selectedBooking.team?.name || 'Home Team'} {selectedBooking.matchResult.homeScore} - {selectedBooking.matchResult.awayScore}{' '}
+                  {selectedBooking.opponentTeam?.name || 'Away Team'}
+                </div>
+              </div>
+            )}
+
+            {selectedBooking.status === 'pending' && (
+              <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <Button
+                  size="sm"
+                  variant="danger"
+                  className="h-8 px-3 text-xs"
+                  disabled={updatingId === selectedBooking.id}
+                  onClick={async () => {
+                    await handleStatus(selectedBooking, 'cancelled');
+                    setSelectedBooking(null);
+                  }}
+                >
+                  <XCircleIcon className="h-4 w-4" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  disabled={updatingId === selectedBooking.id}
+                  onClick={async () => {
+                    await handleStatus(selectedBooking, 'confirmed');
+                    setSelectedBooking(null);
+                  }}
+                >
+                  <CheckCircleIcon className="h-4 w-4" />
+                  Accept Booking
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </ConfirmationModal>
+
+      <MemberDetailsModal
+        member={captainDetailsOpen ? selectedBooking?.team?.captain : null}
+        onClose={() => setCaptainDetailsOpen(false)}
+      />
     </div>
   );
 };

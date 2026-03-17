@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BoltIcon,
   ArrowTrendingUpIcon,
@@ -24,7 +24,7 @@ import { StarIcon } from '@heroicons/react/24/solid';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
-import { Button, EmptyState, Spinner } from '../components/ui';
+import { EmptyState, Spinner } from '../components/ui';
 
 const HERO_IMAGES = [
   '/hero-manu.jpg',
@@ -48,6 +48,88 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
 
+const FEATURED_FALLBACK_FIELDS = [
+  {
+    id: 'fallback-1',
+    name: 'Premium Outdoor Field',
+    address: 'Downtown Sports Complex',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 80,
+    status: 'available',
+    images: [
+      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
+    ]
+  },
+  {
+    id: 'fallback-2',
+    name: 'Stadium Football Pitch',
+    address: 'City Stadium Arena',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 120,
+    status: 'available',
+    images: [
+      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
+    ]
+  },
+  {
+    id: 'fallback-3',
+    name: 'Indoor Football Arena',
+    address: 'Sports Hub Indoor',
+    city: 'Phnom Penh',
+    capacity: 14,
+    sessionDuration: 60,
+    pricePerHour: 100,
+    status: 'booked',
+    images: [
+      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
+    ]
+  },
+  {
+    id: 'fallback-4',
+    name: 'City Center Pitch',
+    address: 'Central Sports Park',
+    city: 'Phnom Penh',
+    capacity: 18,
+    sessionDuration: 90,
+    pricePerHour: 95,
+    status: 'available',
+    images: [
+      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
+    ]
+  },
+  
+  {
+    id: 'fallback-5',
+    name: 'Night Lights Field',
+    address: 'North Arena',
+    city: 'Phnom Penh',
+    capacity: 20,
+    sessionDuration: 90,
+    pricePerHour: 110,
+    status: 'available',
+    images: [
+      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
+    ]
+  },
+  {
+    id: 'fallback-6',
+    name: 'Champions Ground',
+    address: 'West Stadium',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 130,
+    status: 'booked',
+    images: [
+      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
+    ]
+  }
+  
+];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 const POPULAR_TIME_SLOT_SESSIONS = [
@@ -57,7 +139,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
     time: '08:00 - 12:00',
     startHour: 8,
     endHour: 12,
-    fallbackRate: 0,
+    fallbackRate: 68,
     description: 'Cooler kickoff hours for teams that want an early start.'
   },
   {
@@ -66,7 +148,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
     time: '12:00 - 18:00',
     startHour: 12,
     endHour: 18,
-    fallbackRate: 0,
+    fallbackRate: 80,
     description: 'Balanced midday and after-work demand for flexible match schedules.'
   },
   {
@@ -75,7 +157,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
     time: '18:00 - 22:00',
     startHour: 18,
     endHour: 22,
-    fallbackRate: 0,
+    fallbackRate: 92,
     description: 'Prime-time booking window for the busiest games under the lights.'
   }
 ];
@@ -110,13 +192,12 @@ const applyStarRatings = (slots) => {
 
   return slots.map((slot) => {
     const rank = rankedRates.indexOf(Number(slot.rate || 0));
-    const stars = Number(slot.rate || 0) > 0 ? Math.max(3, 5 - Math.min(rank, 2)) : 0;
-    const rating = stars > 0 ? `${stars}.0` : '0.0';
+    const stars = Math.max(3, 5 - Math.min(rank, 2));
 
     return {
       ...slot,
       stars,
-      rating
+      rating: `${stars}.0`
     };
   });
 };
@@ -234,6 +315,8 @@ const SPECIAL_OFFERS = [
   }
 ];
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-16';
+const SCHEDULE_COLUMN_MIN_WIDTH = 220;
+const SCHEDULE_TIME_COLUMN_WIDTH_CLASS = 'w-28';
 const toLocalDateKey = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -271,10 +354,10 @@ const findEventsForSlot = (events, slot) => {
   );
 };
 const LandingPage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const canCreateBooking = user?.role === 'captain';
-  const captainAccessMessage = 'Please request to become captain in Settings.';
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [popularTimeSlots, setPopularTimeSlots] = useState(POPULAR_TIME_SLOTS);
@@ -310,9 +393,7 @@ const LandingPage = () => {
         const slotStats = bookingsResponse?.success && Array.isArray(bookingsResponse?.data?.timeSlots)
           ? bookingsResponse.data.timeSlots
           : [];
-        const bookings = bookingsResponse?.success && Array.isArray(bookingsResponse?.data?.bookings)
-          ? bookingsResponse.data.bookings
-          : [];
+        const bookings = bookingsResponse?.success && Array.isArray(bookingsResponse?.data) ? bookingsResponse.data : [];
 
         const topFields = [...fields]
           .sort((a, b) => {
@@ -381,7 +462,11 @@ const LandingPage = () => {
   );
 
   const featuredFields = useMemo(() => {
-    return popularFields.slice(0, 6);
+    const merged = [...popularFields];
+    for (let i = merged.length; i < 6; i += 1) {
+      merged.push(FEATURED_FALLBACK_FIELDS[i]);
+    }
+    return merged.slice(0, 6);
   }, [popularFields]);
 
   const scheduleDays = useMemo(() => {
@@ -427,7 +512,7 @@ const LandingPage = () => {
     const fetchSchedule = async () => {
       try {
         setScheduleLoading(true);
-        const response = await bookingService.getPublicSchedule(selectedDay, 6);
+        const response = await bookingService.getPublicSchedule(selectedDay);
         const payload = response.data || {};
         const fields = Array.isArray(payload.fields) ? payload.fields : [];
         const bookings = Array.isArray(payload.bookings) ? payload.bookings : [];
@@ -447,9 +532,9 @@ const LandingPage = () => {
 
   const scheduleFields = useMemo(() => {
     if (scheduleFieldsData.length > 0) return scheduleFieldsData;
-    return popularFields.slice(0, 3);
-  }, [scheduleFieldsData, popularFields]);
-  const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * 170 + 96}px`;
+    return featuredFields;
+  }, [scheduleFieldsData, featuredFields]);
+  const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * SCHEDULE_COLUMN_MIN_WIDTH + 112}px`;
 
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -595,36 +680,18 @@ const LandingPage = () => {
     const bookingPath = buildBookingPath(field, day, time);
 
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: bookingPath } });
+      navigate('/login', { state: { from: bookingPath, backgroundLocation: location } });
       return;
     }
 
     if (!canCreateBooking) {
       navigate('/app/settings', {
-        state: { errorMessage: captainAccessMessage }
+        state: { focusRoleRequest: 'captain' }
       });
       return;
     }
 
     navigate(bookingPath);
-  };
-
-  const handleStartBooking = () => {
-    const fieldsPath = '/fields?focus=search';
-
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: fieldsPath } });
-      return;
-    }
-
-    if (!canCreateBooking) {
-      navigate('/app/settings', {
-        state: { errorMessage: captainAccessMessage }
-      });
-      return;
-    }
-
-    navigate(fieldsPath);
   };
 
   const handleTimeSlotClick = (field, slot) => {
@@ -701,25 +768,6 @@ const LandingPage = () => {
                 Discover highly rated pitches, compare live schedules, and lock in the best session for your team in a few clicks.
               </p>
 
-              <div className="mt-8 grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
-              <Button
-                as={Link}
-                to="/app/bookings/new"
-                onClick={handleStartBooking}
-                className="justify-center rounded-xl border border-emerald-300/70 bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/25 hover:bg-emerald-400"
-              >
-                <CalendarIcon className="mr-1 h-3.5 w-3.5" />
-                {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book a Field'}
-              </Button>
-
-              <Button
-                as={Link}
-                to="/fields?focus=search"
-                className="justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-950/20 backdrop-blur-sm hover:bg-white/15"
-              >
-                Browse Fields
-              </Button>
-              </div>
             </div>
           </div>
         </div>
@@ -1061,18 +1109,23 @@ const LandingPage = () => {
                 </span>
               </div>
             </div>
-            <div className="flex border-b border-slate-200 bg-blue-600 text-white">
-              <div className="w-24 p-4 font-semibold">Time</div>
-              <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${scheduleFields.length}, minmax(120px, 1fr))` }}>
+              <div className="flex border-b border-slate-200 bg-blue-600 text-white">
+               <div className={`sticky left-0 z-10 ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} border-r border-white/20 bg-blue-700 p-4 font-semibold`}>
+                 Time
+               </div>
+               <div
+                className="grid flex-1"
+                style={{ gridTemplateColumns: `repeat(${scheduleFields.length}, minmax(${SCHEDULE_COLUMN_MIN_WIDTH}px, 1fr))` }}
+              >
                 {scheduleFields.map((field) => (
                   <button
                     key={field.id}
                     type="button"
                     onClick={() => handleOpenFieldFromSchedule(field)}
-                    className="border-l border-white/20 px-2 py-4 text-center text-sm font-semibold hover:bg-white/10"
+                    className="flex min-h-[86px] flex-col items-center justify-center border-l border-white/20 px-3 py-3 text-center text-sm font-semibold hover:bg-white/10"
                   >
-                    <div className="font-semibold">{field.name}</div>
-                    <div className="text-xs opacity-90">{field.fieldType || 'Outdoor'}</div>
+                    <div className="max-w-[180px] text-balance text-base font-semibold leading-tight">{field.name}</div>
+                    <div className="mt-1 text-xs font-medium opacity-90">{field.fieldType || 'Outdoor'}</div>
                   </button>
                 ))}
               </div>
@@ -1082,11 +1135,16 @@ const LandingPage = () => {
               const slotEventsForAllFields = findEventsForSlot(scheduleEvents, slot);
               return (
                 <div key={slot} className="flex border-b border-slate-200 last:border-b-0">
-                  <div className={`w-24 p-2.5 text-left font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}>
-                    {slot}
+                  <div
+                    className={`sticky left-0 z-[1] ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} border-r border-slate-200 bg-white p-2.5 text-left font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
+                  >
+                    <div className="text-sm leading-tight">{slot}</div>
                   </div>
                   <div className="relative flex-1">
-                    <div className={`grid ${SCHEDULE_ROW_HEIGHT_CLASS}`} style={{ gridTemplateColumns: `repeat(${scheduleFields.length}, minmax(120px, 1fr))` }}>
+                    <div
+                      className={`grid ${SCHEDULE_ROW_HEIGHT_CLASS}`}
+                      style={{ gridTemplateColumns: `repeat(${scheduleFields.length}, minmax(${SCHEDULE_COLUMN_MIN_WIDTH}px, 1fr))` }}
+                    >
                       {scheduleFields.map((field) => {
                         const rowEvents = slotEventsForAllFields.filter((event) => Number(event.fieldKey) === Number(field.id));
                         const slotOwnEvent = rowEvents.find((event) => event.isOwnBooking);
@@ -1133,7 +1191,8 @@ const LandingPage = () => {
                             </div>
                           );
                         }
-                        // If no booking, show
+
+                        // If no booking, show empty cell
                         return (
                           <div
                             key={`${field.id}-${slot}`}
@@ -1291,7 +1350,7 @@ const LandingPage = () => {
               title="No fields yet"
               description="Once owners add fields, they will appear here for guests."
               actionLabel="Browse Fields"
-              onAction={() => navigate('/fields')}
+              onAction={() => (window.location.href = '/fields')}
             />
           )}
         </div>
