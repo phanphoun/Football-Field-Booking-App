@@ -11,6 +11,20 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().includes('no field image');
+const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+const getDiscountedPrice = (field) => {
+  const basePrice = Number(field?.pricePerHour || 0);
+  const discountPercent = getDiscountPercent(field);
+  return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+};
+const getStatusToneClasses = (status) => {
+  const normalizedStatus = String(status || 'available').toLowerCase();
+  if (normalizedStatus === 'available') return 'bg-blue-50 text-blue-700';
+  if (normalizedStatus === 'booked') return 'bg-red-100 text-red-700';
+  if (normalizedStatus === 'maintenance') return 'bg-amber-100 text-amber-700';
+  return 'bg-slate-200 text-slate-700';
+};
+const isBookableField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
 
 const FieldsPage = () => {
   const navigate = useNavigate();
@@ -299,24 +313,30 @@ const FieldsPage = () => {
       {/* Fields Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFields.length > 0 ? (
-          filteredFields.map((field) => (
+          filteredFields.map((field) => {
+            const discountPercent = getDiscountPercent(field);
+            const discountedPrice = getDiscountedPrice(field);
+            const fieldStatus = String(field.status || 'available').toLowerCase();
+            const canBookThisField = isBookableField(field);
+
+            return (
             <div
               key={field.id}
-              onClick={() => !isAdmin && handleBookField(field.id)}
-              role={!isAdmin ? 'button' : undefined}
-              tabIndex={!isAdmin ? 0 : -1}
+              onClick={() => !isAdmin && canBookThisField && handleBookField(field.id)}
+              role={!isAdmin && canBookThisField ? 'button' : undefined}
+              tabIndex={!isAdmin && canBookThisField ? 0 : -1}
               onKeyDown={(event) => {
-                if (isAdmin) return;
+                if (isAdmin || !canBookThisField) return;
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
                   handleBookField(field.id);
                 }
               }}
               className={`bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow ${
-                isAdmin ? '' : 'cursor-pointer'
+                isAdmin ? '' : canBookThisField ? 'cursor-pointer' : 'cursor-default'
               }`}
             >
-              <div className="h-48 bg-gray-200 overflow-hidden">
+              <div className="relative h-48 bg-gray-200 overflow-hidden">
                 <img
                   src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
                   alt={field.name}
@@ -327,15 +347,32 @@ const FieldsPage = () => {
                     }
                   }}
                 />
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                  <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                    {field.fieldType || 'Field'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {discountPercent > 0 && (
+                      <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                        {discountPercent}% OFF
+                      </span>
+                    )}
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${getStatusToneClasses(fieldStatus)} bg-opacity-95`}>
+                      {fieldStatus}
+                    </span>
+                  </div>
+                </div>
               </div>
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-medium text-gray-900">{field.name}</h3>
-                  <div className="flex items-center">
-                    <SparklesIcon className="h-4 w-4 text-yellow-400" />
-                    <span className="ml-1 text-sm text-gray-600">
-                      {getRatingDisplay(field.rating, field.totalRatings)}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center">
+                      <SparklesIcon className="h-4 w-4 text-yellow-400" />
+                      <span className="ml-1 text-sm text-gray-600">
+                        {getRatingDisplay(field.rating, field.totalRatings)}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
@@ -350,7 +387,14 @@ const FieldsPage = () => {
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                    ${field.pricePerHour}/hour
+                    {discountPercent > 0 ? (
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold text-emerald-600">${discountedPrice}/hour</span>
+                        <span className="text-gray-400 line-through">${field.pricePerHour}/hour</span>
+                      </span>
+                    ) : (
+                      `$${field.pricePerHour}/hour`
+                    )}
                   </div>
                 </div>
 
@@ -359,15 +403,19 @@ const FieldsPage = () => {
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (!canBookThisField) return;
                         handleBookField(field.id);
                       }}
+                      disabled={!canBookThisField}
                       className={`flex-1 px-4 py-2 rounded-md transition-colors text-sm font-medium ${
-                        isAuthenticated && !canCreateBooking
+                        !canBookThisField
+                          ? 'border border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed'
+                          : isAuthenticated && !canCreateBooking
                           ? 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
                           : 'bg-green-600 text-white hover:bg-green-700'
                       }`}
                     >
-                      Book Now
+                      {canBookThisField ? 'Book Now' : 'Not Available'}
                     </button>
                   )}
                   <button
@@ -394,7 +442,8 @@ const FieldsPage = () => {
                 </div>
               </div>
             </div>
-          ))
+            );
+          })
         ) : (
           <div className="col-span-full">
             <EmptyState

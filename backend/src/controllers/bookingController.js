@@ -2,7 +2,7 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-  { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour'] },
+  { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour', 'discountPercent'] },
   {
     model: Team,
     as: 'team',
@@ -55,6 +55,12 @@ const buildDateAtHour = (date, hour) => {
   const bookingDate = new Date(`${date}T00:00:00`);
   bookingDate.setHours(hour, 0, 0, 0);
   return bookingDate;
+};
+
+const getEffectiveHourlyRate = (field) => {
+  const basePrice = Number(field?.pricePerHour || 0);
+  const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+  return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
 
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
@@ -133,6 +139,7 @@ const requireCaptainRole = (req, res) => {
 const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
 const isUnavailableForJoin = (booking) =>
   isClosedStatus(booking) || new Date(booking.startTime) <= new Date();
+const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
 
 const createBooking = async (req, res) => {
   try {
@@ -150,8 +157,31 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Field not found' });
     }
 
+    if (String(field.status || 'available').toLowerCase() !== 'available') {
+      return res.status(400).json({
+        success: false,
+        message: `Field is currently ${field.status} and cannot be booked.`
+      });
+    }
+
+    const activeFieldBooking = await Booking.findOne({
+      where: {
+        fieldId,
+        status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+        endTime: { [Op.gt]: new Date() }
+      },
+      order: [['startTime', 'ASC']]
+    });
+
+    if (activeFieldBooking) {
+      return res.status(400).json({
+        success: false,
+        message: 'Field is already booked and unavailable for another booking.'
+      });
+    }
+
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
-    const totalPrice = duration * parseFloat(field.pricePerHour);
+    const totalPrice = Number((duration * getEffectiveHourlyRate(field)).toFixed(2));
 
     const existingBooking = await Booking.findOne({
       where: {

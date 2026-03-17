@@ -80,6 +80,15 @@ module.exports = (sequelize, DataTypes) => {
         min: 0
       }
     },
+    discountPercent: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+        max: 100
+      }
+    },
     operatingHours: {
       type: DataTypes.JSON,
       allowNull: true,
@@ -115,6 +124,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('available', 'unavailable', 'maintenance'),
       defaultValue: 'available',
       allowNull: false
+    },
+    isArchived: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     },
     amenities: {
       type: DataTypes.JSON,
