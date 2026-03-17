@@ -469,13 +469,24 @@ const OwnerLayout = () => {
                     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
                       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                         <p className="text-sm font-semibold text-gray-900">Notifications</p>
-                        <button
-                          onClick={handleMarkAllAsRead}
-                          disabled={notificationActionLoading || unreadNotifications === 0}
-                          className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                        >
-                          Mark all read
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            disabled={notificationActionLoading || unreadNotifications === 0}
+                            className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                          >
+                            Mark all read
+                          </button>
+                          <button
+                            onClick={() => {
+                              setNotificationsMenuOpen(false);
+                              navigate('/owner/notifications');
+                            }}
+                            className="text-xs font-medium text-blue-700 hover:text-blue-800"
+                          >
+                            View all
+                          </button>
+                        </div>
                       </div>
 
                       <div className="max-h-[420px] overflow-y-auto">

@@ -163,6 +163,7 @@ const AppRoutes = () => {
           />
           <Route path="league" element={<LeaguePage />} />
           <Route path="matches" element={<OwnerMatchesPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
