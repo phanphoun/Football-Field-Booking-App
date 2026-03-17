@@ -377,7 +377,7 @@ const LandingPage = () => {
         setError(null);
 
         const [fieldsResult, bookingsResult] = await Promise.allSettled([
-          fieldService.getAllFields({ limit: 12 }),
+          fieldService.getAllFields({ limit: 12, status: 'available' }),
           bookingService.getPublicBookingStats({
             lookbackDays: 30,
             top: 7,

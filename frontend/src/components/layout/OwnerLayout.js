@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   HomeIcon,
   BuildingOfficeIcon,
+  UsersIcon,
   CalendarIcon,
   TrophyIcon,
   ArrowLeftIcon,
@@ -70,6 +71,12 @@ const OwnerLayout = () => {
       href: '/owner/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/league')
+    },
+    {
+      name: 'Teams',
+      href: '/owner/teams',
+      icon: UsersIcon,
+      current: location.pathname.startsWith('/owner/teams')
     },
     {
       name: 'Bookings',

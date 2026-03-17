@@ -27,14 +27,6 @@ const formatMoney = (value) => {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
-const formatBookingSchedule = (startValue, endValue) => {
-  const start = startValue ? new Date(startValue) : null;
-  const end = endValue ? new Date(endValue) : null;
-
-  if (!start) return '-';
-  return `${start.toLocaleString()}${end ? ` - ${end.toLocaleTimeString()}` : ''}`;
-};
-
 const formatDateTime = (value) => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -47,6 +39,43 @@ const formatTimeOnly = (value) => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '-';
   return parsed.toLocaleTimeString();
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildScheduleWithSelectedDate = (booking, dateValue) => {
+  if (!booking?.startTime || !booking?.endTime || !dateValue) return null;
+  const [year, month, day] = String(dateValue).split('-').map(Number);
+  if (![year, month, day].every(Number.isFinite)) return null;
+
+  const currentStart = new Date(booking.startTime);
+  const currentEnd = new Date(booking.endTime);
+  if (Number.isNaN(currentStart.getTime()) || Number.isNaN(currentEnd.getTime())) return null;
+
+  const durationMs = currentEnd.getTime() - currentStart.getTime();
+  if (durationMs <= 0) return null;
+
+  const nextStart = new Date(currentStart);
+  nextStart.setFullYear(year, month - 1, day);
+
+  let nextEnd = new Date(currentEnd);
+  nextEnd.setFullYear(year, month - 1, day);
+  if (nextEnd <= nextStart) {
+    nextEnd = new Date(nextStart.getTime() + durationMs);
+  }
+
+  return {
+    startTime: nextStart.toISOString(),
+    endTime: nextEnd.toISOString()
+  };
 };
 
 const resolveAvatarUrl = (user) => {
@@ -67,6 +96,7 @@ const OwnerBookingsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [captainDetailsOpen, setCaptainDetailsOpen] = useState(false);
+  const [acceptDateByBooking, setAcceptDateByBooking] = useState({});
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -109,11 +139,22 @@ const OwnerBookingsPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') {
+        const selectedDate = acceptDateByBooking[booking.id] || toDateInputValue(booking.startTime);
+        if (!selectedDate) {
+          setError('Please select a date before accepting this booking.');
+          return;
+        }
+        const nextSchedule = buildScheduleWithSelectedDate(booking, selectedDate);
+        if (!nextSchedule) {
+          setError('Unable to update booking date. Please choose a valid date.');
+          return;
+        }
+
         const confirmed = await confirm('Do you want to accept this booking request?', {
           title: 'Accept Booking'
         });
         if (!confirmed) return;
-        await bookingService.confirmBooking(booking.id);
+        await bookingService.confirmBooking(booking.id, nextSchedule);
       }
       if (nextStatus === 'cancelled') {
         const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
@@ -296,6 +337,25 @@ const OwnerBookingsPage = () => {
 
                     <div className="flex justify-start lg:justify-end">
                       <div className="flex flex-col items-start gap-3 lg:items-end">
+                        {b.status === 'pending' && (
+                          <div className="w-full min-w-[220px] lg:w-[220px]">
+                            <label className="block text-[11px] font-medium text-gray-600">Match date</label>
+                            <input
+                              type="date"
+                              value={acceptDateByBooking[b.id] ?? toDateInputValue(b.startTime)}
+                              min={toDateInputValue(new Date())}
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              onChange={(event) =>
+                                setAcceptDateByBooking((prev) => ({
+                                  ...prev,
+                                  [b.id]: event.target.value
+                                }))
+                              }
+                              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                            />
+                          </div>
+                        )}
                         <div className="flex flex-wrap items-center gap-2">
                       {b.status === 'pending' && (
                         <>
@@ -478,6 +538,21 @@ const OwnerBookingsPage = () => {
 
             {selectedBooking.status === 'pending' && (
               <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mr-auto min-w-[220px]">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Match date</label>
+                  <input
+                    type="date"
+                    value={acceptDateByBooking[selectedBooking.id] ?? toDateInputValue(selectedBooking.startTime)}
+                    min={toDateInputValue(new Date())}
+                    onChange={(event) =>
+                      setAcceptDateByBooking((prev) => ({
+                        ...prev,
+                        [selectedBooking.id]: event.target.value
+                      }))
+                    }
+                    className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900"
+                  />
+                </div>
                 <Button
                   size="sm"
                   variant="danger"

@@ -34,9 +34,29 @@ const resolvePrimaryFieldImagePath = (imagePath) => {
   return path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', imagePath.slice(1));
 };
 
+const normalizeClosureMessage = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized.slice(0, 500) : null;
+};
+
+const normalizeOptionalDate = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const getFields = async (req, res) => {
   try {
-    const fields = await Field.findAll();
+    const where = {};
+    if (req.query.status) {
+      where.status = req.query.status;
+    }
+    if (req.query.city) {
+      where.city = req.query.city;
+    }
+
+    const fields = await Field.findAll({ where });
     res.json({ success: true, data: fields });
   } catch (error) {
     console.error('Get fields error:', error);
@@ -108,9 +128,24 @@ const createField = async (req, res) => {
       surfaceType,
       capacity,
       status,
+      closureMessage,
+      closureStartAt,
+      closureEndAt,
       amenities,
       images
     } = req.body;
+
+    const normalizedStatus = status || 'available';
+    const normalizedClosureMessage =
+      normalizedStatus === 'available' ? null : normalizeClosureMessage(closureMessage);
+    const normalizedClosureStartAt = normalizedStatus === 'available' ? null : normalizeOptionalDate(closureStartAt);
+    const normalizedClosureEndAt = normalizedStatus === 'available' ? null : normalizeOptionalDate(closureEndAt);
+    if (normalizedClosureStartAt && normalizedClosureEndAt && normalizedClosureEndAt <= normalizedClosureStartAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Open-back date must be after close date.'
+      });
+    }
 
     const field = await Field.create({
       name,
@@ -126,7 +161,10 @@ const createField = async (req, res) => {
       fieldType,
       surfaceType,
       capacity,
-      status,
+      status: normalizedStatus,
+      closureMessage: normalizedClosureMessage,
+      closureStartAt: normalizedClosureStartAt,
+      closureEndAt: normalizedClosureEndAt,
       amenities,
       images
     });
@@ -174,6 +212,9 @@ const updateField = async (req, res) => {
       'surfaceType',
       'capacity',
       'status',
+      'closureMessage',
+      'closureStartAt',
+      'closureEndAt',
       'amenities',
       'images'
     ];
@@ -181,6 +222,36 @@ const updateField = async (req, res) => {
     const updateData = {};
     for (const key of updatableFields) {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
+    }
+
+    if (updateData.closureMessage !== undefined) {
+      updateData.closureMessage = normalizeClosureMessage(updateData.closureMessage);
+    }
+    if (updateData.closureStartAt !== undefined) {
+      updateData.closureStartAt = normalizeOptionalDate(updateData.closureStartAt);
+    }
+    if (updateData.closureEndAt !== undefined) {
+      updateData.closureEndAt = normalizeOptionalDate(updateData.closureEndAt);
+    }
+
+    if (updateData.status === 'available') {
+      updateData.closureMessage = null;
+      updateData.closureStartAt = null;
+      updateData.closureEndAt = null;
+    } else if (updateData.status && updateData.closureMessage === undefined) {
+      updateData.closureMessage = normalizeClosureMessage(field.closureMessage);
+      if (updateData.closureStartAt === undefined) {
+        updateData.closureStartAt = normalizeOptionalDate(field.closureStartAt);
+      }
+      if (updateData.closureEndAt === undefined) {
+        updateData.closureEndAt = normalizeOptionalDate(field.closureEndAt);
+      }
+    }
+    if (updateData.closureStartAt && updateData.closureEndAt && updateData.closureEndAt <= updateData.closureStartAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Open-back date must be after close date.'
+      });
     }
 
     const currentImages = Array.isArray(field.images) ? field.images : [];

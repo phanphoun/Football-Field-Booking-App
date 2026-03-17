@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
@@ -10,6 +10,8 @@ const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 
 const TeamCreatePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ const TeamCreatePage = () => {
     const fetchFields = async () => {
       try {
         setLoading(true);
-        const response = await fieldService.getAllFields();
+        const response = await fieldService.getAllFields({ status: 'available' });
         const fieldsData = Array.isArray(response.data) ? response.data : [];
         setFields(fieldsData);
       } catch (err) {
@@ -156,7 +158,7 @@ const TeamCreatePage = () => {
           }
         }
 
-        navigate(createdTeamId ? `/app/teams/${createdTeamId}` : '/app/teams', {
+        navigate(createdTeamId ? `${basePath}/teams/${createdTeamId}` : `${basePath}/teams`, {
           replace: true,
           state: navigationState
         });
@@ -334,7 +336,7 @@ const TeamCreatePage = () => {
 
         <div className="flex justify-end gap-3 pt-2">
           <Link
-            to="/app/teams"
+            to={`${basePath}/teams`}
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
             Cancel

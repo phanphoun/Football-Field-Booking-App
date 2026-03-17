@@ -185,6 +185,16 @@ const applyLegacySchemaFixes = async (sequelize) => {
     changes.push('notifications.metadata');
   }
 
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureMessage', 'TEXT NULL')) {
+    changes.push('fields.closureMessage');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureStartAt', 'DATETIME NULL')) {
+    changes.push('fields.closureStartAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureEndAt', 'DATETIME NULL')) {
+    changes.push('fields.closureEndAt');
+  }
+
   if (await addColumnIfMissing(sequelize, 'users', 'avatarUrl', 'VARCHAR(255) NULL')) {
     changes.push('users.avatarUrl');
   }

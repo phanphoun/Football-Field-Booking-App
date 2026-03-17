@@ -11,7 +11,7 @@ const fieldService = {
       city: filters.city,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
-      status: filters.status || 'available'
+      status: filters.status
     };
 
     const response = await apiService.get('/fields', params);

@@ -81,7 +81,7 @@ const CreateBookingPage = () => {
       try {
         setLoading(true);
         const [fieldsResponse, teamsResponse] = await Promise.all([
-          fieldService.getAllFields(),
+          fieldService.getAllFields({ status: 'available' }),
           teamService.getMyTeams()
         ]);
         

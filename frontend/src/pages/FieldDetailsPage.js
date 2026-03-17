@@ -97,6 +97,11 @@ const FieldDetailsPage = () => {
   }, [field?.id, scheduleDay]);
 
   const handleBook = () => {
+    if (field?.status && field.status !== 'available') {
+      setError(field.closureMessage || `This field is currently ${field.status}.`);
+      return;
+    }
+
     const bookingPath = `/app/bookings/new?fieldId=${id}`;
 
     if (!isAuthenticated) {
@@ -113,6 +118,11 @@ const FieldDetailsPage = () => {
   };
 
   const handleSlotBook = (hour) => {
+    if (field?.status && field.status !== 'available') {
+      setError(field.closureMessage || `This field is currently ${field.status}.`);
+      return;
+    }
+
     if (!canCreateBooking) {
       handleBook();
       return;
@@ -142,6 +152,17 @@ const FieldDetailsPage = () => {
   };
 
   const slotItems = useMemo(() => {
+    const isFieldClosed = field?.status && field.status !== 'available';
+
+    if (isFieldClosed) {
+      return SLOT_HOURS.map((hour) => ({
+        key: `${scheduleDay}-${hour}`,
+        hour,
+        state: 'closed',
+        booking: null
+      }));
+    }
+
     return SLOT_HOURS.map((hour) => {
       const booking = slotBookings.find((item) => {
         const start = new Date(item.startTime);
@@ -165,10 +186,9 @@ const FieldDetailsPage = () => {
         booking
       };
     });
-  }, [scheduleDay, slotBookings]);
+  }, [scheduleDay, slotBookings, field?.status]);
 
-  const fieldRating = Number(field?.rating || 0);
-  const totalRatings = Number(field?.totalRatings || 0);
+  const isFieldClosed = field?.status && field.status !== 'available';
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'live-booking', label: 'Live Booking' },
@@ -235,8 +255,12 @@ const FieldDetailsPage = () => {
 
             <div className="flex items-center gap-3">
               {!isAdmin && (
-                <Button onClick={handleBook}>
-                  {isAuthenticated && !canCreateBooking ? 'Request Booking Access' : 'Book Now'}
+                <Button onClick={handleBook} disabled={isFieldClosed}>
+                  {isFieldClosed
+                    ? 'Field Closed'
+                    : isAuthenticated && !canCreateBooking
+                    ? 'Request Booking Access'
+                    : 'Book Now'}
                 </Button>
               )}
               <Button as={Link} to="/fields" variant="outline">
@@ -247,12 +271,19 @@ const FieldDetailsPage = () => {
 
           <div className="mt-6 flex flex-wrap gap-2">
             {field.status && (
-              <Badge tone={field.status === 'available' ? 'green' : 'gray'} className="capitalize">
+              <Badge tone={field.status === 'available' ? 'green' : field.status === 'maintenance' ? 'yellow' : 'gray'} className="capitalize">
                 {field.status}
               </Badge>
             )}
             {field.capacity && <Badge tone="gray">{field.capacity} capacity</Badge>}
           </div>
+
+          {isFieldClosed && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="font-semibold">Field is currently closed.</div>
+              <div className="mt-1">{field.closureMessage || 'Bookings are temporarily unavailable for this field.'}</div>
+            </div>
+          )}
 
           {field.description && <p className="mt-6 text-gray-700">{field.description}</p>}
 
@@ -409,6 +440,9 @@ const FieldDetailsPage = () => {
                               <span className="inline-flex items-center gap-1">
                                 <span className="h-3 w-3 rounded-sm bg-red-600" /> Booked
                               </span>
+                              <span className="inline-flex items-center gap-1">
+                                <span className="h-3 w-3 rounded-sm bg-slate-600" /> Closed
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -424,8 +458,11 @@ const FieldDetailsPage = () => {
                         {slotItems.map((slot) => {
                           const isAvailable = slot.state === 'available';
                           const isPending = slot.state === 'pending';
+                          const isClosed = slot.state === 'closed';
                           const slotToneClass = isAvailable
                             ? 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                            : isClosed
+                            ? 'bg-slate-600 text-white'
                             : isPending
                             ? 'bg-amber-500 hover:bg-amber-600 text-white'
                             : 'bg-red-600 hover:bg-red-700 text-white';
@@ -452,10 +489,16 @@ const FieldDetailsPage = () => {
                                   </button>
                                 ) : (
                                   <div className={`min-h-[62px] rounded-lg px-3 py-2 transition ${slotToneClass}`}>
-                                    <div className="truncate text-sm font-bold">{slot.booking?.team?.name || 'Reserved slot'}</div>
+                                    <div className="truncate text-sm font-bold">
+                                      {isClosed ? 'Field closed' : slot.booking?.team?.name || 'Reserved slot'}
+                                    </div>
                                     <div className="mt-1 text-xs opacity-90">{formatSlotRange(slot.hour)}</div>
                                     <div className="mt-1 text-xs opacity-90">
-                                      {isPending ? 'Pending request on this field.' : 'Confirmed booking on this field.'}
+                                      {isClosed
+                                        ? field.closureMessage || 'This field is not accepting bookings right now.'
+                                        : isPending
+                                        ? 'Pending request on this field.'
+                                        : 'Confirmed booking on this field.'}
                                     </div>
                                   </div>
                                 )}

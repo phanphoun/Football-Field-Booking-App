@@ -23,8 +23,14 @@ const emptyForm = {
   capacity: '',
   fieldType: '11v11',
   surfaceType: 'artificial_turf',
-  amenities: ''
+  amenities: '',
+  status: 'available',
+  closureMessage: '',
+  closureStartAt: '',
+  closureEndAt: ''
 };
+
+const CLOSURE_DAY_PRESETS = [1, 2, 3, 7, 14];
 
 const normalizeImages = (imagesValue) => {
   if (Array.isArray(imagesValue)) return imagesValue;
@@ -44,6 +50,30 @@ const resolveFieldImageUrl = (rawImage) => {
   if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
   if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
   return rawImage;
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toIsoOrNull = (value) => {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const addDaysToDateInput = (baseValue, days) => {
+  const baseDate = baseValue ? new Date(baseValue) : new Date();
+  if (Number.isNaN(baseDate.getTime())) return '';
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + Number(days || 0));
+  return toDateInputValue(nextDate);
 };
 
 const OwnerFieldsPage = () => {
@@ -130,7 +160,11 @@ const OwnerFieldsPage = () => {
       capacity: field.capacity ?? '',
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
-      amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : ''
+      amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : '',
+      status: field.status || 'available',
+      closureMessage: field.closureMessage || '',
+      closureStartAt: toDateInputValue(field.closureStartAt),
+      closureEndAt: toDateInputValue(field.closureEndAt)
     });
     setIsOpen(true);
   };
@@ -175,6 +209,18 @@ const OwnerFieldsPage = () => {
     setImageFiles(nextFiles.slice(0, 5));
   };
 
+  const applyClosureDaysPreset = (days) => {
+    setForm((current) => {
+      const baseStart = current.closureStartAt || toDateInputValue(new Date());
+      const nextEnd = addDaysToDateInput(baseStart, days);
+      return {
+        ...current,
+        closureStartAt: baseStart,
+        closureEndAt: nextEnd
+      };
+    });
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
@@ -194,7 +240,16 @@ const OwnerFieldsPage = () => {
         capacity: Number(form.capacity),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
-        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : []
+        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : [],
+        status: form.status,
+        closureMessage:
+          form.status === 'available'
+            ? null
+            : form.closureMessage?.trim()
+            ? form.closureMessage.trim()
+            : null,
+        closureStartAt: form.status === 'available' ? null : toIsoOrNull(form.closureStartAt),
+        closureEndAt: form.status === 'available' ? null : toIsoOrNull(form.closureEndAt)
       };
 
       if (editingFieldId) {
@@ -234,6 +289,39 @@ const OwnerFieldsPage = () => {
       await loadFields();
     } catch (err) {
       setError(err?.error || 'Failed to delete field');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleFieldStatus = async (field) => {
+    const isCurrentlyOpen = (field?.status || 'available') === 'available';
+    const nextStatus = isCurrentlyOpen ? 'unavailable' : 'available';
+
+    const confirmed = await confirm(
+      isCurrentlyOpen
+        ? `Close "${field.name}" for now? Players will not be able to create new bookings.`
+        : `Open "${field.name}" for booking again?`,
+      { title: isCurrentlyOpen ? 'Close Field' : 'Open Field' }
+    );
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccessMessage('');
+
+      await fieldService.updateField(field.id, {
+        status: nextStatus,
+        closureMessage: nextStatus === 'available' ? null : field?.closureMessage || 'Temporarily closed by field owner.',
+        closureStartAt: nextStatus === 'available' ? null : new Date().toISOString(),
+        closureEndAt: nextStatus === 'available' ? null : field?.closureEndAt || null
+      });
+
+      setSuccessMessage(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.');
+      await loadFields();
+    } catch (err) {
+      setError(err?.error || 'Failed to update field status');
     } finally {
       setSaving(false);
     }
@@ -339,7 +427,71 @@ const OwnerFieldsPage = () => {
                 <span className="block text-sm font-medium text-slate-700">Amenities</span>
                 <input name="amenities" value={form.amenities} onChange={handleChange} placeholder="parking, showers, lights" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Field Status</span>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
+                  <option value="available">Open</option>
+                  <option value="unavailable">Closed</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </label>
             </div>
+
+            {form.status !== 'available' && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Close Date</span>
+                    <input
+                      name="closureStartAt"
+                      type="date"
+                      value={form.closureStartAt}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
+                    <input
+                      name="closureEndAt"
+                      type="date"
+                      value={form.closureEndAt}
+                      min={form.closureStartAt || undefined}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {CLOSURE_DAY_PRESETS.map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => applyClosureDaysPreset(days)}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        +{days} {days === 1 ? 'day' : 'days'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="block space-y-2">
+                  <span className="block text-sm font-medium text-slate-700">Closure Message</span>
+                  <textarea
+                    name="closureMessage"
+                    value={form.closureMessage}
+                    onChange={handleChange}
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Example: Closed for maintenance until 6 PM."
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                  />
+                  <span className="block text-xs text-slate-500">This message is shown to users when booking is unavailable.</span>
+                </label>
+              </div>
+            )}
 
             <div className="mt-5">
               <FieldLocationPicker
@@ -480,8 +632,46 @@ const OwnerFieldsPage = () => {
                     <span>${field.pricePerHour}/hr</span>
                     <span>{field.capacity} players</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                        field.status === 'available'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : field.status === 'maintenance'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}
+                    >
+                      {field.status || 'available'}
+                    </span>
+                  </div>
+                  {field.closureMessage && field.status !== 'available' && (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      {field.closureMessage}
+                    </p>
+                  )}
+                  {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
+                      <br />
+                      {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
+                    </p>
+                  )}
                   {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
                   <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleToggleFieldStatus(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                        field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
+                    >
+                      {field.status === 'available' ? 'Close Field' : 'Open Field'}
+                    </button>
                     <button
                       type="button"
                       onClick={(event) => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import {
   UserPlusIcon,
   TrashIcon,
@@ -36,7 +36,9 @@ const JERSEY_COLOR_PRESETS = [
 const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin } = useAuth();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
@@ -208,7 +210,7 @@ const TeamManagePage = () => {
     return (
       <div className="text-center py-12">
         <h1 className="text-xl font-semibold text-gray-900">Team not found</h1>
-        <Link to="/app/teams" className="mt-4 inline-block text-green-700 hover:text-green-800">
+        <Link to={`${basePath}/teams`} className="mt-4 inline-block text-green-700 hover:text-green-800">
           Back to Teams
         </Link>
       </div>
@@ -353,7 +355,7 @@ const TeamManagePage = () => {
       await teamService.deleteTeam(id);
       setSuccessMessage('Team deleted successfully');
       setTimeout(() => {
-        navigate('/app/teams');
+        navigate(`${basePath}/teams`);
       }, 1000);
     } catch (err) {
       setError(err?.error || 'Failed to delete team');
@@ -385,7 +387,7 @@ const TeamManagePage = () => {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/app/teams/${team.id}`}
+              to={`${basePath}/teams/${team.id}`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <ArrowLeftIcon className="h-4 w-4" />

@@ -17,6 +17,7 @@ const TeamDetailsPage = () => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -284,7 +285,7 @@ const TeamDetailsPage = () => {
     return (
       <div className="text-center py-12">
         <h1 className="text-xl font-semibold text-gray-900">Team not found</h1>
-        <Link to="/app/teams" className="mt-4 inline-block text-green-700 hover:text-green-800">
+        <Link to={`${basePath}/teams`} className="mt-4 inline-block text-green-700 hover:text-green-800">
           Back to Teams
         </Link>
       </div>
@@ -517,12 +518,12 @@ const TeamDetailsPage = () => {
               Members
             </button>
             {isCaptainOfTeam && (
-              <button
-                type="button"
-                onClick={() => navigate(`/app/teams/${id}/manage`)}
-                className="border-b-2 border-transparent px-1 py-3 text-base font-semibold text-slate-500 transition hover:text-slate-700"
-              >
-                Manage Team
+                <button
+                  type="button"
+                  onClick={() => navigate(`${basePath}/teams/${id}/manage`)}
+                  className="border-b-2 border-transparent px-1 py-3 text-base font-semibold text-slate-500 transition hover:text-slate-700"
+                >
+                  Manage Team
               </button>
             )}
           </div>

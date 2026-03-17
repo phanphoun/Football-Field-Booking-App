@@ -116,6 +116,18 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'available',
       allowNull: false
     },
+    closureMessage: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    closureStartAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    closureEndAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     amenities: {
       type: DataTypes.JSON,
       allowNull: true,
