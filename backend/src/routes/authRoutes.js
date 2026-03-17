@@ -15,6 +15,7 @@ router.put('/profile', auth, userValidation.updateProfile, authController.update
 router.post('/change-password', auth, userValidation.changePassword, authController.changePassword);
 router.get('/role-requests', auth, authController.getRoleRequests);
 router.post('/role-requests', auth, userValidation.requestRoleUpgrade, authController.requestRoleUpgrade);
+router.delete('/role-requests/:id', auth, authController.cancelRoleRequest);
 router.get('/admin/role-requests', auth, checkRole(['admin']), authController.getAllRoleRequestsForAdmin);
 router.patch('/admin/role-requests/:id/review', auth, checkRole(['admin']), authController.reviewRoleRequest);
 router.post('/profile/avatar', auth, authController.uploadProfileAvatar);

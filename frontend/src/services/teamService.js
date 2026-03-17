@@ -12,6 +12,14 @@ const teamService = {
     return response;
   },
 
+  getPublicTeamMatchHistory: async (teamId, filters = {}) => {
+    const params = {
+      limit: filters.limit || 10
+    };
+    const response = await apiService.get(`/public/teams/${teamId}/matches`, params);
+    return response;
+  },
+
   // Get all teams
   getAllTeams: async (filters = {}) => {
     const params = {

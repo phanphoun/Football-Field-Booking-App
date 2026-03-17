@@ -1,4 +1,4 @@
-const { Team, User, Field, TeamMember, Rating } = require('../models');
+const { Team, User, Field, TeamMember, Rating, MatchResult, Booking } = require('../models');
 const { Op } = require('sequelize');
 
 const mapPublicTeam = (teamInstance, ratingSummary = null) => {
@@ -190,7 +190,94 @@ const getPublicTeamById = async (req, res) => {
   }
 };
 
+const getPublicTeamMatchHistory = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    if (!Number.isInteger(teamId) || teamId <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid team id' });
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 20);
+    const team = await Team.findByPk(teamId, { attributes: ['id', 'name'] });
+
+    if (!team) {
+      return res.status(404).json({ success: false, message: 'Team not found' });
+    }
+
+    const completedMatches = await MatchResult.findAll({
+      where: {
+        matchStatus: 'completed',
+        [Op.or]: [{ homeTeamId: teamId }, { awayTeamId: teamId }]
+      },
+      include: [
+        { model: Team, as: 'homeTeam', attributes: ['id', 'name'] },
+        { model: Team, as: 'awayTeam', attributes: ['id', 'name'] },
+        {
+          model: Booking,
+          as: 'booking',
+          attributes: ['startTime', 'fieldId'],
+          include: [{ model: Field, as: 'field', attributes: ['id', 'name'], required: false }],
+          required: false
+        }
+      ],
+      order: [['recordedAt', 'DESC']],
+      limit
+    });
+
+    const matches = completedMatches.map((match) => {
+      const isHome = Number(match.homeTeamId) === teamId;
+      const myScore = isHome ? Number(match.homeScore) : Number(match.awayScore);
+      const opponentScore = isHome ? Number(match.awayScore) : Number(match.homeScore);
+      const opponentTeam = isHome ? match.awayTeam : match.homeTeam;
+
+      let result = 'Draw';
+      if (myScore > opponentScore) result = 'Win';
+      if (myScore < opponentScore) result = 'Loss';
+
+      return {
+        id: match.id,
+        bookingId: match.bookingId,
+        opponentTeamName: opponentTeam?.name || 'Unknown Team',
+        date: match.booking?.startTime || match.recordedAt || match.createdAt,
+        fieldName: match.booking?.field?.name || null,
+        finalScore: `${myScore}-${opponentScore}`,
+        myScore,
+        opponentScore,
+        result
+      };
+    });
+
+    const stats = matches.reduce(
+      (acc, match) => {
+        if (match.result === 'Win') acc.wins += 1;
+        else if (match.result === 'Loss') acc.losses += 1;
+        else acc.draws += 1;
+        return acc;
+      },
+      { total: matches.length, wins: 0, losses: 0, draws: 0 }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        teamId: team.id,
+        teamName: team.name,
+        stats,
+        matches
+      }
+    });
+  } catch (error) {
+    console.error('Get public team match history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch team match history',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getPublicTeams,
-  getPublicTeamById
+  getPublicTeamById,
+  getPublicTeamMatchHistory
 };

@@ -58,11 +58,6 @@ const authService = {
     return response;
   },
 
-  // Change account password
-  changePassword: async (passwordData) => {
-    return apiService.post('/auth/change-password', passwordData);
-  },
-
   // Get current user's role request history and available upgrades
   getRoleRequests: async () => {
     return apiService.get('/auth/role-requests');
@@ -74,6 +69,10 @@ const authService = {
       requestedRole,
       note
     });
+  },
+
+  cancelRoleRequest: async (requestId) => {
+    return apiService.delete(`/auth/role-requests/${requestId}`);
   },
 
   // Admin: list all role requests

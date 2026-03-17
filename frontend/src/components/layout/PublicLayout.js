@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import { Button } from '../ui';
+import { Button, useDialog } from '../ui';
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
@@ -10,13 +10,14 @@ const PublicLayout = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [flash, setFlash] = useState(null);
+  const { confirm } = useDialog();
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
   const showAuthenticatedActions = !loading && isAuthenticated && hasResolvedUser;
 
-  const handleLogout = () => {
-    const confirmed = window.confirm('Do you want to logout?');
+  const handleLogout = async () => {
+    const confirmed = await confirm('Do you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
     logout();
     navigate('/');
@@ -35,6 +36,8 @@ const PublicLayout = () => {
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
   const isHomePage = location.pathname === '/';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const authRouteState = { backgroundLocation: location };
 
   React.useEffect(() => {
     const successMessage = location.state?.successMessage;
@@ -52,6 +55,36 @@ const PublicLayout = () => {
       state: {}
     });
   }, [location, navigate]);
+
+  if (isAuthPage) {
+    return (
+      <div className="min-h-screen bg-slate-950">
+        {flash && (
+          <div className="fixed left-1/2 top-4 z-50 w-full max-w-xl -translate-x-1/2 px-4">
+            <div
+              className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${
+                flash.type === 'success'
+                  ? 'border-green-200 bg-green-50 text-green-800'
+                  : 'border-red-200 bg-red-50 text-red-800'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span>{flash.message}</span>
+                <button
+                  type="button"
+                  onClick={() => setFlash(null)}
+                  className="text-xs font-medium underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <Outlet />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -100,10 +133,10 @@ const PublicLayout = () => {
                 </>
               ) : (
                 <>
-                  <Button as={Link} to="/login" variant="outline" size="sm" className="hidden sm:inline-flex">
+                  <Button as={Link} to="/login" state={authRouteState} variant="outline" size="sm" className="hidden sm:inline-flex">
                     Login
                   </Button>
-                  <Button as={Link} to="/register" size="sm" className="hidden sm:inline-flex">
+                  <Button as={Link} to="/register" state={authRouteState} size="sm" className="hidden sm:inline-flex">
                     Register
                   </Button>
                 </>
@@ -140,10 +173,10 @@ const PublicLayout = () => {
                   </>
                 ) : (
                   <>
-                    <Button as={Link} to="/login" variant="outline" size="sm" className="flex-1">
+                    <Button as={Link} to="/login" state={authRouteState} variant="outline" size="sm" className="flex-1">
                       Login
                     </Button>
-                    <Button as={Link} to="/register" size="sm" className="flex-1">
+                    <Button as={Link} to="/register" state={authRouteState} size="sm" className="flex-1">
                       Register
                     </Button>
                   </>

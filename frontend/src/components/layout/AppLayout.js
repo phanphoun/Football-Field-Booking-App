@@ -21,6 +21,7 @@ import {
 import apiService from '../../services/api';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
+import { ImagePreviewModal } from '../ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -37,6 +38,7 @@ const AppLayout = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
   const [flash, setFlash] = useState(null);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const notificationsMenuRef = useRef(null);
 
   const userDisplayName =
@@ -683,14 +685,19 @@ const AppLayout = () => {
                 onClick={() => setSidebarOpen(false)}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
                   profileItem.current
-                    ? 'bg-green-100 text-green-900'
+                    ? 'bg-white text-gray-900'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  className="h-10 w-10 cursor-zoom-in rounded-full bg-gray-100 object-cover"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setImagePreviewOpen(true);
+                  }}
                   onError={(e) => {
                     const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                     if (e.currentTarget.src !== fallbackUrl) {
@@ -753,14 +760,19 @@ const AppLayout = () => {
                 to={profileItem.href}
                 className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
                   profileItem.current
-                    ? 'bg-green-100 text-green-900'
+                    ? 'bg-white text-gray-900'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <img
                   src={resolveAvatarUrl()}
                   alt={`${userDisplayName} avatar`}
-                  className="h-10 w-10 rounded-full object-cover border border-gray-200 bg-gray-100"
+                  className="h-10 w-10 cursor-zoom-in rounded-full bg-gray-100 object-cover"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setImagePreviewOpen(true);
+                  }}
                   onError={(e) => {
                     const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                     if (e.currentTarget.src !== fallbackUrl) {
@@ -1084,11 +1096,21 @@ const AppLayout = () => {
                   </div>
                 </div>
               )}
+              <div className="sr-only" aria-live="polite">
+                <h1>{pageInfo.title}</h1>
+                <p>{pageInfo.subtitle}</p>
+              </div>
               <Outlet />
             </div>
           </div>
         </main>
       </div>
+      <ImagePreviewModal
+        open={imagePreviewOpen}
+        imageUrl={resolveAvatarUrl()}
+        title="Profile photo"
+        onClose={() => setImagePreviewOpen(false)}
+      />
     </div>
   );
 };
