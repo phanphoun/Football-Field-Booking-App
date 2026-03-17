@@ -101,6 +101,67 @@ const ensureTeamMemberJoinedAtNullable = async (sequelize) => {
   return true;
 };
 
+const ensureTeamShirtColorColumn = async (sequelize) => {
+  const hasSnakeCase = await tableHasColumn(sequelize, 'teams', 'shirt_color');
+  if (hasSnakeCase) return false;
+
+  const hasCamelCase = await tableHasColumn(sequelize, 'teams', 'shirtColor');
+  await sequelize.query('ALTER TABLE `teams` ADD COLUMN `shirt_color` VARCHAR(7) NULL');
+
+  if (hasCamelCase) {
+    await sequelize.query(`
+      UPDATE \`teams\`
+      SET \`shirt_color\` = UPPER(
+        CASE
+          WHEN \`shirtColor\` IS NULL OR TRIM(\`shirtColor\`) = '' THEN NULL
+          WHEN LEFT(TRIM(\`shirtColor\`), 1) = '#' THEN TRIM(\`shirtColor\`)
+          ELSE CONCAT('#', TRIM(\`shirtColor\`))
+        END
+      )
+      WHERE \`shirt_color\` IS NULL
+    `);
+  }
+
+  return true;
+};
+
+const ensureTeamJerseyColorsColumn = async (sequelize) => {
+  const hasSnakeCase = await tableHasColumn(sequelize, 'teams', 'jersey_colors');
+  if (!hasSnakeCase) {
+    await sequelize.query('ALTER TABLE `teams` ADD COLUMN `jersey_colors` JSON NULL');
+  }
+
+  const hasShirtColor = await tableHasColumn(sequelize, 'teams', 'shirt_color');
+  const hasLegacyShirtColor = await tableHasColumn(sequelize, 'teams', 'shirtColor');
+
+  if (hasShirtColor) {
+    await sequelize.query(`
+      UPDATE \`teams\`
+      SET \`jersey_colors\` = JSON_ARRAY(UPPER(\`shirt_color\`))
+      WHERE \`shirt_color\` IS NOT NULL
+        AND TRIM(\`shirt_color\`) <> ''
+        AND (\`jersey_colors\` IS NULL OR JSON_LENGTH(\`jersey_colors\`) = 0)
+    `);
+  } else if (hasLegacyShirtColor) {
+    await sequelize.query(`
+      UPDATE \`teams\`
+      SET \`jersey_colors\` = JSON_ARRAY(
+        UPPER(
+          CASE
+            WHEN LEFT(TRIM(\`shirtColor\`), 1) = '#' THEN TRIM(\`shirtColor\`)
+            ELSE CONCAT('#', TRIM(\`shirtColor\`))
+          END
+        )
+      )
+      WHERE \`shirtColor\` IS NOT NULL
+        AND TRIM(\`shirtColor\`) <> ''
+        AND (\`jersey_colors\` IS NULL OR JSON_LENGTH(\`jersey_colors\`) = 0)
+    `);
+  }
+
+  return !hasSnakeCase;
+};
+
 const applyLegacySchemaFixes = async (sequelize) => {
   const changes = [];
 
@@ -141,6 +202,12 @@ const applyLegacySchemaFixes = async (sequelize) => {
   }
   if (await addColumnIfMissing(sequelize, 'users', 'status', "ENUM('active','inactive','suspended') NOT NULL DEFAULT 'active'")) {
     changes.push('users.status');
+  }
+  if (await ensureTeamShirtColorColumn(sequelize)) {
+    changes.push('teams.shirt_color');
+  }
+  if (await ensureTeamJerseyColorsColumn(sequelize)) {
+    changes.push('teams.jersey_colors');
   }
 
   if (await normalizeTeamMemberStatuses(sequelize)) {

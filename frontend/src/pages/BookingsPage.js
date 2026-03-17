@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
@@ -320,7 +321,11 @@ const BookingsPage = () => {
       <Card className="overflow-hidden">
         <div className="divide-y divide-gray-200">
           {filteredBookings.length > 0 ? (
-            filteredBookings.map((booking) => (
+            filteredBookings.map((booking) => {
+              const homeColors = getTeamJerseyColors(booking.team);
+              const awayColors = booking.opponentTeam ? getTeamJerseyColors(booking.opponentTeam) : [];
+
+              return (
               <div key={booking.id} className="p-6 hover:bg-gray-50">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
@@ -370,8 +375,17 @@ const BookingsPage = () => {
                     )}
 
                     {booking.opponentTeam?.name && (
-                      <div className="mt-2 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
                         Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
+                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700">
+                          {homeColors.map((color, index) => (
+                            <span key={`home-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                          <span className="mx-0.5 text-gray-400">vs</span>
+                          {awayColors.map((color, index) => (
+                            <span key={`away-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                        </span>
                       </div>
                     )}
 
@@ -475,7 +489,7 @@ const BookingsPage = () => {
                   <div className="flex items-center space-x-2 ml-6">{getStatusActions(booking)}</div>
                 </div>
               </div>
-            ))
+            )})
           ) : (
             <div className="p-12 text-center">
               <EmptyState

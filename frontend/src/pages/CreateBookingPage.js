@@ -5,6 +5,7 @@ import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const CreateBookingPage = () => {
   const navigate = useNavigate();
@@ -294,6 +295,14 @@ const CreateBookingPage = () => {
                     </option>
                   )) : null}
                 </select>
+                {selectedTeam && (
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
+                    <span>Jersey Colors</span>
+                    {getTeamJerseyColors(selectedTeam).map((color, index) => (
+                      <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                    ))}
+                  </div>
+                )}
                 {!hasTeams && (
                   <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                     You need a team before booking.
@@ -416,6 +425,11 @@ const CreateBookingPage = () => {
                     <div>
                       <h4 className="text-sm font-medium text-gray-900">Team</h4>
                       <p className="text-sm text-gray-600">{selectedTeam.name}</p>
+                      <div className="mt-1 inline-flex items-center gap-1.5">
+                        {getTeamJerseyColors(selectedTeam).map((color, index) => (
+                          <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

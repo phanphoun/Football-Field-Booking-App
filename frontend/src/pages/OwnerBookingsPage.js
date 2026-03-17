@@ -11,6 +11,7 @@ import {
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -239,6 +240,8 @@ const OwnerBookingsPage = () => {
                 const captainName = captainDisplayName(b);
                 const homeTeamName = b.team?.name || 'Home Team';
                 const awayTeamName = b.opponentTeam?.name || 'Away Team';
+                const homeJerseyColors = getTeamJerseyColors(b.team);
+                const awayJerseyColors = b.opponentTeam ? getTeamJerseyColors(b.opponentTeam) : [];
                 const hasResult = !!b.matchResult?.id;
 
                 return (
@@ -274,6 +277,15 @@ const OwnerBookingsPage = () => {
                       </div>
                       <div className="mt-1 text-xs text-gray-600">
                         Captain: <span className="font-medium text-gray-800">{captainName}</span>
+                      </div>
+                      <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
+                        {homeJerseyColors.map((color, index) => (
+                          <span key={`home-${b.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                        ))}
+                        {awayJerseyColors.length > 0 && <span className="mx-0.5 text-gray-400 text-xs">vs</span>}
+                        {awayJerseyColors.map((color, index) => (
+                          <span key={`away-${b.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                        ))}
                       </div>
                       {hasResult && (
                         <div className="mt-1 text-xs text-emerald-700">
@@ -406,17 +418,29 @@ const OwnerBookingsPage = () => {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Teams</div>
                 <div className="mt-2.5 space-y-2">
-                  <div className="rounded-xl border border-slate-200 bg-white p-2.5">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Home Team</div>
-                    <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.team?.name || 'Team not assigned'}</div>
-                    <div className="mt-1 text-xs text-slate-600">Captain: {captainDisplayName(selectedBooking)}</div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-2.5">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Opponent Team</div>
-                    <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.opponentTeam?.name || 'Not assigned yet'}</div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Home Team</div>
+                      <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.team?.name || 'Team not assigned'}</div>
+                      <div className="mt-1 text-xs text-slate-600">Captain: {captainDisplayName(selectedBooking)}</div>
+                      <div className="mt-1 inline-flex items-center gap-1.5">
+                        {getTeamJerseyColors(selectedBooking.team).map((color, index) => (
+                          <span key={`modal-home-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Opponent Team</div>
+                      <div className="mt-1.5 text-sm font-medium text-slate-900">{selectedBooking.opponentTeam?.name || 'Not assigned yet'}</div>
+                      {selectedBooking.opponentTeam && (
+                        <div className="mt-1 inline-flex items-center gap-1.5">
+                          {getTeamJerseyColors(selectedBooking.opponentTeam).map((color, index) => (
+                            <span key={`modal-away-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">

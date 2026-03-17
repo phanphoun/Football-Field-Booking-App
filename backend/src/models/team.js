@@ -98,6 +98,41 @@ module.exports = (sequelize, DataTypes) => {
           }
         }
       },
+      shirtColor: {
+        type: DataTypes.STRING(7),
+        allowNull: true,
+        validate: {
+          isHexColor(value) {
+            if (!value) return;
+            if (!/^#[0-9A-F]{6}$/i.test(value)) {
+              throw new Error('shirtColor must be a valid hex color like #22C55E');
+            }
+          }
+        }
+      },
+      jerseyColors: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        validate: {
+          isValidJerseyColors(value) {
+            if (value === null || value === undefined) return;
+            if (!Array.isArray(value)) {
+              throw new Error('jerseyColors must be an array');
+            }
+            if (value.length === 0) {
+              throw new Error('jerseyColors must include at least one color');
+            }
+            if (value.length > 5) {
+              throw new Error('jerseyColors can include up to 5 colors');
+            }
+            for (const color of value) {
+              if (!/^#[0-9A-F]{6}$/i.test(String(color || ''))) {
+                throw new Error('Each jersey color must be a valid hex color like #22C55E');
+              }
+            }
+          }
+        }
+      },
       isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

@@ -5,13 +5,13 @@ import teamService from '../services/teamService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon, PhotoIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { ImagePreviewModal } from '../components/ui';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
-
 const TeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
@@ -330,12 +330,14 @@ const TeamDetailsPage = () => {
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
   const captainName = team.captain?.firstName || team.captain?.username || 'Unknown';
   const createdDate = team.createdAt ? new Date(team.createdAt).toLocaleDateString() : 'Unknown';
+  const teamJerseyColors = getTeamJerseyColors(team);
   const teamDetails = [
     { label: 'Team Name', value: team.name || 'Unnamed team' },
     { label: 'Captain', value: captainName },
     { label: 'Active Members', value: `${activeMembers.length}/${team.maxPlayers || 0}` },
     { label: 'Skill Level', value: team.skillLevel ? team.skillLevel.charAt(0).toUpperCase() + team.skillLevel.slice(1) : 'Not set' },
     { label: 'Home Field', value: team.homeField?.name || 'No home field' },
+    { label: 'Jersey Colors', value: `${teamJerseyColors.length} colors selected` },
     { label: 'Created', value: createdDate },
     { label: 'Max Players', value: team.maxPlayers || 0 },
     { label: 'Team Status', value: team.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active' }
@@ -623,6 +625,14 @@ const TeamDetailsPage = () => {
                   <div className="flex items-center gap-3">
                     <MapPinIcon className="h-5 w-5 text-gray-400" />
                     <span>{team.homeField?.name || 'No home field assigned'}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      {teamJerseyColors.map((color, index) => (
+                        <span key={`${color}-${index}`} className="h-5 w-5 rounded-full border border-gray-300" style={{ backgroundColor: color }} />
+                      ))}
+                    </span>
+                    <span>Jersey colors</span>
                   </div>
                   <div className="rounded-2xl bg-gray-50 px-4 py-4 text-sm leading-6 text-gray-600">
                     This overview combines team identity, record, squad size, and recent performance so any role can understand the team quickly.
