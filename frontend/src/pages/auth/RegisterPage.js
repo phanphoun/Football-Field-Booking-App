@@ -21,6 +21,7 @@ const RegisterPage = () => {
     username: '',
     email: '',
     phone: '',
+    role: 'player',
     password: '',
     confirmPassword: ''
   });
@@ -56,6 +57,7 @@ const RegisterPage = () => {
     formData.lastName &&
     formData.username &&
     formData.email &&
+    formData.role &&
     formData.password &&
     formData.confirmPassword &&
     formData.password === formData.confirmPassword;
@@ -69,6 +71,7 @@ const RegisterPage = () => {
     if (!formData.lastName.trim()) nextErrors.lastName = 'Please enter your last name.';
     if (!formData.username.trim()) nextErrors.username = 'Please enter your username.';
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
+    if (!formData.role) nextErrors.role = 'Please select a role.';
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
     if (!formData.confirmPassword.trim()) {
       nextErrors.confirmPassword = 'Please confirm your password.';
@@ -88,7 +91,7 @@ const RegisterPage = () => {
     const cleanedData = {
       ...registerData,
       phone: registerData.phone || undefined,
-      role: 'player'
+      role: registerData.role || 'player'
     };
 
     const result = await register(cleanedData);
@@ -204,6 +207,29 @@ const RegisterPage = () => {
               className={inputClassName}
             />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="role" className="mb-2 block text-sm font-semibold text-slate-700">
+            Role
+          </label>
+          <select
+            id="role"
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            aria-invalid={Boolean(validationErrors.role)}
+            className={`${inputClassName} ${
+              validationErrors.role ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
+            }`}
+          >
+            <option value="player">Player</option>
+            <option value="captain">Team Captain</option>
+            <option value="field_owner">Field Owner</option>
+          </select>
+          {validationErrors.role && (
+            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.role}</p>
+          )}
         </div>
 
         <div>

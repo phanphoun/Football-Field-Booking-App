@@ -97,6 +97,18 @@ const TeamCreatePage = () => {
         homeFieldId: formData.homeFieldId ? Number(formData.homeFieldId) : undefined
       };
 
+      if (!payload.name || !payload.name.trim()) {
+        setError('Team name is required.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (!Number.isFinite(payload.maxPlayers) || payload.maxPlayers < 1) {
+        setError('Max players must be a valid number.');
+        setSubmitting(false);
+        return;
+      }
+
       const response = await teamService.createTeam(payload);
       if (response.success) {
         let createdTeamId = response.data?.id || response.data?.team?.id || response.data?.data?.id || null;
@@ -133,7 +145,11 @@ const TeamCreatePage = () => {
         });
       }
     } catch (err) {
-      setError(err?.error || 'Failed to create team');
+      const validationError =
+        Array.isArray(err?.data?.errors) && err.data.errors.length > 0
+          ? err.data.errors[0]?.message
+          : null;
+      setError(validationError || err?.error || err?.message || 'Failed to create team');
     } finally {
       setSubmitting(false);
     }
