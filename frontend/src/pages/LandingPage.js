@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BoltIcon,
@@ -534,8 +534,39 @@ const LandingPage = () => {
     return featuredFields;
   }, [scheduleFieldsData, featuredFields]);
   const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * SCHEDULE_COLUMN_MIN_WIDTH + 112}px`;
-  const isFieldAvailable = (field) => String(field?.status || 'available').toLowerCase() === 'available';
-  const activeScheduleFieldsCount = scheduleFields.filter((field) => isFieldAvailable(field)).length;
+  const getDayBoundsMs = useCallback((dayKey) => {
+    const day = new Date(`${dayKey}T00:00:00`);
+    if (Number.isNaN(day.getTime())) return null;
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(day);
+    end.setHours(23, 59, 59, 999);
+    return { startMs: start.getTime(), endMs: end.getTime() };
+  }, []);
+  const toMsOrNull = useCallback((value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+  }, []);
+  const isFieldClosedForDay = useCallback((field, dayKey) => {
+    const status = String(field?.status || 'available').toLowerCase();
+    if (status === 'available') return false;
+
+    const bounds = getDayBoundsMs(dayKey);
+    if (!bounds) return true;
+
+    const closureStartMs = toMsOrNull(field?.closureStartAt);
+    const closureEndMs = toMsOrNull(field?.closureEndAt);
+    const hasWindow = closureStartMs !== null || closureEndMs !== null;
+
+    if (!hasWindow) return true;
+
+    const startsBeforeOrOnDay = closureStartMs === null || bounds.endMs >= closureStartMs;
+    const endsAfterDayStart = closureEndMs === null || bounds.startMs < closureEndMs;
+    return startsBeforeOrOnDay && endsAfterDayStart;
+  }, [getDayBoundsMs, toMsOrNull]);
+  const isFieldAvailable = useCallback((field, dayKey) => !isFieldClosedForDay(field, dayKey), [isFieldClosedForDay]);
+  const activeScheduleFieldsCount = scheduleFields.filter((field) => isFieldAvailable(field, selectedDay)).length;
 
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -584,7 +615,7 @@ const LandingPage = () => {
     const thresholdMinutes = isTodaySchedule ? now.getHours() * 60 + now.getMinutes() : -1;
 
     return source.map((field, index) => {
-      const isFieldClosed = !isFieldAvailable(field);
+      const isFieldClosed = !isFieldAvailable(field, dayKey);
       const fieldId = Number(field.id);
       const fieldEvents = scheduleEvents.filter(
         (event) =>
@@ -643,7 +674,7 @@ const LandingPage = () => {
         isFullyBooked: !isFieldClosed && !isAvailableNow && !nextAvailableTime
       };
     });
-  }, [scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
+  }, [isFieldAvailable, scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
 
   const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
 
@@ -695,7 +726,7 @@ const LandingPage = () => {
       return;
     }
 
-    if (!isFieldAvailable(field)) {
+    if (!isFieldAvailable(field, day || selectedDay)) {
       navigate(toFieldRoute(field));
       return;
     }
@@ -1167,14 +1198,14 @@ const LandingPage = () => {
                     type="button"
                     onClick={() => handleOpenFieldFromSchedule(field)}
                     className={`flex min-h-[86px] flex-col items-center justify-center border-l px-3 py-3 text-center text-sm font-semibold ${
-                      isFieldAvailable(field)
+                      isFieldAvailable(field, selectedDay)
                         ? 'border-white/20 hover:bg-white/10'
                         : 'border-rose-200/40 bg-rose-600/85'
                     }`}
                   >
                     <div className="max-w-[180px] text-balance text-base font-semibold leading-tight">{field.name}</div>
                     <div className="mt-1 text-xs font-medium opacity-90">
-                      {isFieldAvailable(field) ? field.fieldType || 'Outdoor' : 'Closed'}
+                      {isFieldAvailable(field, selectedDay) ? field.fieldType || 'Outdoor' : 'Closed'}
                     </div>
                   </button>
                 ))}
@@ -1207,7 +1238,7 @@ const LandingPage = () => {
                         const slotTakenByOther = Boolean(slotOtherConfirmedEvent);
                         const slotTakenByMe = Boolean(slotOwnEvent);
                         const slotHasOtherPending = Boolean(slotOtherPendingEvent);
-                        const isFieldClosed = !isFieldAvailable(field);
+                        const isFieldClosed = !isFieldAvailable(field, selectedDay);
 
                         // If there's a booking, show a colored block
                         if (slotTakenByMe || slotTakenByOther || slotHasOtherPending) {

@@ -82,10 +82,44 @@ const getEffectiveHourlyRate = (field) => {
   return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
 
+const getDayBoundsMs = (dateValue) => {
+  const day = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(day.getTime())) return null;
+  const start = new Date(day);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(day);
+  end.setHours(23, 59, 59, 999);
+  return { startMs: start.getTime(), endMs: end.getTime() };
+};
+
+const getTimeMsOrNull = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+};
+
+const isFieldClosedForDate = (field, dateValue) => {
+  const status = String(field?.status || 'available').toLowerCase();
+  if (status === 'available') return false;
+
+  const bounds = getDayBoundsMs(dateValue);
+  if (!bounds) return true;
+
+  const closureStartMs = getTimeMsOrNull(field?.closureStartAt);
+  const closureEndMs = getTimeMsOrNull(field?.closureEndAt);
+  const hasWindow = closureStartMs !== null || closureEndMs !== null;
+
+  if (!hasWindow) return true;
+
+  const startsBeforeOrOnDay = closureStartMs === null || bounds.endMs >= closureStartMs;
+  const endsAfterDayStart = closureEndMs === null || bounds.startMs < closureEndMs;
+  return startsBeforeOrOnDay && endsAfterDayStart;
+};
+
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const serializedBookings = bookings.map(serializeBooking);
   const availableFields = fields.filter(
-    (field) => String(field?.status || 'available').toLowerCase() === 'available'
+    (field) => !isFieldClosedForDate(field, date)
   );
   const targetCount = getScheduleShowcaseTarget(date);
 
