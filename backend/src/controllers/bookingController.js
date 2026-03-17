@@ -2,7 +2,20 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-  { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour', 'status', 'closureMessage', 'closureStartAt', 'closureEndAt'] },
+  {
+    model: Field,
+    as: 'field',
+    attributes: [
+      'name',
+      'address',
+      'pricePerHour',
+      'discountPercent',
+      'status',
+      'closureMessage',
+      'closureStartAt',
+      'closureEndAt'
+    ]
+  },
   {
     model: Team,
     as: 'team',
@@ -63,11 +76,20 @@ const buildDateAtHour = (date, hour) => {
   return bookingDate;
 };
 
+const getEffectiveHourlyRate = (field) => {
+  const basePrice = Number(field?.pricePerHour || 0);
+  const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+  return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+};
+
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const serializedBookings = bookings.map(serializeBooking);
+  const availableFields = fields.filter(
+    (field) => String(field?.status || 'available').toLowerCase() === 'available'
+  );
   const targetCount = getScheduleShowcaseTarget(date);
 
-  if (serializedBookings.length >= targetCount || fields.length === 0) {
+  if (serializedBookings.length >= targetCount || availableFields.length === 0) {
     return serializedBookings;
   }
 
@@ -91,7 +113,7 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   let showcaseIndex = 0;
 
   for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
-    for (const field of fields) {
+    for (const field of availableFields) {
       if (serializedBookings.length + showcaseBookings.length >= targetCount) {
         return [...serializedBookings, ...showcaseBookings];
       }
@@ -110,7 +132,7 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
         teamName,
         startTime,
         endTime,
-        status: showcaseIndex % 3 === 0 ? 'pending' : 'confirmed',
+        status: 'confirmed',
         createdBy: null,
         isMatchmaking: false,
         openForOpponents: false,
@@ -139,6 +161,7 @@ const requireCaptainRole = (req, res) => {
 const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
 const isUnavailableForJoin = (booking) =>
   isClosedStatus(booking) || new Date(booking.startTime) <= new Date();
+const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
 
 const createBooking = async (req, res) => {
   try {
@@ -186,8 +209,24 @@ const createBooking = async (req, res) => {
       }
     }
 
+    const activeFieldBooking = await Booking.findOne({
+      where: {
+        fieldId,
+        status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+        endTime: { [Op.gt]: new Date() }
+      },
+      order: [['startTime', 'ASC']]
+    });
+
+    if (activeFieldBooking) {
+      return res.status(400).json({
+        success: false,
+        message: 'Field is already booked and unavailable for another booking.'
+      });
+    }
+
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
-    const totalPrice = duration * parseFloat(field.pricePerHour);
+    const totalPrice = Number((duration * getEffectiveHourlyRate(field)).toFixed(2));
 
     const existingBooking = await Booking.findOne({
       where: {
@@ -407,6 +446,9 @@ const getPublicBookingSchedule = async (req, res) => {
 
     const fields = await Field.findAll({
       attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'status', 'closureMessage', 'closureStartAt', 'closureEndAt'],
+      where: {
+        isArchived: false
+      },
       order: [['name', 'ASC']],
       limit
     });
@@ -1604,6 +1646,7 @@ const getPublicBookingStats = async (req, res) => {
       success: true,
       data: {
         timeSlots,
+        bookings: bookings.slice(0, 50), // Return a sample of recent bookings for client-side stats if needed
         meta: {
           lookbackDays,
           totalFields,

@@ -276,44 +276,17 @@ const calculatePopularTimeSlots = (bookings) => {
 
   return applyStarRatings(cards);
 };
-const SPECIAL_OFFERS = [
-  {
-    title: 'Early Bird Special',
-    description: 'Book morning slots (6AM - 10AM) and save big!',
-    discount: '30% OFF',
-    validity: 'Valid Mon-Fri',
-    code: 'EARLY30',
-    icon: ClockIcon,
-    time: '08:00'
-  },
-  {
-    title: 'Weekend Warrior',
-    description: 'Book 3+ hours on weekends and get instant discount.',
-    discount: '20% OFF',
-    validity: 'Sat-Sun Only',
-    code: 'WEEKEND20',
-    icon: UsersIcon,
-    time: '18:00'
-  },
-  {
-    title: 'First-Time Bonus',
-    description: 'New customer? Get 25% off your first booking!',
-    discount: '25% OFF',
-    validity: 'New Users Only',
-    code: 'WELCOME25',
-    icon: GiftIcon,
-    time: '19:00'
-  },
-  {
-    title: 'Monthly Member',
-    description: 'Subscribe to monthly plans and enjoy exclusive rates.',
-    discount: 'Up to 40% OFF',
-    validity: 'Subscription',
-    code: 'MEMBER40',
-    icon: SparklesIcon,
-    time: '20:00'
-  }
-];
+const DISCOUNT_OFFER_ICONS = [GiftIcon, SparklesIcon, ClockIcon, UsersIcon];
+const getFieldDiscountPercent = (field) => Math.max(0, Math.min(100, Number(field?.discountPercent || 0)));
+const getDiscountedFieldPrice = (field) => {
+  const price = Number(field?.pricePerHour || 0);
+  const discountPercent = getFieldDiscountPercent(field);
+  return Number((price * (1 - discountPercent / 100)).toFixed(2));
+};
+const buildDiscountOfferDescription = (field) => {
+  const savedAmount = Number((Number(field?.pricePerHour || 0) - getDiscountedFieldPrice(field)).toFixed(2));
+  return `Save $${savedAmount}/hr on this field in ${field.city || field.province || 'your city'}.`;
+};
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-16';
 const SCHEDULE_COLUMN_MIN_WIDTH = 220;
 const SCHEDULE_TIME_COLUMN_WIDTH_CLASS = 'w-28';
@@ -360,6 +333,7 @@ const LandingPage = () => {
   const canCreateBooking = user?.role === 'captain';
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
+  const [landingFields, setLandingFields] = useState([]);
   const [popularTimeSlots, setPopularTimeSlots] = useState(POPULAR_TIME_SLOTS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -394,6 +368,8 @@ const LandingPage = () => {
           ? bookingsResponse.data.timeSlots
           : [];
         const bookings = bookingsResponse?.success && Array.isArray(bookingsResponse?.data) ? bookingsResponse.data : [];
+
+        setLandingFields(fields);
 
         const topFields = [...fields]
           .sort((a, b) => {
@@ -469,6 +445,29 @@ const LandingPage = () => {
     return merged.slice(0, 6);
   }, [popularFields]);
 
+  const discountOffers = useMemo(() => {
+    return [...landingFields]
+      .filter((field) => getFieldDiscountPercent(field) > 0)
+      .sort((a, b) => {
+        const discountDiff = getFieldDiscountPercent(b) - getFieldDiscountPercent(a);
+        if (discountDiff !== 0) return discountDiff;
+        return getDiscountedFieldPrice(a) - getDiscountedFieldPrice(b);
+      })
+      .slice(0, 4)
+      .map((field, index) => ({
+        id: field.id,
+        field,
+        icon: DISCOUNT_OFFER_ICONS[index % DISCOUNT_OFFER_ICONS.length],
+        title: field.name,
+        description: buildDiscountOfferDescription(field),
+        discountLabel: `${getFieldDiscountPercent(field)}% OFF`,
+        cityLabel: field.city || field.province || 'Featured field',
+        time: index === 0 ? '18:00' : index === 1 ? '17:00' : index === 2 ? '19:00' : '20:00'
+      }));
+  }, [landingFields]);
+
+  const featuredDiscountOffer = discountOffers[0] || null;
+
   const scheduleDays = useMemo(() => {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
@@ -535,6 +534,8 @@ const LandingPage = () => {
     return featuredFields;
   }, [scheduleFieldsData, featuredFields]);
   const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * SCHEDULE_COLUMN_MIN_WIDTH + 112}px`;
+  const isFieldAvailable = (field) => String(field?.status || 'available').toLowerCase() === 'available';
+  const activeScheduleFieldsCount = scheduleFields.filter((field) => isFieldAvailable(field)).length;
 
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -583,6 +584,7 @@ const LandingPage = () => {
     const thresholdMinutes = isTodaySchedule ? now.getHours() * 60 + now.getMinutes() : -1;
 
     return source.map((field, index) => {
+      const isFieldClosed = !isFieldAvailable(field);
       const fieldId = Number(field.id);
       const fieldEvents = scheduleEvents.filter(
         (event) =>
@@ -603,14 +605,14 @@ const LandingPage = () => {
       const isBookedNow =
         isTodaySchedule &&
         fieldEvents.some((event) => event.startMinutes <= thresholdMinutes && thresholdMinutes < event.endMinutes);
-      const isAvailableNow = Boolean(currentSlot) && !isBookedNow;
+      const isAvailableNow = !isFieldClosed && Boolean(currentSlot) && !isBookedNow;
 
       const futureSlots = TIME_SLOTS.filter((slot) => {
         const slotMinutes = parseSlotToMinutes(slot);
         return Number.isFinite(slotMinutes) && slotMinutes > thresholdMinutes;
       });
 
-      const openSlots = futureSlots.filter((slot) => {
+      const openSlots = isFieldClosed ? [] : futureSlots.filter((slot) => {
         const slotMinutes = parseSlotToMinutes(slot);
         return !fieldEvents.some(
           (event) => event.startMinutes <= slotMinutes && slotMinutes < event.endMinutes
@@ -620,6 +622,8 @@ const LandingPage = () => {
       const nextAvailableTime = openSlots[0] || null;
       const nextLabel = isAvailableNow
         ? 'Available now'
+        : isFieldClosed
+        ? 'Closed'
         : nextAvailableTime
         ? `${isTodaySchedule ? 'Today' : dayLabel} ${formatSlotTo12h(nextAvailableTime)}`
         : `${isTodaySchedule ? 'Today' : dayLabel} Fully booked`;
@@ -636,7 +640,7 @@ const LandingPage = () => {
         nextLabel,
         slotsLeft: openSlotCount,
         isAvailableNow,
-        isFullyBooked: !isAvailableNow && !nextAvailableTime
+        isFullyBooked: !isFieldClosed && !isAvailableNow && !nextAvailableTime
       };
     });
   }, [scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
@@ -691,6 +695,11 @@ const LandingPage = () => {
       return;
     }
 
+    if (!isFieldAvailable(field)) {
+      navigate(toFieldRoute(field));
+      return;
+    }
+
     navigate(bookingPath);
   };
 
@@ -705,9 +714,13 @@ const LandingPage = () => {
     return 'border-blue-300 bg-blue-50 text-blue-600';
   };
 
-  const handleClaimOffer = (code, preferredTime = '18:00') => {
+  const handleClaimOffer = (offer, preferredTime = '18:00') => {
     const day = quickDate || selectedDay || toLocalDateKey(new Date());
-    const preferredField = scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
+    const requestedFieldId = typeof offer === 'object' ? offer?.field?.id || offer?.id : null;
+    const preferredField =
+      scheduleFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
+      landingFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
+      scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
 
     if (preferredField) {
       handleBookNow(preferredField, day, preferredTime);
@@ -716,7 +729,7 @@ const LandingPage = () => {
 
     const params = new URLSearchParams({
       focus: 'search',
-      promo: code,
+      promo: typeof offer === 'object' ? offer?.code || `FIELD-${offer?.id || ''}` : offer,
       day,
       time: preferredTime
     });
@@ -862,63 +875,91 @@ const LandingPage = () => {
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <TrophyIcon className="h-4 w-4" />
-              Limited Time Offers
+              Live Field Discounts
             </span>
             <h2 className="mt-4 text-2xl font-bold text-slate-900">Special Deals & Discounts</h2>
-            <p className="mt-2 text-base text-slate-600">Save more with football-friendly offers and promotional deals.</p>
+            <p className="mt-2 text-base text-slate-600">Real discounts from field owners, updated from the current fields on the platform.</p>
           </div>
 
           <div className="mt-8 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 className="text-4xl font-extrabold">Flash Deal: 50% OFF Tonight!</h3>
-                <p className="mt-2 text-base text-emerald-50">Limited slots available for tonight&apos;s bookings (8PM - 10PM)</p>
+                <h3 className="text-4xl font-extrabold">
+                  {featuredDiscountOffer ? `${featuredDiscountOffer.discountLabel} at ${featuredDiscountOffer.field.name}` : 'Discounts Coming Soon'}
+                </h3>
+                <p className="mt-2 text-base text-emerald-50">
+                  {featuredDiscountOffer
+                    ? `${featuredDiscountOffer.description} Book now before discounted slots fill up.`
+                    : 'Field owners can add discounts and they will appear here automatically.'}
+                </p>
                 <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
-                  <span className="rounded-full bg-white/20 px-3 py-1">Ends in 4h 23m</span>
-                  <span className="rounded-full bg-white/20 px-3 py-1">Premium Fields Only</span>
+                  <span className="rounded-full bg-white/20 px-3 py-1">
+                    {featuredDiscountOffer ? `$${getDiscountedFieldPrice(featuredDiscountOffer.field).toFixed(2)}/hr` : 'No live offers'}
+                  </span>
+                  <span className="rounded-full bg-white/20 px-3 py-1">
+                    {featuredDiscountOffer ? `Was $${Number(featuredDiscountOffer.field.pricePerHour || 0).toFixed(2)}/hr` : 'Check back later'}
+                  </span>
+                  <span className="rounded-full bg-white/20 px-3 py-1">
+                    {featuredDiscountOffer ? `${featuredDiscountOffer.field.city || featuredDiscountOffer.field.province || 'Featured city'}` : 'Check back later'}
+                  </span>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => handleClaimOffer('FLASH50', '20:00')}
+                onClick={() => featuredDiscountOffer && handleClaimOffer(featuredDiscountOffer, featuredDiscountOffer.time)}
+                disabled={!featuredDiscountOffer}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700"
               >
-                Grab This Deal
+                {featuredDiscountOffer ? 'Book This Discount' : 'No Offer Yet'}
               </button>
             </div>
           </div>
 
           <div className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {SPECIAL_OFFERS.map((offer) => (
-              <div key={offer.code} className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+            {discountOffers.length > 0 ? discountOffers.map((offer) => (
+              <div key={offer.id} className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
                 <div className="flex items-start justify-between gap-3">
                   <div className="rounded-2xl bg-emerald-100 p-3">
                     <offer.icon className="h-6 w-6 text-emerald-700" />
                   </div>
-                  <span className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white">{offer.discount}</span>
+                  <span className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white">{offer.discountLabel}</span>
                 </div>
 
                 <h3 className="mt-4 text-2xl font-bold text-slate-900">{offer.title}</h3>
                 <p className="mt-2 text-base text-slate-600">{offer.description}</p>
 
                 <div className="mt-4 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Validity:</span>
-                  <span className="font-semibold text-slate-800">{offer.validity}</span>
+                  <span className="text-slate-500">Field:</span>
+                  <span className="font-semibold text-slate-800">{offer.field.name}</span>
                 </div>
-                <div className="mt-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2 text-center">
-                  <p className="text-xs text-slate-500">Promo Code:</p>
-                  <p className="text-sm font-bold tracking-wider text-emerald-700">{offer.code}</p>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Location:</span>
+                  <span className="font-semibold text-slate-800">{offer.cityLabel}</span>
+                </div>
+                <div className="mt-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>Original Price</span>
+                    <span className="font-semibold text-slate-800">${Number(offer.field.pricePerHour || 0).toFixed(2)}/hr</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
+                    <span>Discounted Price</span>
+                    <span className="font-bold text-emerald-700">${getDiscountedFieldPrice(offer.field).toFixed(2)}/hr</span>
+                  </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => handleClaimOffer(offer.code, offer.time)}
+                  onClick={() => handleClaimOffer(offer, offer.time)}
                   className="mt-4 w-full rounded-xl bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
-                  Claim Offer
+                  Book Discounted Field
                 </button>
               </div>
-            ))}
+            )) : (
+              <div className="col-span-full rounded-2xl border border-dashed border-emerald-200 bg-white px-6 py-10 text-center text-slate-600">
+                No field discounts are active yet. When owners add discounts, this section will update automatically.
+              </div>
+            )}
           </div>
 
         </div>
@@ -1087,7 +1128,7 @@ const LandingPage = () => {
                   onClick={() => navigate('/fields')}
                   className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
                 >
-                  <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : scheduleFields.length}</div>
+                  <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : activeScheduleFieldsCount}</div>
                   <div className="text-base text-slate-600">Active Fields</div>
                 </button>
               </div>
@@ -1107,6 +1148,9 @@ const LandingPage = () => {
                 <span className="inline-flex items-center gap-1">
                   <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending (still bookable)
                 </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 rounded-sm bg-rose-600" /> Field closed
+                </span>
               </div>
             </div>
               <div className="flex border-b border-slate-200 bg-blue-600 text-white">
@@ -1122,10 +1166,16 @@ const LandingPage = () => {
                     key={field.id}
                     type="button"
                     onClick={() => handleOpenFieldFromSchedule(field)}
-                    className="flex min-h-[86px] flex-col items-center justify-center border-l border-white/20 px-3 py-3 text-center text-sm font-semibold hover:bg-white/10"
+                    className={`flex min-h-[86px] flex-col items-center justify-center border-l px-3 py-3 text-center text-sm font-semibold ${
+                      isFieldAvailable(field)
+                        ? 'border-white/20 hover:bg-white/10'
+                        : 'border-rose-200/40 bg-rose-600/85'
+                    }`}
                   >
                     <div className="max-w-[180px] text-balance text-base font-semibold leading-tight">{field.name}</div>
-                    <div className="mt-1 text-xs font-medium opacity-90">{field.fieldType || 'Outdoor'}</div>
+                    <div className="mt-1 text-xs font-medium opacity-90">
+                      {isFieldAvailable(field) ? field.fieldType || 'Outdoor' : 'Closed'}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1157,6 +1207,7 @@ const LandingPage = () => {
                         const slotTakenByOther = Boolean(slotOtherConfirmedEvent);
                         const slotTakenByMe = Boolean(slotOwnEvent);
                         const slotHasOtherPending = Boolean(slotOtherPendingEvent);
+                        const isFieldClosed = !isFieldAvailable(field);
 
                         // If there's a booking, show a colored block
                         if (slotTakenByMe || slotTakenByOther || slotHasOtherPending) {
@@ -1188,6 +1239,19 @@ const LandingPage = () => {
                                  slotTakenByOther ? slotOtherConfirmedEvent.start + ' - ' + slotOtherConfirmedEvent.end : 
                                  slotOtherPendingEvent.start + ' - ' + slotOtherPendingEvent.end}
                               </div>
+                            </div>
+                          );
+                        }
+
+                        // Closed fields should always show closed cells for empty slots.
+                        if (isFieldClosed) {
+                          return (
+                            <div
+                              key={`${field.id}-${slot}`}
+                              className="m-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-center text-xs font-semibold text-rose-700"
+                              title="Field is closed"
+                            >
+                              Closed
                             </div>
                           );
                         }

@@ -220,6 +220,16 @@ const applyLegacySchemaFixes = async (sequelize) => {
     changes.push('teams.jersey_colors');
   }
 
+  if (await addColumnIfMissing(sequelize, 'fields', 'discountPercent', 'DECIMAL(5,2) NOT NULL DEFAULT 0')) {
+    changes.push('fields.discountPercent');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'status', "ENUM('available','unavailable','maintenance') NOT NULL DEFAULT 'available'")) {
+    changes.push('fields.status');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0')) {
+    changes.push('fields.isArchived');
+  }
+
   if (await normalizeTeamMemberStatuses(sequelize)) {
     changes.push('team_members.status');
   }

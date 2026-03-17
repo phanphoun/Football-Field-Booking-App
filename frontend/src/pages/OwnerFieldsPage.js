@@ -4,10 +4,11 @@ import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/r
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
-import { useDialog } from '../components/ui';
+import { useDialog, useToast } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 
@@ -20,17 +21,23 @@ const emptyForm = {
   latitude: '',
   longitude: '',
   pricePerHour: '',
+  discountPercent: '',
   capacity: '',
+  status: 'available',
   fieldType: '11v11',
   surfaceType: 'artificial_turf',
   amenities: '',
-  status: 'available',
   closureMessage: '',
   closureStartAt: '',
   closureEndAt: ''
 };
 
-const CLOSURE_DAY_PRESETS = [1, 2, 3, 7, 14];
+const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+const getDiscountedHourlyPrice = (field) => {
+  const price = Number(field?.pricePerHour || 0);
+  const discountPercent = getDiscountPercent(field);
+  return Number((price * (1 - discountPercent / 100)).toFixed(2));
+};
 
 const normalizeImages = (imagesValue) => {
   if (Array.isArray(imagesValue)) return imagesValue;
@@ -79,14 +86,13 @@ const addDaysToDateInput = (baseValue, days) => {
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [fields, setFields] = useState([]);
   const [allFields, setAllFields] = useState([]);
   const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
@@ -113,16 +119,15 @@ const OwnerFieldsPage = () => {
     const run = async () => {
       try {
         setLoading(true);
-        setError('');
         await loadFields();
       } catch (err) {
-        setError(err?.error || 'Failed to load fields');
+        showToast(err?.error || 'Failed to load fields', { type: 'error' });
       } finally {
         setLoading(false);
       }
     };
     run();
-  }, [loadFields]);
+  }, [loadFields, showToast]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -133,8 +138,6 @@ const OwnerFieldsPage = () => {
   };
 
   const startCreate = () => {
-    setError('');
-    setSuccessMessage('');
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
@@ -143,8 +146,6 @@ const OwnerFieldsPage = () => {
   };
 
   const startEdit = (field) => {
-    setError('');
-    setSuccessMessage('');
     setEditingFieldId(field.id);
     setImageFiles([]);
     setExistingImages(normalizeImages(field.images).map((image) => resolveFieldImageUrl(image)));
@@ -157,11 +158,12 @@ const OwnerFieldsPage = () => {
       latitude: field.latitude ?? '',
       longitude: field.longitude ?? '',
       pricePerHour: field.pricePerHour ?? '',
+      discountPercent: field.discountPercent ?? '',
       capacity: field.capacity ?? '',
+      status: field.status || 'available',
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
       amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : '',
-      status: field.status || 'available',
       closureMessage: field.closureMessage || '',
       closureStartAt: toDateInputValue(field.closureStartAt),
       closureEndAt: toDateInputValue(field.closureEndAt)
@@ -225,8 +227,6 @@ const OwnerFieldsPage = () => {
     event.preventDefault();
     try {
       setSaving(true);
-      setError('');
-      setSuccessMessage('');
 
       const payload = {
         name: form.name,
@@ -237,11 +237,12 @@ const OwnerFieldsPage = () => {
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
         pricePerHour: Number(form.pricePerHour),
+        discountPercent: form.discountPercent === '' ? 0 : Number(form.discountPercent),
         capacity: Number(form.capacity),
+        status: form.status,
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
         amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : [],
-        status: form.status,
         closureMessage:
           form.status === 'available'
             ? null
@@ -257,20 +258,20 @@ const OwnerFieldsPage = () => {
         if (imageFiles.length > 0) {
           await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: true });
         }
-        setSuccessMessage('Field updated.');
+        showToast('Field updated.', { type: 'success' });
       } else {
         const created = await fieldService.createField(payload);
         const createdId = created?.data?.id;
         if (createdId && imageFiles.length > 0) {
           await fieldService.uploadFieldImages(createdId, imageFiles);
         }
-        setSuccessMessage('Field created.');
+        showToast('Field created.', { type: 'success' });
       }
 
       await loadFields();
       resetForm();
     } catch (err) {
-      setError(err?.error || 'Failed to save field');
+      showToast(err?.error || 'Failed to save field', { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -282,13 +283,11 @@ const OwnerFieldsPage = () => {
 
     try {
       setSaving(true);
-      setError('');
-      setSuccessMessage('');
       await fieldService.deleteField(field.id);
-      setSuccessMessage('Field deleted.');
+      showToast('Field deleted.', { type: 'success' });
       await loadFields();
     } catch (err) {
-      setError(err?.error || 'Failed to delete field');
+      showToast(err?.error || 'Failed to delete field', { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -308,8 +307,6 @@ const OwnerFieldsPage = () => {
 
     try {
       setSaving(true);
-      setError('');
-      setSuccessMessage('');
 
       await fieldService.updateField(field.id, {
         status: nextStatus,
@@ -318,10 +315,10 @@ const OwnerFieldsPage = () => {
         closureEndAt: nextStatus === 'available' ? null : field?.closureEndAt || null
       });
 
-      setSuccessMessage(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.');
+      showToast(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.', { type: 'success' });
       await loadFields();
     } catch (err) {
-      setError(err?.error || 'Failed to update field status');
+      showToast(err?.error || 'Failed to update field status', { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -364,10 +361,6 @@ const OwnerFieldsPage = () => {
           </button>
         </div>
       </div>
-
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {successMessage && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
-
       {isOpen && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/65 p-4 backdrop-blur-sm">
           <form
@@ -406,6 +399,10 @@ const OwnerFieldsPage = () => {
                 <input name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder="Capacity" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Discount Percent</span>
+                <input name="discountPercent" type="number" min="0" max="100" value={form.discountPercent} onChange={handleChange} placeholder="0" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
+              </label>
+              <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Type</span>
                 <select name="fieldType" value={form.fieldType} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
                   <option value="5v5">5v5</option>
@@ -421,6 +418,14 @@ const OwnerFieldsPage = () => {
                   <option value="natural_grass">Natural Grass</option>
                   <option value="concrete">Concrete</option>
                   <option value="indoor">Indoor</option>
+                </select>
+              </label>
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Status</span>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
+                  <option value="available">Available</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="unavailable">Unavailable</option>
                 </select>
               </label>
               <label className="space-y-2">
@@ -595,6 +600,17 @@ const OwnerFieldsPage = () => {
             const images = normalizeImages(field.images);
             const coverImage = resolveFieldImageUrl(images[0]);
             const isOwned = isOwnedByCurrentUser(field);
+            const discountPercent = getDiscountPercent(field);
+            const discountedPrice = getDiscountedHourlyPrice(field);
+            const fieldStatus = String(field.status || 'available').toLowerCase();
+            const statusClasses =
+              fieldStatus === 'available'
+                ? 'bg-blue-50 text-blue-700'
+                : fieldStatus === 'booked'
+                ? 'bg-red-100 text-red-700'
+                : fieldStatus === 'maintenance'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-slate-200 text-slate-700';
 
             return (
               <div
@@ -610,26 +626,54 @@ const OwnerFieldsPage = () => {
                 }}
                 className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               >
-                <img
-                  src={coverImage}
-                  alt={field.name}
-                  className="h-48 w-full object-cover"
-                  onError={(event) => {
-                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                    }
-                  }}
-                />
+                <div className="relative h-48 w-full overflow-hidden">
+                  <img
+                    src={coverImage}
+                    alt={field.name}
+                    className="h-48 w-full object-cover"
+                    onError={(event) => {
+                      if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                        event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                      }
+                    }}
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                      {field.fieldType || 'Field'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {discountPercent > 0 && (
+                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                          {discountPercent}% OFF
+                        </span>
+                      )}
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${statusClasses} bg-opacity-95`}>
+                        {fieldStatus}
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <div className="space-y-4 p-5">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
+                    </div>
                     <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
                       <MapPinIcon className="h-4 w-4" />
                       {field.address}, {field.city}
                     </p>
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>${field.pricePerHour}/hr</span>
+                    <div className="flex flex-col">
+                      {discountPercent > 0 ? (
+                        <>
+                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
+                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
+                        </>
+                      ) : (
+                        <span>${field.pricePerHour}/hr</span>
+                      )}
+                    </div>
                     <span>{field.capacity} players</span>
                   </div>
                   <div className="flex items-center gap-2">

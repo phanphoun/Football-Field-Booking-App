@@ -31,7 +31,7 @@ import OpenMatchesPage from './pages/OpenMatchesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
-import { DialogProvider } from './components/ui';
+import { DialogProvider, ToastProvider } from './components/ui';
 
 import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
@@ -203,13 +203,15 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <DialogProvider>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="App">
-            <AppRoutes />
-          </div>
-        </Router>
-      </DialogProvider>
+      <ToastProvider>
+        <DialogProvider>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <div className="App">
+              <AppRoutes />
+            </div>
+          </Router>
+        </DialogProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }
