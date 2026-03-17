@@ -43,6 +43,10 @@ const LoginPage = () => {
     const nextErrors = {};
 
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
+    if (formData.email.trim()) {
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+      if (!emailOk) nextErrors.email = 'Sorry, please type a valid login email.';
+    }
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
 
     if (Object.keys(nextErrors).length > 0) {
@@ -55,6 +59,14 @@ const LoginPage = () => {
       const role = result.data?.user?.role;
       const defaultPath = getPreferredStartPath(role === 'field_owner' ? 'owner' : 'app');
       navigate(from || defaultPath, { replace: true });
+      return;
+    }
+
+    if (result.error) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        password: result.error || 'Wrong password.'
+      }));
     }
   };
 
@@ -73,20 +85,7 @@ const LoginPage = () => {
         </Link>
       </p>
 
-      {error && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <div className="flex items-center">
-            <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            {error}
-          </div>
-        </div>
-      )}
+      {null}
 
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
         <div>
