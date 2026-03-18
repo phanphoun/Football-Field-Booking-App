@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
+import { DEFAULT_JERSEY_COLOR, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 
 const TeamCreatePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,14 +24,15 @@ const TeamCreatePage = () => {
     description: '',
     skillLevel: 'intermediate',
     maxPlayers: 11,
-    homeFieldId: ''
+    homeFieldId: '',
+    jerseyColors: [DEFAULT_JERSEY_COLOR]
   });
 
   useEffect(() => {
     const fetchFields = async () => {
       try {
         setLoading(true);
-        const response = await fieldService.getAllFields();
+        const response = await fieldService.getAllFields({ status: 'available' });
         const fieldsData = Array.isArray(response.data) ? response.data : [];
         setFields(fieldsData);
       } catch (err) {
@@ -55,6 +59,32 @@ const TeamCreatePage = () => {
       ...prev,
       [name]: name === 'maxPlayers' ? Number(value) : value
     }));
+  };
+
+  const setJerseyColorAt = (index, value) => {
+    const normalized = normalizeHexColor(value) || DEFAULT_JERSEY_COLOR;
+    setFormData((prev) => {
+      const next = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
+      next[index] = normalized;
+      return { ...prev, jerseyColors: normalizeJerseyColors(next) };
+    });
+  };
+
+  const handleAddJerseyColor = () => {
+    setFormData((prev) => {
+      const current = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
+      if (current.length >= 5) return prev;
+      return { ...prev, jerseyColors: [...current, DEFAULT_JERSEY_COLOR] };
+    });
+  };
+
+  const handleRemoveJerseyColor = (index) => {
+    setFormData((prev) => {
+      const current = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
+      if (current.length <= 1) return prev;
+      current.splice(index, 1);
+      return { ...prev, jerseyColors: normalizeJerseyColors(current) };
+    });
   };
 
   const handleLogoChange = (e) => {
@@ -94,7 +124,8 @@ const TeamCreatePage = () => {
         description: formData.description || undefined,
         skillLevel: formData.skillLevel,
         maxPlayers: Number(formData.maxPlayers) || 11,
-        homeFieldId: formData.homeFieldId ? Number(formData.homeFieldId) : undefined
+        homeFieldId: formData.homeFieldId ? Number(formData.homeFieldId) : undefined,
+        jerseyColors: normalizeJerseyColors(formData.jerseyColors)
       };
 
       if (!payload.name || !payload.name.trim()) {
@@ -139,7 +170,7 @@ const TeamCreatePage = () => {
           }
         }
 
-        navigate(createdTeamId ? `/app/teams/${createdTeamId}` : '/app/teams', {
+        navigate(createdTeamId ? `${basePath}/teams/${createdTeamId}` : `${basePath}/teams`, {
           replace: true,
           state: navigationState
         });
@@ -252,6 +283,45 @@ const TeamCreatePage = () => {
         </div>
 
         <div>
+          <div className="flex items-center justify-between gap-3">
+            <label className="block text-sm font-medium text-gray-700">Team Jersey Colors</label>
+            <button
+              type="button"
+              onClick={handleAddJerseyColor}
+              disabled={(formData.jerseyColors || []).length >= 5}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Add Color
+            </button>
+          </div>
+          <div className="mt-2 space-y-2">
+            {(formData.jerseyColors || []).map((color, index) => (
+              <div key={`${color}-${index}`} className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(event) => setJerseyColorAt(index, event.target.value)}
+                  className="h-10 w-14 cursor-pointer rounded border border-gray-300 bg-white p-1"
+                  aria-label={`Select jersey color ${index + 1}`}
+                />
+                <span className="inline-flex rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold uppercase text-gray-700">
+                  {color}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveJerseyColor(index)}
+                  disabled={(formData.jerseyColors || []).length <= 1}
+                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-gray-500">Choose one or more colors (up to 5) to avoid match-day color clashes.</p>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-gray-700">Home Field (Optional)</label>
           <select
             name="homeFieldId"
@@ -282,7 +352,7 @@ const TeamCreatePage = () => {
 
         <div className="flex justify-end gap-3 pt-2">
           <Link
-            to="/app/teams"
+            to={`${basePath}/teams`}
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
             Cancel

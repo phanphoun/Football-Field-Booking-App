@@ -122,9 +122,12 @@ const bookingService = {
     return response;
   },
 
-  // Confirm booking
-  confirmBooking: async (bookingId) => {
-    const response = await apiService.put(`/bookings/${bookingId}`, { status: 'confirmed' });
+  // Confirm booking (optionally update start/end time while confirming)
+  confirmBooking: async (bookingId, options = {}) => {
+    const payload = { status: 'confirmed' };
+    if (options.startTime) payload.startTime = options.startTime;
+    if (options.endTime) payload.endTime = options.endTime;
+    const response = await apiService.put(`/bookings/${bookingId}`, payload);
     return response;
   },
 

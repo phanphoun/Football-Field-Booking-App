@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeftIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 import ratingService from '../services/ratingService';
@@ -8,7 +8,12 @@ import { useAuth } from '../context/AuthContext';
 
 const TeamMatchHistoryPage = () => {
   const { id } = useParams();
+<<<<<<< HEAD
   const { user } = useAuth();
+=======
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState({ teamName: '', stats: { total: 0, wins: 0, losses: 0, draws: 0 }, matches: [] });
@@ -129,7 +134,7 @@ const TeamMatchHistoryPage = () => {
           <p className="mt-1 text-sm text-gray-700">{history.teamName || 'Team'} performance overview</p>
         </div>
         <Link
-          to={`/app/teams/${id}`}
+          to={`${basePath}/teams/${id}`}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-emerald-300 text-emerald-800 hover:bg-emerald-100"
         >
           <ArrowLeftIcon className="h-4 w-4" />

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { ImagePreviewModal } from '../components/ui';
+<<<<<<< HEAD
+=======
+import { getTeamJerseyColors } from '../utils/teamColors';
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -26,6 +30,7 @@ const normalizeTeamsResponse = (payload) => {
 const TeamsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +43,7 @@ const TeamsPage = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const isAdmin = user?.role === 'admin';
   const canCreateTeam = !!user && !isAdmin && user?.role !== 'player';
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   useEffect(() => {
     const fetchTeamsAndInvitations = async () => {
@@ -61,7 +67,7 @@ const TeamsPage = () => {
   }, [user?.id, isAdmin]);
 
   const handleCreateTeam = () => {
-    navigate('/app/teams/create');
+    navigate(`${basePath}/teams/create`);
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -79,7 +85,7 @@ const TeamsPage = () => {
   };
 
   const handleViewTeam = (teamId) => {
-    navigate(`/app/teams/${teamId}`);
+    navigate(`${basePath}/teams/${teamId}`);
   };
 
   const openDeleteDialog = (team) => {
@@ -294,6 +300,7 @@ const TeamsPage = () => {
         {teams.length > 0 ? (
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+            const jerseyColors = getTeamJerseyColors(team);
 
             return (
             <div
@@ -350,6 +357,14 @@ const TeamsPage = () => {
                       </span>
                     </div>
                   )}
+                  <div className="flex items-center gap-2">
+                    <span>Jersey:</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                      {jerseyColors.map((color, index) => (
+                        <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
+                      ))}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-5 flex gap-2">

@@ -190,7 +190,11 @@ const teamService = {
     return {
       name: rawData.name,
       description: rawData.description || '',
-      jerseyColor: rawData.jerseyColor || '',
+      jerseyColors: Array.isArray(rawData.jerseyColors)
+        ? rawData.jerseyColors
+        : rawData.shirtColor
+        ? [rawData.shirtColor]
+        : [],
       secondaryColor: rawData.secondaryColor || '',
       homeFieldLocation: rawData.homeFieldLocation || '',
       skillLevel: rawData.skillLevel || 'intermediate',

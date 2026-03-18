@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 
 const validateEnvironment = () => {
   const requiredEnvVars = [
@@ -20,6 +21,36 @@ const validateEnvironment = () => {
   if (process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET must be at least 32 characters long for security');
   }
+};
+
+const defaultAllowedTypes = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif'
+];
+
+const defaultAllowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif'];
+
+const configuredAllowedTypes = process.env.ALLOWED_FILE_TYPES
+  ? process.env.ALLOWED_FILE_TYPES.split(',').map((item) => item.trim()).filter(Boolean)
+  : defaultAllowedTypes;
+
+const configuredAllowedExtensions = process.env.ALLOWED_FILE_EXTENSIONS
+  ? process.env.ALLOWED_FILE_EXTENSIONS.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean)
+  : defaultAllowedExtensions;
+
+const isAllowedImageUpload = (file = {}) => {
+  const mimeType = String(file.mimetype || '').toLowerCase();
+  const extension = path.extname(String(file.originalname || '')).toLowerCase();
+
+  if (configuredAllowedTypes.includes(mimeType)) {
+    return true;
+  }
+
+  return mimeType.startsWith('image/') && configuredAllowedExtensions.includes(extension);
 };
 
 const serverConfig = {
@@ -104,11 +135,11 @@ const serverConfig = {
   // File upload configuration
   upload: {
     maxSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB
-    allowedTypes: process.env.ALLOWED_FILE_TYPES 
-      ? process.env.ALLOWED_FILE_TYPES.split(',') 
-      : ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    allowedTypes: configuredAllowedTypes,
+    allowedExtensions: configuredAllowedExtensions,
     destination: process.env.UPLOAD_DESTINATION || 'uploads/'
-  }
+  },
+  isAllowedImageUpload
 };
 
 // Validate environment on startup

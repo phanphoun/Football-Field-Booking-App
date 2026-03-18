@@ -145,6 +145,14 @@ const fieldValidation = {
     body('pricePerHour')
       .isFloat({ min: 0 })
       .withMessage('Price per hour must be a positive number'),
+    body('discountPercent')
+      .optional()
+      .isFloat({ min: 0, max: 100 })
+      .withMessage('Discount percent must be between 0 and 100'),
+    body('status')
+      .optional()
+      .isIn(['available', 'unavailable', 'maintenance'])
+      .withMessage('Status must be available, unavailable, or maintenance'),
     body('capacity')
       .isInt({ min: 1 })
       .withMessage('Capacity must be a positive integer'),

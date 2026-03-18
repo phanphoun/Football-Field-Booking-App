@@ -52,6 +52,42 @@ const getUserDisplayName = async (userId) => {
   return fullName || actor.username || 'A user';
 };
 
+const normalizeShirtColor = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const normalized = String(value).trim().toUpperCase();
+  if (!normalized) return null;
+
+  return normalized.startsWith('#') ? normalized : `#${normalized}`;
+};
+
+const normalizeJerseyColors = (values) => {
+  if (values === undefined) return undefined;
+  if (values === null) return null;
+  if (!Array.isArray(values)) return null;
+
+  const normalized = values
+    .map((value) => normalizeShirtColor(value))
+    .filter((value) => /^#[0-9A-F]{6}$/i.test(String(value || '')));
+
+  return Array.from(new Set(normalized)).slice(0, 5);
+};
+
+const resolveTeamJerseyColors = (payload) => {
+  const normalizedList = normalizeJerseyColors(payload?.jerseyColors);
+  if (normalizedList !== undefined) {
+    return normalizedList && normalizedList.length > 0 ? normalizedList : null;
+  }
+
+  const normalizedSingle = normalizeShirtColor(payload?.shirtColor);
+  if (normalizedSingle && /^#[0-9A-F]{6}$/i.test(normalizedSingle)) {
+    return [normalizedSingle];
+  }
+
+  return undefined;
+};
+
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
@@ -145,6 +181,8 @@ const getMyInvitations = asyncHandler(async (req, res) => {
 const createTeam = asyncHandler(async (req, res) => {
   try {
     const { name, description, skillLevel, maxPlayers, homeFieldId, logoUrl, isActive } = req.body;
+    const jerseyColors = resolveTeamJerseyColors(req.body);
+    const shirtColor = jerseyColors?.[0] || normalizeShirtColor(req.body.shirtColor);
 
     const team = await Team.create({
       name,
@@ -153,6 +191,8 @@ const createTeam = asyncHandler(async (req, res) => {
       maxPlayers,
       homeFieldId,
       logoUrl,
+      shirtColor,
+      jerseyColors,
       isActive,
       captainId: req.user.id
     });
@@ -189,6 +229,15 @@ const updateTeam = asyncHandler(async (req, res) => {
     const updateData = {};
     for (const key of updatableFields) {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
+    }
+    const jerseyColors = resolveTeamJerseyColors(req.body);
+    if (jerseyColors !== undefined) {
+      updateData.jerseyColors = jerseyColors;
+      updateData.shirtColor = Array.isArray(jerseyColors) && jerseyColors.length > 0 ? jerseyColors[0] : null;
+    } else if (req.body.shirtColor !== undefined) {
+      const normalizedColor = normalizeShirtColor(req.body.shirtColor);
+      updateData.shirtColor = normalizedColor;
+      updateData.jerseyColors = normalizedColor ? [normalizedColor] : null;
     }
 
     const updatedTeam = await team.update(updateData);
@@ -776,8 +825,7 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
     storage,
     limits: { fileSize: maxLogoSize },
     fileFilter: (req, file, cb) => {
-      const allowed = serverConfig.upload.allowedTypes;
-      if (!allowed.includes(file.mimetype)) {
+      if (!serverConfig.isAllowedImageUpload(file)) {
         return cb(new Error('Invalid file type'));
       }
       cb(null, true);

@@ -30,8 +30,7 @@ const makeStorage = (subdirFromReq) =>
   });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = serverConfig.upload.allowedTypes || [];
-  if (allowed.includes(file.mimetype)) return cb(null, true);
+  if (serverConfig.isAllowedImageUpload(file)) return cb(null, true);
   return cb(new ValidationError(`Invalid file type: ${file.mimetype}`));
 };
 

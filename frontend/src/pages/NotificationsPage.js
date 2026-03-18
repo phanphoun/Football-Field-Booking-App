@@ -50,7 +50,9 @@ const NotificationsPage = () => {
         n.metadata?.event === 'team_join_request' ||
         n.metadata?.event === 'booking_join_request'
     };
-    return notifications.filter(byType[activeFilter] || byType.all);
+    return notifications
+      .filter(byType[activeFilter] || byType.all)
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }, [notifications, activeFilter]);
 
   const markAsRead = async (notificationId) => {

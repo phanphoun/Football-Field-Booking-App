@@ -21,7 +21,6 @@ const RegisterPage = () => {
     username: '',
     email: '',
     phone: '',
-    role: 'player',
     password: '',
     confirmPassword: ''
   });
@@ -71,7 +70,10 @@ const RegisterPage = () => {
     if (!formData.lastName.trim()) nextErrors.lastName = 'Please enter your last name.';
     if (!formData.username.trim()) nextErrors.username = 'Please enter your username.';
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
+<<<<<<< HEAD
     if (!formData.role) nextErrors.role = 'Please select a role.';
+=======
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
     if (!formData.confirmPassword.trim()) {
       nextErrors.confirmPassword = 'Please confirm your password.';
@@ -91,7 +93,7 @@ const RegisterPage = () => {
     const cleanedData = {
       ...registerData,
       phone: registerData.phone || undefined,
-      role: registerData.role || 'player'
+      role: 'player'
     };
 
     const result = await register(cleanedData);
@@ -148,6 +150,10 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
+<<<<<<< HEAD
+=======
+              placeholder="John"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
             />
             {validationErrors.firstName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.firstName}</p>
@@ -167,6 +173,10 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
+<<<<<<< HEAD
+=======
+              placeholder="Doe"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
             />
             {validationErrors.lastName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.lastName}</p>
@@ -189,6 +199,10 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.username ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
+<<<<<<< HEAD
+=======
+              placeholder="yourname"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
             />
             {validationErrors.username && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.username}</p>
@@ -205,11 +219,16 @@ const RegisterPage = () => {
               value={formData.phone}
               onChange={handleChange}
               className={inputClassName}
+<<<<<<< HEAD
+=======
+              placeholder="+1234567890"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
             />
           </div>
         </div>
 
         <div>
+<<<<<<< HEAD
           <label htmlFor="role" className="mb-2 block text-sm font-semibold text-slate-700">
             Role
           </label>
@@ -233,6 +252,8 @@ const RegisterPage = () => {
         </div>
 
         <div>
+=======
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
           <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
             Email
           </label>
@@ -247,6 +268,10 @@ const RegisterPage = () => {
             className={`${inputClassName} ${
               validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
             }`}
+<<<<<<< HEAD
+=======
+            placeholder="you@example.com"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -269,6 +294,10 @@ const RegisterPage = () => {
                 className={`${inputClassName} pr-11 ${
                   validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
                 }`}
+<<<<<<< HEAD
+=======
+                placeholder="Password"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
               />
               <button
                 type="button"
@@ -302,6 +331,10 @@ const RegisterPage = () => {
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : ''
                 }`}
+<<<<<<< HEAD
+=======
+                placeholder="Confirm password"
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
               />
               <button
                 type="button"
