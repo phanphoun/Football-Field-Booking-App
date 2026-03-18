@@ -31,7 +31,7 @@ import OpenMatchesPage from './pages/OpenMatchesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
-import { DialogProvider } from './components/ui';
+import { DialogProvider, ToastProvider } from './components/ui';
 
 import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
@@ -163,6 +163,26 @@ const AppRoutes = () => {
           />
           <Route path="league" element={<LeaguePage />} />
           <Route path="matches" element={<OwnerMatchesPage />} />
+          <Route path="teams" element={<TeamsPage />} />
+          <Route
+            path="teams/create"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="teams/:id" element={<TeamDetailsPage />} />
+          <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
+          <Route
+            path="teams/:id/manage"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamManagePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
@@ -183,13 +203,15 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <DialogProvider>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="App">
-            <AppRoutes />
-          </div>
-        </Router>
-      </DialogProvider>
+      <ToastProvider>
+        <DialogProvider>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <div className="App">
+              <AppRoutes />
+            </div>
+          </Router>
+        </DialogProvider>
+      </ToastProvider>
     </AuthProvider>
   );
 }

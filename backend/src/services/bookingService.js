@@ -7,6 +7,12 @@ const { Op } = require('sequelize');
  * Handles all booking business logic
  */
 class BookingService {
+  getEffectiveHourlyRate(field) {
+    const basePrice = Number(field?.pricePerHour || 0);
+    const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+    return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+  }
+
   /**
    * Create a new booking
    */
@@ -39,7 +45,7 @@ class BookingService {
     
     // Calculate total price
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60); // hours
-    const totalPrice = duration * field.pricePerHour;
+    const totalPrice = duration * this.getEffectiveHourlyRate(field);
     
     // Create booking
     const booking = await Booking.create({

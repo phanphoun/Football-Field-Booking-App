@@ -13,7 +13,8 @@ const START_PAGE_PATHS = {
   owner: {
     dashboard: '/owner/dashboard',
     bookings: '/owner/bookings',
-    fields: '/owner/fields'
+    fields: '/owner/fields',
+    teams: '/owner/teams'
   }
 };
 

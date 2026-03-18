@@ -42,6 +42,21 @@ const formatSlotRange = (hour) => {
   })}`;
 };
 
+const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+const getDiscountedPrice = (field) => {
+  const basePrice = Number(field?.pricePerHour || 0);
+  const discountPercent = getDiscountPercent(field);
+  return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+};
+const isBookableField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
+const getStatusTone = (status) => {
+  const normalizedStatus = String(status || 'available').toLowerCase();
+  if (normalizedStatus === 'available') return 'green';
+  if (normalizedStatus === 'booked') return 'red';
+  if (normalizedStatus === 'maintenance') return 'yellow';
+  return 'gray';
+};
+
 const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
@@ -57,6 +72,9 @@ const FieldDetailsPage = () => {
   const [scheduleDay, setScheduleDay] = useState(() => formatDayInput(new Date()));
   const [slotBookings, setSlotBookings] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const discountPercent = getDiscountPercent(field);
+  const discountedPrice = getDiscountedPrice(field);
+  const canBookThisField = isBookableField(field);
 
   useEffect(() => {
     const fetchField = async () => {
@@ -97,6 +115,11 @@ const FieldDetailsPage = () => {
   }, [field?.id, scheduleDay]);
 
   const handleBook = () => {
+    if (field?.status && field.status !== 'available') {
+      setError(field.closureMessage || `This field is currently ${field.status}.`);
+      return;
+    }
+
     const bookingPath = `/app/bookings/new?fieldId=${id}`;
 
     if (!isAuthenticated) {
@@ -113,6 +136,11 @@ const FieldDetailsPage = () => {
   };
 
   const handleSlotBook = (hour) => {
+    if (field?.status && field.status !== 'available') {
+      setError(field.closureMessage || `This field is currently ${field.status}.`);
+      return;
+    }
+
     if (!canCreateBooking) {
       handleBook();
       return;
@@ -142,6 +170,17 @@ const FieldDetailsPage = () => {
   };
 
   const slotItems = useMemo(() => {
+    const isFieldClosed = field?.status && field.status !== 'available';
+
+    if (isFieldClosed) {
+      return SLOT_HOURS.map((hour) => ({
+        key: `${scheduleDay}-${hour}`,
+        hour,
+        state: 'closed',
+        booking: null
+      }));
+    }
+
     return SLOT_HOURS.map((hour) => {
       const booking = slotBookings.find((item) => {
         const start = new Date(item.startTime);
@@ -165,8 +204,12 @@ const FieldDetailsPage = () => {
         booking
       };
     });
-  }, [scheduleDay, slotBookings]);
+  }, [scheduleDay, slotBookings, field?.status]);
 
+<<<<<<< HEAD
+=======
+  const isFieldClosed = field?.status && field.status !== 'available';
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'live-booking', label: 'Live Booking' },
@@ -226,15 +269,26 @@ const FieldDetailsPage = () => {
                 </div>
                 <div className="flex items-center">
                   <CurrencyDollarIcon className="mr-2 h-4 w-4 text-gray-400" />
-                  ${field.pricePerHour}/hour
+                  {discountPercent > 0 ? (
+                    <span className="flex items-center gap-2">
+                      <span className="font-semibold text-emerald-600">${discountedPrice}/hour</span>
+                      <span className="text-gray-400 line-through">${field.pricePerHour}/hour</span>
+                    </span>
+                  ) : (
+                    `$${field.pricePerHour}/hour`
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               {!isAdmin && (
-                <Button onClick={handleBook}>
-                  {isAuthenticated && !canCreateBooking ? 'Request Booking Access' : 'Book Now'}
+                <Button onClick={handleBook} disabled={isFieldClosed}>
+                  {isFieldClosed
+                    ? 'Field Closed'
+                    : isAuthenticated && !canCreateBooking
+                    ? 'Request Booking Access'
+                    : 'Book Now'}
                 </Button>
               )}
               <Button as={Link} to="/fields" variant="outline">
@@ -245,12 +299,20 @@ const FieldDetailsPage = () => {
 
           <div className="mt-6 flex flex-wrap gap-2">
             {field.status && (
-              <Badge tone={field.status === 'available' ? 'green' : 'gray'} className="capitalize">
+              <Badge tone={field.status === 'available' ? 'green' : field.status === 'maintenance' ? 'yellow' : 'gray'} className="capitalize">
                 {field.status}
               </Badge>
             )}
             {field.capacity && <Badge tone="gray">{field.capacity} capacity</Badge>}
+            {discountPercent > 0 && <Badge tone="green">{discountPercent}% off</Badge>}
           </div>
+
+          {isFieldClosed && (
+            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="font-semibold">Field is currently closed.</div>
+              <div className="mt-1">{field.closureMessage || 'Bookings are temporarily unavailable for this field.'}</div>
+            </div>
+          )}
 
           {field.description && <p className="mt-6 text-gray-700">{field.description}</p>}
 
@@ -304,7 +366,19 @@ const FieldDetailsPage = () => {
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Price Per Hour</div>
-                      <div className="mt-2 text-base font-semibold text-slate-950">${field.pricePerHour || 0}/hour</div>
+                      {discountPercent > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          <div className="text-base font-semibold text-emerald-600">${discountedPrice}/hour</div>
+                          <div className="text-sm text-slate-400 line-through">${field.pricePerHour || 0}/hour</div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-base font-semibold text-slate-950">${field.pricePerHour || 0}/hour</div>
+                      )}
+                    </div>
+
+                    <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Discount</div>
+                      <div className="mt-2 text-base font-semibold text-slate-950">{discountPercent}%</div>
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
@@ -315,7 +389,7 @@ const FieldDetailsPage = () => {
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Status</div>
                       <div className="mt-2">
-                        <Badge tone={field.status === 'available' ? 'green' : 'gray'} className="capitalize">
+                        <Badge tone={getStatusTone(field.status)} className="capitalize">
                           {field.status || 'unknown'}
                         </Badge>
                       </div>
@@ -407,6 +481,9 @@ const FieldDetailsPage = () => {
                               <span className="inline-flex items-center gap-1">
                                 <span className="h-3 w-3 rounded-sm bg-red-600" /> Booked
                               </span>
+                              <span className="inline-flex items-center gap-1">
+                                <span className="h-3 w-3 rounded-sm bg-slate-600" /> Closed
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -422,8 +499,11 @@ const FieldDetailsPage = () => {
                         {slotItems.map((slot) => {
                           const isAvailable = slot.state === 'available';
                           const isPending = slot.state === 'pending';
+                          const isClosed = slot.state === 'closed';
                           const slotToneClass = isAvailable
                             ? 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                            : isClosed
+                            ? 'bg-slate-600 text-white'
                             : isPending
                             ? 'bg-amber-500 hover:bg-amber-600 text-white'
                             : 'bg-red-600 hover:bg-red-700 text-white';
@@ -436,8 +516,15 @@ const FieldDetailsPage = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleSlotBook(slot.hour)}
+                                    disabled={!canBookThisField}
                                     className={`flex min-h-[62px] w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-slate-800 transition ${slotToneClass}`}
-                                    title={canCreateBooking ? 'Available - click to book' : 'Available slot'}
+                                    title={
+                                      !canBookThisField
+                                        ? 'Field is not available for booking'
+                                        : canCreateBooking
+                                        ? 'Available - click to book'
+                                        : 'Available slot'
+                                    }
                                   >
                                     <div>
                                       <div className="text-sm font-semibold">{formatSlotRange(slot.hour)}</div>
@@ -445,15 +532,21 @@ const FieldDetailsPage = () => {
                                     </div>
                                     <div className="inline-flex items-center gap-1 text-xs text-slate-500">
                                       <ClockIcon className="h-3.5 w-3.5" />
-                                      ${field.pricePerHour}/hr
+                                      ${discountPercent > 0 ? discountedPrice : field.pricePerHour}/hr
                                     </div>
                                   </button>
                                 ) : (
                                   <div className={`min-h-[62px] rounded-lg px-3 py-2 transition ${slotToneClass}`}>
-                                    <div className="truncate text-sm font-bold">{slot.booking?.team?.name || 'Reserved slot'}</div>
+                                    <div className="truncate text-sm font-bold">
+                                      {isClosed ? 'Field closed' : slot.booking?.team?.name || 'Reserved slot'}
+                                    </div>
                                     <div className="mt-1 text-xs opacity-90">{formatSlotRange(slot.hour)}</div>
                                     <div className="mt-1 text-xs opacity-90">
-                                      {isPending ? 'Pending request on this field.' : 'Confirmed booking on this field.'}
+                                      {isClosed
+                                        ? field.closureMessage || 'This field is not accepting bookings right now.'
+                                        : isPending
+                                        ? 'Pending request on this field.'
+                                        : 'Confirmed booking on this field.'}
                                     </div>
                                   </div>
                                 )}

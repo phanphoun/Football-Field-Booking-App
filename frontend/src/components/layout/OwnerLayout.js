@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   HomeIcon,
   BuildingOfficeIcon,
+  UsersIcon,
   CalendarIcon,
   TrophyIcon,
   ArrowLeftIcon,
@@ -17,7 +18,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../services/api';
-import { ImagePreviewModal } from '../ui';
+import { ImagePreviewModal, useToast } from '../ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -28,7 +29,6 @@ const OwnerLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [flash, setFlash] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -36,6 +36,7 @@ const OwnerLayout = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
   const notificationsMenuRef = useRef(null);
+  const { showToast } = useToast();
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
@@ -70,6 +71,12 @@ const OwnerLayout = () => {
       href: '/owner/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/league')
+    },
+    {
+      name: 'Teams',
+      href: '/owner/teams',
+      icon: UsersIcon,
+      current: location.pathname.startsWith('/owner/teams')
     },
     {
       name: 'Bookings',
@@ -243,16 +250,15 @@ const OwnerLayout = () => {
 
     if (!successMessage && !errorMessage) return;
 
-    setFlash({
-      type: successMessage ? 'success' : 'error',
-      message: successMessage || errorMessage
+    showToast(successMessage || errorMessage, {
+      type: successMessage ? 'success' : 'error'
     });
 
     navigate(`${location.pathname}${location.search}${location.hash}`, {
       replace: true,
       state: {}
     });
-  }, [location, navigate]);
+  }, [location, navigate, showToast]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -469,13 +475,24 @@ const OwnerLayout = () => {
                     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
                       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                         <p className="text-sm font-semibold text-gray-900">Notifications</p>
-                        <button
-                          onClick={handleMarkAllAsRead}
-                          disabled={notificationActionLoading || unreadNotifications === 0}
-                          className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
-                        >
-                          Mark all read
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            disabled={notificationActionLoading || unreadNotifications === 0}
+                            className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                          >
+                            Mark all read
+                          </button>
+                          <button
+                            onClick={() => {
+                              setNotificationsMenuOpen(false);
+                              navigate('/owner/notifications');
+                            }}
+                            className="text-xs font-medium text-blue-700 hover:text-blue-800"
+                          >
+                            View all
+                          </button>
+                        </div>
                       </div>
 
                       <div className="max-h-[420px] overflow-y-auto">
@@ -584,26 +601,6 @@ const OwnerLayout = () => {
         <main className="flex-1">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {flash && (
-                <div
-                  className={`mb-4 px-4 py-3 rounded-md text-sm border ${
-                    flash.type === 'success'
-                      ? 'bg-green-50 border-green-200 text-green-800'
-                      : 'bg-red-50 border-red-200 text-red-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span>{flash.message}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFlash(null)}
-                      className="text-xs font-medium underline"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
               <Outlet />
             </div>
           </div>

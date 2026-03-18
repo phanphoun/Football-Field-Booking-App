@@ -207,6 +207,7 @@ const seedDatabase = async () => {
         longitude: 104.88 + index * 0.01,
         ownerId: owner.id,
         pricePerHour: 35 + index * 3,
+        discountPercent: index % 4 === 0 ? 15 : index % 5 === 0 ? 10 : 0,
         operatingHours,
         fieldType: fieldTypes[index % fieldTypes.length],
         surfaceType: surfaceTypes[index % surfaceTypes.length],

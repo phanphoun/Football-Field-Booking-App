@@ -2,10 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
+<<<<<<< HEAD
 import { useDialog } from '../components/ui';
+=======
+import { useAuth } from '../context/AuthContext';
+import { useDialog, useToast } from '../components/ui';
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 
@@ -18,10 +24,22 @@ const emptyForm = {
   latitude: '',
   longitude: '',
   pricePerHour: '',
+  discountPercent: '',
   capacity: '',
+  status: 'available',
   fieldType: '11v11',
   surfaceType: 'artificial_turf',
-  amenities: ''
+  amenities: '',
+  closureMessage: '',
+  closureStartAt: '',
+  closureEndAt: ''
+};
+
+const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+const getDiscountedHourlyPrice = (field) => {
+  const price = Number(field?.pricePerHour || 0);
+  const discountPercent = getDiscountPercent(field);
+  return Number((price * (1 - discountPercent / 100)).toFixed(2));
 };
 
 const normalizeImages = (imagesValue) => {
@@ -44,13 +62,40 @@ const resolveFieldImageUrl = (rawImage) => {
   return rawImage;
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toIsoOrNull = (value) => {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const addDaysToDateInput = (baseValue, days) => {
+  const baseDate = baseValue ? new Date(baseValue) : new Date();
+  if (Number.isNaN(baseDate.getTime())) return '';
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + Number(days || 0));
+  return toDateInputValue(nextDate);
+};
+
 const OwnerFieldsPage = () => {
   const { confirm } = useDialog();
+<<<<<<< HEAD
+=======
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
@@ -74,16 +119,15 @@ const OwnerFieldsPage = () => {
     const run = async () => {
       try {
         setLoading(true);
-        setError('');
         await loadFields();
       } catch (err) {
-        setError(err?.error || 'Failed to load fields');
+        showToast(err?.error || 'Failed to load fields', { type: 'error' });
       } finally {
         setLoading(false);
       }
     };
     run();
-  }, [loadFields]);
+  }, [loadFields, showToast]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -94,8 +138,6 @@ const OwnerFieldsPage = () => {
   };
 
   const startCreate = () => {
-    setError('');
-    setSuccessMessage('');
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
@@ -104,8 +146,6 @@ const OwnerFieldsPage = () => {
   };
 
   const startEdit = (field) => {
-    setError('');
-    setSuccessMessage('');
     setEditingFieldId(field.id);
     setImageFiles([]);
     setExistingImages(normalizeImages(field.images).map((image) => resolveFieldImageUrl(image)));
@@ -118,10 +158,15 @@ const OwnerFieldsPage = () => {
       latitude: field.latitude ?? '',
       longitude: field.longitude ?? '',
       pricePerHour: field.pricePerHour ?? '',
+      discountPercent: field.discountPercent ?? '',
       capacity: field.capacity ?? '',
+      status: field.status || 'available',
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
-      amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : ''
+      amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : '',
+      closureMessage: field.closureMessage || '',
+      closureStartAt: toDateInputValue(field.closureStartAt),
+      closureEndAt: toDateInputValue(field.closureEndAt)
     });
     setIsOpen(true);
   };
@@ -166,12 +211,22 @@ const OwnerFieldsPage = () => {
     setImageFiles(nextFiles.slice(0, 5));
   };
 
+  const applyClosureDaysPreset = (days) => {
+    setForm((current) => {
+      const baseStart = current.closureStartAt || toDateInputValue(new Date());
+      const nextEnd = addDaysToDateInput(baseStart, days);
+      return {
+        ...current,
+        closureStartAt: baseStart,
+        closureEndAt: nextEnd
+      };
+    });
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
       setSaving(true);
-      setError('');
-      setSuccessMessage('');
 
       const payload = {
         name: form.name,
@@ -182,10 +237,20 @@ const OwnerFieldsPage = () => {
         latitude: form.latitude ? Number(form.latitude) : null,
         longitude: form.longitude ? Number(form.longitude) : null,
         pricePerHour: Number(form.pricePerHour),
+        discountPercent: form.discountPercent === '' ? 0 : Number(form.discountPercent),
         capacity: Number(form.capacity),
+        status: form.status,
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
-        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : []
+        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : [],
+        closureMessage:
+          form.status === 'available'
+            ? null
+            : form.closureMessage?.trim()
+            ? form.closureMessage.trim()
+            : null,
+        closureStartAt: form.status === 'available' ? null : toIsoOrNull(form.closureStartAt),
+        closureEndAt: form.status === 'available' ? null : toIsoOrNull(form.closureEndAt)
       };
 
       if (editingFieldId) {
@@ -193,20 +258,20 @@ const OwnerFieldsPage = () => {
         if (imageFiles.length > 0) {
           await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: true });
         }
-        setSuccessMessage('Field updated.');
+        showToast('Field updated.', { type: 'success' });
       } else {
         const created = await fieldService.createField(payload);
         const createdId = created?.data?.id;
         if (createdId && imageFiles.length > 0) {
           await fieldService.uploadFieldImages(createdId, imageFiles);
         }
-        setSuccessMessage('Field created.');
+        showToast('Field created.', { type: 'success' });
       }
 
       await loadFields();
       resetForm();
     } catch (err) {
-      setError(err?.error || 'Failed to save field');
+      showToast(err?.error || 'Failed to save field', { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -218,13 +283,42 @@ const OwnerFieldsPage = () => {
 
     try {
       setSaving(true);
-      setError('');
-      setSuccessMessage('');
       await fieldService.deleteField(field.id);
-      setSuccessMessage('Field deleted.');
+      showToast('Field deleted.', { type: 'success' });
       await loadFields();
     } catch (err) {
-      setError(err?.error || 'Failed to delete field');
+      showToast(err?.error || 'Failed to delete field', { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleFieldStatus = async (field) => {
+    const isCurrentlyOpen = (field?.status || 'available') === 'available';
+    const nextStatus = isCurrentlyOpen ? 'unavailable' : 'available';
+
+    const confirmed = await confirm(
+      isCurrentlyOpen
+        ? `Close "${field.name}" for now? Players will not be able to create new bookings.`
+        : `Open "${field.name}" for booking again?`,
+      { title: isCurrentlyOpen ? 'Close Field' : 'Open Field' }
+    );
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+
+      await fieldService.updateField(field.id, {
+        status: nextStatus,
+        closureMessage: nextStatus === 'available' ? null : field?.closureMessage || 'Temporarily closed by field owner.',
+        closureStartAt: nextStatus === 'available' ? null : new Date().toISOString(),
+        closureEndAt: nextStatus === 'available' ? null : field?.closureEndAt || null
+      });
+
+      showToast(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.', { type: 'success' });
+      await loadFields();
+    } catch (err) {
+      showToast(err?.error || 'Failed to update field status', { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -254,10 +348,6 @@ const OwnerFieldsPage = () => {
           Add Field
         </button>
       </div>
-
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {successMessage && <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
-
       {isOpen && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/65 p-4 backdrop-blur-sm">
           <form
@@ -296,6 +386,10 @@ const OwnerFieldsPage = () => {
                 <input name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder="Capacity" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Discount Percent</span>
+                <input name="discountPercent" type="number" min="0" max="100" value={form.discountPercent} onChange={handleChange} placeholder="0" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
+              </label>
+              <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Type</span>
                 <select name="fieldType" value={form.fieldType} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
                   <option value="5v5">5v5</option>
@@ -314,10 +408,82 @@ const OwnerFieldsPage = () => {
                 </select>
               </label>
               <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Status</span>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
+                  <option value="available">Available</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="unavailable">Unavailable</option>
+                </select>
+              </label>
+              <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Amenities</span>
                 <input name="amenities" value={form.amenities} onChange={handleChange} placeholder="parking, showers, lights" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
+              <label className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Field Status</span>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
+                  <option value="available">Open</option>
+                  <option value="unavailable">Closed</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </label>
             </div>
+
+            {form.status !== 'available' && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Close Date</span>
+                    <input
+                      name="closureStartAt"
+                      type="date"
+                      value={form.closureStartAt}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
+                    <input
+                      name="closureEndAt"
+                      type="date"
+                      value={form.closureEndAt}
+                      min={form.closureStartAt || undefined}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {CLOSURE_DAY_PRESETS.map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => applyClosureDaysPreset(days)}
+                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        +{days} {days === 1 ? 'day' : 'days'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="block space-y-2">
+                  <span className="block text-sm font-medium text-slate-700">Closure Message</span>
+                  <textarea
+                    name="closureMessage"
+                    value={form.closureMessage}
+                    onChange={handleChange}
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Example: Closed for maintenance until 6 PM."
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                  />
+                  <span className="block text-xs text-slate-500">This message is shown to users when booking is unavailable.</span>
+                </label>
+              </div>
+            )}
 
             <div className="mt-5">
               <FieldLocationPicker
@@ -416,9 +582,28 @@ const OwnerFieldsPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+<<<<<<< HEAD
         {fields.map((field) => {
           const images = normalizeImages(field.images);
           const coverImage = resolveFieldImageUrl(images[0]);
+=======
+        {visibleFields.length > 0 ? (
+          visibleFields.map((field) => {
+            const images = normalizeImages(field.images);
+            const coverImage = resolveFieldImageUrl(images[0]);
+            const isOwned = isOwnedByCurrentUser(field);
+            const discountPercent = getDiscountPercent(field);
+            const discountedPrice = getDiscountedHourlyPrice(field);
+            const fieldStatus = String(field.status || 'available').toLowerCase();
+            const statusClasses =
+              fieldStatus === 'available'
+                ? 'bg-blue-50 text-blue-700'
+                : fieldStatus === 'booked'
+                ? 'bg-red-100 text-red-700'
+                : fieldStatus === 'maintenance'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-slate-200 text-slate-700';
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
           return (
             <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -431,6 +616,7 @@ const OwnerFieldsPage = () => {
                     event.currentTarget.src = DEFAULT_FIELD_IMAGE;
                   }
                 }}
+<<<<<<< HEAD
               />
               <div className="space-y-4 p-5">
                 <div>
@@ -463,6 +649,125 @@ const OwnerFieldsPage = () => {
                     <TrashIcon className="h-4 w-4" />
                     Delete
                   </button>
+=======
+                className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              >
+                <div className="relative h-48 w-full overflow-hidden">
+                  <img
+                    src={coverImage}
+                    alt={field.name}
+                    className="h-48 w-full object-cover"
+                    onError={(event) => {
+                      if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                        event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                      }
+                    }}
+                  />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                      {field.fieldType || 'Field'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {discountPercent > 0 && (
+                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                          {discountPercent}% OFF
+                        </span>
+                      )}
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${statusClasses} bg-opacity-95`}>
+                        {fieldStatus}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4 p-5">
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
+                    </div>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+                      <MapPinIcon className="h-4 w-4" />
+                      {field.address}, {field.city}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex flex-col">
+                      {discountPercent > 0 ? (
+                        <>
+                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
+                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
+                        </>
+                      ) : (
+                        <span>${field.pricePerHour}/hr</span>
+                      )}
+                    </div>
+                    <span>{field.capacity} players</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                        field.status === 'available'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : field.status === 'maintenance'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}
+                    >
+                      {field.status || 'available'}
+                    </span>
+                  </div>
+                  {field.closureMessage && field.status !== 'available' && (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      {field.closureMessage}
+                    </p>
+                  )}
+                  {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
+                      <br />
+                      {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
+                    </p>
+                  )}
+                  {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleToggleFieldStatus(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                        field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
+                    >
+                      {field.status === 'available' ? 'Close Field' : 'Open Field'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEdit(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <PencilSquareIcon className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDelete(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
                 </div>
               </div>
             </div>

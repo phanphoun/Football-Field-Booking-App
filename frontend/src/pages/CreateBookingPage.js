@@ -5,6 +5,7 @@ import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const CreateBookingPage = () => {
   const navigate = useNavigate();
@@ -54,6 +55,12 @@ const CreateBookingPage = () => {
     durationHours: initialDurationHours,
     notes: ''
   });
+  const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+  const getDiscountedPrice = (field) => {
+    const basePrice = Number(field?.pricePerHour || 0);
+    const discountPercent = getDiscountPercent(field);
+    return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+  };
   const hasTeams = Array.isArray(teams) && teams.length > 0;
   const toLocalInputValue = (value) => {
     const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
@@ -80,7 +87,7 @@ const CreateBookingPage = () => {
       try {
         setLoading(true);
         const [fieldsResponse, teamsResponse] = await Promise.all([
-          fieldService.getAllFields(),
+          fieldService.getAllFields({ status: 'available' }),
           teamService.getMyTeams()
         ]);
         
@@ -134,8 +141,10 @@ const CreateBookingPage = () => {
     const end = new Date(formData.endTime);
     const duration = (end - start) / (1000 * 60 * 60); // hours
     
-    return duration * parseFloat(field.pricePerHour);
+    return duration * getDiscountedPrice(field);
   };
+
+  const canBookField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -267,11 +276,12 @@ const CreateBookingPage = () => {
                 >
                   <option value="">Choose a field...</option>
                   {Array.isArray(fields) ? fields.map(field => (
-                    <option key={field.id} value={field.id}>
-                      {field.name} - ${field.pricePerHour}/hour
+                    <option key={field.id} value={field.id} disabled={!canBookField(field)}>
+                      {field.name} - ${getDiscountedPrice(field)}/hour{getDiscountPercent(field) > 0 ? ` (${getDiscountPercent(field)}% off)` : ''}{!canBookField(field) ? ` (${field.status})` : ''}
                     </option>
                   )) : null}
                 </select>
+                <p className="mt-2 text-xs text-gray-500">Only fields with status "available" can be booked.</p>
               </div>
 
               {/* Team Selection */}
@@ -294,6 +304,14 @@ const CreateBookingPage = () => {
                     </option>
                   )) : null}
                 </select>
+                {selectedTeam && (
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
+                    <span>Jersey Colors</span>
+                    {getTeamJerseyColors(selectedTeam).map((color, index) => (
+                      <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                    ))}
+                  </div>
+                )}
                 {!hasTeams && (
                   <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                     You need a team before booking.
@@ -404,11 +422,15 @@ const CreateBookingPage = () => {
                 <div className="flex items-start">
                   <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900">Field</h4>
-                    <p className="text-sm text-gray-600">{selectedField.name}</p>
-                    <p className="text-xs text-gray-500">{selectedField.address}</p>
+                      <h4 className="text-sm font-medium text-gray-900">Field</h4>
+                      <p className="text-sm text-gray-600">{selectedField.name}</p>
+                      <p className="text-xs text-gray-500">{selectedField.address}</p>
+                      <p className="mt-1 text-xs font-semibold capitalize text-gray-600">Status: {selectedField.status || 'available'}</p>
+                      {getDiscountPercent(selectedField) > 0 && (
+                        <p className="mt-1 text-xs font-semibold text-emerald-600">{getDiscountPercent(selectedField)}% off available</p>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {selectedTeam && (
                   <div className="flex items-start">
@@ -416,6 +438,11 @@ const CreateBookingPage = () => {
                     <div>
                       <h4 className="text-sm font-medium text-gray-900">Team</h4>
                       <p className="text-sm text-gray-600">{selectedTeam.name}</p>
+                      <div className="mt-1 inline-flex items-center gap-1.5">
+                        {getTeamJerseyColors(selectedTeam).map((color, index) => (
+                          <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}

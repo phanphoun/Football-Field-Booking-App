@@ -101,6 +101,7 @@ const ensureTeamMemberJoinedAtNullable = async (sequelize) => {
   return true;
 };
 
+<<<<<<< HEAD
 const ensureBookingStatusEnum = async (sequelize) => {
   const [rows] = await sequelize.query(
     `
@@ -123,10 +124,72 @@ const ensureBookingStatusEnum = async (sequelize) => {
     ALTER TABLE \`bookings\`
     MODIFY COLUMN \`status\` ENUM('pending','confirmed','cancellation_pending','cancelled','completed') NOT NULL DEFAULT 'pending'
   `);
+=======
+const ensureTeamShirtColorColumn = async (sequelize) => {
+  const hasSnakeCase = await tableHasColumn(sequelize, 'teams', 'shirt_color');
+  if (hasSnakeCase) return false;
+
+  const hasCamelCase = await tableHasColumn(sequelize, 'teams', 'shirtColor');
+  await sequelize.query('ALTER TABLE `teams` ADD COLUMN `shirt_color` VARCHAR(7) NULL');
+
+  if (hasCamelCase) {
+    await sequelize.query(`
+      UPDATE \`teams\`
+      SET \`shirt_color\` = UPPER(
+        CASE
+          WHEN \`shirtColor\` IS NULL OR TRIM(\`shirtColor\`) = '' THEN NULL
+          WHEN LEFT(TRIM(\`shirtColor\`), 1) = '#' THEN TRIM(\`shirtColor\`)
+          ELSE CONCAT('#', TRIM(\`shirtColor\`))
+        END
+      )
+      WHERE \`shirt_color\` IS NULL
+    `);
+  }
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
   return true;
 };
 
+<<<<<<< HEAD
+=======
+const ensureTeamJerseyColorsColumn = async (sequelize) => {
+  const hasSnakeCase = await tableHasColumn(sequelize, 'teams', 'jersey_colors');
+  if (!hasSnakeCase) {
+    await sequelize.query('ALTER TABLE `teams` ADD COLUMN `jersey_colors` JSON NULL');
+  }
+
+  const hasShirtColor = await tableHasColumn(sequelize, 'teams', 'shirt_color');
+  const hasLegacyShirtColor = await tableHasColumn(sequelize, 'teams', 'shirtColor');
+
+  if (hasShirtColor) {
+    await sequelize.query(`
+      UPDATE \`teams\`
+      SET \`jersey_colors\` = JSON_ARRAY(UPPER(\`shirt_color\`))
+      WHERE \`shirt_color\` IS NOT NULL
+        AND TRIM(\`shirt_color\`) <> ''
+        AND (\`jersey_colors\` IS NULL OR JSON_LENGTH(\`jersey_colors\`) = 0)
+    `);
+  } else if (hasLegacyShirtColor) {
+    await sequelize.query(`
+      UPDATE \`teams\`
+      SET \`jersey_colors\` = JSON_ARRAY(
+        UPPER(
+          CASE
+            WHEN LEFT(TRIM(\`shirtColor\`), 1) = '#' THEN TRIM(\`shirtColor\`)
+            ELSE CONCAT('#', TRIM(\`shirtColor\`))
+          END
+        )
+      )
+      WHERE \`shirtColor\` IS NOT NULL
+        AND TRIM(\`shirtColor\`) <> ''
+        AND (\`jersey_colors\` IS NULL OR JSON_LENGTH(\`jersey_colors\`) = 0)
+    `);
+  }
+
+  return !hasSnakeCase;
+};
+
+>>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 const applyLegacySchemaFixes = async (sequelize) => {
   const changes = [];
 
@@ -150,6 +213,16 @@ const applyLegacySchemaFixes = async (sequelize) => {
     changes.push('notifications.metadata');
   }
 
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureMessage', 'TEXT NULL')) {
+    changes.push('fields.closureMessage');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureStartAt', 'DATETIME NULL')) {
+    changes.push('fields.closureStartAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureEndAt', 'DATETIME NULL')) {
+    changes.push('fields.closureEndAt');
+  }
+
   if (await addColumnIfMissing(sequelize, 'users', 'avatarUrl', 'VARCHAR(255) NULL')) {
     changes.push('users.avatarUrl');
   }
@@ -167,6 +240,22 @@ const applyLegacySchemaFixes = async (sequelize) => {
   }
   if (await addColumnIfMissing(sequelize, 'users', 'status', "ENUM('active','inactive','suspended') NOT NULL DEFAULT 'active'")) {
     changes.push('users.status');
+  }
+  if (await ensureTeamShirtColorColumn(sequelize)) {
+    changes.push('teams.shirt_color');
+  }
+  if (await ensureTeamJerseyColorsColumn(sequelize)) {
+    changes.push('teams.jersey_colors');
+  }
+
+  if (await addColumnIfMissing(sequelize, 'fields', 'discountPercent', 'DECIMAL(5,2) NOT NULL DEFAULT 0')) {
+    changes.push('fields.discountPercent');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'status', "ENUM('available','unavailable','maintenance') NOT NULL DEFAULT 'available'")) {
+    changes.push('fields.status');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0')) {
+    changes.push('fields.isArchived');
   }
 
   if (await normalizeTeamMemberStatuses(sequelize)) {

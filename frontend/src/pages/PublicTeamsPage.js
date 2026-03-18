@@ -5,6 +5,7 @@ import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { UsersIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, EmptyState, ImagePreviewModal, Spinner } from '../components/ui';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -167,6 +168,7 @@ const PublicTeamsPage = () => {
         {teams.length > 0 ? (
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+            const jerseyColors = getTeamJerseyColors(team);
 
             return (
             <div
@@ -223,6 +225,16 @@ const PublicTeamsPage = () => {
                     </Badge>
                   </div>
                 )}
+                <div className="flex items-center gap-2">
+                  <span>Jersey:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1">
+                      {jerseyColors.map((color, index) => (
+                        <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-5 flex gap-2 p-6 pt-5">
