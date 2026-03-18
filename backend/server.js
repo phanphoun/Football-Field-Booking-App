@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const axios = require("axios");
-const { sequelize } = require('./src/models');
+const { sequelize, Field } = require('./src/models');
 const serverConfig = require('./src/config/serverConfig');
 const { applyLegacySchemaFixes } = require('./src/utils/legacySchemaFix');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
@@ -101,6 +101,59 @@ const getTodayAnchorInTimezone = (timeZone) => {
 
 const app = express();
 const PORT = serverConfig.port;
+
+const isMissingOrBrokenTableError = (error, tableName) => {
+  const errno = error?.original?.errno ?? error?.parent?.errno;
+  const sqlMessage =
+    error?.original?.sqlMessage ||
+    error?.parent?.sqlMessage ||
+    error?.message ||
+    '';
+
+  return (
+    errno === 1932 ||
+    errno === 1146 ||
+    (sqlMessage.includes("Table '") &&
+      (sqlMessage.includes(`.${tableName}' doesn't exist in engine`) ||
+        sqlMessage.includes(`.${tableName}' doesn't exist`)))
+  );
+};
+
+const ensureFieldTableHealthy = async () => {
+  const tableName = 'fields';
+  const model = Field;
+  try {
+    await sequelize.query(`SELECT 1 FROM \`${tableName}\` LIMIT 1`);
+  } catch (error) {
+    if (!isMissingOrBrokenTableError(error, tableName)) {
+      throw error;
+    }
+
+    const errno = error?.original?.errno ?? error?.parent?.errno;
+    if (errno === 1932) {
+      console.warn(`Detected corrupted '${tableName}' table (missing in InnoDB engine). Attempting repair...`);
+    } else {
+      console.warn(`Detected missing '${tableName}' table. Attempting repair...`);
+    }
+
+    try {
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+      if (errno === 1932) {
+        try {
+          await sequelize.getQueryInterface().dropTable(tableName);
+        } catch (dropErr) {
+          if ((dropErr?.original?.errno ?? dropErr?.parent?.errno) !== 1051) {
+            console.warn(`Failed to drop corrupted '${tableName}' table:`, dropErr.message);
+          }
+        }
+      }
+      await model.sync();
+      console.log(`Ensured '${tableName}' table is available.`);
+    } finally {
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+    }
+  }
+};
 
 // Trust proxy for rate limiting and IP detection
 app.set('trust proxy', 1);
@@ -367,11 +420,6 @@ const startServer = async () => {
   try {
     // Database connection check
     await sequelize.authenticate();
-    try {
-      await applyLegacySchemaFixes(sequelize);
-    } catch (schemaFixErr) {
-      console.warn('Legacy schema fix failed:', schemaFixErr.message);
-    }
     console.log('✅ Database connected successfully.');
     
     // Environment-safe database sync
@@ -416,7 +464,17 @@ const startServer = async () => {
         console.warn('⚠️ Continuing to start server despite sync failure.');
       }
     }
+    try {
+      await ensureFieldTableHealthy();
+    } catch (repairErr) {
+      console.warn('Field table health check failed:', repairErr.message);
+    }
 
+    try {
+      await applyLegacySchemaFixes(sequelize);
+    } catch (schemaFixErr) {
+      console.warn('Legacy schema fix failed:', schemaFixErr.message);
+    }
     app.listen(PORT, () => {
       console.log(`\n🚀 Server is running on port ${PORT}`);
       console.log(`📝 Environment: ${serverConfig.nodeEnv}`);
@@ -486,3 +544,4 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 startServer();
+

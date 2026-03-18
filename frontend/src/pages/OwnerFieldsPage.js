@@ -186,9 +186,34 @@ const OwnerFieldsPage = () => {
     };
   }, [selectedImagePreviews]);
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   const visibleImagePreviews = selectedImagePreviews.length > 0
     ? selectedImagePreviews
     : existingImages.map((url, index) => ({ name: `Current image ${index + 1}`, url }));
+
+  const amenitiesPreview = useMemo(
+    () => (form.amenities || '').split(',').map((item) => item.trim()).filter(Boolean).slice(0, 5),
+    [form.amenities]
+  );
+
+  const liveDiscountPercent = Math.min(100, Math.max(0, Number(form.discountPercent || 0)));
+  const liveBasePrice = Number(form.pricePerHour || 0);
+  const liveDiscountedPrice = liveBasePrice > 0
+    ? Number((liveBasePrice * (1 - liveDiscountPercent / 100)).toFixed(2))
+    : 0;
+  const isFormReady =
+    form.name.trim().length > 0 &&
+    Number(form.pricePerHour) > 0 &&
+    Number(form.capacity) > 0 &&
+    form.address.trim().length > 0;
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -362,12 +387,12 @@ const OwnerFieldsPage = () => {
         </div>
       </div>
       {isOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/65 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
           <form
             onSubmit={handleSubmit}
-            className="max-h-[calc(100vh-32px)] w-full max-w-5xl overflow-y-auto rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_28px_70px_rgba(15,23,42,0.24)] md:p-8"
+            className="flex max-h-[calc(100vh-28px)] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_70px_rgba(15,23,42,0.24)]"
           >
-            <div className="mb-6 flex items-center justify-between">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur md:px-8">
               <div>
                 <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
                   {editingFieldId ? 'Edit Field' : 'Create Field'}
@@ -381,10 +406,25 @@ const OwnerFieldsPage = () => {
                 onClick={resetForm}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
               >
-                ✕
+                x
               </button>
             </div>
 
+            <div className="border-b border-slate-100 bg-emerald-50/70 px-6 py-3 md:px-8">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700">Live Preview</span>
+                <span className="text-slate-700">{form.name || 'Untitled field'}</span>
+                <span className="text-slate-400">|</span>
+                <span className="font-semibold text-slate-900">{liveBasePrice > 0 ? `$${liveDiscountedPrice}/hr` : 'Set price'}</span>
+                {liveDiscountPercent > 0 && (
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {liveDiscountPercent}% OFF
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-5 md:px-8">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Name</span>
@@ -421,17 +461,18 @@ const OwnerFieldsPage = () => {
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Status</span>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="available">Available</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="unavailable">Unavailable</option>
-                </select>
-              </label>
-              <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Amenities</span>
                 <input name="amenities" value={form.amenities} onChange={handleChange} placeholder="parking, showers, lights" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
+              {amenitiesPreview.length > 0 && (
+                <div className="md:col-span-2 -mt-1 flex flex-wrap gap-2">
+                  {amenitiesPreview.map((item) => (
+                    <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              )}
               <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Status</span>
                 <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
@@ -581,14 +622,20 @@ const OwnerFieldsPage = () => {
               placeholder="Field description"
               className="mt-5 w-full rounded-xl border border-gray-300 px-4 py-3"
             />
+            </div>
 
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700">
-                Cancel
-              </button>
-              <button type="submit" disabled={saving} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save'}
-              </button>
+            <div className="sticky bottom-0 z-20 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur md:px-8">
+              <p className="text-xs text-slate-500">
+                {isFormReady ? 'Ready to save' : 'Fill required details: name, price, capacity, and location'}
+              </p>
+              <div className="flex gap-3">
+                <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving || !isFormReady} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -758,3 +805,4 @@ const OwnerFieldsPage = () => {
 };
 
 export default OwnerFieldsPage;
+

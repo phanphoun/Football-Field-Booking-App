@@ -313,7 +313,7 @@ const TeamsPage = () => {
               }}
               className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
-              <div className="relative h-44">
+              <div className="relative h-52">
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                   <UsersIcon className="h-12 w-12 text-gray-300" />
                 </div>
