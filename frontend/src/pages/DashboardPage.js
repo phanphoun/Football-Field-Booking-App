@@ -89,7 +89,7 @@ const DashboardPage = () => {
             bookingService.getAllBookings({ limit: 50 }),
             role === 'player' || role === 'captain' ? teamService.getMyTeams() : Promise.resolve({ data: [] }),
             role === 'captain' ? teamService.getCaptainedTeams() : Promise.resolve({ data: [] }),
-            fieldService.getAllFields({ limit: 50 }),
+            fieldService.getAllFields({ limit: 50, status: 'available' }),
             apiService.get('/notifications'),
             role === 'admin' ? userService.getAllUsers() : Promise.resolve({ data: [] }),
             role === 'admin' ? authService.getAdminRoleRequests('') : Promise.resolve({ data: { requests: [] } })

@@ -11,7 +11,7 @@ const fieldService = {
       city: filters.city,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
-      status: filters.status || 'available'
+      status: filters.status
     };
 
     const response = await apiService.get('/fields', params);
@@ -121,10 +121,12 @@ const fieldService = {
       latitude: parseFloat(rawData.latitude) || null,
       longitude: parseFloat(rawData.longitude) || null,
       pricePerHour: parseFloat(rawData.pricePerHour),
+      discountPercent: parseFloat(rawData.discountPercent) || 0,
       operatingHours: rawData.operatingHours,
       fieldType: rawData.fieldType,
       surfaceType: rawData.surfaceType,
       capacity: parseInt(rawData.capacity),
+      status: rawData.status || 'available',
       amenities: rawData.amenities,
       images: rawData.images || []
     };
@@ -148,6 +150,14 @@ const fieldService = {
 
     if (!fieldData.pricePerHour || fieldData.pricePerHour <= 0) {
       errors.push('Price per hour must be greater than 0');
+    }
+
+    if (fieldData.discountPercent < 0 || fieldData.discountPercent > 100) {
+      errors.push('Discount percent must be between 0 and 100');
+    }
+
+    if (fieldData.status && !['available', 'unavailable', 'maintenance', 'booked'].includes(fieldData.status)) {
+      errors.push('Status must be available, booked, unavailable, or maintenance');
     }
 
     if (!fieldData.fieldType) {

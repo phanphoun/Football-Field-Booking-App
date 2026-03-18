@@ -2,11 +2,24 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-  { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour'] },
+  {
+    model: Field,
+    as: 'field',
+    attributes: [
+      'name',
+      'address',
+      'pricePerHour',
+      'discountPercent',
+      'status',
+      'closureMessage',
+      'closureStartAt',
+      'closureEndAt'
+    ]
+  },
   {
     model: Team,
     as: 'team',
-    attributes: ['id', 'name', 'skillLevel', 'maxPlayers', 'captainId'],
+    attributes: ['id', 'name', 'skillLevel', 'maxPlayers', 'captainId', 'shirtColor', 'jerseyColors'],
     include: [
       {
         model: User,
@@ -29,8 +42,14 @@ const BOOKING_BASE_INCLUDE = [
     ],
     required: false
   },
-  { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'], required: false },
-  { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
+  { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
+  {
+    model: MatchResult,
+    as: 'matchResult',
+    attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy', 'mvpPlayerId', 'matchNotes'],
+    include: [{ model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'firstName', 'lastName'], required: false }],
+    required: false
+  },
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
@@ -57,11 +76,54 @@ const buildDateAtHour = (date, hour) => {
   return bookingDate;
 };
 
+const getEffectiveHourlyRate = (field) => {
+  const basePrice = Number(field?.pricePerHour || 0);
+  const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+  return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
+};
+
+const getDayBoundsMs = (dateValue) => {
+  const day = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(day.getTime())) return null;
+  const start = new Date(day);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(day);
+  end.setHours(23, 59, 59, 999);
+  return { startMs: start.getTime(), endMs: end.getTime() };
+};
+
+const getTimeMsOrNull = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+};
+
+const isFieldClosedForDate = (field, dateValue) => {
+  const status = String(field?.status || 'available').toLowerCase();
+  if (status === 'available') return false;
+
+  const bounds = getDayBoundsMs(dateValue);
+  if (!bounds) return true;
+
+  const closureStartMs = getTimeMsOrNull(field?.closureStartAt);
+  const closureEndMs = getTimeMsOrNull(field?.closureEndAt);
+  const hasWindow = closureStartMs !== null || closureEndMs !== null;
+
+  if (!hasWindow) return true;
+
+  const startsBeforeOrOnDay = closureStartMs === null || bounds.endMs >= closureStartMs;
+  const endsAfterDayStart = closureEndMs === null || bounds.startMs < closureEndMs;
+  return startsBeforeOrOnDay && endsAfterDayStart;
+};
+
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const serializedBookings = bookings.map(serializeBooking);
+  const availableFields = fields.filter(
+    (field) => !isFieldClosedForDate(field, date)
+  );
   const targetCount = getScheduleShowcaseTarget(date);
 
-  if (serializedBookings.length >= targetCount || fields.length === 0) {
+  if (serializedBookings.length >= targetCount || availableFields.length === 0) {
     return serializedBookings;
   }
 
@@ -85,7 +147,7 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   let showcaseIndex = 0;
 
   for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
-    for (const field of fields) {
+    for (const field of availableFields) {
       if (serializedBookings.length + showcaseBookings.length >= targetCount) {
         return [...serializedBookings, ...showcaseBookings];
       }
@@ -104,7 +166,7 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
         teamName,
         startTime,
         endTime,
-        status: showcaseIndex % 3 === 0 ? 'pending' : 'confirmed',
+        status: 'confirmed',
         createdBy: null,
         isMatchmaking: false,
         openForOpponents: false,
@@ -133,6 +195,7 @@ const requireCaptainRole = (req, res) => {
 const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
 const isUnavailableForJoin = (booking) =>
   isClosedStatus(booking) || new Date(booking.startTime) <= new Date();
+const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
 
 const createBooking = async (req, res) => {
   try {
@@ -150,8 +213,54 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Field not found' });
     }
 
+    if (field.status !== 'available') {
+      const nowMs = Date.now();
+      const closureStart = field.closureStartAt ? new Date(field.closureStartAt) : null;
+      const closureEnd = field.closureEndAt ? new Date(field.closureEndAt) : null;
+      const closureStartMs = closureStart && !Number.isNaN(closureStart.getTime()) ? closureStart.getTime() : null;
+      const closureEndMs = closureEnd && !Number.isNaN(closureEnd.getTime()) ? closureEnd.getTime() : null;
+      const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
+
+      // If owner set close/open dates, block only while "now" is inside that window.
+      const isInsideClosureWindow = hasClosureWindow
+        ? (closureStartMs === null || nowMs >= closureStartMs) && (closureEndMs === null || nowMs < closureEndMs)
+        : true;
+
+      const canAutoReopen = closureEndMs !== null && nowMs >= closureEndMs;
+
+      if (canAutoReopen) {
+        await field.update({
+          status: 'available',
+          closureMessage: null,
+          closureStartAt: null,
+          closureEndAt: null
+        });
+      } else if (isInsideClosureWindow) {
+        return res.status(400).json({
+          success: false,
+          message: field.closureMessage || `This field is currently ${field.status}. Please choose another time or field.`
+        });
+      }
+    }
+
+    const activeFieldBooking = await Booking.findOne({
+      where: {
+        fieldId,
+        status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+        endTime: { [Op.gt]: new Date() }
+      },
+      order: [['startTime', 'ASC']]
+    });
+
+    if (activeFieldBooking) {
+      return res.status(400).json({
+        success: false,
+        message: 'Field is already booked and unavailable for another booking.'
+      });
+    }
+
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
-    const totalPrice = duration * parseFloat(field.pricePerHour);
+    const totalPrice = Number((duration * getEffectiveHourlyRate(field)).toFixed(2));
 
     const existingBooking = await Booking.findOne({
       where: {
@@ -180,7 +289,7 @@ const createBooking = async (req, res) => {
     });
 
     if (field.ownerId) {
-      const team = await Team.findByPk(teamId, { attributes: ['id', 'name'] });
+      const team = await Team.findByPk(teamId, { attributes: ['id', 'name', 'shirtColor', 'jerseyColors'] });
       await Notification.create({
         userId: field.ownerId,
         title: `New booking request for ${field.name}`,
@@ -370,7 +479,10 @@ const getPublicBookingSchedule = async (req, res) => {
     }
 
     const fields = await Field.findAll({
-      attributes: ['id', 'name', 'address', 'pricePerHour', 'images'],
+      attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'status', 'closureMessage', 'closureStartAt', 'closureEndAt'],
+      where: {
+        isArchived: false
+      },
       order: [['name', 'ASC']],
       limit
     });
@@ -393,7 +505,7 @@ const getPublicBookingSchedule = async (req, res) => {
         status: { [Op.notIn]: ['cancelled', 'completed'] },
         [Op.and]: [{ startTime: { [Op.lt]: dayEnd } }, { endTime: { [Op.gt]: dayStart } }]
       },
-      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'], required: false }],
+      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false }],
       order: [['startTime', 'ASC']]
     });
 
@@ -416,7 +528,7 @@ const getPublicBookingSchedule = async (req, res) => {
 
 const updateBookingStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, startTime, endTime } = req.body;
 
     const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
     if (!allowedStatuses.includes(status)) {
@@ -429,8 +541,8 @@ const updateBookingStatus = async (req, res) => {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
         { model: Field, as: 'field' },
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
@@ -476,6 +588,45 @@ const updateBookingStatus = async (req, res) => {
       });
     }
 
+    let nextStartTime = booking.startTime;
+    let nextEndTime = booking.endTime;
+    const hasScheduleUpdate = startTime !== undefined || endTime !== undefined;
+    const isConfirmingByOwnerOrAdmin = status === 'confirmed' && previousStatus === 'pending' && (isOwner || isAdmin);
+
+    if (hasScheduleUpdate && !isConfirmingByOwnerOrAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'startTime/endTime can only be updated when owner/admin confirms a pending booking.'
+      });
+    }
+
+    if (hasScheduleUpdate) {
+      if (!startTime || !endTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both startTime and endTime are required when updating booking date/time.'
+        });
+      }
+
+      const parsedStart = new Date(startTime);
+      const parsedEnd = new Date(endTime);
+      if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid startTime or endTime.'
+        });
+      }
+      if (parsedEnd <= parsedStart) {
+        return res.status(400).json({
+          success: false,
+          message: 'endTime must be after startTime.'
+        });
+      }
+
+      nextStartTime = parsedStart;
+      nextEndTime = parsedEnd;
+    }
+
     // Completing a booking is restricted to field owner/admin approval.
     if (status === 'completed' && !(isOwner || isAdmin)) {
       return res.status(403).json({
@@ -490,7 +641,7 @@ const updateBookingStatus = async (req, res) => {
           id: { [Op.ne]: booking.id },
           fieldId: booking.fieldId,
           status: 'confirmed',
-          [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+          [Op.and]: [{ startTime: { [Op.lt]: nextEndTime } }, { endTime: { [Op.gt]: nextStartTime } }]
         }
       });
       if (overlappingConfirmed) {
@@ -501,7 +652,12 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-    await booking.update({ status });
+    const updatePayload = { status };
+    if (hasScheduleUpdate) {
+      updatePayload.startTime = nextStartTime;
+      updatePayload.endTime = nextEndTime;
+    }
+    await booking.update(updatePayload);
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
@@ -543,9 +699,9 @@ const updateBookingStatus = async (req, res) => {
           id: { [Op.ne]: booking.id },
           fieldId: booking.fieldId,
           status: 'pending',
-          [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+          [Op.and]: [{ startTime: { [Op.lt]: nextEndTime } }, { endTime: { [Op.gt]: nextStartTime } }]
         },
-        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }]
+        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
       });
 
       if (overlappingPending.length > 0) {
@@ -655,8 +811,8 @@ const confirmMatchTeams = async (req, res) => {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
         { model: Field, as: 'field' },
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
@@ -940,7 +1096,7 @@ const requestJoinMatch = async (req, res) => {
 
     const requesterTeam = await Team.findOne({
       where: { id: requesterTeamId, captainId: req.user.id },
-      attributes: ['id', 'name', 'captainId', 'skillLevel']
+      attributes: ['id', 'name', 'captainId', 'skillLevel', 'shirtColor', 'jerseyColors']
     });
     if (!requesterTeam) {
       return res.status(403).json({
@@ -951,8 +1107,8 @@ const requestJoinMatch = async (req, res) => {
 
     const booking = await Booking.findByPk(bookingId, {
       include: [
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'shirtColor', 'jerseyColors'] }
       ]
     });
     if (!booking) {
@@ -1074,8 +1230,8 @@ const getBookingJoinRequests = async (req, res) => {
 
     const booking = await Booking.findByPk(bookingId, {
       include: [
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
@@ -1096,7 +1252,7 @@ const getBookingJoinRequests = async (req, res) => {
         {
           model: Team,
           as: 'requesterTeam',
-          attributes: ['id', 'name', 'skillLevel', 'captainId'],
+          attributes: ['id', 'name', 'skillLevel', 'captainId', 'shirtColor', 'jerseyColors'],
           include: [
             {
               model: User,
@@ -1141,7 +1297,7 @@ const respondToJoinRequest = async (req, res) => {
     }
 
     const booking = await Booking.findByPk(bookingId, {
-      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }]
+      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
     });
 
     if (!booking) {
@@ -1155,7 +1311,7 @@ const respondToJoinRequest = async (req, res) => {
     }
 
     const targetRequest = await BookingJoinRequest.findByPk(requestId, {
-      include: [{ model: Team, as: 'requesterTeam', attributes: ['id', 'name', 'captainId'] }]
+      include: [{ model: Team, as: 'requesterTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
     });
     if (!targetRequest || targetRequest.bookingId !== bookingId) {
       return res.status(404).json({ success: false, message: 'Join request not found for this booking' });
@@ -1280,8 +1436,8 @@ const cancelMatchedOpponent = async (req, res) => {
 
     const booking = await Booking.findByPk(bookingId, {
       include: [
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
@@ -1524,6 +1680,7 @@ const getPublicBookingStats = async (req, res) => {
       success: true,
       data: {
         timeSlots,
+        bookings: bookings.slice(0, 50), // Return a sample of recent bookings for client-side stats if needed
         meta: {
           lookbackDays,
           totalFields,

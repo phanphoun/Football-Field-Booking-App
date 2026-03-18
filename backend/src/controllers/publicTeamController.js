@@ -4,13 +4,21 @@ const { Op } = require('sequelize');
 const mapPublicTeam = (teamInstance, ratingSummary = null) => {
   const team = teamInstance?.toJSON ? teamInstance.toJSON() : teamInstance;
   const activeMembers =
-    Array.isArray(team?.teamMembers) ? team.teamMembers.filter((m) => m.status === 'accepted') : [];
+    Array.isArray(team?.teamMembers)
+      ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
+      : [];
 
   return {
     id: team.id,
     name: team.name,
     description: team.description,
     skillLevel: team.skillLevel,
+    shirtColor: team.shirtColor || team.shirt_color || null,
+    jerseyColors: Array.isArray(team.jerseyColors || team.jersey_colors)
+      ? team.jerseyColors || team.jersey_colors
+      : team.shirtColor || team.shirt_color
+      ? [team.shirtColor || team.shirt_color]
+      : [],
     maxPlayers: team.maxPlayers,
     logoUrl: team.logoUrl || team.logo_url || team.logo || null,
     captainId: team.captainId,
@@ -91,6 +99,8 @@ const getPublicTeams = async (req, res) => {
         'name',
         'description',
         'skillLevel',
+        'shirtColor',
+        'jerseyColors',
         'maxPlayers',
         'logoUrl',
         'captainId',
@@ -112,7 +122,7 @@ const getPublicTeams = async (req, res) => {
         {
           model: TeamMember,
           as: 'teamMembers',
-          attributes: ['userId', 'status'],
+          attributes: ['userId', 'status', 'isActive'],
           required: false
         }
       ],
@@ -142,6 +152,8 @@ const getPublicTeamById = async (req, res) => {
         'name',
         'description',
         'skillLevel',
+        'shirtColor',
+        'jerseyColors',
         'maxPlayers',
         'logoUrl',
         'captainId',
@@ -163,7 +175,7 @@ const getPublicTeamById = async (req, res) => {
         {
           model: TeamMember,
           as: 'teamMembers',
-          attributes: ['userId', 'status'],
+          attributes: ['userId', 'status', 'isActive'],
           required: false
         }
       ]
