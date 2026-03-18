@@ -204,12 +204,9 @@ const FieldDetailsPage = () => {
         booking
       };
     });
-  }, [scheduleDay, slotBookings, field?.status]);
+}, [scheduleDay, slotBookings, field?.status]);
 
-<<<<<<< HEAD
-=======
   const isFieldClosed = field?.status && field.status !== 'available';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'live-booking', label: 'Live Booking' },

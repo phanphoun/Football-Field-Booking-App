@@ -2,12 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
-<<<<<<< HEAD
-import { useDialog } from '../components/ui';
-=======
-import { useAuth } from '../context/AuthContext';
 import { useDialog, useToast } from '../components/ui';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -33,13 +28,6 @@ const emptyForm = {
   closureMessage: '',
   closureStartAt: '',
   closureEndAt: ''
-};
-
-const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
-const getDiscountedHourlyPrice = (field) => {
-  const price = Number(field?.pricePerHour || 0);
-  const discountPercent = getDiscountPercent(field);
-  return Number((price * (1 - discountPercent / 100)).toFixed(2));
 };
 
 const normalizeImages = (imagesValue) => {
@@ -88,14 +76,11 @@ const addDaysToDateInput = (baseValue, days) => {
 
 const OwnerFieldsPage = () => {
   const { confirm } = useDialog();
-<<<<<<< HEAD
-=======
   const { showToast } = useToast();
-  const navigate = useNavigate();
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
@@ -293,37 +278,6 @@ const OwnerFieldsPage = () => {
     }
   };
 
-  const handleToggleFieldStatus = async (field) => {
-    const isCurrentlyOpen = (field?.status || 'available') === 'available';
-    const nextStatus = isCurrentlyOpen ? 'unavailable' : 'available';
-
-    const confirmed = await confirm(
-      isCurrentlyOpen
-        ? `Close "${field.name}" for now? Players will not be able to create new bookings.`
-        : `Open "${field.name}" for booking again?`,
-      { title: isCurrentlyOpen ? 'Close Field' : 'Open Field' }
-    );
-    if (!confirmed) return;
-
-    try {
-      setSaving(true);
-
-      await fieldService.updateField(field.id, {
-        status: nextStatus,
-        closureMessage: nextStatus === 'available' ? null : field?.closureMessage || 'Temporarily closed by field owner.',
-        closureStartAt: nextStatus === 'available' ? null : new Date().toISOString(),
-        closureEndAt: nextStatus === 'available' ? null : field?.closureEndAt || null
-      });
-
-      showToast(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.', { type: 'success' });
-      await loadFields();
-    } catch (err) {
-      showToast(err?.error || 'Failed to update field status', { type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -334,6 +288,11 @@ const OwnerFieldsPage = () => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
@@ -582,28 +541,9 @@ const OwnerFieldsPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-<<<<<<< HEAD
         {fields.map((field) => {
           const images = normalizeImages(field.images);
           const coverImage = resolveFieldImageUrl(images[0]);
-=======
-        {visibleFields.length > 0 ? (
-          visibleFields.map((field) => {
-            const images = normalizeImages(field.images);
-            const coverImage = resolveFieldImageUrl(images[0]);
-            const isOwned = isOwnedByCurrentUser(field);
-            const discountPercent = getDiscountPercent(field);
-            const discountedPrice = getDiscountedHourlyPrice(field);
-            const fieldStatus = String(field.status || 'available').toLowerCase();
-            const statusClasses =
-              fieldStatus === 'available'
-                ? 'bg-blue-50 text-blue-700'
-                : fieldStatus === 'booked'
-                ? 'bg-red-100 text-red-700'
-                : fieldStatus === 'maintenance'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-200 text-slate-700';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
           return (
             <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -616,7 +556,6 @@ const OwnerFieldsPage = () => {
                     event.currentTarget.src = DEFAULT_FIELD_IMAGE;
                   }
                 }}
-<<<<<<< HEAD
               />
               <div className="space-y-4 p-5">
                 <div>
@@ -649,125 +588,6 @@ const OwnerFieldsPage = () => {
                     <TrashIcon className="h-4 w-4" />
                     Delete
                   </button>
-=======
-                className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              >
-                <div className="relative h-48 w-full overflow-hidden">
-                  <img
-                    src={coverImage}
-                    alt={field.name}
-                    className="h-48 w-full object-cover"
-                    onError={(event) => {
-                      if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                        event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                      }
-                    }}
-                  />
-                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                      {field.fieldType || 'Field'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {discountPercent > 0 && (
-                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                          {discountPercent}% OFF
-                        </span>
-                      )}
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${statusClasses} bg-opacity-95`}>
-                        {fieldStatus}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-4 p-5">
-                  <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                    </div>
-                    <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                      <MapPinIcon className="h-4 w-4" />
-                      {field.address}, {field.city}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex flex-col">
-                      {discountPercent > 0 ? (
-                        <>
-                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
-                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
-                        </>
-                      ) : (
-                        <span>${field.pricePerHour}/hr</span>
-                      )}
-                    </div>
-                    <span>{field.capacity} players</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
-                        field.status === 'available'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : field.status === 'maintenance'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-rose-100 text-rose-700'
-                      }`}
-                    >
-                      {field.status || 'available'}
-                    </span>
-                  </div>
-                  {field.closureMessage && field.status !== 'available' && (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      {field.closureMessage}
-                    </p>
-                  )}
-                  {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
-                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
-                      <br />
-                      {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
-                    </p>
-                  )}
-                  {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleToggleFieldStatus(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
-                        field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                      }`}
-                    >
-                      {field.status === 'available' ? 'Close Field' : 'Open Field'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        startEdit(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <PencilSquareIcon className="h-4 w-4" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDelete(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                      Delete
-                    </button>
-                  </div>
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
                 </div>
               </div>
             </div>
