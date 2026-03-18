@@ -110,7 +110,7 @@ const register = async (req, res) => {
       createdAt: user.createdAt
     };
 
-    res.status(201).json({ user: userResponse, token });
+    res.status(201).json({ success: true, user: userResponse, token });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error during registration.' });
@@ -174,7 +174,7 @@ const login = async (req, res) => {
       createdAt: user.createdAt
     };
 
-    res.json({ user: userResponse, token });
+    res.json({ success: true, user: userResponse, token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error during login.' });
