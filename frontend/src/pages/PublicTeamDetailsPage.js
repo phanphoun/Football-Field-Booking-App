@@ -4,10 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { ImagePreviewModal } from '../components/ui';
-<<<<<<< HEAD
-=======
 import { getTeamJerseyColors } from '../utils/teamColors';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');

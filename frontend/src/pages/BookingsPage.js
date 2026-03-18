@@ -4,10 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
-<<<<<<< HEAD
-=======
 import { getTeamJerseyColors } from '../utils/teamColors';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();

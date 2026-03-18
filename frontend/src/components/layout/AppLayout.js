@@ -21,11 +21,7 @@ import {
 import apiService from '../../services/api';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
-<<<<<<< HEAD
-import { ImagePreviewModal } from '../ui';
-=======
 import { ImagePreviewModal, useToast } from '../ui';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -41,10 +37,6 @@ const AppLayout = () => {
   const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
-<<<<<<< HEAD
-  const [flash, setFlash] = useState(null);
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const notificationsMenuRef = useRef(null);
   const { showToast } = useToast();
@@ -510,10 +502,7 @@ const AppLayout = () => {
       await markNotificationRead(notification.id);
       await loadNotifications();
     } catch (err) {
-      setFlash({
-        type: 'error',
-        message: err?.error || 'Failed to process leave request'
-      });
+      showToast(err?.error || 'Failed to process leave request', { type: 'error' });
     } finally {
       setNotificationActionLoading(false);
     }
@@ -1082,29 +1071,6 @@ const AppLayout = () => {
         <main className="flex-1">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-<<<<<<< HEAD
-              {flash && (
-                <div
-                  className={`mb-4 px-4 py-3 rounded-md text-sm border ${
-                    flash.type === 'success'
-                      ? 'bg-green-50 border-green-200 text-green-800'
-                      : 'bg-red-50 border-red-200 text-red-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span>{flash.message}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFlash(null)}
-                      className="text-xs font-medium underline"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
               <div className="sr-only" aria-live="polite">
                 <h1>{pageInfo.title}</h1>
                 <p>{pageInfo.subtitle}</p>

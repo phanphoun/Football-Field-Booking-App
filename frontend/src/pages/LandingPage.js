@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-=======
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BoltIcon,
@@ -540,8 +536,6 @@ const LandingPage = () => {
     return featuredFields;
   }, [scheduleFieldsData, featuredFields]);
   const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * SCHEDULE_COLUMN_MIN_WIDTH + 112}px`;
-<<<<<<< HEAD
-=======
   const getDayBoundsMs = useCallback((dayKey) => {
     const day = new Date(`${dayKey}T00:00:00`);
     if (Number.isNaN(day.getTime())) return null;
@@ -575,7 +569,6 @@ const LandingPage = () => {
   }, [getDayBoundsMs, toMsOrNull]);
   const isFieldAvailable = useCallback((field, dayKey) => !isFieldClosedForDay(field, dayKey), [isFieldClosedForDay]);
   const activeScheduleFieldsCount = scheduleFields.filter((field) => isFieldAvailable(field, selectedDay)).length;
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -1208,12 +1201,6 @@ const LandingPage = () => {
                     key={field.id}
                     type="button"
                     onClick={() => handleOpenFieldFromSchedule(field)}
-<<<<<<< HEAD
-                    className="flex min-h-[86px] flex-col items-center justify-center border-l border-white/20 px-3 py-3 text-center text-sm font-semibold hover:bg-white/10"
-                  >
-                    <div className="max-w-[180px] text-balance text-base font-semibold leading-tight">{field.name}</div>
-                    <div className="mt-1 text-xs font-medium opacity-90">{field.fieldType || 'Outdoor'}</div>
-=======
                     className={`flex min-h-[86px] flex-col items-center justify-center border-l px-3 py-3 text-center text-sm font-semibold ${
                       isFieldAvailable(field, selectedDay)
                         ? 'border-white/20 hover:bg-white/10'
@@ -1224,7 +1211,6 @@ const LandingPage = () => {
                     <div className="mt-1 text-xs font-medium opacity-90">
                       {isFieldAvailable(field, selectedDay) ? field.fieldType || 'Outdoor' : 'Closed'}
                     </div>
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
                   </button>
                 ))}
               </div>

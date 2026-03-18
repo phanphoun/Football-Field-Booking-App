@@ -15,10 +15,7 @@ import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { ImagePreviewModal, useDialog } from '../components/ui';
-<<<<<<< HEAD
-=======
 import { DEFAULT_JERSEY_COLOR, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -60,11 +57,8 @@ const TeamManagePage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedInvite, setSelectedInvite] = useState(null);
   const [searchingPlayers, setSearchingPlayers] = useState(false);
-<<<<<<< HEAD
-=======
   const [jerseyColorsDraft, setJerseyColorsDraft] = useState([DEFAULT_JERSEY_COLOR]);
   const [activeColorIndex, setActiveColorIndex] = useState(0);
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const { confirm } = useDialog();
 
   const isCaptainOfTeam = useMemo(() => {

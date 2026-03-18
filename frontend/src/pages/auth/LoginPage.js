@@ -43,13 +43,6 @@ const LoginPage = () => {
     const nextErrors = {};
 
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
-<<<<<<< HEAD
-    if (formData.email.trim()) {
-      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
-      if (!emailOk) nextErrors.email = 'Sorry, please type a valid login email.';
-    }
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
 
     if (Object.keys(nextErrors).length > 0) {
@@ -88,61 +81,6 @@ const LoginPage = () => {
         </Link>
       </p>
 
-<<<<<<< HEAD
-      {null}
-
-      <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-        <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
-            Email Address
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={formData.email}
-            onChange={handleChange}
-            aria-invalid={Boolean(validationErrors.email)}
-            className={`block w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:outline-none focus:ring-2 ${
-              validationErrors.email
-                ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
-            }`}
-          />
-          {validationErrors.email && (
-            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
-              aria-invalid={Boolean(validationErrors.password)}
-              className={`block w-full rounded-2xl bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:outline-none focus:ring-2 ${
-                validationErrors.password
-                  ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                  : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
-              }`}
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-slate-700"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-            </button>
-=======
       {error && (
         <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <div className="flex items-center">
@@ -154,35 +92,11 @@ const LoginPage = () => {
               />
             </svg>
             {error}
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
           </div>
           {validationErrors.password && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
           )}
         </div>
-<<<<<<< HEAD
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              id="remember-me"
-              name="remember-me"
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
-            />
-            Remember me
-          </label>
-
-          <button
-            type="button"
-            className="text-sm font-medium text-green-700 hover:text-green-800"
-            onClick={() => showAlert('Forgot password is not implemented yet.', { title: 'Not Available Yet' })}
-          >
-            Forgot password?
-          </button>
-        </div>
-
-=======
       )}
 
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
@@ -264,7 +178,6 @@ const LoginPage = () => {
           </button>
         </div>
 
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
         <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700">
           {loading ? (
             <span className="inline-flex items-center gap-2">

@@ -9,13 +9,9 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
-<<<<<<< HEAD
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
-=======
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { getTeamJerseyColors } from '../utils/teamColors';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -33,17 +29,6 @@ const formatMoney = (value) => {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
-<<<<<<< HEAD
-const formatBookingSchedule = (startValue, endValue) => {
-  const start = startValue ? new Date(startValue) : null;
-  const end = endValue ? new Date(endValue) : null;
-
-  if (!start) return '-';
-  return `${start.toLocaleString()}${end ? ` - ${end.toLocaleTimeString()}` : ''}`;
-};
-
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 const formatDateTime = (value) => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -58,8 +43,6 @@ const formatTimeOnly = (value) => {
   return parsed.toLocaleTimeString();
 };
 
-<<<<<<< HEAD
-=======
 const toDateInputValue = (value) => {
   if (!value) return '';
   const parsed = new Date(value);
@@ -97,7 +80,6 @@ const buildScheduleWithSelectedDate = (booking, dateValue) => {
   };
 };
 
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -114,13 +96,9 @@ const OwnerBookingsPage = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
-<<<<<<< HEAD
-  const [decisionLoading, setDecisionLoading] = useState(null);
-=======
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [captainDetailsOpen, setCaptainDetailsOpen] = useState(false);
   const [acceptDateByBooking, setAcceptDateByBooking] = useState({});
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -163,8 +141,6 @@ const OwnerBookingsPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') {
-<<<<<<< HEAD
-=======
         const selectedDate = acceptDateByBooking[booking.id] || toDateInputValue(booking.startTime);
         if (!selectedDate) {
           setError('Please select a date before accepting this booking.');
@@ -176,16 +152,11 @@ const OwnerBookingsPage = () => {
           return;
         }
 
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
         const confirmed = await confirm('Do you want to accept this booking request?', {
           title: 'Accept Booking'
         });
         if (!confirmed) return;
-<<<<<<< HEAD
-        await bookingService.confirmBooking(booking.id);
-=======
         await bookingService.confirmBooking(booking.id, nextSchedule);
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
       }
       if (nextStatus === 'cancelled') {
         const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
@@ -201,28 +172,6 @@ const OwnerBookingsPage = () => {
     }
   };
 
-<<<<<<< HEAD
-  const handleCancellationDecision = async (booking, action) => {
-    try {
-      setDecisionLoading(booking.id);
-      setError(null);
-      const confirmed = window.confirm(
-        action === 'approve'
-          ? 'Approve this cancellation request? The booking will be cancelled.'
-          : 'Reject this cancellation request? The booking will stay active.'
-      );
-      if (!confirmed) return;
-      await bookingService.decideCancellation(booking.id, action);
-      await refresh();
-    } catch (err) {
-      setError(err?.error || 'Failed to respond to cancellation request');
-    } finally {
-      setDecisionLoading(null);
-    }
-  };
-
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const captainDisplayName = (booking) => {
     if (booking?.team?.captain?.firstName || booking?.team?.captain?.lastName) {
       return `${booking.team?.captain?.firstName || ''} ${booking.team?.captain?.lastName || ''}`.trim();
@@ -329,7 +278,7 @@ const OwnerBookingsPage = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {filtered.map((b) => {
-                const isUpdating = updatingId === b.id || decisionLoading === b.id;
+                const isUpdating = updatingId === b.id;
                 const start = b?.startTime ? new Date(b.startTime) : null;
                 const end = b?.endTime ? new Date(b.endTime) : null;
                 const captainName = captainDisplayName(b);
@@ -340,16 +289,6 @@ const OwnerBookingsPage = () => {
                 const hasResult = !!b.matchResult?.id;
 
                 return (
-<<<<<<< HEAD
-                  <div key={b.id} className="flex flex-col gap-4 px-6 py-4 transition hover:bg-slate-50/80 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <div className="text-sm font-semibold text-gray-900 truncate">{b.field?.name || 'Field'}</div>
-                        <Badge tone={statusTone(b.status)} className="capitalize">
-                          {formatStatusLabel(b.status)}
-                        </Badge>
-                        <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
-=======
                   <div
                     key={b.id}
                     role="button"
@@ -370,7 +309,6 @@ const OwnerBookingsPage = () => {
                             {b.status}
                           </Badge>
                           <Badge tone="green">{formatMoney(b.totalPrice)}</Badge>
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
                         <span className="inline-flex items-center gap-1">
@@ -402,68 +340,6 @@ const OwnerBookingsPage = () => {
 
                     <div className="flex justify-start lg:justify-end">
                       <div className="flex flex-col items-start gap-3 lg:items-end">
-<<<<<<< HEAD
-                        <div className="flex flex-wrap items-center gap-2">
-                          {b.status === 'pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                className="h-7 px-2.5 text-xs"
-                                disabled={isUpdating}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleStatus(b, 'confirmed');
-                                }}
-                              >
-                                <CheckCircleIcon className="h-4 w-4" />
-                                Accept Booking
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                className="h-7 px-2.5 text-xs"
-                                disabled={isUpdating}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleStatus(b, 'cancelled');
-                                }}
-                              >
-                                <XCircleIcon className="h-4 w-4" />
-                                Cancel
-                              </Button>
-                            </>
-                          )}
-                          {b.status === 'cancellation_pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                disabled={isUpdating}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleCancellationDecision(b, 'approve');
-                                }}
-                              >
-                                <CheckCircleIcon className="h-4 w-4" />
-                                Approve Cancellation
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                disabled={isUpdating}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleCancellationDecision(b, 'reject');
-                                }}
-                              >
-                                <XCircleIcon className="h-4 w-4" />
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {b.status === 'confirmed' && <Badge tone="blue">Use Matches page to complete</Badge>}
-                          {b.status === 'completed' && <Badge tone="blue">Completed</Badge>}
-                          {b.status === 'cancelled' && <Badge tone="gray">No actions</Badge>}
-=======
                         {b.status === 'pending' && (
                           <div className="w-full min-w-[220px] lg:w-[220px]">
                             <label className="block text-[11px] font-medium text-gray-600">Match date</label>
@@ -516,7 +392,6 @@ const OwnerBookingsPage = () => {
                       {b.status === 'confirmed' && <Badge tone="blue">Use Matches page to complete</Badge>}
                       {b.status === 'completed' && <Badge tone="blue">Completed</Badge>}
                       {b.status === 'cancelled' && <Badge tone="gray">No actions</Badge>}
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
                         </div>
                       </div>
                     </div>
@@ -532,8 +407,6 @@ const OwnerBookingsPage = () => {
         </CardBody>
       </Card>
 
-<<<<<<< HEAD
-=======
       <ConfirmationModal
         isOpen={Boolean(selectedBooking)}
         title={selectedBooking?.field?.name || 'Booking details'}
@@ -718,7 +591,6 @@ const OwnerBookingsPage = () => {
         member={captainDetailsOpen ? selectedBooking?.team?.captain : null}
         onClose={() => setCaptainDetailsOpen(false)}
       />
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
     </div>
   );
 };

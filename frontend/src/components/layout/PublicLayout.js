@@ -2,24 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-<<<<<<< HEAD
-import { Button, useDialog } from '../ui';
-=======
 import { Button, useDialog, useToast } from '../ui';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-<<<<<<< HEAD
-  const [flash, setFlash] = useState(null);
-  const { confirm } = useDialog();
-=======
   const { confirm } = useDialog();
   const { showToast } = useToast();
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
@@ -67,36 +58,6 @@ const PublicLayout = () => {
   if (isAuthPage) {
     return (
       <div className="min-h-screen bg-slate-950">
-        <Outlet />
-      </div>
-    );
-  }
-
-  if (isAuthPage) {
-    return (
-      <div className="min-h-screen bg-slate-950">
-        {flash && (
-          <div className="fixed left-1/2 top-4 z-50 w-full max-w-xl -translate-x-1/2 px-4">
-            <div
-              className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${
-                flash.type === 'success'
-                  ? 'border-green-200 bg-green-50 text-green-800'
-                  : 'border-red-200 bg-red-50 text-red-800'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span>{flash.message}</span>
-                <button
-                  type="button"
-                  onClick={() => setFlash(null)}
-                  className="text-xs font-medium underline"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <Outlet />
       </div>
     );

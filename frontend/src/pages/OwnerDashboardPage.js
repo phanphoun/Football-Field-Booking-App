@@ -55,19 +55,10 @@ const OwnerDashboardPage = () => {
     fetchOwnerData();
   }, []);
 
-<<<<<<< HEAD
-  const pendingBookings = useMemo(
-    () => bookings.filter((b) => b.status === 'pending' || b.status === 'cancellation_pending'),
-    [bookings]
-  );
-  const confirmedBookings = useMemo(() => bookings.filter((b) => b.status === 'confirmed'), [bookings]);
-  const completedBookings = useMemo(() => bookings.filter((b) => b.status === 'completed'), [bookings]);
-=======
   const pendingBookings = useMemo(() => bookings.filter((booking) => booking.status === 'pending'), [bookings]);
   const confirmedBookings = useMemo(() => bookings.filter((booking) => booking.status === 'confirmed'), [bookings]);
   const completedBookings = useMemo(() => bookings.filter((booking) => booking.status === 'completed'), [bookings]);
 
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
   const upcomingConfirmed = useMemo(() => {
     const now = Date.now();
     return confirmedBookings
@@ -240,11 +231,6 @@ const OwnerDashboardPage = () => {
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-<<<<<<< HEAD
-                          <Badge tone={statusTone(booking.status)} className="capitalize">
-                            {formatStatusLabel(booking.status)}
-                          </Badge>
-=======
                           <Button size="sm" className="rounded-xl px-4" disabled={isUpdating} onClick={() => handleStatus(booking.id, 'confirmed')}>
                             <CheckCircleIcon className="h-4 w-4" />
                             Confirm
@@ -259,7 +245,6 @@ const OwnerDashboardPage = () => {
                             <XCircleIcon className="h-4 w-4" />
                             Cancel
                           </Button>
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
                         </div>
                       </div>
                     </div>

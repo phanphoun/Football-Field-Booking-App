@@ -18,11 +18,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../services/api';
-<<<<<<< HEAD
-import { ImagePreviewModal } from '../ui';
-=======
 import { ImagePreviewModal, useToast } from '../ui';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');

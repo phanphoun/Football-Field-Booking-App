@@ -76,13 +76,6 @@ const buildDateAtHour = (date, hour) => {
   return bookingDate;
 };
 
-<<<<<<< HEAD
-const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
-  const serializedBookings = bookings.map(serializeBooking);
-  const targetCount = getScheduleShowcaseTarget(date);
-
-  if (serializedBookings.length >= targetCount || fields.length === 0) {
-=======
 const getEffectiveHourlyRate = (field) => {
   const basePrice = Number(field?.pricePerHour || 0);
   const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
@@ -131,7 +124,6 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const targetCount = getScheduleShowcaseTarget(date);
 
   if (serializedBookings.length >= targetCount || availableFields.length === 0) {
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
     return serializedBookings;
   }
 
@@ -155,11 +147,7 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   let showcaseIndex = 0;
 
   for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
-<<<<<<< HEAD
-    for (const field of fields) {
-=======
     for (const field of availableFields) {
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
       if (serializedBookings.length + showcaseBookings.length >= targetCount) {
         return [...serializedBookings, ...showcaseBookings];
       }
@@ -178,11 +166,7 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
         teamName,
         startTime,
         endTime,
-<<<<<<< HEAD
-        status: showcaseIndex % 3 === 0 ? 'pending' : 'confirmed',
-=======
         status: 'confirmed',
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
         createdBy: null,
         isMatchmaking: false,
         openForOpponents: false,

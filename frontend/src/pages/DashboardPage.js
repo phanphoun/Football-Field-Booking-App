@@ -89,11 +89,7 @@ const DashboardPage = () => {
             bookingService.getAllBookings({ limit: 50 }),
             role === 'player' || role === 'captain' ? teamService.getMyTeams() : Promise.resolve({ data: [] }),
             role === 'captain' ? teamService.getCaptainedTeams() : Promise.resolve({ data: [] }),
-<<<<<<< HEAD
-            fieldService.getAllFields({ limit: 50 }),
-=======
             fieldService.getAllFields({ limit: 50, status: 'available' }),
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
             apiService.get('/notifications'),
             role === 'admin' ? userService.getAllUsers() : Promise.resolve({ data: [] }),
             role === 'admin' ? authService.getAdminRoleRequests('') : Promise.resolve({ data: { requests: [] } })
@@ -145,13 +141,8 @@ const DashboardPage = () => {
   const upcomingBookings = useMemo(() => {
     const now = Date.now();
     return bookings
-<<<<<<< HEAD
-      .filter((b) => b?.startTime && (b.status === 'pending' || b.status === 'confirmed' || b.status === 'cancellation_pending'))
-      .filter((b) => new Date(b.startTime).getTime() >= now)
-=======
       .filter((booking) => booking?.startTime && (booking.status === 'pending' || booking.status === 'confirmed'))
       .filter((booking) => new Date(booking.startTime).getTime() >= now)
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
       .slice(0, 5);
   }, [bookings]);

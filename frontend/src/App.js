@@ -32,11 +32,7 @@ import OpenMatchesPage from './pages/OpenMatchesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
-<<<<<<< HEAD
-import { DialogProvider } from './components/ui';
-=======
 import { DialogProvider, ToastProvider } from './components/ui';
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
 
 import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
@@ -73,10 +69,7 @@ const AppRoutes = () => {
           <Route path="fields" element={<FieldsPage />} />
           <Route path="league" element={<LeaguePage />} />
           <Route path="teams" element={<TeamsPage />} />
-<<<<<<< HEAD
           <Route path="match-history" element={<MatchHistoryIndexPage />} />
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
           <Route
             path="teams/create"
             element={
@@ -172,8 +165,6 @@ const AppRoutes = () => {
           />
           <Route path="league" element={<LeaguePage />} />
           <Route path="matches" element={<OwnerMatchesPage />} />
-<<<<<<< HEAD
-=======
           <Route path="teams" element={<TeamsPage />} />
           <Route
             path="teams/create"
@@ -194,7 +185,6 @@ const AppRoutes = () => {
             }
           />
           <Route path="notifications" element={<NotificationsPage />} />
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
@@ -215,15 +205,6 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-<<<<<<< HEAD
-      <DialogProvider>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="App">
-            <AppRoutes />
-          </div>
-        </Router>
-      </DialogProvider>
-=======
       <ToastProvider>
         <DialogProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -233,7 +214,6 @@ function App() {
           </Router>
         </DialogProvider>
       </ToastProvider>
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
     </AuthProvider>
   );
 }

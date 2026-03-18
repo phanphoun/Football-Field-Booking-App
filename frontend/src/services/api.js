@@ -16,6 +16,18 @@ const api = axios.create({
   },
 });
 
+let lastToastAt = 0;
+let lastToastKey = '';
+const emitToast = (detail) => {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  const key = `${detail.type || 'info'}:${detail.title || ''}:${detail.message || ''}`;
+  const now = Date.now();
+  if (key === lastToastKey && now - lastToastAt < 5000) return;
+  lastToastAt = now;
+  lastToastKey = key;
+  window.dispatchEvent(new CustomEvent('app:toast', { detail }));
+};
+
 // =====================================
 // Authentication Helpers
 // =====================================
@@ -88,6 +100,31 @@ api.interceptors.response.use(
         error.response?.data?.message ||
         error.message ||
         'An unexpected error occurred';
+
+    if (status === 429) {
+      const retryAfterHeader = error.response?.headers?.['retry-after'];
+      const retryAfterSeconds = Number(retryAfterHeader);
+      const waitMinutes = Number.isFinite(retryAfterSeconds)
+        ? Math.max(1, Math.ceil(retryAfterSeconds / 60))
+        : null;
+      const retryMessage = waitMinutes
+        ? `Too many requests. Please wait about ${waitMinutes} minute${waitMinutes === 1 ? '' : 's'} and try again.`
+        : 'Too many requests. Please wait a minute and try again.';
+
+      emitToast({
+        type: 'error',
+        title: 'Too Many Requests',
+        message: retryMessage,
+        duration: 6000
+      });
+    } else if (isNetworkError || status >= 500) {
+      emitToast({
+        type: 'error',
+        title: 'Server Issue',
+        message,
+        duration: 5000
+      });
+    }
 
     // Handle Unauthorized (token expired/invalid)
     if (status === 401) {

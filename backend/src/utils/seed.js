@@ -207,10 +207,7 @@ const seedDatabase = async () => {
         longitude: 104.88 + index * 0.01,
         ownerId: owner.id,
         pricePerHour: 35 + index * 3,
-<<<<<<< HEAD
-=======
         discountPercent: index % 4 === 0 ? 15 : index % 5 === 0 ? 10 : 0,
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
         operatingHours,
         fieldType: fieldTypes[index % fieldTypes.length],
         surfaceType: surfaceTypes[index % surfaceTypes.length],
@@ -240,28 +237,6 @@ const seedDatabase = async () => {
       teams.push(team);
     }
 
-<<<<<<< HEAD
-    // Create Players
-    const player1 = await User.create({
-      username: 'player1',
-      email: 'player@example.com',
-      password: hashedPassword,
-      firstName: 'Test',
-      lastName: 'Player',
-      role: 'player'
-    });
-
-    const player2 = await User.create({
-      username: 'player2',
-      email: 'player2@example.com',
-      password: hashedPassword,
-      firstName: 'Second',
-      lastName: 'Player',
-      role: 'player'
-    });
-
-=======
->>>>>>> bfc700581fa606479e4b6c51bab8bd4dc3459bd0
     const teamMembers = [];
     for (let index = 0; index < teams.length; index += 1) {
       teamMembers.push({
