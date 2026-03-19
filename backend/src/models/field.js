@@ -144,7 +144,25 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'Field',
     tableName: 'fields',
     timestamps: true,
-    paranoid: false
+    paranoid: false,
+    indexes: [
+      {
+        // Index for querying fields by owner
+        fields: ['ownerId']
+      },
+      {
+        // Index for filtering by status
+        fields: ['status']
+      },
+      {
+        // Composite index for common search: available fields by type
+        fields: ['status', 'fieldType']
+      },
+      {
+        // Index for location-based queries (if using geographic queries)
+        fields: ['province', 'city']
+      }
+    ]
   });
   return Field;
 };

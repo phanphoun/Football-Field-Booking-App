@@ -415,11 +415,14 @@ const getPublicBookingSchedule = async (req, res) => {
 };
 
 const updateBookingStatus = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { status } = req.body;
 
     const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
     if (!allowedStatuses.includes(status)) {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: `status must be one of: ${allowedStatuses.join(', ')}`
@@ -431,10 +434,12 @@ const updateBookingStatus = async (req, res) => {
         { model: Field, as: 'field' },
         { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
         { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
-      ]
+      ],
+      transaction
     });
 
     if (!booking) {
+      await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
@@ -501,7 +506,7 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-    await booking.update({ status });
+    await booking.update({ status }, { transaction });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
@@ -534,7 +539,8 @@ const updateBookingStatus = async (req, res) => {
               opponentTeamName,
               confirmedByUserId: req.user.id
             }
-          }))
+          })),
+          { transaction }
         );
       }
 
@@ -545,13 +551,14 @@ const updateBookingStatus = async (req, res) => {
           status: 'pending',
           [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
         },
-        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }]
+        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }],
+        transaction
       });
 
       if (overlappingPending.length > 0) {
         await Booking.update(
           { status: 'cancelled' },
-          { where: { id: { [Op.in]: overlappingPending.map((item) => item.id) } } }
+          { where: { id: { [Op.in]: overlappingPending.map((item) => item.id) } }, transaction }
         );
 
         const rejectedNotifications = [];
@@ -576,7 +583,7 @@ const updateBookingStatus = async (req, res) => {
         }
 
         if (rejectedNotifications.length > 0) {
-          await Notification.bulkCreate(rejectedNotifications);
+          await Notification.bulkCreate(rejectedNotifications, { transaction });
         }
       }
     }
@@ -612,7 +619,8 @@ const updateBookingStatus = async (req, res) => {
               opponentTeamName,
               cancelledByUserId: req.user.id
             }
-          }))
+          })),
+          { transaction }
         );
       }
 
@@ -635,12 +643,14 @@ const updateBookingStatus = async (req, res) => {
             opponentTeamName,
             cancelledByUserId: req.user.id
           }
-        });
+        }, { transaction });
       }
     }
 
+    await transaction.commit();
     res.json({ success: true, data: serializeBooking(booking) });
   } catch (error) {
+    await transaction.rollback();
     console.error('Update booking status error:', error);
     res.status(500).json({
       success: false,

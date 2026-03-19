@@ -25,31 +25,34 @@ const createRateLimiter = (windowMs, max, message) => {
   });
 };
 
-// General API rate limiting (increased for development)
+// Environment-based rate limiting
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// General API rate limiting
 const generalLimiter = createRateLimiter(
   15 * 60 * 1000, // 15 minutes
-  1000, // 1000 requests per window (effectively disabled for dev)
+  isDevelopment ? 1000 : 100, // Relaxed in dev, strict in production
   'Too many requests from this IP, please try again after 15 minutes'
 );
 
-// Strict rate limiting for authentication routes (disabled for development)
+// Strict rate limiting for authentication routes
 const authLimiter = createRateLimiter(
   15 * 60 * 1000, // 15 minutes
-  1000, // 1000 attempts per window (effectively disabled for dev)
+  isDevelopment ? 1000 : 5, // 5 login attempts per 15 min in production
   'Too many authentication attempts, please try again after 15 minutes'
 );
 
-// Rate limiting for search endpoints (increased for development)
+// Rate limiting for search endpoints
 const searchLimiter = createRateLimiter(
   1 * 60 * 1000, // 1 minute
-  300, // 300 searches per minute (effectively disabled for dev)
+  isDevelopment ? 300 : 30, // 30 searches per minute in production
   'Too many search requests, please try again after a minute'
 );
 
-// Rate limiting for creation endpoints (increased for development)
+// Rate limiting for creation endpoints
 const createLimiter = createRateLimiter(
   1 * 60 * 1000, // 1 minute
-  100, // 100 creations per minute (effectively disabled for dev)
+  isDevelopment ? 100 : 20, // 20 creations per minute in production
   'Too many creation requests, please try again after a minute'
 );
 

@@ -68,6 +68,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       {
         fields: ['createdAt']
+      },
+      {
+        // Composite index for common query: unread notifications for a user ordered by time
+        fields: ['userId', 'isRead', 'createdAt']
       }
     ]
   });

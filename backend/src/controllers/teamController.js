@@ -1,4 +1,4 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -143,6 +143,8 @@ const getMyInvitations = asyncHandler(async (req, res) => {
 });
 
 const createTeam = asyncHandler(async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { name, description, skillLevel, maxPlayers, homeFieldId, logoUrl, isActive } = req.body;
 
@@ -155,7 +157,7 @@ const createTeam = asyncHandler(async (req, res) => {
       logoUrl,
       isActive,
       captainId: req.user.id
-    });
+    }, { transaction });
 
     await TeamMember.create({
       teamId: team.id,
@@ -164,10 +166,12 @@ const createTeam = asyncHandler(async (req, res) => {
       status: 'active',
       joinedAt: new Date(),
       isActive: true
-    });
+    }, { transaction });
 
+    await transaction.commit();
     res.status(201).json({ success: true, data: team });
   } catch (error) {
+    await transaction.rollback();
     console.error('Create team error:', error);
     res.status(400).json({ success: false, message: error.message });
   }

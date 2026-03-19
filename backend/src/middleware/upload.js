@@ -29,10 +29,71 @@ const makeStorage = (subdirFromReq) =>
     }
   });
 
+// Magic number signatures for common image formats
+const FILE_SIGNATURES = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/png': [[0x89, 0x50, 0x4E, 0x47]],
+  'image/gif': [[0x47, 0x49, 0x46, 0x38]],
+  'image/webp': [[0x52, 0x49, 0x46, 0x46]]
+};
+
+const validateFileSignature = (buffer, mimetype) => {
+  const signatures = FILE_SIGNATURES[mimetype];
+  if (!signatures) return false;
+
+  return signatures.some(signature => {
+    return signature.every((byte, index) => buffer[index] === byte);
+  });
+};
+
 const fileFilter = (req, file, cb) => {
   const allowed = serverConfig.upload.allowedTypes || [];
-  if (allowed.includes(file.mimetype)) return cb(null, true);
-  return cb(new ValidationError(`Invalid file type: ${file.mimetype}`));
+  if (!allowed.includes(file.mimetype)) {
+    return cb(new ValidationError(`Invalid file type: ${file.mimetype}`));
+  }
+
+  // For additional security, we'll validate the actual file content in a separate middleware
+  // since multer's fileFilter doesn't have access to the file buffer yet
+  cb(null, true);
+};
+
+// Middleware to validate file signature after upload
+const validateUploadedFile = (req, res, next) => {
+  if (!req.file) return next();
+
+  const filePath = req.file.path;
+  const mimetype = req.file.mimetype;
+
+  // Only validate image files
+  if (!mimetype.startsWith('image/')) return next();
+
+  try {
+    const buffer = fs.readFileSync(filePath);
+    const isValid = validateFileSignature(buffer.slice(0, 10), mimetype);
+
+    if (!isValid) {
+      // Delete the invalid file
+      fs.unlinkSync(filePath);
+      return res.status(400).json({
+        success: false,
+        error: 'File content does not match the declared MIME type. Possible malicious file.'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('File validation error:', error);
+    // Clean up file if validation fails
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (cleanupError) {
+      console.error('Failed to cleanup invalid file:', cleanupError);
+    }
+    return res.status(500).json({
+      success: false,
+      error: 'File validation failed'
+    });
+  }
 };
 
 const limits = { fileSize: serverConfig.upload.maxSize || 5 * 1024 * 1024 };
@@ -58,5 +119,6 @@ const avatarUpload = multer({
 module.exports = {
   fieldImagesUpload,
   teamLogoUpload,
-  avatarUpload
+  avatarUpload,
+  validateUploadedFile
 };

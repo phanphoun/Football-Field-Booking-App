@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
 
       User.belongsToMany(models.Team, { 
 
-        through: models.TeamMember, 
+        through: models.TeamMember,
 
         foreignKey: 'userId',
 

@@ -28,11 +28,10 @@ const userValidation = {
       .withMessage('Please provide a valid email address')
       .normalizeEmail(),
     body('password')
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters long'),
-      // Temporarily remove complex password requirement for testing
-      // .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      // .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
     body('firstName')
       .notEmpty()
       .withMessage('First name is required')
@@ -44,10 +43,9 @@ const userValidation = {
       .isLength({ max: 50 })
       .withMessage('Last name must be less than 50 characters'),
     body('phone')
-      .optional(),
-      // Temporarily disable strict phone validation for testing
-      // .isMobilePhone()
-      // .withMessage('Please provide a valid phone number'),
+      .optional()
+      .matches(/^[0-9+\-\s()]{7,20}$/)
+      .withMessage('Please provide a valid phone number'),
     body('role')
       .optional()
       .isIn(['guest', 'player', 'captain', 'field_owner', 'admin'])
@@ -117,8 +115,10 @@ const userValidation = {
       .notEmpty()
       .withMessage('Current password is required'),
     body('newPassword')
-      .isLength({ min: 6 })
-      .withMessage('New password must be at least 6 characters long'),
+      .isLength({ min: 8 })
+      .withMessage('New password must be at least 8 characters long')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('New password must contain at least one uppercase letter, one lowercase letter, and one number'),
     body('confirmPassword')
       .notEmpty()
       .withMessage('Please confirm your new password')
