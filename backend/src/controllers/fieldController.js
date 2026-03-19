@@ -2,7 +2,43 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { Field, Booking } = require('../models');
+const { Op } = require('sequelize');
 const serverConfig = require('../config/serverConfig');
+
+const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
+
+const getBookedFieldIds = async (fieldIds = []) => {
+  if (!Array.isArray(fieldIds) || fieldIds.length === 0) {
+    return new Set();
+  }
+
+  const activeBookings = await Booking.findAll({
+    attributes: ['fieldId'],
+    where: {
+      fieldId: { [Op.in]: fieldIds },
+      status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+      endTime: { [Op.gt]: new Date() }
+    },
+    group: ['fieldId'],
+    raw: true
+  });
+
+  return new Set(activeBookings.map((booking) => Number(booking.fieldId)));
+};
+
+const attachEffectiveFieldStatus = (field, bookedFieldIds) => {
+  const payload = field && typeof field.toJSON === 'function' ? field.toJSON() : field;
+  if (!payload) return payload;
+
+  const baseStatus = String(payload.status || 'available').toLowerCase();
+  const effectiveStatus =
+    baseStatus === 'available' && bookedFieldIds.has(Number(payload.id)) ? 'booked' : baseStatus;
+
+  return {
+    ...payload,
+    status: effectiveStatus
+  };
+};
 
 const isManagedFieldImagePath = (imagePath) =>
   typeof imagePath === 'string' && imagePath.startsWith('/uploads/fields/');
@@ -36,8 +72,9 @@ const resolvePrimaryFieldImagePath = (imagePath) => {
 
 const getFields = async (req, res) => {
   try {
-    const fields = await Field.findAll();
-    res.json({ success: true, data: fields });
+    const fields = await Field.findAll({ where: { isArchived: false } });
+    const bookedFieldIds = await getBookedFieldIds(fields.map((field) => field.id));
+    res.json({ success: true, data: fields.map((field) => attachEffectiveFieldStatus(field, bookedFieldIds)) });
   } catch (error) {
     console.error('Get fields error:', error);
     res.status(500).json({
@@ -50,7 +87,12 @@ const getFields = async (req, res) => {
 
 const getField = async (req, res) => {
   try {
-    const field = await Field.findByPk(req.params.id);
+    const field = await Field.findOne({
+      where: {
+        id: req.params.id,
+        isArchived: false
+      }
+    });
 
     if (!field) {
       return res.status(404).json({
@@ -59,7 +101,8 @@ const getField = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: field });
+    const bookedFieldIds = await getBookedFieldIds([field.id]);
+    res.json({ success: true, data: attachEffectiveFieldStatus(field, bookedFieldIds) });
   } catch (error) {
     console.error('Get field error:', error);
     res.status(500).json({
@@ -79,9 +122,11 @@ const getMyFields = async (req, res) => {
     } else if (req.query.ownerId) {
       where.ownerId = req.query.ownerId;
     }
+    where.isArchived = false;
 
     const fields = await Field.findAll({ where });
-    res.json({ success: true, data: fields });
+    const bookedFieldIds = await getBookedFieldIds(fields.map((field) => field.id));
+    res.json({ success: true, data: fields.map((field) => attachEffectiveFieldStatus(field, bookedFieldIds)) });
   } catch (error) {
     console.error('Get my fields error:', error);
     res.status(500).json({
@@ -103,6 +148,7 @@ const createField = async (req, res) => {
       latitude,
       longitude,
       pricePerHour,
+      discountPercent,
       operatingHours,
       fieldType,
       surfaceType,
@@ -122,6 +168,7 @@ const createField = async (req, res) => {
       longitude,
       ownerId: req.user.id,
       pricePerHour,
+      discountPercent,
       operatingHours,
       fieldType,
       surfaceType,
@@ -169,6 +216,7 @@ const updateField = async (req, res) => {
       'latitude',
       'longitude',
       'pricePerHour',
+      'discountPercent',
       'operatingHours',
       'fieldType',
       'surfaceType',
@@ -223,14 +271,21 @@ const deleteField = async (req, res) => {
     }
 
     const bookingCount = await Booking.count({ where: { fieldId: field.id } });
+    const deletedId = field.id;
+
     if (bookingCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'This field cannot be deleted because it has existing bookings.'
+      await field.update({
+        isArchived: true,
+        status: 'unavailable'
+      });
+
+      return res.json({
+        success: true,
+        message: 'Field archived successfully',
+        data: { id: deletedId, archived: true }
       });
     }
 
-    const deletedId = field.id;
     const existingImages = Array.isArray(field.images) ? field.images : [];
     await field.destroy();
 
@@ -240,20 +295,10 @@ const deleteField = async (req, res) => {
     res.json({
       success: true,
       message: 'Field deleted successfully',
-      data: { id: deletedId }
+      data: { id: deletedId, archived: false }
     });
   } catch (error) {
     console.error('Delete field error:', error);
-
-    if (
-      error?.name === 'SequelizeForeignKeyConstraintError' ||
-      error?.original?.code === 'ER_ROW_IS_REFERENCED_2'
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'This field cannot be deleted because it has existing bookings.'
-      });
-    }
 
     res.status(500).json({
       success: false,
@@ -291,8 +336,7 @@ const uploadFieldImages = async (req, res) => {
       storage,
       limits: { fileSize: maxImageSize, files: 5 },
       fileFilter: (innerReq, file, cb) => {
-        const allowed = serverConfig.upload.allowedTypes;
-        if (!allowed.includes(file.mimetype)) {
+        if (!serverConfig.isAllowedImageUpload(file)) {
           return cb(new Error('Invalid file type'));
         }
         cb(null, true);

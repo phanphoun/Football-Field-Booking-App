@@ -2,15 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import { Button, useDialog } from '../ui';
+import { Button, useDialog, useToast } from '../ui';
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [flash, setFlash] = useState(null);
   const { confirm } = useDialog();
+  const { showToast } = useToast();
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
@@ -45,42 +45,19 @@ const PublicLayout = () => {
 
     if (!successMessage && !errorMessage) return;
 
-    setFlash({
-      type: successMessage ? 'success' : 'error',
-      message: successMessage || errorMessage
+    showToast(successMessage || errorMessage, {
+      type: successMessage ? 'success' : 'error'
     });
 
     navigate(`${location.pathname}${location.search}${location.hash}`, {
       replace: true,
       state: {}
     });
-  }, [location, navigate]);
+  }, [location, navigate, showToast]);
 
   if (isAuthPage) {
     return (
       <div className="min-h-screen bg-slate-950">
-        {flash && (
-          <div className="fixed left-1/2 top-4 z-50 w-full max-w-xl -translate-x-1/2 px-4">
-            <div
-              className={`rounded-2xl border px-4 py-3 text-sm shadow-lg ${
-                flash.type === 'success'
-                  ? 'border-green-200 bg-green-50 text-green-800'
-                  : 'border-red-200 bg-red-50 text-red-800'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span>{flash.message}</span>
-                <button
-                  type="button"
-                  onClick={() => setFlash(null)}
-                  className="text-xs font-medium underline"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         <Outlet />
       </div>
     );
@@ -188,26 +165,6 @@ const PublicLayout = () => {
       </header>
 
       <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isHomePage ? 'py-0' : 'py-8'}`}>
-        {flash && (
-          <div
-            className={`mb-4 px-4 py-3 rounded-md text-sm border ${
-              flash.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-800'
-                : 'bg-red-50 border-red-200 text-red-800'
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span>{flash.message}</span>
-              <button
-                type="button"
-                onClick={() => setFlash(null)}
-                className="text-xs font-medium underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
         <Outlet />
       </main>
     </div>

@@ -337,8 +337,7 @@ const uploadProfileAvatar = async (req, res) => {
       storage,
       limits: { fileSize: maxAvatarSize },
       fileFilter: (innerReq, file, cb) => {
-        const allowed = serverConfig.upload.allowedTypes;
-        if (!allowed.includes(file.mimetype)) {
+        if (!serverConfig.isAllowedImageUpload(file)) {
           return cb(new Error('Invalid file type'));
         }
         cb(null, true);

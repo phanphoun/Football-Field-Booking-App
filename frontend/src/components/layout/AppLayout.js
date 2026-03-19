@@ -21,7 +21,7 @@ import {
 import apiService from '../../services/api';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
-import { ImagePreviewModal } from '../ui';
+import { ImagePreviewModal, useToast } from '../ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -37,9 +37,9 @@ const AppLayout = () => {
   const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
-  const [flash, setFlash] = useState(null);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const notificationsMenuRef = useRef(null);
+  const { showToast } = useToast();
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
@@ -510,10 +510,7 @@ const AppLayout = () => {
       await markNotificationRead(notification.id);
       await loadNotifications();
     } catch (err) {
-      setFlash({
-        type: 'error',
-        message: err?.error || 'Failed to process join request'
-      });
+      showToast(err?.error || 'Failed to process join request', { type: 'error' });
     } finally {
       setNotificationActionLoading(false);
     }
@@ -524,24 +521,19 @@ const AppLayout = () => {
       setNotificationActionLoading(true);
       const { bookingId, requestId } = await resolveBookingJoinRequestContext(notification);
       if (!bookingId || !requestId) {
-        setFlash({
-          type: 'error',
-          message: 'Could not identify that match request. Open Bookings page and accept from Join Requests.'
+        showToast('Could not identify that match request. Open Bookings page and accept from Join Requests.', {
+          type: 'error'
         });
         return;
       }
       await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
       await markNotificationRead(notification.id);
       await loadNotifications();
-      setFlash({
-        type: 'success',
-        message: action === 'accept' ? 'Match request accepted.' : 'Match request declined.'
+      showToast(action === 'accept' ? 'Match request accepted.' : 'Match request declined.', {
+        type: 'success'
       });
     } catch (error) {
-      setFlash({
-        type: 'error',
-        message: error?.error || `Failed to ${action} match request`
-      });
+      showToast(error?.error || `Failed to ${action} match request`, { type: 'error' });
     } finally {
       setNotificationActionLoading(false);
     }
@@ -603,16 +595,15 @@ const AppLayout = () => {
 
     if (!successMessage && !errorMessage) return;
 
-    setFlash({
-      type: successMessage ? 'success' : 'error',
-      message: successMessage || errorMessage
+    showToast(successMessage || errorMessage, {
+      type: successMessage ? 'success' : 'error'
     });
 
     navigate(`${location.pathname}${location.search}${location.hash}`, {
       replace: true,
       state: {}
     });
-  }, [location, navigate]);
+  }, [location, navigate, showToast]);
 
   useEffect(() => {
     if (!notificationsMenuOpen) return undefined;
@@ -1071,26 +1062,6 @@ const AppLayout = () => {
         <main className="flex-1">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {flash && (
-                <div
-                  className={`mb-4 px-4 py-3 rounded-md text-sm border ${
-                    flash.type === 'success'
-                      ? 'bg-green-50 border-green-200 text-green-800'
-                      : 'bg-red-50 border-red-200 text-red-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span>{flash.message}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFlash(null)}
-                      className="text-xs font-medium underline"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              )}
               <div className="sr-only" aria-live="polite">
                 <h1>{pageInfo.title}</h1>
                 <p>{pageInfo.subtitle}</p>
