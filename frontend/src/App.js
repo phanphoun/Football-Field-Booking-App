@@ -6,6 +6,9 @@ import './App.css';
 
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import VerifyOtpPage from './pages/auth/VerifyOtpPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import FieldsPage from './pages/FieldsPage';
 import TeamsPage from './pages/TeamsPage';
@@ -54,6 +57,9 @@ const AppRoutes = () => {
           <Route path="teams/:id" element={<PublicTeamDetailsPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="verify-otp" element={<VerifyOtpPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         <Route
@@ -196,6 +202,9 @@ const AppRoutes = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
       )}
     </>
