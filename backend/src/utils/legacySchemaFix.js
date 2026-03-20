@@ -258,6 +258,35 @@ const applyLegacySchemaFixes = async (sequelize) => {
     changes.push('fields.isArchived');
   }
 
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamIdRater', 'INT NULL')) {
+    changes.push('ratings.teamIdRater');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamIdRated', 'INT NULL')) {
+    changes.push('ratings.teamIdRated');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'bookingId', 'INT NULL')) {
+    changes.push('ratings.bookingId');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'review', 'TEXT NULL')) {
+    changes.push('ratings.review');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'sportsmanshipScore', 'INT NULL')) {
+    changes.push('ratings.sportsmanshipScore');
+  }
+  if (
+    await addColumnIfMissing(
+      sequelize,
+      'ratings',
+      'ratingType',
+      "ENUM('sportsmanship','skill_level','punctuality','overall') NOT NULL DEFAULT 'overall'"
+    )
+  ) {
+    changes.push('ratings.ratingType');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'isRecommended', 'TINYINT(1) NOT NULL DEFAULT 0')) {
+    changes.push('ratings.isRecommended');
+  }
+
   if (await normalizeTeamMemberStatuses(sequelize)) {
     changes.push('team_members.status');
   }

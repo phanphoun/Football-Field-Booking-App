@@ -211,6 +211,8 @@ if (serverConfig.security.rateLimiting.enabled) {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+// Alias without /api for compatibility with clients hitting /auth/* directly.
+app.use('/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/fields', fieldRoutes);
 app.use('/api/bookings', bookingRoutes);

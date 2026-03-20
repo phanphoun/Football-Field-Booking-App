@@ -238,6 +238,7 @@ const seedDatabase = async () => {
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // Create Players
     const player1 = await User.create({
       username: 'player1',
@@ -323,16 +324,22 @@ const seedDatabase = async () => {
         teamId: team1.id,
         userId: captain1.id,
 =======
+=======
+>>>>>>> 57253b5a456fb5f2c3359051c55f82f11c5c736d
     const teamMembers = [];
     for (let index = 0; index < teams.length; index += 1) {
       teamMembers.push({
         teamId: teams[index].id,
         userId: teams[index].captainId,
+<<<<<<< HEAD
 >>>>>>> 86ef1e72ecc2a9947dba37d3a2a402e3e34f34e5
+=======
+>>>>>>> 57253b5a456fb5f2c3359051c55f82f11c5c736d
         role: 'captain',
         status: 'active',
         joinedAt: new Date(Date.now() - (index + 3) * 86400000),
         isActive: true
+<<<<<<< HEAD
 <<<<<<< HEAD
       },
       {
@@ -616,6 +623,8 @@ const seedDatabase = async () => {
 >>>>>>> c85dc3b141aa419b615abd61c2b72a31a204f06d
         isActive: true
 =======
+=======
+>>>>>>> 57253b5a456fb5f2c3359051c55f82f11c5c736d
       });
     }
 
@@ -652,7 +661,10 @@ const seedDatabase = async () => {
         status = 'pending';
       } else {
         status = 'cancelled';
+<<<<<<< HEAD
 >>>>>>> 86ef1e72ecc2a9947dba37d3a2a402e3e34f34e5
+=======
+>>>>>>> 57253b5a456fb5f2c3359051c55f82f11c5c736d
       }
 
       bookings.push({

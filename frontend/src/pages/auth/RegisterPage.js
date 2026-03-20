@@ -30,7 +30,7 @@ const RegisterPage = () => {
   const inputClassName = useMemo(
     () =>
       'block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 ' +
-      'placeholder-slate-400 shadow-sm transition focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20',
+      'placeholder-slate-500 shadow-sm transition focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20',
     []
   );
 
@@ -50,15 +50,6 @@ const RegisterPage = () => {
 
   const passwordsMatch =
     !formData.confirmPassword || formData.password === formData.confirmPassword;
-
-  const isFormValid =
-    formData.firstName &&
-    formData.lastName &&
-    formData.username &&
-    formData.email &&
-    formData.password &&
-    formData.confirmPassword &&
-    formData.password === formData.confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -145,7 +136,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder="John"
             />
             {validationErrors.firstName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.firstName}</p>
@@ -165,7 +155,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder="Doe"
             />
             {validationErrors.lastName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.lastName}</p>
@@ -188,7 +177,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.username ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder="yourname"
             />
             {validationErrors.username && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.username}</p>
@@ -205,7 +193,6 @@ const RegisterPage = () => {
               value={formData.phone}
               onChange={handleChange}
               className={inputClassName}
-              placeholder="+1234567890"
             />
           </div>
         </div>
@@ -225,7 +212,6 @@ const RegisterPage = () => {
             className={`${inputClassName} ${
               validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
             }`}
-            placeholder="you@example.com"
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -246,9 +232,8 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 aria-invalid={Boolean(validationErrors.password)}
                 className={`${inputClassName} pr-11 ${
-                  validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
+                  validationErrors.password || !passwordsMatch ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
                 }`}
-                placeholder="Password"
               />
               <button
                 type="button"
@@ -282,7 +267,6 @@ const RegisterPage = () => {
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : ''
                 }`}
-                placeholder="Confirm password"
               />
               <button
                 type="button"
@@ -308,7 +292,7 @@ const RegisterPage = () => {
           </Badge>
           <Button
             type="submit"
-            disabled={loading || !isFormValid}
+            disabled={loading}
             className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
           >
             {loading ? (

@@ -14,9 +14,11 @@ import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);

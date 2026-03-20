@@ -7,6 +7,12 @@ const checkRole = require('../middleware/role');
 const { userValidation } = require('../middleware/validation');
 const authValidator = require('../validators/authValidator');
 
+router.post('/forgot-password', authController.requestPasswordOtp);
+router.post('/forgot-password/verify', authController.verifyPasswordOtp);
+router.post('/forgot-password/reset', authController.resetPasswordWithOtp);
+router.post('/forgot-password-link', authController.requestPasswordResetLink);
+router.post('/reset-password', authController.resetPasswordWithToken);
+
 router.post('/register', userValidation.register, authController.register);
 router.post('/login', userValidation.login, authController.login);
 router.get('/profile', auth, authController.getProfile);

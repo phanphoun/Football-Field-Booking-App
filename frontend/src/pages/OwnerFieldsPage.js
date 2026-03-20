@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useDialog, useToast } from '../components/ui';
@@ -74,9 +75,26 @@ const addDaysToDateInput = (baseValue, days) => {
   return toDateInputValue(nextDate);
 };
 
+const isOwnedByCurrentUser = (field, user) => {
+  if (!field) return false;
+  const ownerId =
+    field.ownerId ||
+    field.owner_id ||
+    field.userId ||
+    field.user_id ||
+    field.fieldOwnerId ||
+    field.owner?.id ||
+    field.owner?._id ||
+    null;
+  const userId = user?.id || user?._id || null;
+  if (!ownerId || !userId) return true;
+  return String(ownerId) === String(userId);
+};
+
 const OwnerFieldsPage = () => {
   const { confirm } = useDialog();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,6 +104,8 @@ const OwnerFieldsPage = () => {
   const [imageFiles, setImageFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [form, setForm] = useState(emptyForm);
+
+  const visibleFields = useMemo(() => fields, [fields]);
 
   const loadFields = useCallback(async () => {
     try {
@@ -541,9 +561,10 @@ const OwnerFieldsPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {fields.map((field) => {
+        {visibleFields.map((field) => {
           const images = normalizeImages(field.images);
           const coverImage = resolveFieldImageUrl(images[0]);
+          const isOwned = isOwnedByCurrentUser(field, user);
 
           return (
             <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -557,7 +578,7 @@ const OwnerFieldsPage = () => {
                   }
                 }}
               />
-              <div className="space-y-4 p-5">
+              <div className="space-y-3 p-5">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
                   <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
@@ -574,7 +595,8 @@ const OwnerFieldsPage = () => {
                   <button
                     type="button"
                     onClick={() => startEdit(field)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    disabled={!isOwned || saving}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     <PencilSquareIcon className="h-4 w-4" />
                     Edit
@@ -582,7 +604,7 @@ const OwnerFieldsPage = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(field)}
-                    disabled={saving}
+                    disabled={!isOwned || saving}
                     className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     <TrashIcon className="h-4 w-4" />
