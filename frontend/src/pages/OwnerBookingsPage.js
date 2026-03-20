@@ -18,9 +18,11 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -121,7 +123,7 @@ const OwnerBookingsPage = () => {
   }, [refresh]);
 
   const counts = useMemo(() => {
-    const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+    const base = { all: bookings.length, pending: 0, confirmed: 0, cancellation_pending: 0, completed: 0, cancelled: 0 };
     for (const b of bookings) {
       if (b?.status && Object.prototype.hasOwnProperty.call(base, b.status)) base[b.status] += 1;
     }
@@ -187,6 +189,7 @@ const OwnerBookingsPage = () => {
 
   const tabs = [
     { key: 'pending', label: 'Pending', count: counts.pending },
+    { key: 'cancellation_pending', label: 'Cancellation Pending', count: counts.cancellation_pending },
     { key: 'confirmed', label: 'Confirmed', count: counts.confirmed },
     { key: 'completed', label: 'Completed', count: counts.completed },
     { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },

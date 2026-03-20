@@ -1,4 +1,5 @@
-const { User, RoleRequest } = require('../models');
+const { Op } = require('sequelize');
+const { User, Team, TeamMember, Field, Booking, RoleRequest } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
@@ -6,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const serverConfig = require('../config/serverConfig');
 const { createInAppNotification } = require('../utils/notify');
+const { sendEmail } = require('../utils/emailService');
+const crypto = require('crypto');
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
@@ -17,6 +20,30 @@ const REQUESTABLE_ROLES_BY_USER_ROLE = {
 const ROLE_REQUEST_LABELS = {
   captain: 'captain',
   field_owner: 'field owner'
+};
+
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_MAX_RESENDS = 3;
+const otpStore = new Map();
+
+const RESET_TTL_MS = 30 * 60 * 1000;
+const resetTokenStore = new Map();
+
+const normalizeIdentifier = (value = '') => String(value).trim().toLowerCase();
+
+const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+const findUserByIdentifier = async (identifier) => {
+  if (!identifier) return null;
+  return User.findOne({
+    where: {
+      [Op.or]: [
+        { email: identifier },
+        { phone: identifier }
+      ]
+    }
+  });
 };
 
 const serializeRoleRequest = (roleRequest) => ({
@@ -268,24 +295,135 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const getProfileStats = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'role', 'createdAt']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const role = user.role;
+    const userId = user.id;
+
+    let totalBookings = 0;
+    let confirmedBookings = 0;
+    let teamsManaged = 0;
+
+    if (role === 'field_owner') {
+      const fields = await Field.findAll({
+        where: { ownerId: userId },
+        attributes: ['id'],
+        raw: true
+      });
+      const fieldIds = fields.map((f) => f.id);
+
+      if (fieldIds.length > 0) {
+        const bookings = await Booking.findAll({
+          where: { fieldId: { [Op.in]: fieldIds } },
+          attributes: ['status', 'teamId', 'opponentTeamId'],
+          raw: true
+        });
+
+        totalBookings = bookings.length;
+        confirmedBookings = bookings.filter(
+          (b) => b.status === 'confirmed' || b.status === 'completed'
+        ).length;
+
+        const teamIds = new Set();
+        for (const b of bookings) {
+          if (b.teamId) teamIds.add(Number(b.teamId));
+          if (b.opponentTeamId) teamIds.add(Number(b.opponentTeamId));
+        }
+        teamsManaged = teamIds.size;
+      }
+    } else if (role === 'captain') {
+      const [captainedTeams, myBookings] = await Promise.all([
+        Team.count({ where: { captainId: userId } }),
+        Booking.findAll({
+          where: { createdBy: userId },
+          attributes: ['status'],
+          raw: true
+        })
+      ]);
+      teamsManaged = captainedTeams;
+      totalBookings = myBookings.length;
+      confirmedBookings = myBookings.filter(
+        (b) => b.status === 'confirmed' || b.status === 'completed'
+      ).length;
+    } else {
+      const [myBookings, myTeams] = await Promise.all([
+        Booking.findAll({
+          where: { createdBy: userId },
+          attributes: ['status'],
+          raw: true
+        }),
+        TeamMember.count({
+          where: { userId, status: 'accepted', isActive: true }
+        })
+      ]);
+
+      totalBookings = myBookings.length;
+      confirmedBookings = myBookings.filter(
+        (b) => b.status === 'confirmed' || b.status === 'completed'
+      ).length;
+      teamsManaged = myTeams;
+    }
+
+    const created = new Date(user.createdAt);
+    const yearsActive =
+      Number.isNaN(created.getTime())
+        ? 0
+        : Number(Math.max(0, (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24 * 365.25)).toFixed(1));
+
+    const fieldEfficiency = totalBookings > 0 ? Math.round((confirmedBookings / totalBookings) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        role,
+        totalBookings,
+        confirmedBookings,
+        teamsManaged,
+        yearsActive,
+        fieldEfficiency,
+        memberSince: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'
+      }
+    });
+  } catch (error) {
+    console.error('Get profile stats error:', error);
+    res.status(500).json({ error: 'Internal server error while fetching profile stats.' });
+  }
+};
+
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'currentPassword and newPassword are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
 
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isCurrentPasswordValid) {
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
       return res.status(400).json({ error: 'Current password is incorrect.' });
     }
 
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
-    if (isSamePassword) {
-      return res.status(400).json({ error: 'New password must be different from your current password.' });
+    const sameAsCurrent = await bcrypt.compare(newPassword, user.password);
+    if (sameAsCurrent) {
+      return res.status(400).json({ error: 'New password must be different from current password.' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -295,6 +433,207 @@ const changePassword = async (req, res) => {
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ error: 'Internal server error while changing password.' });
+  }
+};
+
+const requestPasswordOtp = async (req, res) => {
+  try {
+    const identifier = normalizeIdentifier(req.body?.identifier);
+    if (!identifier) {
+      return res.status(400).json({ error: 'Email or phone is required.' });
+    }
+
+    const user = await findUserByIdentifier(identifier);
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const existing = otpStore.get(identifier);
+    const resendCount = existing?.resendCount || 0;
+    if (resendCount >= OTP_MAX_RESENDS) {
+      return res.status(429).json({ error: 'OTP resend limit reached. Please try again later.' });
+    }
+
+    const otp = generateOtpCode();
+    const expiresAt = Date.now() + OTP_TTL_MS;
+    otpStore.set(identifier, {
+      otp,
+      expiresAt,
+      attempts: 0,
+      resendCount: resendCount + 1
+    });
+
+    if (identifier.includes('@')) {
+      await sendEmail({
+        to: identifier,
+        subject: 'Your OTP code',
+        text: `Your OTP code is ${otp}. It expires in 5 minutes.`,
+        html: `<p>Your OTP code is <strong>${otp}</strong>. It expires in 5 minutes.</p>`
+      });
+    } else {
+      console.log(`[otp] Send SMS to ${identifier}: ${otp}`);
+    }
+
+    res.json({ message: 'OTP sent successfully.' });
+  } catch (error) {
+    console.error('Request password OTP error:', error);
+    res.status(500).json({ error: 'Internal server error while sending OTP.' });
+  }
+};
+
+const verifyPasswordOtp = async (req, res) => {
+  try {
+    const identifier = normalizeIdentifier(req.body?.identifier);
+    const otp = String(req.body?.otp || '').trim();
+    if (!identifier || !otp) {
+      return res.status(400).json({ error: 'Identifier and OTP are required.' });
+    }
+
+    const entry = otpStore.get(identifier);
+    if (!entry) {
+      return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      otpStore.delete(identifier);
+      return res.status(400).json({ error: 'OTP expired. Please request a new one.' });
+    }
+
+    if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+      otpStore.delete(identifier);
+      return res.status(429).json({ error: 'Too many attempts. Please request a new OTP.' });
+    }
+
+    if (entry.otp !== otp) {
+      entry.attempts += 1;
+      otpStore.set(identifier, entry);
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+    }
+
+    res.json({ message: 'OTP verified.' });
+  } catch (error) {
+    console.error('Verify password OTP error:', error);
+    res.status(500).json({ error: 'Internal server error while verifying OTP.' });
+  }
+};
+
+const resetPasswordWithOtp = async (req, res) => {
+  try {
+    const identifier = normalizeIdentifier(req.body?.identifier);
+    const otp = String(req.body?.otp || '').trim();
+    const newPassword = String(req.body?.newPassword || '').trim();
+
+    if (!identifier || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Identifier, OTP, and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const entry = otpStore.get(identifier);
+    if (!entry) {
+      return res.status(400).json({ error: 'OTP not found. Please request a new one.' });
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      otpStore.delete(identifier);
+      return res.status(400).json({ error: 'OTP expired. Please request a new one.' });
+    }
+
+    if (entry.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+    }
+
+    const user = await findUserByIdentifier(identifier);
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await user.update({ password: hashedPassword });
+    otpStore.delete(identifier);
+
+    res.json({ message: 'Password reset successfully.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Internal server error while resetting password.' });
+  }
+};
+
+const requestPasswordResetLink = async (req, res) => {
+  try {
+    const identifier = normalizeIdentifier(req.body?.identifier);
+    if (!identifier) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const user = await findUserByIdentifier(identifier);
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = Date.now() + RESET_TTL_MS;
+    resetTokenStore.set(token, { userId: user.id, expiresAt });
+
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${baseUrl}/reset-password?token=${token}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Reset your password',
+      text: `Reset your password using this link: ${resetLink}`,
+      html: `<p>Reset your password using this link:</p><p><a href="${resetLink}">${resetLink}</a></p>`
+    });
+
+    res.json({
+      message: 'Password reset link sent.',
+      resetLink: process.env.NODE_ENV !== 'production' ? resetLink : undefined
+    });
+  } catch (error) {
+    console.error('Request reset link error:', error);
+    res.status(500).json({ error: 'Internal server error while sending reset link.' });
+  }
+};
+
+const resetPasswordWithToken = async (req, res) => {
+  try {
+    const token = String(req.body?.token || '').trim();
+    const newPassword = String(req.body?.newPassword || '').trim();
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const entry = resetTokenStore.get(token);
+    if (!entry) {
+      return res.status(400).json({ error: 'Invalid or expired reset token.' });
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      resetTokenStore.delete(token);
+      return res.status(400).json({ error: 'Reset token expired.' });
+    }
+
+    const user = await User.findByPk(entry.userId);
+    if (!user) {
+      resetTokenStore.delete(token);
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await user.update({ password: hashedPassword });
+    resetTokenStore.delete(token);
+
+    res.json({ message: 'Password reset successfully.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Internal server error while resetting password.' });
   }
 };
 
@@ -750,8 +1089,14 @@ module.exports = {
   register,
   login,
   getProfile,
+  getProfileStats,
   updateProfile,
   changePassword,
+  requestPasswordOtp,
+  verifyPasswordOtp,
+  resetPasswordWithOtp,
+  requestPasswordResetLink,
+  resetPasswordWithToken,
   getRoleRequests,
   requestRoleUpgrade,
   cancelRoleRequest,

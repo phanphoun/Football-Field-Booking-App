@@ -26,6 +26,59 @@ const authService = {
     return response;
   },
 
+  // Forgot password: request OTP
+  requestPasswordOtp: async (identifier) => {
+    try {
+      return await apiService.post('/auth/forgot-password', { identifier });
+    } catch (error) {
+      if (error?.status === 404) {
+        return apiService.post('http://localhost:5000/auth/forgot-password', { identifier });
+      }
+      throw error;
+    }
+  },
+
+  // Forgot password: verify OTP
+  verifyPasswordOtp: async (identifier, otp) => {
+    try {
+      return await apiService.post('/auth/forgot-password/verify', { identifier, otp });
+    } catch (error) {
+      if (error?.status === 404) {
+        return apiService.post('http://localhost:5000/auth/forgot-password/verify', { identifier, otp });
+      }
+      throw error;
+    }
+  },
+
+  // Forgot password: reset password
+  resetPasswordWithOtp: async (identifier, otp, newPassword) => {
+    try {
+      return await apiService.post('/auth/forgot-password/reset', { identifier, otp, newPassword });
+    } catch (error) {
+      if (error?.status === 404) {
+        return apiService.post('http://localhost:5000/auth/forgot-password/reset', { identifier, otp, newPassword });
+      }
+      throw error;
+    }
+  },
+
+  // Email reset: request reset link
+  requestPasswordResetLink: async (identifier) => {
+    try {
+      return await apiService.post('/auth/forgot-password-link', { identifier });
+    } catch (error) {
+      if (error?.status === 404) {
+        return apiService.post('http://localhost:5000/auth/forgot-password-link', { identifier });
+      }
+      throw error;
+    }
+  },
+
+  // Email reset: reset with token
+  resetPasswordWithToken: async (token, newPassword) => {
+    return apiService.post('/auth/reset-password', { token, newPassword });
+  },
+
   // Get user profile
   getProfile: async () => {
     const response = await apiService.get('/auth/profile');
@@ -104,12 +157,6 @@ const authService = {
     return response;
   },
 
-  // Change password
-  changePassword: async (payload) => {
-    const response = await apiService.put('/auth/profile/password', payload);
-    return response;
-  },
-
   // Delete profile avatar
   deleteAvatar: async () => {
     const response = await apiService.delete('/auth/profile/avatar');
@@ -179,6 +226,12 @@ const authService = {
   // Check if user is player
   isPlayer: () => {
     return authService.hasRole('player');
+  },
+
+  // Submit a request to upgrade to field owner
+  requestFieldOwnerRole: async (requestData) => {
+    const response = await apiService.post('/auth/request-field-owner', requestData);
+    return response;
   },
 
   // Get user permissions based on role

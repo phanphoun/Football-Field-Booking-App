@@ -305,6 +305,18 @@ const parseSlotToMinutes = (slot) => {
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
 };
+const findEventsForSlot = (events, slot) => {
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (!Number.isFinite(slotMinutes)) return [];
+  const slotEndMinutes = slotMinutes + 60;
+  return events.filter(
+    (event) =>
+      Number.isFinite(event.startMinutes) &&
+      Number.isFinite(event.endMinutes) &&
+      event.startMinutes < slotEndMinutes &&
+      slotMinutes < event.endMinutes
+  );
+};
 const formatSlotTo12h = (slot) => {
   const [h, m] = String(slot || '')
     .split(':')
@@ -316,16 +328,6 @@ const formatSlotTo12h = (slot) => {
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
-const findEventsForSlot = (events, slot) => {
-  if (!Array.isArray(events)) return [];
-  const slotMinutes = parseSlotToMinutes(slot);
-  if (slotMinutes === null) return [];
-  return events.filter(
-    (event) =>
-      event.startMinutes <= slotMinutes &&
-      slotMinutes < event.endMinutes
-  );
-};
 const LandingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -596,6 +598,8 @@ const LandingPage = () => {
           tone:
             booking.status === 'pending'
               ? 'bg-amber-500'
+              : booking.status === 'cancellation_pending'
+              ? 'bg-orange-500'
               : isOwnBooking
               ? 'bg-emerald-600'
               : 'bg-red-600'

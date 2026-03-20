@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
-import { Button, useDialog } from '../../components/ui';
+import { Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
 
@@ -10,7 +10,6 @@ const LoginPage = () => {
   const { login, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { showAlert } = useDialog();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [validationErrors, setValidationErrors] = useState({});
@@ -55,6 +54,15 @@ const LoginPage = () => {
       const role = result.data?.user?.role;
       const defaultPath = getPreferredStartPath(role === 'field_owner' ? 'owner' : 'app');
       navigate(from || defaultPath, { replace: true });
+      return;
+    }
+
+    if (result.error) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        email: result.error || 'Invalid email or password.',
+        password: result.error || 'Invalid email or password.'
+      }));
     }
   };
 
@@ -85,6 +93,9 @@ const LoginPage = () => {
             </svg>
             {error}
           </div>
+          {validationErrors.password && (
+            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
+          )}
         </div>
       )}
 
@@ -101,12 +112,11 @@ const LoginPage = () => {
             value={formData.email}
             onChange={handleChange}
             aria-invalid={Boolean(validationErrors.email)}
-            className={`block w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:outline-none focus:ring-2 ${
+            className={`block w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
               validationErrors.email
                 ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
             }`}
-            placeholder="you@example.com"
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -126,12 +136,11 @@ const LoginPage = () => {
               value={formData.password}
               onChange={handleChange}
               aria-invalid={Boolean(validationErrors.password)}
-              className={`block w-full rounded-2xl bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:outline-none focus:ring-2 ${
+              className={`block w-full rounded-2xl bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
                 validationErrors.password
                   ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                   : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
               }`}
-              placeholder="Password"
             />
             <button
               type="button"
@@ -161,7 +170,7 @@ const LoginPage = () => {
           <button
             type="button"
             className="text-sm font-medium text-green-700 hover:text-green-800"
-            onClick={() => showAlert('Forgot password is not implemented yet.', { title: 'Not Available Yet' })}
+            onClick={() => navigate('/forgot-password')}
           >
             Forgot password?
           </button>
