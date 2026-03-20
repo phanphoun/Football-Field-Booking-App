@@ -177,7 +177,15 @@ const applyLegacySchemaFixes = async (sequelize) => {
   if (await addColumnIfMissing(sequelize, 'bookings', 'isMatchmaking', 'TINYINT(1) NOT NULL DEFAULT 0')) {
     changes.push('bookings.isMatchmaking');
   }
-
+  if (await addColumnIfMissing(sequelize, 'bookings', 'ownerRevenueLocked', 'TINYINT(1) NOT NULL DEFAULT 0')) {
+    changes.push('bookings.ownerRevenueLocked');
+  }
+  await sequelize.query(`
+    UPDATE \`bookings\`
+    SET \`ownerRevenueLocked\` = 1
+    WHERE \`status\` IN ('confirmed', 'completed')
+      AND COALESCE(\`ownerRevenueLocked\`, 0) = 0
+  `);
   if (await addColumnIfMissing(sequelize, 'notifications', 'readAt', 'DATETIME NULL')) {
     changes.push('notifications.readAt');
   }
@@ -244,6 +252,15 @@ const applyLegacySchemaFixes = async (sequelize) => {
   }
   if (await addColumnIfMissing(sequelize, 'ratings', 'sportsmanshipScore', 'INT NULL')) {
     changes.push('ratings.sportsmanshipScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'skillLevelScore', 'INT NULL')) {
+    changes.push('ratings.skillLevelScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'punctualityScore', 'INT NULL')) {
+    changes.push('ratings.punctualityScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamOrganizationScore', 'INT NULL')) {
+    changes.push('ratings.teamOrganizationScore');
   }
   if (
     await addColumnIfMissing(

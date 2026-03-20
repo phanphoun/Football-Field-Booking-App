@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 module.exports = (sequelize, DataTypes) => {
   class TeamMember extends Model {
@@ -59,8 +60,17 @@ module.exports = (sequelize, DataTypes) => {
       {
         unique: true,
         fields: ['teamId', 'userId']
+      },
+      {
+        // Composite index for querying active team members by status
+        fields: ['teamId', 'status', 'isActive']
+      },
+      {
+        // Index for user's team memberships
+        fields: ['userId', 'status']
       }
-    ]
+    ],
+    hooks: buildRealtimeHooks('team_member')
   });
   return TeamMember;
 };

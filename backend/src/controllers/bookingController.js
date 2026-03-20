@@ -2,6 +2,7 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
+<<<<<<< HEAD
   {
     model: Field,
     as: 'field',
@@ -16,6 +17,9 @@ const BOOKING_BASE_INCLUDE = [
       'closureEndAt'
     ]
   },
+=======
+  { model: Field, as: 'field', attributes: ['id', 'name', 'address', 'pricePerHour', 'discountPercent'] },
+>>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
   {
     model: Team,
     as: 'team',
@@ -43,6 +47,7 @@ const BOOKING_BASE_INCLUDE = [
     required: false
   },
   { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
+<<<<<<< HEAD
   {
     model: MatchResult,
     as: 'matchResult',
@@ -50,6 +55,9 @@ const BOOKING_BASE_INCLUDE = [
     include: [{ model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'firstName', 'lastName'], required: false }],
     required: false
   },
+=======
+  { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
+>>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
@@ -60,6 +68,54 @@ const serializeBooking = (booking) => {
     ...payload,
     openForOpponents: Boolean(payload.isMatchmaking)
   };
+};
+
+const getActiveMemberUserIdsForTeams = async (teamIds = [], excludeUserIds = []) => {
+  const normalizedTeamIds = Array.from(new Set(teamIds.map((teamId) => Number(teamId)).filter(Boolean)));
+  if (normalizedTeamIds.length === 0) return [];
+
+  const memberships = await TeamMember.findAll({
+    where: {
+      teamId: { [Op.in]: normalizedTeamIds },
+      status: 'active',
+      isActive: true
+    },
+    attributes: ['userId'],
+    raw: true
+  });
+
+  const excludedIds = new Set(excludeUserIds.map((userId) => Number(userId)).filter(Boolean));
+  return Array.from(
+    new Set(
+      memberships
+        .map((membership) => Number(membership.userId))
+        .filter((userId) => userId && !excludedIds.has(userId))
+    )
+  );
+};
+
+const createTeamBookingNotifications = async ({
+  teamIds = [],
+  excludeUserIds = [],
+  title,
+  message,
+  type = 'booking',
+  metadata = {},
+  transaction
+}) => {
+  const recipientIds = await getActiveMemberUserIdsForTeams(teamIds, excludeUserIds);
+  if (recipientIds.length === 0) return;
+
+  await Notification.bulkCreate(
+    recipientIds.map((userId) => ({
+      userId,
+      title,
+      message,
+      type,
+      metadata
+    })),
+    transaction ? { transaction } : undefined
+  );
 };
 
 const SCHEDULE_SHOWCASE_START_HOURS = [8, 10, 12, 14, 16, 18, 20];
@@ -308,6 +364,25 @@ const createBooking = async (req, res) => {
           status: 'pending'
         }
       });
+
+      await createTeamBookingNotifications({
+        teamIds: [team?.id || teamId],
+        excludeUserIds: [req.user.id],
+        title: `Team booking request created for ${field.name}`,
+        message: `${team?.name || 'Your team'} requested to book ${field.name}.`,
+        metadata: {
+          event: 'team_booking_created',
+          bookingId: booking.id,
+          fieldId: field.id,
+          fieldName: field.name,
+          teamId: team?.id || teamId,
+          teamName: team?.name || null,
+          startTime,
+          endTime,
+          totalPrice,
+          status: 'pending'
+        }
+      });
     }
 
     res.status(201).json({ success: true, data: serializeBooking(booking) });
@@ -326,7 +401,21 @@ const getBookings = async (req, res) => {
     let where = {};
 
     if (req.user.role === 'player' || req.user.role === 'guest') {
-      where = { createdBy: req.user.id };
+      const memberships = await TeamMember.findAll({
+        where: { userId: req.user.id, status: 'active', isActive: true },
+        attributes: ['teamId'],
+        raw: true
+      });
+      const teamIds = memberships.map((membership) => membership.teamId);
+      where = teamIds.length > 0
+        ? {
+            [Op.or]: [
+              { createdBy: req.user.id },
+              { teamId: { [Op.in]: teamIds } },
+              { opponentTeamId: { [Op.in]: teamIds } }
+            ]
+          }
+        : { createdBy: req.user.id };
     }
     if (req.user.role === 'captain') {
       const captainedTeams = await Team.findAll({
@@ -388,7 +477,20 @@ const getBookingById = async (req, res) => {
       isOwner = field && field.ownerId === req.user.id;
     }
 
-    if (!isBooker && !isOwner && !isAdmin) {
+    let isTeamMember = false;
+    if (req.user.role === 'player' || req.user.role === 'captain') {
+      const membership = await TeamMember.findOne({
+        where: {
+          userId: req.user.id,
+          teamId: { [Op.in]: [booking.teamId, booking.opponentTeamId].filter(Boolean) },
+          status: 'active',
+          isActive: true
+        }
+      });
+      isTeamMember = Boolean(membership);
+    }
+
+    if (!isBooker && !isOwner && !isAdmin && !isTeamMember) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this booking.'
@@ -527,11 +629,14 @@ const getPublicBookingSchedule = async (req, res) => {
 };
 
 const updateBookingStatus = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { status, startTime, endTime } = req.body;
 
     const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
     if (!allowedStatuses.includes(status)) {
+      await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: `status must be one of: ${allowedStatuses.join(', ')}`
@@ -543,10 +648,16 @@ const updateBookingStatus = async (req, res) => {
         { model: Field, as: 'field' },
         { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
         { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
+<<<<<<< HEAD
       ]
+=======
+      ],
+      transaction
+>>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
     });
 
     if (!booking) {
+      await transaction.rollback();
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
@@ -652,12 +763,24 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
+<<<<<<< HEAD
     const updatePayload = { status };
     if (hasScheduleUpdate) {
       updatePayload.startTime = nextStartTime;
       updatePayload.endTime = nextEndTime;
     }
     await booking.update(updatePayload);
+=======
+    const bookingUpdate = { status };
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      bookingUpdate.ownerRevenueLocked = true;
+    }
+    if (status === 'cancelled' && previousStatus === 'confirmed') {
+      bookingUpdate.ownerRevenueLocked = true;
+    }
+
+    await booking.update(bookingUpdate, { transaction });
+>>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
@@ -690,9 +813,31 @@ const updateBookingStatus = async (req, res) => {
               opponentTeamName,
               confirmedByUserId: req.user.id
             }
-          }))
+          })),
+          { transaction }
         );
       }
+
+      await createTeamBookingNotifications({
+        teamIds: [booking.team?.id, booking.opponentTeam?.id],
+        excludeUserIds: [req.user.id],
+        title: req.user.role === 'field_owner' ? 'Team booking accepted' : 'Team booking confirmed',
+        message: opponentTeamName
+          ? `${actorName} confirmed the match booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+          : `${actorName} confirmed your team booking at ${fieldName} for ${teamName}.`,
+        metadata: {
+          event: 'booking_confirmed',
+          bookingId: booking.id,
+          fieldId: booking.fieldId,
+          fieldName,
+          teamId: booking.team?.id || null,
+          teamName,
+          opponentTeamId: booking.opponentTeam?.id || null,
+          opponentTeamName,
+          confirmedByUserId: req.user.id
+        },
+        transaction
+      });
 
       const overlappingPending = await Booking.findAll({
         where: {
@@ -701,13 +846,18 @@ const updateBookingStatus = async (req, res) => {
           status: 'pending',
           [Op.and]: [{ startTime: { [Op.lt]: nextEndTime } }, { endTime: { [Op.gt]: nextStartTime } }]
         },
+<<<<<<< HEAD
         include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
+=======
+        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }],
+        transaction
+>>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
       });
 
       if (overlappingPending.length > 0) {
         await Booking.update(
           { status: 'cancelled' },
-          { where: { id: { [Op.in]: overlappingPending.map((item) => item.id) } } }
+          { where: { id: { [Op.in]: overlappingPending.map((item) => item.id) } }, transaction }
         );
 
         const rejectedNotifications = [];
@@ -732,7 +882,26 @@ const updateBookingStatus = async (req, res) => {
         }
 
         if (rejectedNotifications.length > 0) {
-          await Notification.bulkCreate(rejectedNotifications);
+          await Notification.bulkCreate(rejectedNotifications, { transaction });
+        }
+
+        for (const pendingItem of overlappingPending) {
+          await createTeamBookingNotifications({
+            teamIds: [pendingItem.team?.id],
+            excludeUserIds: [req.user.id],
+            title: 'Team booking request was not selected',
+            message: `Your team request for ${fieldName} (${pendingItem.team?.name || 'your team'}) was cancelled because another booking was accepted.`,
+            metadata: {
+              event: 'booking_rejected_by_competing_confirmation',
+              bookingId: pendingItem.id,
+              winningBookingId: booking.id,
+              fieldId: pendingItem.fieldId,
+              fieldName,
+              teamId: pendingItem.team?.id || null,
+              teamName: pendingItem.team?.name || null
+            },
+            transaction
+          });
         }
       }
     }
@@ -768,9 +937,31 @@ const updateBookingStatus = async (req, res) => {
               opponentTeamName,
               cancelledByUserId: req.user.id
             }
-          }))
+          })),
+          { transaction }
         );
       }
+
+      await createTeamBookingNotifications({
+        teamIds: [booking.team?.id, booking.opponentTeam?.id],
+        excludeUserIds: [req.user.id],
+        title: req.user.role === 'field_owner' ? 'Team booking cancelled by field owner' : 'Team booking cancelled',
+        message: opponentTeamName
+          ? `${cancellerName} cancelled the match booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+          : `${cancellerName} cancelled your team booking at ${fieldName} for ${teamName}.`,
+        metadata: {
+          event: 'booking_cancelled',
+          bookingId: booking.id,
+          fieldId: booking.fieldId,
+          fieldName,
+          teamId: booking.team?.id || null,
+          teamName,
+          opponentTeamId: booking.opponentTeam?.id || null,
+          opponentTeamName,
+          cancelledByUserId: req.user.id
+        },
+        transaction
+      });
 
       const ownerRecipientId = booking.field?.ownerId;
       const cancelledByOwner = req.user.role === 'field_owner';
@@ -791,12 +982,14 @@ const updateBookingStatus = async (req, res) => {
             opponentTeamName,
             cancelledByUserId: req.user.id
           }
-        });
+        }, { transaction });
       }
     }
 
+    await transaction.commit();
     res.json({ success: true, data: serializeBooking(booking) });
   } catch (error) {
+    await transaction.rollback();
     console.error('Update booking status error:', error);
     res.status(500).json({
       success: false,

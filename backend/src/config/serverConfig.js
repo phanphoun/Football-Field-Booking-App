@@ -29,10 +29,11 @@ const defaultAllowedTypes = [
   'image/png',
   'image/gif',
   'image/webp',
-  'image/avif'
+  'image/avif',
+  'image/svg+xml'
 ];
 
-const defaultAllowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif'];
+const defaultAllowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg'];
 
 const configuredAllowedTypes = process.env.ALLOWED_FILE_TYPES
   ? process.env.ALLOWED_FILE_TYPES.split(',').map((item) => item.trim()).filter(Boolean)

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowTrendingUpIcon,
@@ -11,7 +11,8 @@ import {
 } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
+import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
+import { useRealtime } from '../context/RealtimeContext';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
@@ -26,6 +27,7 @@ const formatMoney = (value) => {
 };
 
 const OwnerDashboardPage = () => {
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
   const [fields, setFields] = useState([]);
@@ -33,27 +35,42 @@ const OwnerDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchOwnerData = async () => {
+      const isInitialLoad = !hasLoadedRef.current;
       try {
-        setLoading(true);
+        if (isInitialLoad) {
+          setLoading(true);
+        }
         setError(null);
         const [fieldsRes, bookingsRes] = await Promise.all([
           fieldService.getMyFields(),
           bookingService.getAllBookings({ limit: 200 })
         ]);
+        if (cancelled) return;
         setFields(Array.isArray(fieldsRes.data) ? fieldsRes.data : []);
         setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+        hasLoadedRef.current = true;
       } catch (err) {
+        if (cancelled) return;
         setError(err?.error || 'Failed to load owner dashboard');
       } finally {
-        setLoading(false);
+        if (!cancelled && isInitialLoad) {
+          setLoading(false);
+        }
       }
     };
 
     fetchOwnerData();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [version]);
 
   const pendingBookings = useMemo(() => bookings.filter((booking) => booking.status === 'pending'), [bookings]);
   const confirmedBookings = useMemo(() => bookings.filter((booking) => booking.status === 'confirmed'), [bookings]);
@@ -69,7 +86,7 @@ const OwnerDashboardPage = () => {
 
   const revenueEstimate = useMemo(() => {
     return bookings
-      .filter((booking) => booking.status === 'confirmed' || booking.status === 'completed')
+      .filter((booking) => booking.ownerRevenueLocked || booking.status === 'confirmed' || booking.status === 'completed')
       .reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
   }, [bookings]);
 
@@ -78,38 +95,38 @@ const OwnerDashboardPage = () => {
       {
         name: 'My Fields',
         value: fields.length,
+        valueType: 'number',
         icon: BuildingOfficeIcon,
         iconWrap: 'bg-blue-600',
         cardClass: 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70',
-        textClass: 'text-blue-950',
-        helper: 'Active venues you manage'
+        textClass: 'text-blue-950'
       },
       {
         name: 'Pending Requests',
         value: pendingBookings.length,
+        valueType: 'number',
         icon: ClockIcon,
         iconWrap: 'bg-amber-500',
         cardClass: 'border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70',
-        textClass: 'text-amber-950',
-        helper: 'Requests waiting for action'
+        textClass: 'text-amber-950'
       },
       {
         name: 'Confirmed',
         value: confirmedBookings.length,
+        valueType: 'number',
         icon: CalendarIcon,
         iconWrap: 'bg-emerald-600',
         cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
-        textClass: 'text-emerald-950',
-        helper: 'Bookings ready on schedule'
+        textClass: 'text-emerald-950'
       },
       {
         name: 'Revenue (est.)',
-        value: formatMoney(revenueEstimate),
+        value: revenueEstimate,
+        valueType: 'currency',
         icon: ArrowTrendingUpIcon,
         iconWrap: 'bg-indigo-600',
         cardClass: 'border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/70',
-        textClass: 'text-indigo-950',
-        helper: 'Confirmed and completed total'
+        textClass: 'text-indigo-950'
       }
     ],
     [fields.length, pendingBookings.length, confirmedBookings.length, revenueEstimate]
@@ -134,8 +151,24 @@ const OwnerDashboardPage = () => {
         await bookingService.completeBooking(bookingId);
       }
 
-      const bookingsRes = await bookingService.getAllBookings({ limit: 200 });
-      setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+      setBookings((current) =>
+        current.map((booking) => {
+          if (booking.id !== bookingId) return booking;
+
+          const ownerRevenueLocked =
+            nextStatus === 'confirmed'
+              ? true
+              : nextStatus === 'cancelled' && booking.status === 'confirmed'
+                ? true
+                : booking.ownerRevenueLocked;
+
+          return {
+            ...booking,
+            status: nextStatus,
+            ownerRevenueLocked
+          };
+        })
+      );
     } catch (err) {
       setError(err?.error || 'Failed to update booking');
     } finally {
@@ -186,15 +219,14 @@ const OwnerDashboardPage = () => {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpiCards.map((card) => (
           <Card key={card.name} className={`overflow-hidden ${card.cardClass}`}>
-            <CardBody className="p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${card.iconWrap}`}>
+            <CardBody className="px-4 py-4">
+              <div className="flex items-center gap-4">
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm ${card.iconWrap}`}>
                   <card.icon className="h-6 w-6 text-white" />
                 </div>
-                <div className="w-0 flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{card.name}</div>
-                  <div className={`mt-3 text-[2rem] font-bold leading-none ${card.textClass}`}>{card.value}</div>
-                  <div className="mt-2 text-xs leading-5 text-slate-600">{card.helper}</div>
+                  <AnimatedStatValue value={card.value} type={card.valueType} className={`mt-1.5 text-[1.8rem] font-bold leading-none ${card.textClass}`} />
                 </div>
               </div>
             </CardBody>

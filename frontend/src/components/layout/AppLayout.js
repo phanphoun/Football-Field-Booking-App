@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtime } from '../../context/RealtimeContext';
 import {
   HomeIcon, 
   BuildingOfficeIcon, 
@@ -26,9 +27,22 @@ import { ImagePreviewModal, useToast } from '../ui';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
+const BRAND_NAME = 'អាណាចក្រភ្នំស្វាយ';
+
+const SidebarBrand = () => (
+  <div className="flex items-center gap-3">
+    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-600 text-lg font-bold text-white shadow-sm">
+      FB
+    </div>
+    <div className="khmer-brand-font min-w-0 text-[18px] font-extrabold leading-none text-slate-900">
+      {BRAND_NAME}
+    </div>
+  </div>
+);
 
 const AppLayout = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -43,18 +57,13 @@ const AppLayout = () => {
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
-  const profileItem = {
-    name: 'Profile',
-    href: '/app/profile',
-    icon: UserCircleIcon,
-    current: location.pathname === '/app/profile'
-  };
   const settingsItem = {
     name: 'Settings',
     href: '/app/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/app/settings' || location.pathname === '/app/admin/settings'
   };
+  const profileCurrent = location.pathname === '/app/profile';
 
   const navigation = [
     {
@@ -217,7 +226,7 @@ const AppLayout = () => {
     loadNotifications();
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
-  }, [location.pathname, loadNotifications]);
+  }, [location.pathname, loadNotifications, version]);
 
   const markNotificationRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {
@@ -640,7 +649,7 @@ const AppLayout = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="khmer-brand-font text-lg font-semibold text-gray-900">អាណាចក្រភ្នំស្វាយ</h1>
+            <SidebarBrand />
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -654,10 +663,10 @@ const AppLayout = () => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
                     item.current
                       ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -669,12 +678,12 @@ const AppLayout = () => {
 
             <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
-                to={profileItem.href}
+                to="/app/profile"
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
-                  profileItem.current
-                    ? 'bg-white text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                  profileCurrent
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <img
@@ -701,15 +710,15 @@ const AppLayout = () => {
               <Link
                 to={settingsItem.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
                   settingsItem.current
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <settingsItem.icon
                   className={`h-5 w-5 flex-shrink-0 ${
-                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
+                    settingsItem.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
                 {settingsItem.name}
@@ -723,7 +732,7 @@ const AppLayout = () => {
       <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
-            <h1 className="khmer-brand-font text-lg font-semibold text-gray-900">អាណាចក្រភ្នំស្វាយ</h1>
+            <SidebarBrand />
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">
@@ -731,10 +740,10 @@ const AppLayout = () => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
                     item.current
                       ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   }`}
                 >
                   {renderNavIcon(item)}
@@ -745,11 +754,11 @@ const AppLayout = () => {
 
             <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
-                to={profileItem.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
-                  profileItem.current
-                    ? 'bg-white text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                to="/app/profile"
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                  profileCurrent
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <img
@@ -775,15 +784,15 @@ const AppLayout = () => {
               </Link>
               <Link
                 to={settingsItem.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
                   settingsItem.current
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <settingsItem.icon
                   className={`h-5 w-5 flex-shrink-0 ${
-                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
+                    settingsItem.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
                 {settingsItem.name}
