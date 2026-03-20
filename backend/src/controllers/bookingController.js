@@ -660,12 +660,15 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-    const updatePayload = { status };
-    if (hasScheduleUpdate) {
-      updatePayload.startTime = nextStartTime;
-      updatePayload.endTime = nextEndTime;
+    const bookingUpdate = { status };
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      bookingUpdate.ownerRevenueLocked = true;
     }
-    await booking.update(updatePayload, { transaction });
+    if (status === 'cancelled' && previousStatus === 'confirmed') {
+      bookingUpdate.ownerRevenueLocked = true;
+    }
+
+    await booking.update(bookingUpdate, { transaction });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';

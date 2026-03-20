@@ -157,6 +157,16 @@ module.exports = (sequelize, DataTypes) => {
 
     },
 
+    ownerRevenueLocked: {
+
+      type: DataTypes.BOOLEAN,
+
+      allowNull: false,
+
+      defaultValue: false
+
+    },
+
     specialRequests: {
 
       type: DataTypes.TEXT,
