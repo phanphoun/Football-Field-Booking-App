@@ -94,9 +94,12 @@ const OwnerFieldsPage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
+  const [statusEditingField, setStatusEditingField] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  const [imageUploadMode, setImageUploadMode] = useState('replace');
   const [form, setForm] = useState(emptyForm);
 
   const visibleFields = useMemo(() => (viewMode === 'all' ? allFields : fields), [viewMode, allFields, fields]);
@@ -133,14 +136,28 @@ const OwnerFieldsPage = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
+    setImageUploadMode('replace');
     setEditingFieldId(null);
     setIsOpen(false);
+  };
+
+  const resetStatusForm = () => {
+    setStatusEditingField(null);
+    setForm((current) => ({
+      ...current,
+      status: 'available',
+      closureMessage: '',
+      closureStartAt: '',
+      closureEndAt: ''
+    }));
+    setIsStatusOpen(false);
   };
 
   const startCreate = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
+    setImageUploadMode('append');
     setEditingFieldId(null);
     setIsOpen(true);
   };
@@ -149,6 +166,7 @@ const OwnerFieldsPage = () => {
     setEditingFieldId(field.id);
     setImageFiles([]);
     setExistingImages(normalizeImages(field.images).map((image) => resolveFieldImageUrl(image)));
+    setImageUploadMode('replace');
     setForm({
       name: field.name || '',
       description: field.description || '',
@@ -281,7 +299,7 @@ const OwnerFieldsPage = () => {
       if (editingFieldId) {
         await fieldService.updateField(editingFieldId, payload);
         if (imageFiles.length > 0) {
-          await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: true });
+          await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: imageUploadMode === 'replace' });
         }
         showToast('Field updated.', { type: 'success' });
       } else {
@@ -318,30 +336,46 @@ const OwnerFieldsPage = () => {
     }
   };
 
-  const handleToggleFieldStatus = async (field) => {
-    const isCurrentlyOpen = (field?.status || 'available') === 'available';
-    const nextStatus = isCurrentlyOpen ? 'unavailable' : 'available';
+  const startStatusEdit = (field) => {
+    setStatusEditingField(field);
+    setForm((current) => ({
+      ...current,
+      status: field?.status || 'available',
+      closureMessage: field?.closureMessage || '',
+      closureStartAt: toDateInputValue(field?.closureStartAt),
+      closureEndAt: toDateInputValue(field?.closureEndAt)
+    }));
+    setIsStatusOpen(true);
+  };
 
-    const confirmed = await confirm(
-      isCurrentlyOpen
-        ? `Close "${field.name}" for now? Players will not be able to create new bookings.`
-        : `Open "${field.name}" for booking again?`,
-      { title: isCurrentlyOpen ? 'Close Field' : 'Open Field' }
-    );
-    if (!confirmed) return;
+  const handleStatusSubmit = async (event) => {
+    event.preventDefault();
+    if (!statusEditingField?.id) return;
 
     try {
       setSaving(true);
+      const nextStatus = form.status || 'available';
 
-      await fieldService.updateField(field.id, {
+      await fieldService.updateField(statusEditingField.id, {
+        name: statusEditingField.name,
+        address: statusEditingField.address,
+        pricePerHour: Number(statusEditingField.pricePerHour),
+        capacity: Number(statusEditingField.capacity),
+        discountPercent: Number(statusEditingField.discountPercent || 0),
         status: nextStatus,
-        closureMessage: nextStatus === 'available' ? null : field?.closureMessage || 'Temporarily closed by field owner.',
-        closureStartAt: nextStatus === 'available' ? null : new Date().toISOString(),
-        closureEndAt: nextStatus === 'available' ? null : field?.closureEndAt || null
+        closureMessage:
+          nextStatus === 'available'
+            ? null
+            : form.closureMessage?.trim()
+            ? form.closureMessage.trim()
+            : 'Temporarily closed by field owner.',
+        closureStartAt: nextStatus === 'available' ? null : toIsoOrNull(form.closureStartAt) || new Date().toISOString(),
+        closureEndAt: nextStatus === 'available' ? null : toIsoOrNull(form.closureEndAt)
       });
 
-      showToast(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.', { type: 'success' });
+      showToast('Field status updated.', { type: 'success' });
       await loadFields();
+      resetStatusForm();
     } catch (err) {
       showToast(err?.error || 'Failed to update field status', { type: 'error' });
     } finally {
@@ -473,71 +507,7 @@ const OwnerFieldsPage = () => {
                   ))}
                 </div>
               )}
-              <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Field Status</span>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="available">Open</option>
-                  <option value="unavailable">Closed</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
-              </label>
             </div>
-
-            {form.status !== 'available' && (
-              <div className="mt-4 space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <label className="space-y-2">
-                    <span className="block text-sm font-medium text-slate-700">Close Date</span>
-                    <input
-                      name="closureStartAt"
-                      type="date"
-                      value={form.closureStartAt}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
-                    <input
-                      name="closureEndAt"
-                      type="date"
-                      value={form.closureEndAt}
-                      min={form.closureStartAt || undefined}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
-                    />
-                  </label>
-                </div>
-                <div>
-                  <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {CLOSURE_DAY_PRESETS.map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        onClick={() => applyClosureDaysPreset(days)}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        +{days} {days === 1 ? 'day' : 'days'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label className="block space-y-2">
-                  <span className="block text-sm font-medium text-slate-700">Closure Message</span>
-                  <textarea
-                    name="closureMessage"
-                    value={form.closureMessage}
-                    onChange={handleChange}
-                    rows={3}
-                    maxLength={500}
-                    placeholder="Example: Closed for maintenance until 6 PM."
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3"
-                  />
-                  <span className="block text-xs text-slate-500">This message is shown to users when booking is unavailable.</span>
-                </label>
-              </div>
-            )}
 
             <div className="mt-5">
               <FieldLocationPicker
@@ -559,7 +529,7 @@ const OwnerFieldsPage = () => {
                     Photos
                   </label>
                   <p className="mt-1 text-xs text-slate-500">
-                    Upload up to 5 images. New uploads replace the current saved photos.
+                    Upload up to 5 images. Images are compressed before upload to keep pages fast.
                   </p>
                 </div>
                 <label
@@ -582,6 +552,32 @@ const OwnerFieldsPage = () => {
               {imageFiles.length > 0 && (
                 <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                   {imageFiles.length} new image(s) selected
+                </div>
+              )}
+              {editingFieldId && (
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setImageUploadMode('replace')}
+                    className={`rounded-full border px-3 py-1.5 font-semibold ${
+                      imageUploadMode === 'replace'
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    Replace current photos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageUploadMode('append')}
+                    className={`rounded-full border px-3 py-1.5 font-semibold ${
+                      imageUploadMode === 'append'
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                        : 'border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    Add to current photos
+                  </button>
                 </div>
               )}
               {imageFiles.length === 0 && existingImages.length > 0 && (
@@ -636,6 +632,98 @@ const OwnerFieldsPage = () => {
                   {saving ? 'Saving...' : 'Save'}
                 </button>
               </div>
+            </div>
+          </form>
+        </div>
+      )}
+      {isStatusOpen && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleStatusSubmit}
+            className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.28)]"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">Update Field Status</h3>
+              <button type="button" onClick={resetStatusForm} className="rounded-full bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
+                Close
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{statusEditingField?.name || 'Field'}</p>
+
+            <div className="mt-4 space-y-4">
+              <label className="block space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Field Status</span>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
+                  <option value="available">Open</option>
+                  <option value="unavailable">Closed</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </label>
+
+              {form.status !== 'available' && (
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700">Close Date</span>
+                      <input
+                        name="closureStartAt"
+                        type="date"
+                        value={form.closureStartAt}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
+                      <input
+                        name="closureEndAt"
+                        type="date"
+                        value={form.closureEndAt}
+                        min={form.closureStartAt || undefined}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {CLOSURE_DAY_PRESETS.map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => applyClosureDaysPreset(days)}
+                          className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          +{days} {days === 1 ? 'day' : 'days'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Closure Reason</span>
+                    <textarea
+                      name="closureMessage"
+                      value={form.closureMessage}
+                      onChange={handleChange}
+                      rows={3}
+                      maxLength={500}
+                      placeholder="Example: Field maintenance until 6 PM."
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                    <span className="block text-xs text-slate-500">This reason is shown to captains when booking is unavailable.</span>
+                  </label>
+                </>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={resetStatusForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Status'}
+              </button>
             </div>
           </form>
         </div>
@@ -754,7 +842,7 @@ const OwnerFieldsPage = () => {
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
-                        handleToggleFieldStatus(field);
+                        startStatusEdit(field);
                       }}
                       disabled={!isOwned || saving}
                       className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${

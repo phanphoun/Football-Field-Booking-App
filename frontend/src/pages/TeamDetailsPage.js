@@ -6,6 +6,7 @@ import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon, PhotoIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { ImagePreviewModal } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { compressImageForUpload } from '../utils/imageCompression';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
@@ -246,13 +247,20 @@ const TeamDetailsPage = () => {
       setActionLoading(true);
       setError(null);
 
+      const compressedFile = await compressImageForUpload(file, {
+        maxWidth: 900,
+        maxHeight: 900,
+        targetMaxBytes: 450 * 1024,
+        minCompressBytes: 150 * 1024
+      });
+
       if (pendingLogoPreview) {
         URL.revokeObjectURL(pendingLogoPreview);
       }
-      setPendingLogoPreview(URL.createObjectURL(file));
+      setPendingLogoPreview(URL.createObjectURL(compressedFile));
       
       const formData = new FormData();
-      formData.append('logo', file);
+      formData.append('logo', compressedFile);
 
       const response = await teamService.uploadTeamLogo(id, formData);
       if (response.success) {

@@ -4,6 +4,7 @@ import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import { DEFAULT_JERSEY_COLOR, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
+import { compressImageForUpload } from '../utils/imageCompression';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
@@ -87,7 +88,7 @@ const TeamCreatePage = () => {
     });
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -103,13 +104,20 @@ const TeamCreatePage = () => {
       return;
     }
 
+    const compressedFile = await compressImageForUpload(file, {
+      maxWidth: 900,
+      maxHeight: 900,
+      targetMaxBytes: 450 * 1024,
+      minCompressBytes: 150 * 1024
+    });
+
     setError(null);
-    setSelectedLogoFile(file);
+    setSelectedLogoFile(compressedFile);
     setLogoPreview((prev) => {
       if (prev) {
         URL.revokeObjectURL(prev);
       }
-      return URL.createObjectURL(file);
+      return URL.createObjectURL(compressedFile);
     });
   };
 

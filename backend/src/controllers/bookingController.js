@@ -62,124 +62,13 @@ const serializeBooking = (booking) => {
   };
 };
 
-const SCHEDULE_SHOWCASE_START_HOURS = [8, 10, 12, 14, 16, 18, 20];
-
-const getScheduleShowcaseTarget = (date) => {
-  const [year, month, day] = String(date || '').split('-').map(Number);
-  if (![year, month, day].every(Number.isFinite)) return 2;
-  return (year + month + day) % 2 === 0 ? 2 : 4;
-};
-
-const buildDateAtHour = (date, hour) => {
-  const bookingDate = new Date(`${date}T00:00:00`);
-  bookingDate.setHours(hour, 0, 0, 0);
-  return bookingDate;
-};
-
 const getEffectiveHourlyRate = (field) => {
   const basePrice = Number(field?.pricePerHour || 0);
   const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
   return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
 
-const getDayBoundsMs = (dateValue) => {
-  const day = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(day.getTime())) return null;
-  const start = new Date(day);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(day);
-  end.setHours(23, 59, 59, 999);
-  return { startMs: start.getTime(), endMs: end.getTime() };
-};
-
-const getTimeMsOrNull = (value) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
-};
-
-const isFieldClosedForDate = (field, dateValue) => {
-  const status = String(field?.status || 'available').toLowerCase();
-  if (status === 'available') return false;
-
-  const bounds = getDayBoundsMs(dateValue);
-  if (!bounds) return true;
-
-  const closureStartMs = getTimeMsOrNull(field?.closureStartAt);
-  const closureEndMs = getTimeMsOrNull(field?.closureEndAt);
-  const hasWindow = closureStartMs !== null || closureEndMs !== null;
-
-  if (!hasWindow) return true;
-
-  const startsBeforeOrOnDay = closureStartMs === null || bounds.endMs >= closureStartMs;
-  const endsAfterDayStart = closureEndMs === null || bounds.startMs < closureEndMs;
-  return startsBeforeOrOnDay && endsAfterDayStart;
-};
-
-const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
-  const serializedBookings = bookings.map(serializeBooking);
-  const availableFields = fields.filter(
-    (field) => !isFieldClosedForDate(field, date)
-  );
-  const targetCount = getScheduleShowcaseTarget(date);
-
-  if (serializedBookings.length >= targetCount || availableFields.length === 0) {
-    return serializedBookings;
-  }
-
-  const occupiedSlots = new Set(
-    serializedBookings.map((booking) => {
-      const start = new Date(booking.startTime);
-      return `${booking.fieldId}-${start.getHours()}`;
-    })
-  );
-
-  const showcaseTeams = [
-    'Sunrise FC',
-    'Mekong United',
-    'City Warriors',
-    'Night Strikers',
-    'Golden Boots',
-    'Weekend Rangers'
-  ];
-
-  const showcaseBookings = [];
-  let showcaseIndex = 0;
-
-  for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
-    for (const field of availableFields) {
-      if (serializedBookings.length + showcaseBookings.length >= targetCount) {
-        return [...serializedBookings, ...showcaseBookings];
-      }
-
-      const slotKey = `${field.id}-${hour}`;
-      if (occupiedSlots.has(slotKey)) continue;
-
-      const startTime = buildDateAtHour(date, hour);
-      const endTime = buildDateAtHour(date, hour + 2);
-      const teamName = showcaseTeams[(showcaseIndex + hour) % showcaseTeams.length];
-
-      showcaseBookings.push({
-        id: `showcase-${date}-${field.id}-${hour}`,
-        fieldId: field.id,
-        teamId: null,
-        teamName,
-        startTime,
-        endTime,
-        status: 'confirmed',
-        createdBy: null,
-        isMatchmaking: false,
-        openForOpponents: false,
-        team: null
-      });
-
-      occupiedSlots.add(slotKey);
-      showcaseIndex += 1;
-    }
-  }
-
-  return [...serializedBookings, ...showcaseBookings];
-};
+const enrichScheduleWithShowcaseBookings = ({ bookings }) => bookings.map(serializeBooking);
 
 const requireCaptainRole = (req, res) => {
   if (req.user.role !== 'captain') {
@@ -213,69 +102,71 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Field not found' });
     }
 
-    if (field.status !== 'available') {
-      const nowMs = Date.now();
-      const closureStart = field.closureStartAt ? new Date(field.closureStartAt) : null;
-      const closureEnd = field.closureEndAt ? new Date(field.closureEndAt) : null;
-      const closureStartMs = closureStart && !Number.isNaN(closureStart.getTime()) ? closureStart.getTime() : null;
-      const closureEndMs = closureEnd && !Number.isNaN(closureEnd.getTime()) ? closureEnd.getTime() : null;
-      const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
-
-      // If owner set close/open dates, block only while "now" is inside that window.
-      const isInsideClosureWindow = hasClosureWindow
-        ? (closureStartMs === null || nowMs >= closureStartMs) && (closureEndMs === null || nowMs < closureEndMs)
-        : true;
-
-      const canAutoReopen = closureEndMs !== null && nowMs >= closureEndMs;
-
-      if (canAutoReopen) {
-        await field.update({
-          status: 'available',
-          closureMessage: null,
-          closureStartAt: null,
-          closureEndAt: null
-        });
-      } else if (isInsideClosureWindow) {
+      const requestedStart = new Date(startTime);
+      const requestedEnd = new Date(endTime);
+      if (Number.isNaN(requestedStart.getTime()) || Number.isNaN(requestedEnd.getTime())) {
         return res.status(400).json({
           success: false,
-          message: field.closureMessage || `This field is currently ${field.status}. Please choose another time or field.`
+          message: 'Invalid start time or end time.'
         });
       }
-    }
+      if (requestedEnd <= requestedStart) {
+        return res.status(400).json({
+          success: false,
+          message: 'End time must be after start time.'
+        });
+      }
 
-    const activeFieldBooking = await Booking.findOne({
-      where: {
-        fieldId,
-        status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
-        endTime: { [Op.gt]: new Date() }
-      },
-      order: [['startTime', 'ASC']]
-    });
+      if (field.status !== 'available') {
+        const nowMs = Date.now();
+        const closureStart = field.closureStartAt ? new Date(field.closureStartAt) : null;
+        const closureEnd = field.closureEndAt ? new Date(field.closureEndAt) : null;
+        const closureStartMs = closureStart && !Number.isNaN(closureStart.getTime()) ? closureStart.getTime() : null;
+        const closureEndMs = closureEnd && !Number.isNaN(closureEnd.getTime()) ? closureEnd.getTime() : null;
+        const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
 
-    if (activeFieldBooking) {
-      return res.status(400).json({
-        success: false,
-        message: 'Field is already booked and unavailable for another booking.'
-      });
-    }
+        const overlapsClosureWindow = hasClosureWindow
+          ? requestedStart.getTime() < (closureEndMs ?? Number.POSITIVE_INFINITY) &&
+            requestedEnd.getTime() > (closureStartMs ?? Number.NEGATIVE_INFINITY)
+          : true;
+
+        const canAutoReopen =
+          closureEndMs !== null &&
+          nowMs >= closureEndMs &&
+          requestedStart.getTime() >= closureEndMs;
+
+        if (canAutoReopen) {
+          await field.update({
+            status: 'available',
+            closureMessage: null,
+            closureStartAt: null,
+            closureEndAt: null
+          });
+        } else if (overlapsClosureWindow) {
+          return res.status(400).json({
+            success: false,
+            message: field.closureMessage || `This field is currently ${field.status} for the selected time. Please choose another time or field.`
+          });
+        }
+      }
 
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
     const totalPrice = Number((duration * getEffectiveHourlyRate(field)).toFixed(2));
 
-    const existingBooking = await Booking.findOne({
-      where: {
-        fieldId,
-        status: 'confirmed',
-        [Op.and]: [{ startTime: { [Op.lt]: endTime } }, { endTime: { [Op.gt]: startTime } }]
-      }
-    });
-
-    if (existingBooking) {
-      return res.status(400).json({
-        success: false,
-        message: 'Field already has a confirmed booking for this time slot.'
+      const existingBooking = await Booking.findOne({
+        where: {
+          fieldId,
+          status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+          [Op.and]: [{ startTime: { [Op.lt]: requestedEnd } }, { endTime: { [Op.gt]: requestedStart } }]
+        }
       });
-    }
+
+      if (existingBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'Field already has a booking for this time slot.'
+        });
+      }
 
     const booking = await Booking.create({
       createdBy: req.user.id,
@@ -505,7 +396,10 @@ const getPublicBookingSchedule = async (req, res) => {
         status: { [Op.notIn]: ['cancelled', 'completed'] },
         [Op.and]: [{ startTime: { [Op.lt]: dayEnd } }, { endTime: { [Op.gt]: dayStart } }]
       },
-      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false }],
+      include: [
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false }
+      ],
       order: [['startTime', 'ASC']]
     });
 
@@ -554,9 +448,10 @@ const updateBookingStatus = async (req, res) => {
     const isBooker = booking.createdBy === req.user.id;
     const isAdmin = req.user.role === 'admin';
     const isTeamCaptain = booking.team && booking.team.captainId === req.user.id;
+    const isOpponentCaptain = booking.opponentTeam && booking.opponentTeam.captainId === req.user.id;
     const isCaptain = req.user.role === 'captain';
 
-    if ((isBooker || (isCaptain && isTeamCaptain)) && status === 'cancelled') {
+    if ((isBooker || (isCaptain && (isTeamCaptain || isOpponentCaptain))) && status === 'cancelled') {
       const canCancelStatus = booking.status === 'pending' || booking.status === 'confirmed';
       if (!canCancelStatus) {
         return res.status(400).json({

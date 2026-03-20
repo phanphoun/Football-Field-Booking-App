@@ -53,7 +53,7 @@ const FieldsPage = () => {
     const fetchFields = async () => {
       try {
         setLoading(true);
-        const response = await fieldService.getAllFields({ status: 'available' });
+        const response = await fieldService.getAllFields();
         // Ensure we always set an array, even if response.data is not an array
         const fieldsData = Array.isArray(response.data) ? response.data : [];
         setFields(fieldsData);

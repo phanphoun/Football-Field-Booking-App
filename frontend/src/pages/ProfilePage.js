@@ -18,6 +18,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { compressImageForUpload } from '../utils/imageCompression';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -191,13 +192,20 @@ const ProfilePage = () => {
     try {
       setError('');
       setSuccessMessage('');
+      const compressedFile = await compressImageForUpload(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        targetMaxBytes: 350 * 1024,
+        minCompressBytes: 120 * 1024
+      });
+
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview);
       }
-      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarPreview(URL.createObjectURL(compressedFile));
 
       const uploadData = new FormData();
-      uploadData.append('avatar', file);
+      uploadData.append('avatar', compressedFile);
       const result = await uploadAvatar(uploadData);
 
       if (!result.success) {
