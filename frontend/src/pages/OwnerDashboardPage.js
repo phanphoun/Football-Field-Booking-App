@@ -1,0 +1,363 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  ArrowTrendingUpIcon,
+  BuildingOfficeIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  PlusIcon,
+  XCircleIcon
+} from '@heroicons/react/24/outline';
+import fieldService from '../services/fieldService';
+import bookingService from '../services/bookingService';
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
+
+const statusTone = (status) => {
+  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  return tones[status] || 'gray';
+};
+
+const formatMoney = (value) => {
+  const n = Number(value || 0);
+  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+};
+
+const OwnerDashboardPage = () => {
+  const navigate = useNavigate();
+  const { confirm } = useDialog();
+  const [fields, setFields] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchOwnerData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [fieldsRes, bookingsRes] = await Promise.all([
+          fieldService.getMyFields(),
+          bookingService.getAllBookings({ limit: 200 })
+        ]);
+        setFields(Array.isArray(fieldsRes.data) ? fieldsRes.data : []);
+        setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+      } catch (err) {
+        setError(err?.error || 'Failed to load owner dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOwnerData();
+  }, []);
+
+  const pendingBookings = useMemo(() => bookings.filter((booking) => booking.status === 'pending'), [bookings]);
+  const confirmedBookings = useMemo(() => bookings.filter((booking) => booking.status === 'confirmed'), [bookings]);
+  const completedBookings = useMemo(() => bookings.filter((booking) => booking.status === 'completed'), [bookings]);
+
+  const upcomingConfirmed = useMemo(() => {
+    const now = Date.now();
+    return confirmedBookings
+      .filter((booking) => booking?.startTime && new Date(booking.startTime).getTime() >= now)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+      .slice(0, 5);
+  }, [confirmedBookings]);
+
+  const revenueEstimate = useMemo(() => {
+    return bookings
+      .filter((booking) => booking.status === 'confirmed' || booking.status === 'completed')
+      .reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
+  }, [bookings]);
+
+  const kpiCards = useMemo(
+    () => [
+      {
+        name: 'My Fields',
+        value: fields.length,
+        icon: BuildingOfficeIcon,
+        iconWrap: 'bg-blue-600',
+        cardClass: 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70',
+        textClass: 'text-blue-950',
+        helper: 'Active venues you manage'
+      },
+      {
+        name: 'Pending Requests',
+        value: pendingBookings.length,
+        icon: ClockIcon,
+        iconWrap: 'bg-amber-500',
+        cardClass: 'border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70',
+        textClass: 'text-amber-950',
+        helper: 'Requests waiting for action'
+      },
+      {
+        name: 'Confirmed',
+        value: confirmedBookings.length,
+        icon: CalendarIcon,
+        iconWrap: 'bg-emerald-600',
+        cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
+        textClass: 'text-emerald-950',
+        helper: 'Bookings ready on schedule'
+      },
+      {
+        name: 'Revenue (est.)',
+        value: formatMoney(revenueEstimate),
+        icon: ArrowTrendingUpIcon,
+        iconWrap: 'bg-indigo-600',
+        cardClass: 'border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/70',
+        textClass: 'text-indigo-950',
+        helper: 'Confirmed and completed total'
+      }
+    ],
+    [fields.length, pendingBookings.length, confirmedBookings.length, revenueEstimate]
+  );
+
+  const handleStatus = async (bookingId, nextStatus) => {
+    try {
+      setUpdatingId(bookingId);
+      setError(null);
+
+      if (nextStatus === 'confirmed') {
+        const confirmed = await confirm('Do you want to confirm booking?', { title: 'Confirm Booking' });
+        if (!confirmed) return;
+        await bookingService.confirmBooking(bookingId);
+      }
+      if (nextStatus === 'cancelled') {
+        const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
+        if (!confirmed) return;
+        await bookingService.cancelBooking(bookingId);
+      }
+      if (nextStatus === 'completed') {
+        await bookingService.completeBooking(bookingId);
+      }
+
+      const bookingsRes = await bookingService.getAllBookings({ limit: 200 });
+      setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+    } catch (err) {
+      setError(err?.error || 'Failed to update booking');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-emerald-50/70 p-6 shadow-sm">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-200">
+              Field Owner
+            </div>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Owner Dashboard</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Track your fields, review booking requests, and keep your schedule under control.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button as={Link} to="/owner/fields" variant="outline" size="sm" className="rounded-xl border-slate-300 bg-white px-4">
+              <PlusIcon className="h-4 w-4" />
+              Add field
+            </Button>
+            <Button as={Link} to="/owner/bookings" size="sm" className="rounded-xl px-4 shadow-sm shadow-emerald-600/20">
+              <ClockIcon className="h-4 w-4" />
+              Review requests
+            </Button>
+            <Button as={Link} to="/owner/matches" variant="outline" size="sm" className="rounded-xl border-slate-300 bg-white px-4">
+              <CalendarIcon className="h-4 w-4" />
+              Matches
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {kpiCards.map((card) => (
+          <Card key={card.name} className={`overflow-hidden ${card.cardClass}`}>
+            <CardBody className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${card.iconWrap}`}>
+                  <card.icon className="h-6 w-6 text-white" />
+                </div>
+                <div className="w-0 flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{card.name}</div>
+                  <div className={`mt-3 text-[2rem] font-bold leading-none ${card.textClass}`}>{card.value}</div>
+                  <div className="mt-2 text-xs leading-5 text-slate-600">{card.helper}</div>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card className="overflow-hidden">
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">Pending booking requests</h2>
+              <p className="mt-1 text-sm text-slate-500">Approve or reject new requests from teams.</p>
+            </div>
+            <Badge tone="yellow">{pendingBookings.length} pending</Badge>
+          </CardHeader>
+          <div className="bg-white">
+            {pendingBookings.length > 0 ? (
+              <div className="divide-y divide-slate-200">
+                {pendingBookings.slice(0, 6).map((booking) => {
+                  const isUpdating = updatingId === booking.id;
+                  return (
+                    <div key={booking.id} className="px-6 py-5 transition hover:bg-slate-50/80">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="truncate text-sm font-semibold text-slate-950">{booking.field?.name || 'Field'}</div>
+                            <Badge tone={statusTone(booking.status)} className="capitalize">
+                              {booking.status}
+                            </Badge>
+                          </div>
+                          <div className="mt-1.5 text-xs text-slate-600">
+                            {new Date(booking.startTime).toLocaleString()} | {booking.team?.name || 'Team'}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button size="sm" className="rounded-xl px-4" disabled={isUpdating} onClick={() => handleStatus(booking.id, 'confirmed')}>
+                            <CheckCircleIcon className="h-4 w-4" />
+                            Confirm
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            className="rounded-xl px-4"
+                            disabled={isUpdating}
+                            onClick={() => handleStatus(booking.id, 'cancelled')}
+                          >
+                            <XCircleIcon className="h-4 w-4" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-6">
+                <EmptyState
+                  icon={ClockIcon}
+                  title="No pending requests"
+                  description="When players create bookings for your fields, they will show up here."
+                />
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden">
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">Upcoming confirmed</h2>
+              <p className="mt-1 text-sm text-slate-500">Your next scheduled bookings after approval.</p>
+            </div>
+            <Badge tone="green">{upcomingConfirmed.length} upcoming</Badge>
+          </CardHeader>
+          <div className="bg-white">
+            {upcomingConfirmed.length > 0 ? (
+              <div className="divide-y divide-slate-200">
+                {upcomingConfirmed.map((booking) => (
+                  <div key={booking.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="truncate text-sm font-semibold text-slate-950">{booking.field?.name || 'Field'}</div>
+                        <Badge tone="green">confirmed</Badge>
+                      </div>
+                      <div className="mt-1.5 truncate text-xs text-slate-600">
+                        {new Date(booking.startTime).toLocaleString()} | {booking.team?.name || 'Team'}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <Badge tone="green">{formatMoney(booking.totalPrice)}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6">
+                <EmptyState
+                  icon={CalendarIcon}
+                  title="No upcoming bookings"
+                  description="Confirm pending requests to see your upcoming schedule."
+                  actionLabel="Go to requests"
+                  onAction={() => navigate('/owner/bookings')}
+                />
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-slate-950">My fields</h2>
+            <p className="mt-1 text-sm text-slate-500">Your venues, availability, and pricing at a glance.</p>
+          </div>
+          <Button as={Link} to="/owner/fields" variant="outline" size="sm" className="rounded-xl border-slate-300 bg-white px-4">
+            Manage fields
+          </Button>
+        </CardHeader>
+        <div className="bg-white">
+          {fields.length > 0 ? (
+            <div className="divide-y divide-slate-200">
+              {fields.slice(0, 6).map((field) => (
+                <div key={field.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="truncate text-sm font-semibold text-slate-950">{field.name}</div>
+                      {field.status && (
+                        <Badge tone={field.status === 'available' ? 'green' : 'gray'} className="capitalize">
+                          {field.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mt-1.5 truncate text-xs text-slate-600">
+                      {field.city}
+                      {field.province ? `, ${field.province}` : ''} | {formatMoney(field.pricePerHour)}/hr
+                    </div>
+                  </div>
+                  <Button as={Link} to="/owner/fields" size="sm" variant="outline" className="rounded-xl border-slate-300 bg-white px-4">
+                    Edit
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6">
+              <EmptyState
+                icon={BuildingOfficeIcon}
+                title="No fields yet"
+                description="Create your first field to start receiving booking requests."
+                actionLabel="Add field"
+                onAction={() => navigate('/owner/fields')}
+              />
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 shadow-sm">
+        Completed bookings: {completedBookings.length}. Revenue estimate includes confirmed and completed only.
+      </div>
+    </div>
+  );
+};
+
+export default OwnerDashboardPage;
