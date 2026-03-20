@@ -1,4 +1,4 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -458,11 +458,29 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       [Op.or]: [{ homeTeamId: teamId }, { awayTeamId: teamId }]
     },
     include: [
-      { model: Team, as: 'homeTeam', attributes: ['id', 'name'] },
-      { model: Team, as: 'awayTeam', attributes: ['id', 'name'] },
+      { model: Team, as: 'homeTeam', attributes: ['id', 'name', 'captainId', 'logoUrl'] },
+      { model: Team, as: 'awayTeam', attributes: ['id', 'name', 'captainId', 'logoUrl'] },
       { model: Booking, as: 'booking', attributes: ['startTime', 'fieldId'], include: [{ model: Field, as: 'field', attributes: ['id', 'name'], required: false }], required: false }
     ],
     order: [['recordedAt', 'DESC']]
+  });
+
+  const bookingIds = completedMatches
+    .map((match) => Number(match.bookingId))
+    .filter((bookingId) => Number.isInteger(bookingId) && bookingId > 0);
+
+  const ratingRows = bookingIds.length
+    ? await Rating.findAll({
+        where: {
+          bookingId: { [Op.in]: bookingIds }
+        },
+        attributes: ['id', 'bookingId', 'teamIdRater', 'teamIdRated', 'rating', 'review', 'sportsmanshipScore', 'createdAt']
+      })
+    : [];
+
+  const ratingMap = new Map();
+  ratingRows.forEach((row) => {
+    ratingMap.set(`${Number(row.bookingId)}:${Number(row.teamIdRater)}`, row);
   });
 
   const matches = completedMatches.map((match) => {
@@ -470,6 +488,16 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     const myScore = isHome ? Number(match.homeScore) : Number(match.awayScore);
     const opponentScore = isHome ? Number(match.awayScore) : Number(match.homeScore);
     const opponentTeam = isHome ? match.awayTeam : match.homeTeam;
+    const currentUserTeamId =
+      Number(match.homeTeam?.captainId) === Number(req.user.id)
+        ? Number(match.homeTeamId)
+        : Number(match.awayTeam?.captainId) === Number(req.user.id)
+        ? Number(match.awayTeamId)
+        : req.user.role === 'admin'
+        ? teamId
+        : null;
+    const existingRating =
+      currentUserTeamId !== null ? ratingMap.get(`${Number(match.bookingId)}:${Number(currentUserTeamId)}`) : null;
 
     let result = 'Draw';
     if (myScore > opponentScore) result = 'Win';
@@ -484,7 +512,20 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       finalScore: `${myScore}-${opponentScore}`,
       myScore,
       opponentScore,
-      result
+      result,
+      status: 'completed',
+      opponentTeamId: opponentTeam?.id || null,
+      opponentTeamLogoUrl: opponentTeam?.logoUrl || null,
+      canRate: Boolean(match.bookingId && currentUserTeamId !== null && !existingRating),
+      rating: existingRating
+        ? {
+            id: existingRating.id,
+            value: existingRating.rating,
+            review: existingRating.review,
+            sportsmanshipScore: existingRating.sportsmanshipScore,
+            createdAt: existingRating.createdAt
+          }
+        : null
     };
   });
 

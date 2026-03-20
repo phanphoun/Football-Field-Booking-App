@@ -214,7 +214,7 @@ const createOpponentRating = asyncHandler(async (req, res) => {
     }
   });
   if (existing) {
-    return res.status(400).json({ success: false, message: 'You have already rated this opponent for this match' });
+    return res.status(400).json({ success: false, message: 'You have already rated this opponent.' });
   }
 
   const created = await Rating.create({

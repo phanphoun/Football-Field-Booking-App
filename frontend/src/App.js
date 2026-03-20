@@ -23,8 +23,6 @@ import FieldDetailsPage from './pages/FieldDetailsPage';
 import TeamCreatePage from './pages/TeamCreatePage';
 import TeamDetailsPage from './pages/TeamDetailsPage';
 import TeamManagePage from './pages/TeamManagePage';
-import TeamMatchHistoryPage from './pages/TeamMatchHistoryPage';
-import MatchHistoryIndexPage from './pages/MatchHistoryIndexPage';
 import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
@@ -75,7 +73,6 @@ const AppRoutes = () => {
           <Route path="fields" element={<FieldsPage />} />
           <Route path="league" element={<LeaguePage />} />
           <Route path="teams" element={<TeamsPage />} />
-          <Route path="match-history" element={<MatchHistoryIndexPage />} />
           <Route
             path="teams/create"
             element={
@@ -85,7 +82,6 @@ const AppRoutes = () => {
             }
           />
           <Route path="teams/:id" element={<TeamDetailsPage />} />
-          <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
           <Route
             path="teams/:id/manage"
             element={
@@ -181,7 +177,6 @@ const AppRoutes = () => {
             }
           />
           <Route path="teams/:id" element={<TeamDetailsPage />} />
-          <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
           <Route
             path="teams/:id/manage"
             element={
