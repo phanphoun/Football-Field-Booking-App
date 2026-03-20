@@ -67,6 +67,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to={getPreferredStartPath('app')} replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="fields" element={<FieldsPage />} />
+          <Route path="fields/:id" element={<FieldDetailsPage />} />
           <Route path="league" element={<LeaguePage />} />
           <Route path="teams" element={<TeamsPage />} />
           <Route
@@ -153,6 +154,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to={getPreferredStartPath('owner')} replace />} />
           <Route path="dashboard" element={<OwnerDashboardPage />} />
           <Route path="fields" element={<OwnerFieldsPage />} />
+          <Route path="fields/:id" element={<FieldDetailsPage />} />
           <Route path="bookings" element={<OwnerBookingsPage />} />
           <Route
             path="bookings/new"

@@ -3,6 +3,7 @@ import { CalendarIcon, ClockIcon, UsersIcon } from '@heroicons/react/24/outline'
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 // Render the open matches page.
 const OpenMatchesPage = () => {
@@ -123,7 +124,12 @@ const OpenMatchesPage = () => {
       <Card className="overflow-hidden">
         <div className="divide-y divide-gray-200">
           {openMatches.length > 0 ? (
-            openMatches.map((match) => (
+            openMatches.map((match) => {
+              const ownerColors = getTeamJerseyColors(match.team);
+              const selectedTeam = captainedTeams.find((team) => String(team.id) === String(selectedTeams[match.id] || ''));
+              const selectedColors = selectedTeam ? getTeamJerseyColors(selectedTeam) : [];
+
+              return (
               <CardBody key={match.id} className="p-6">
                 <div className="flex items-start justify-between gap-6">
                   <div className="flex-1">
@@ -144,6 +150,11 @@ const OpenMatchesPage = () => {
                       <div className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
                         Owner Team: {match.team?.name || 'Unknown Team'}
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
+                          {ownerColors.map((color, index) => (
+                            <span key={`owner-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                        </span>
                       </div>
                     </div>
 
@@ -181,10 +192,17 @@ const OpenMatchesPage = () => {
                     >
                       {submittingMap[match.id] ? 'Sending...' : 'Request to Join'}
                     </Button>
+                    {selectedTeam && (
+                      <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
+                        {selectedColors.map((color, index) => (
+                          <span key={`selected-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardBody>
-            ))
+            )})
           ) : (
             <div className="p-6">
               <EmptyState

@@ -46,7 +46,7 @@ const MemberDetailsModal = ({ member, onClose }) => {
   return (
     <>
       <div
-        className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+        className="fixed inset-0 z-[1250] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
         onClick={onClose}
       >
         <div

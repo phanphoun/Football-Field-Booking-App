@@ -67,20 +67,45 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     });
   }
 
-  // Player/Captain: personal stats
+  // Player/Captain: team-aware stats
   if (role === 'player' || role === 'captain') {
-    const [totalFields, bookingCount, activeBookings] = await Promise.all([
-      Field.count(),
-      Booking.count({ where: { createdBy: userId } }),
-      Booking.count({ where: { createdBy: userId, status: { [Op.in]: ['pending', 'confirmed'] } } })
-    ]);
-
     const activeMembershipTeams = await TeamMember.findAll({
-      where: { userId, status: 'accepted', isActive: true },
+      where: { userId, status: 'active', isActive: true },
       attributes: ['teamId'],
       group: ['teamId'],
       raw: true
     });
+    const membershipTeamIds = activeMembershipTeams.map((team) => team.teamId);
+
+    let bookingWhere = { createdBy: userId };
+    if (role === 'player' && membershipTeamIds.length > 0) {
+      bookingWhere = {
+        [Op.or]: [
+          { createdBy: userId },
+          { teamId: { [Op.in]: membershipTeamIds } },
+          { opponentTeamId: { [Op.in]: membershipTeamIds } }
+        ]
+      };
+    }
+    if (role === 'captain') {
+      const captainedTeams = await Team.findAll({ where: { captainId: userId }, attributes: ['id'], raw: true });
+      const captainedTeamIds = captainedTeams.map((team) => team.id);
+      bookingWhere = captainedTeamIds.length > 0
+        ? {
+            [Op.or]: [
+              { createdBy: userId },
+              { teamId: { [Op.in]: captainedTeamIds } },
+              { opponentTeamId: { [Op.in]: captainedTeamIds } }
+            ]
+          }
+        : { createdBy: userId };
+    }
+
+    const [totalFields, bookingCount, activeBookings] = await Promise.all([
+      Field.count(),
+      Booking.count({ where: bookingWhere }),
+      Booking.count({ where: { ...bookingWhere, status: { [Op.in]: ['pending', 'confirmed'] } } })
+    ]);
 
     let pendingJoinRequests = 0;
     if (role === 'captain') {

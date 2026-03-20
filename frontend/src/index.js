@@ -40,11 +40,13 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
+const app = process.env.NODE_ENV === 'development' ? <App /> : (
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
+
+root.render(app);
 
 
 

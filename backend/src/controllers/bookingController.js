@@ -2,11 +2,11 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-  { model: Field, as: 'field', attributes: ['name', 'address', 'pricePerHour', 'discountPercent'] },
+  { model: Field, as: 'field', attributes: ['id', 'name', 'address', 'pricePerHour', 'discountPercent'] },
   {
     model: Team,
     as: 'team',
-    attributes: ['id', 'name', 'skillLevel', 'maxPlayers', 'captainId'],
+    attributes: ['id', 'name', 'skillLevel', 'maxPlayers', 'captainId', 'shirtColor', 'jerseyColors'],
     include: [
       {
         model: User,
@@ -29,7 +29,7 @@ const BOOKING_BASE_INCLUDE = [
     ],
     required: false
   },
-  { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'], required: false },
+  { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
   { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
@@ -42,6 +42,54 @@ const serializeBooking = (booking) => {
     ...payload,
     openForOpponents: Boolean(payload.isMatchmaking)
   };
+};
+
+const getActiveMemberUserIdsForTeams = async (teamIds = [], excludeUserIds = []) => {
+  const normalizedTeamIds = Array.from(new Set(teamIds.map((teamId) => Number(teamId)).filter(Boolean)));
+  if (normalizedTeamIds.length === 0) return [];
+
+  const memberships = await TeamMember.findAll({
+    where: {
+      teamId: { [Op.in]: normalizedTeamIds },
+      status: 'active',
+      isActive: true
+    },
+    attributes: ['userId'],
+    raw: true
+  });
+
+  const excludedIds = new Set(excludeUserIds.map((userId) => Number(userId)).filter(Boolean));
+  return Array.from(
+    new Set(
+      memberships
+        .map((membership) => Number(membership.userId))
+        .filter((userId) => userId && !excludedIds.has(userId))
+    )
+  );
+};
+
+const createTeamBookingNotifications = async ({
+  teamIds = [],
+  excludeUserIds = [],
+  title,
+  message,
+  type = 'booking',
+  metadata = {},
+  transaction
+}) => {
+  const recipientIds = await getActiveMemberUserIdsForTeams(teamIds, excludeUserIds);
+  if (recipientIds.length === 0) return;
+
+  await Notification.bulkCreate(
+    recipientIds.map((userId) => ({
+      userId,
+      title,
+      message,
+      type,
+      metadata
+    })),
+    transaction ? { transaction } : undefined
+  );
 };
 
 const SCHEDULE_SHOWCASE_START_HOURS = [8, 10, 12, 14, 16, 18, 20];
@@ -219,7 +267,7 @@ const createBooking = async (req, res) => {
     });
 
     if (field.ownerId) {
-      const team = await Team.findByPk(teamId, { attributes: ['id', 'name'] });
+      const team = await Team.findByPk(teamId, { attributes: ['id', 'name', 'shirtColor', 'jerseyColors'] });
       await Notification.create({
         userId: field.ownerId,
         title: `New booking request for ${field.name}`,
@@ -227,6 +275,25 @@ const createBooking = async (req, res) => {
         type: 'booking',
         metadata: {
           event: 'booking_request',
+          bookingId: booking.id,
+          fieldId: field.id,
+          fieldName: field.name,
+          teamId: team?.id || teamId,
+          teamName: team?.name || null,
+          startTime,
+          endTime,
+          totalPrice,
+          status: 'pending'
+        }
+      });
+
+      await createTeamBookingNotifications({
+        teamIds: [team?.id || teamId],
+        excludeUserIds: [req.user.id],
+        title: `Team booking request created for ${field.name}`,
+        message: `${team?.name || 'Your team'} requested to book ${field.name}.`,
+        metadata: {
+          event: 'team_booking_created',
           bookingId: booking.id,
           fieldId: field.id,
           fieldName: field.name,
@@ -257,7 +324,21 @@ const getBookings = async (req, res) => {
     let where = {};
 
     if (req.user.role === 'player' || req.user.role === 'guest') {
-      where = { createdBy: req.user.id };
+      const memberships = await TeamMember.findAll({
+        where: { userId: req.user.id, status: 'active', isActive: true },
+        attributes: ['teamId'],
+        raw: true
+      });
+      const teamIds = memberships.map((membership) => membership.teamId);
+      where = teamIds.length > 0
+        ? {
+            [Op.or]: [
+              { createdBy: req.user.id },
+              { teamId: { [Op.in]: teamIds } },
+              { opponentTeamId: { [Op.in]: teamIds } }
+            ]
+          }
+        : { createdBy: req.user.id };
     }
     if (req.user.role === 'captain') {
       const captainedTeams = await Team.findAll({
@@ -320,7 +401,20 @@ const getBookingById = async (req, res) => {
       isOwner = field && field.ownerId === req.user.id;
     }
 
-    if (!isBooker && !isOwner && !isAdmin) {
+    let isTeamMember = false;
+    if (req.user.role === 'player' || req.user.role === 'captain') {
+      const membership = await TeamMember.findOne({
+        where: {
+          userId: req.user.id,
+          teamId: { [Op.in]: [booking.teamId, booking.opponentTeamId].filter(Boolean) },
+          status: 'active',
+          isActive: true
+        }
+      });
+      isTeamMember = Boolean(membership);
+    }
+
+    if (!isBooker && !isOwner && !isAdmin && !isTeamMember) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this booking.'
@@ -436,7 +530,7 @@ const getPublicBookingSchedule = async (req, res) => {
         status: { [Op.notIn]: ['cancelled', 'completed'] },
         [Op.and]: [{ startTime: { [Op.lt]: dayEnd } }, { endTime: { [Op.gt]: dayStart } }]
       },
-      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'], required: false }],
+      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false }],
       order: [['startTime', 'ASC']]
     });
 
@@ -476,8 +570,8 @@ const updateBookingStatus = async (req, res) => {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
         { model: Field, as: 'field' },
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
       ],
       transaction
     });
@@ -588,6 +682,27 @@ const updateBookingStatus = async (req, res) => {
         );
       }
 
+      await createTeamBookingNotifications({
+        teamIds: [booking.team?.id, booking.opponentTeam?.id],
+        excludeUserIds: [req.user.id],
+        title: req.user.role === 'field_owner' ? 'Team booking accepted' : 'Team booking confirmed',
+        message: opponentTeamName
+          ? `${actorName} confirmed the match booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+          : `${actorName} confirmed your team booking at ${fieldName} for ${teamName}.`,
+        metadata: {
+          event: 'booking_confirmed',
+          bookingId: booking.id,
+          fieldId: booking.fieldId,
+          fieldName,
+          teamId: booking.team?.id || null,
+          teamName,
+          opponentTeamId: booking.opponentTeam?.id || null,
+          opponentTeamName,
+          confirmedByUserId: req.user.id
+        },
+        transaction
+      });
+
       const overlappingPending = await Booking.findAll({
         where: {
           id: { [Op.ne]: booking.id },
@@ -595,7 +710,7 @@ const updateBookingStatus = async (req, res) => {
           status: 'pending',
           [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
         },
-        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }],
+        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }],
         transaction
       });
 
@@ -628,6 +743,25 @@ const updateBookingStatus = async (req, res) => {
 
         if (rejectedNotifications.length > 0) {
           await Notification.bulkCreate(rejectedNotifications, { transaction });
+        }
+
+        for (const pendingItem of overlappingPending) {
+          await createTeamBookingNotifications({
+            teamIds: [pendingItem.team?.id],
+            excludeUserIds: [req.user.id],
+            title: 'Team booking request was not selected',
+            message: `Your team request for ${fieldName} (${pendingItem.team?.name || 'your team'}) was cancelled because another booking was accepted.`,
+            metadata: {
+              event: 'booking_rejected_by_competing_confirmation',
+              bookingId: pendingItem.id,
+              winningBookingId: booking.id,
+              fieldId: pendingItem.fieldId,
+              fieldName,
+              teamId: pendingItem.team?.id || null,
+              teamName: pendingItem.team?.name || null
+            },
+            transaction
+          });
         }
       }
     }
@@ -667,6 +801,27 @@ const updateBookingStatus = async (req, res) => {
           { transaction }
         );
       }
+
+      await createTeamBookingNotifications({
+        teamIds: [booking.team?.id, booking.opponentTeam?.id],
+        excludeUserIds: [req.user.id],
+        title: req.user.role === 'field_owner' ? 'Team booking cancelled by field owner' : 'Team booking cancelled',
+        message: opponentTeamName
+          ? `${cancellerName} cancelled the match booking at ${fieldName}: ${teamName} vs ${opponentTeamName}.`
+          : `${cancellerName} cancelled your team booking at ${fieldName} for ${teamName}.`,
+        metadata: {
+          event: 'booking_cancelled',
+          bookingId: booking.id,
+          fieldId: booking.fieldId,
+          fieldName,
+          teamId: booking.team?.id || null,
+          teamName,
+          opponentTeamId: booking.opponentTeam?.id || null,
+          opponentTeamName,
+          cancelledByUserId: req.user.id
+        },
+        transaction
+      });
 
       const ownerRecipientId = booking.field?.ownerId;
       const cancelledByOwner = req.user.role === 'field_owner';
@@ -710,8 +865,8 @@ const confirmMatchTeams = async (req, res) => {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
         { model: Field, as: 'field' },
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
@@ -998,7 +1153,7 @@ const requestJoinMatch = async (req, res) => {
 
     const requesterTeam = await Team.findOne({
       where: { id: requesterTeamId, captainId: req.user.id },
-      attributes: ['id', 'name', 'captainId', 'skillLevel']
+      attributes: ['id', 'name', 'captainId', 'skillLevel', 'shirtColor', 'jerseyColors']
     });
     if (!requesterTeam) {
       return res.status(403).json({
@@ -1009,8 +1164,8 @@ const requestJoinMatch = async (req, res) => {
 
     const booking = await Booking.findByPk(bookingId, {
       include: [
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'shirtColor', 'jerseyColors'] }
       ]
     });
     if (!booking) {
@@ -1133,8 +1288,8 @@ const getBookingJoinRequests = async (req, res) => {
 
     const booking = await Booking.findByPk(bookingId, {
       include: [
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
@@ -1155,7 +1310,7 @@ const getBookingJoinRequests = async (req, res) => {
         {
           model: Team,
           as: 'requesterTeam',
-          attributes: ['id', 'name', 'skillLevel', 'captainId'],
+          attributes: ['id', 'name', 'skillLevel', 'captainId', 'shirtColor', 'jerseyColors'],
           include: [
             {
               model: User,
@@ -1201,7 +1356,7 @@ const respondToJoinRequest = async (req, res) => {
     }
 
     const booking = await Booking.findByPk(bookingId, {
-      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] }]
+      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
     });
 
     if (!booking) {
@@ -1215,7 +1370,7 @@ const respondToJoinRequest = async (req, res) => {
     }
 
     const targetRequest = await BookingJoinRequest.findByPk(requestId, {
-      include: [{ model: Team, as: 'requesterTeam', attributes: ['id', 'name', 'captainId'] }]
+      include: [{ model: Team, as: 'requesterTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
     });
     if (!targetRequest || targetRequest.bookingId !== bookingId) {
       return res.status(404).json({ success: false, message: 'Join request not found for this booking' });
@@ -1341,8 +1496,8 @@ const cancelMatchedOpponent = async (req, res) => {
 
     const booking = await Booking.findByPk(bookingId, {
       include: [
-        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId'] },
-        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId'] }
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
       ]
     });
 
