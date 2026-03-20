@@ -67,7 +67,7 @@ const TeamCreatePage = () => {
     setFormData((prev) => {
       const next = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       next[index] = normalized;
-      return { ...prev, jerseyColors: normalizeJerseyColors(next) };
+      return { ...prev, jerseyColors: next };
     });
   };
 
@@ -84,7 +84,7 @@ const TeamCreatePage = () => {
       const current = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       if (current.length <= 1) return prev;
       current.splice(index, 1);
-      return { ...prev, jerseyColors: normalizeJerseyColors(current) };
+      return { ...prev, jerseyColors: current };
     });
   };
 
@@ -127,13 +127,19 @@ const TeamCreatePage = () => {
     setSubmitting(true);
 
     try {
+      const normalizedColors = normalizeJerseyColors(formData.jerseyColors);
+      if (normalizedColors.length < 1) {
+        setError('Please choose at least 1 jersey color.');
+        return;
+      }
+
       const payload = {
         name: formData.name,
         description: formData.description || undefined,
         skillLevel: formData.skillLevel,
         maxPlayers: Number(formData.maxPlayers) || 11,
         homeFieldId: formData.homeFieldId ? Number(formData.homeFieldId) : undefined,
-        jerseyColors: normalizeJerseyColors(formData.jerseyColors)
+        jerseyColors: normalizedColors
       };
 
       const response = await teamService.createTeam(payload);

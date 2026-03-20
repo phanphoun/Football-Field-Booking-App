@@ -94,7 +94,8 @@ const TeamManagePage = () => {
   }, [id, refresh]);
 
   useEffect(() => {
-    setJerseyColorsDraft(getTeamJerseyColors(team));
+    const existing = getTeamJerseyColors(team);
+    setJerseyColorsDraft(existing.length > 0 ? existing : [DEFAULT_JERSEY_COLOR]);
   }, [team]);
 
   useEffect(() => {
@@ -285,7 +286,7 @@ const TeamManagePage = () => {
     setJerseyColorsDraft((prev) => {
       const next = Array.isArray(prev) ? [...prev] : [DEFAULT_JERSEY_COLOR];
       next[index] = normalized;
-      return normalizeJerseyColors(next);
+      return next;
     });
   };
 
@@ -302,7 +303,7 @@ const TeamManagePage = () => {
       const current = Array.isArray(prev) ? [...prev] : [DEFAULT_JERSEY_COLOR];
       if (current.length <= 1) return current;
       current.splice(index, 1);
-      return normalizeJerseyColors(current);
+      return current;
     });
   };
 
@@ -316,6 +317,10 @@ const TeamManagePage = () => {
       setError(null);
       setSuccessMessage(null);
       const normalizedColors = normalizeJerseyColors(jerseyColorsDraft);
+      if (normalizedColors.length < 1) {
+        setError('Please choose at least 1 jersey color.');
+        return;
+      }
       const response = await teamService.updateTeam(id, { jerseyColors: normalizedColors });
       if (response.success) {
         setSuccessMessage('Team jersey colors updated successfully.');
@@ -459,13 +464,13 @@ const TeamManagePage = () => {
               <span className="inline-flex min-w-[108px] justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 uppercase">
                 {color}
               </span>
-              <button
-                type="button"
-                onClick={() => removeJerseyColor(index)}
-                disabled={jerseyColorsDraft.length <= 1}
-                className="inline-flex items-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Remove
+                <button
+                  type="button"
+                  onClick={() => removeJerseyColor(index)}
+                  disabled={jerseyColorsDraft.length <= 1}
+                  className="inline-flex items-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Remove
               </button>
             </div>
           ))}

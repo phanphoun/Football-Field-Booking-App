@@ -25,6 +25,12 @@ const getStatusToneClasses = (status) => {
   return 'bg-slate-200 text-slate-700';
 };
 const isBookableField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
+const getOwnerDisplayName = (field) => {
+  const owner = field?.owner;
+  if (!owner) return field?.ownerId ? `Owner #${field.ownerId}` : 'Unknown owner';
+  const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+  return fullName || owner.username || `Owner #${owner.id}`;
+};
 
 const FieldsPage = () => {
   const navigate = useNavigate();
@@ -194,10 +200,15 @@ const FieldsPage = () => {
     return `${numericRating.toFixed(1)} (${numericTotalRatings} reviews)`;
   };
 
-  const resolveFieldImageUrl = (rawImage) => {
+  const resolveFieldImageUrl = (rawImage, versionToken = '') => {
     if (!rawImage || isPlaceholderImage(rawImage)) return DEFAULT_FIELD_IMAGE;
     if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+    if (String(rawImage).startsWith('/uploads/')) {
+      const baseUrl = `${API_ORIGIN}${rawImage}`;
+      if (!versionToken) return baseUrl;
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      return `${baseUrl}${separator}v=${encodeURIComponent(String(versionToken))}`;
+    }
     return rawImage;
   };
 
@@ -338,7 +349,7 @@ const FieldsPage = () => {
             >
               <div className="relative h-48 bg-gray-200 overflow-hidden">
                 <img
-                  src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
+                  src={resolveFieldImageUrl(normalizeImages(field.images)[0], field.updatedAt || field.id)}
                   alt={field.name}
                   className="w-full h-full object-cover hover:scale-[1.02] transition-transform"
                   onError={(e) => {
@@ -347,19 +358,21 @@ const FieldsPage = () => {
                     }
                   }}
                 />
-                <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
-                  <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                    {field.fieldType || 'Field'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {discountPercent > 0 && (
-                      <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                        {discountPercent}% OFF
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                      {field.fieldType || 'Field'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {discountPercent > 0 && (
+                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                          {discountPercent}% OFF
+                        </span>
+                      )}
+                    {!isAdmin && (
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${getStatusToneClasses(fieldStatus)} bg-opacity-95`}>
+                        {fieldStatus}
                       </span>
                     )}
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${getStatusToneClasses(fieldStatus)} bg-opacity-95`}>
-                      {fieldStatus}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -396,6 +409,11 @@ const FieldsPage = () => {
                       `$${field.pricePerHour}/hour`
                     )}
                   </div>
+                  {isAdmin && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Owner:</span> {getOwnerDisplayName(field)}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex space-x-2">

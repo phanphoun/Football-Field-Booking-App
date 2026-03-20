@@ -52,10 +52,15 @@ const normalizeImages = (imagesValue) => {
   return [];
 };
 
-const resolveFieldImageUrl = (rawImage) => {
+const resolveFieldImageUrl = (rawImage, versionToken = '') => {
   if (!rawImage) return DEFAULT_FIELD_IMAGE;
   if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-  if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+  if (String(rawImage).startsWith('/uploads/')) {
+    const baseUrl = `${API_ORIGIN}${rawImage}`;
+    if (!versionToken) return baseUrl;
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}v=${encodeURIComponent(String(versionToken))}`;
+  }
   return rawImage;
 };
 
@@ -83,6 +88,25 @@ const addDaysToDateInput = (baseValue, days) => {
   return toDateInputValue(nextDate);
 };
 
+const normalizeEditableStatus = (value) => {
+  const normalized = String(value || 'available').toLowerCase();
+  if (normalized === 'booked') return 'available';
+  if (normalized === 'maintenance' || normalized === 'unavailable' || normalized === 'available') {
+    return normalized;
+  }
+  return 'available';
+};
+
+const getApiErrorMessage = (err, fallbackMessage) => {
+  const validationErrors = Array.isArray(err?.data?.errors) ? err.data.errors : [];
+  if (validationErrors.length > 0) {
+    const first = validationErrors[0];
+    const field = first?.field ? `${first.field}: ` : '';
+    return `${field}${first?.message || 'Invalid value'}`;
+  }
+  return err?.error || fallbackMessage;
+};
+
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
@@ -99,7 +123,7 @@ const OwnerFieldsPage = () => {
   const [statusEditingField, setStatusEditingField] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
-  const [imageUploadMode, setImageUploadMode] = useState('replace');
+  const [imageVersionToken, setImageVersionToken] = useState(0);
   const [form, setForm] = useState(emptyForm);
 
   const visibleFields = useMemo(() => (viewMode === 'all' ? allFields : fields), [viewMode, allFields, fields]);
@@ -136,7 +160,7 @@ const OwnerFieldsPage = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
-    setImageUploadMode('replace');
+    setImageVersionToken(0);
     setEditingFieldId(null);
     setIsOpen(false);
   };
@@ -157,7 +181,7 @@ const OwnerFieldsPage = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
-    setImageUploadMode('append');
+    setImageVersionToken(0);
     setEditingFieldId(null);
     setIsOpen(true);
   };
@@ -165,8 +189,8 @@ const OwnerFieldsPage = () => {
   const startEdit = (field) => {
     setEditingFieldId(field.id);
     setImageFiles([]);
-    setExistingImages(normalizeImages(field.images).map((image) => resolveFieldImageUrl(image)));
-    setImageUploadMode('replace');
+    setExistingImages(normalizeImages(field.images));
+    setImageVersionToken(new Date(field.updatedAt || Date.now()).getTime());
     setForm({
       name: field.name || '',
       description: field.description || '',
@@ -178,7 +202,7 @@ const OwnerFieldsPage = () => {
       pricePerHour: field.pricePerHour ?? '',
       discountPercent: field.discountPercent ?? '',
       capacity: field.capacity ?? '',
-      status: field.status || 'available',
+      status: normalizeEditableStatus(field.status),
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
       amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : '',
@@ -215,7 +239,12 @@ const OwnerFieldsPage = () => {
 
   const visibleImagePreviews = selectedImagePreviews.length > 0
     ? selectedImagePreviews
-    : existingImages.map((url, index) => ({ name: `Current image ${index + 1}`, url }));
+    : existingImages.map((path, index) => ({
+        name: `Current image ${index + 1}`,
+        url: resolveFieldImageUrl(path, imageVersionToken || editingFieldId || Date.now()),
+        isCurrent: true,
+        index
+      }));
 
   const amenitiesPreview = useMemo(
     () => (form.amenities || '').split(',').map((item) => item.trim()).filter(Boolean).slice(0, 5),
@@ -252,6 +281,8 @@ const OwnerFieldsPage = () => {
   const handleImageChange = (event) => {
     const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
     setImageFiles(nextFiles.slice(0, 5));
+    // Allow selecting the same file again (browser otherwise may not trigger onChange).
+    event.target.value = '';
   };
 
   const applyClosureDaysPreset = (days) => {
@@ -268,6 +299,23 @@ const OwnerFieldsPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!form.name?.trim()) {
+      showToast('name: Field name is required', { type: 'error' });
+      return;
+    }
+    if (!form.address?.trim()) {
+      showToast('address: Address is required. Please pick a location.', { type: 'error' });
+      return;
+    }
+    if (!Number.isFinite(Number(form.pricePerHour)) || Number(form.pricePerHour) < 0) {
+      showToast('pricePerHour: Price per hour must be a positive number', { type: 'error' });
+      return;
+    }
+    if (!Number.isInteger(Number(form.capacity)) || Number(form.capacity) < 1) {
+      showToast('capacity: Capacity must be a positive integer', { type: 'error' });
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -282,7 +330,7 @@ const OwnerFieldsPage = () => {
         pricePerHour: Number(form.pricePerHour),
         discountPercent: form.discountPercent === '' ? 0 : Number(form.discountPercent),
         capacity: Number(form.capacity),
-        status: form.status,
+        status: normalizeEditableStatus(form.status),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
         amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : [],
@@ -298,23 +346,77 @@ const OwnerFieldsPage = () => {
 
       if (editingFieldId) {
         await fieldService.updateField(editingFieldId, payload);
+        let uploadedCount = 0;
         if (imageFiles.length > 0) {
-          await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: imageUploadMode === 'replace' });
+          await fieldService.uploadFieldImages(editingFieldId, imageFiles, {
+            replaceExisting: true
+          });
+          uploadedCount = imageFiles.length;
         }
-        showToast('Field updated.', { type: 'success' });
+        showToast(uploadedCount > 0 ? `Field updated with ${uploadedCount} photo(s).` : 'Field updated. No new photo selected.', { type: 'success' });
       } else {
         const created = await fieldService.createField(payload);
         const createdId = created?.data?.id;
+        let uploadedCount = 0;
         if (createdId && imageFiles.length > 0) {
           await fieldService.uploadFieldImages(createdId, imageFiles);
+          uploadedCount = imageFiles.length;
         }
-        showToast('Field created.', { type: 'success' });
+        showToast(uploadedCount > 0 ? `Field created with ${uploadedCount} photo(s).` : 'Field created. Add photos any time by editing.', { type: 'success' });
       }
 
       await loadFields();
       resetForm();
     } catch (err) {
-      showToast(err?.error || 'Failed to save field', { type: 'error' });
+      showToast(getApiErrorMessage(err, 'Failed to save field'), { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUploadPhotosOnly = async () => {
+    if (!editingFieldId) {
+      showToast('Please save field first, then upload photos.', { type: 'error' });
+      return;
+    }
+    if (imageFiles.length === 0) {
+      showToast('Please select at least one photo.', { type: 'error' });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fieldService.uploadFieldImages(editingFieldId, imageFiles, {
+        replaceExisting: true
+      });
+
+      const uploadedImages = Array.isArray(response?.data?.images) ? response.data.images : [];
+      if (uploadedImages.length > 0) {
+        setExistingImages(uploadedImages);
+        setImageVersionToken(Date.now());
+      }
+      setImageFiles([]);
+      await loadFields();
+      showToast(`Uploaded ${uploadedImages.length || imageFiles.length} photo(s).`, { type: 'success' });
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to upload photos'), { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCurrentImage = async (imageIndex) => {
+    if (!editingFieldId && editingFieldId !== 0) return;
+    try {
+      setSaving(true);
+      const response = await fieldService.deleteFieldImage(editingFieldId, imageIndex);
+      const nextImages = Array.isArray(response?.data?.images) ? response.data.images : [];
+      setExistingImages(nextImages);
+      setImageVersionToken(Date.now());
+      await loadFields();
+      showToast('Photo deleted.', { type: 'success' });
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to delete photo'), { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -340,7 +442,7 @@ const OwnerFieldsPage = () => {
     setStatusEditingField(field);
     setForm((current) => ({
       ...current,
-      status: field?.status || 'available',
+      status: normalizeEditableStatus(field?.status),
       closureMessage: field?.closureMessage || '',
       closureStartAt: toDateInputValue(field?.closureStartAt),
       closureEndAt: toDateInputValue(field?.closureEndAt)
@@ -354,7 +456,7 @@ const OwnerFieldsPage = () => {
 
     try {
       setSaving(true);
-      const nextStatus = form.status || 'available';
+      const nextStatus = normalizeEditableStatus(form.status);
 
       await fieldService.updateField(statusEditingField.id, {
         name: statusEditingField.name,
@@ -377,7 +479,7 @@ const OwnerFieldsPage = () => {
       await loadFields();
       resetStatusForm();
     } catch (err) {
-      showToast(err?.error || 'Failed to update field status', { type: 'error' });
+      showToast(getApiErrorMessage(err, 'Failed to update field status'), { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -555,29 +657,8 @@ const OwnerFieldsPage = () => {
                 </div>
               )}
               {editingFieldId && (
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setImageUploadMode('replace')}
-                    className={`rounded-full border px-3 py-1.5 font-semibold ${
-                      imageUploadMode === 'replace'
-                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
-                        : 'border-slate-300 bg-white text-slate-600'
-                    }`}
-                  >
-                    Replace current photos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImageUploadMode('append')}
-                    className={`rounded-full border px-3 py-1.5 font-semibold ${
-                      imageUploadMode === 'append'
-                        ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
-                        : 'border-slate-300 bg-white text-slate-600'
-                    }`}
-                  >
-                    Add to current photos
-                  </button>
+                <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                  Uploading new photos will replace current photos
                 </div>
               )}
               {imageFiles.length === 0 && existingImages.length > 0 && (
@@ -596,9 +677,21 @@ const OwnerFieldsPage = () => {
                       <img src={image.url} alt={image.name} className="h-36 w-full object-cover" />
                       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                         <p className="truncate text-xs font-medium text-slate-600">{image.name}</p>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
-                          {imageFiles.length > 0 ? 'New' : 'Current'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
+                            {imageFiles.length > 0 ? 'New' : 'Current'}
+                          </span>
+                          {image.isCurrent && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCurrentImage(image.index)}
+                              disabled={saving}
+                              className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -606,6 +699,19 @@ const OwnerFieldsPage = () => {
               ) : (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/80 px-4 py-6 text-center text-sm text-slate-500">
                   No photos selected yet.
+                </div>
+              )}
+
+              {editingFieldId && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleUploadPhotosOnly}
+                    disabled={saving || imageFiles.length === 0}
+                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {saving ? 'Uploading...' : 'Upload Selected Photos'}
+                  </button>
                 </div>
               )}
             </div>
@@ -733,7 +839,7 @@ const OwnerFieldsPage = () => {
         {visibleFields.length > 0 ? (
           visibleFields.map((field) => {
             const images = normalizeImages(field.images);
-            const coverImage = resolveFieldImageUrl(images[0]);
+            const coverImage = resolveFieldImageUrl(images[0], field.updatedAt || field.id);
             const isOwned = isOwnedByCurrentUser(field);
             const discountPercent = getDiscountPercent(field);
             const discountedPrice = getDiscountedHourlyPrice(field);

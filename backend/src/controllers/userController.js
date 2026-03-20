@@ -23,10 +23,30 @@ const getUserById = asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.params.id, {
     attributes: { exclude: ['password'] },
     include: [
-      { model: Field, as: 'fields' },
-      { model: Booking, as: 'createdBookings' },
-      { model: Team, as: 'teams', through: { attributes: [] } },
-      { model: Notification, as: 'notifications' }
+      {
+        model: Field,
+        as: 'fields',
+        where: { isArchived: false },
+        required: false,
+        attributes: ['id', 'name', 'city', 'pricePerHour', 'status', 'fieldType', 'surfaceType']
+      },
+      {
+        model: Team,
+        as: 'captainedTeams',
+        required: false,
+        attributes: ['id', 'name', 'isActive', 'skillLevel', 'createdAt']
+      },
+      {
+        model: Team,
+        as: 'teams',
+        required: false,
+        attributes: ['id', 'name', 'isActive', 'skillLevel'],
+        through: {
+          attributes: ['role', 'status', 'joinedAt', 'isActive']
+        }
+      },
+      { model: Booking, as: 'createdBookings', attributes: ['id'], required: false },
+      { model: Notification, as: 'notifications', attributes: ['id'], required: false }
     ]
   });
   

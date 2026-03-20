@@ -110,7 +110,16 @@ const getFields = async (req, res) => {
       where.city = req.query.city;
     }
 
-    const fields = await Field.findAll({ where });
+    const fields = await Field.findAll({
+      where,
+      include: [
+        {
+          association: 'owner',
+          attributes: ['id', 'username', 'firstName', 'lastName'],
+          required: false
+        }
+      ]
+    });
     const bookedFieldIds = await getBookedFieldIds(fields.map((field) => field.id));
     const effectiveFields = fields.map((field) => attachEffectiveFieldStatus(field, bookedFieldIds));
     const requestedStatus = String(req.query.status || '').toLowerCase();
