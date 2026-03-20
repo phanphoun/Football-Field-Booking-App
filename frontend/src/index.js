@@ -11,6 +11,7 @@ if (process.env.NODE_ENV === 'development') {
   const originalError = console.error;
   const originalWarn = console.warn;
   
+  // Filter extension warnings for the current result.
   const filterExtensionWarnings = (args) => {
     const message = args[0];
     if (typeof message === 'string') {

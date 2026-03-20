@@ -103,6 +103,7 @@ export const AuthProvider = ({ children }) => {
 
   // Load user on initial render
   useEffect(() => {
+    // Load user for the current view.
     const loadUser = async () => {
       if (authService.isAuthenticated()) {
         dispatch({ type: AUTH_ACTIONS.LOAD_USER_START });

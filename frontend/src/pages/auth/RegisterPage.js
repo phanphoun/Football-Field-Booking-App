@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Badge, Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
 
+// Render the register page.
 const RegisterPage = () => {
   const { register, loading, error } = useAuth();
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const RegisterPage = () => {
     []
   );
 
+  // Handle change interactions.
   const handleChange = (e) => {
     const { name, value } = e.target;
     setClientError(null);
@@ -60,6 +62,7 @@ const RegisterPage = () => {
     formData.confirmPassword &&
     formData.password === formData.confirmPassword;
 
+  // Handle submit interactions.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setClientError(null);

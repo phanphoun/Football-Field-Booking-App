@@ -1,5 +1,6 @@
 const rateLimit = require('express-rate-limit');
 
+// Create rate limiter for the current flow.
 const createRateLimiter = (windowMs, max, message) => {
   return rateLimit({
     windowMs,

@@ -4,6 +4,7 @@ const { TeamMember, Team, User } = require('../models');
  * GET /api/team-members
  * Get team members with optional filtering
  */
+// Get all team members for the current flow.
 const getAllTeamMembers = async (req, res) => {
   try {
     console.log('getAllTeamMembers called successfully');
@@ -62,6 +63,7 @@ const getAllTeamMembers = async (req, res) => {
  * GET /api/team-members/:id
  * Get team member by ID
  */
+// Get team member by id for the current flow.
 const getTeamMemberById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,6 +123,7 @@ const getTeamMemberById = async (req, res) => {
  * POST /api/team-members
  * Create team member (captain/admin only)
  */
+// Create team member for the current flow.
 const createTeamMember = async (req, res) => {
   try {
     const { teamId, userId, role } = req.body;
@@ -160,6 +163,7 @@ const createTeamMember = async (req, res) => {
  * PUT /api/team-members/:id
  * Update team member (captain/admin only)
  */
+// Update team member in local state.
 const updateTeamMember = async (req, res) => {
   try {
     const { id } = req.params;
@@ -200,6 +204,7 @@ const updateTeamMember = async (req, res) => {
  * DELETE /api/team-members/:id
  * Delete team member (captain/admin only)
  */
+// Support delete team member for this module.
 const deleteTeamMember = async (req, res) => {
   try {
     const { id } = req.params;

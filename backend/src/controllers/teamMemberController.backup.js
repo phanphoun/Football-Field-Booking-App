@@ -7,6 +7,7 @@ const { TeamMember, Team, User } = require('../models');
 /**
  * Async handler wrapper for error handling
  */
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
@@ -14,6 +15,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 /**
  * Build search filter for team members based on query parameters
  */
+// Build team member filter for rendering.
 const buildTeamMemberFilter = (query) => {
   const { teamId, userId, status, isActive } = query;
   const whereClause = {};
@@ -29,6 +31,7 @@ const buildTeamMemberFilter = (query) => {
 /**
  * Check if user is authorized to manage team membership
  */
+// Check team member authorization before continuing.
 const checkTeamMemberAuthorization = async (teamMember, user) => {
   const isMember = teamMember.userId === user.id;
   const isCaptain = teamMember.team?.captainId === user.id;
@@ -40,6 +43,7 @@ const checkTeamMemberAuthorization = async (teamMember, user) => {
 /**
  * Validate team member data for creation/update
  */
+// Validate team member data before continuing.
 const validateTeamMemberData = (data) => {
   const errors = [];
   
@@ -68,6 +72,7 @@ const validateTeamMemberData = (data) => {
 /**
  * Format team member data for response
  */
+// Format team member data for display.
 const formatTeamMemberData = (teamMember) => {
   const memberData = teamMember.toJSON ? teamMember.toJSON() : teamMember;
   

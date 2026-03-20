@@ -1,5 +1,6 @@
 import authService from './authService';
 
+// Build ws url for rendering.
 const buildWsUrl = () => {
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
   const origin = apiBase.replace(/\/api\/?$/, '');

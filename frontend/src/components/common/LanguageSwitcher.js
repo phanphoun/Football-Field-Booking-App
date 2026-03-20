@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 
+// Support language switcher for this module.
 const LanguageSwitcher = ({ className = '' }) => {
   const { language, setLanguage, t } = useLanguage();
 

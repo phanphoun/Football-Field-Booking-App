@@ -50,6 +50,7 @@ const LanguageContext = createContext(null);
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState(() => localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'en');
 
+  // Support change language for this module.
   const changeLanguage = (nextLanguage) => {
     const safe = nextLanguage === 'km' ? 'km' : 'en';
     setLanguage(safe);

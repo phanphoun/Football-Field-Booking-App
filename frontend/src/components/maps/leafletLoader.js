@@ -5,6 +5,7 @@ const LEAFLET_STYLE_ID = 'leaflet-style';
 const LEAFLET_SCRIPT_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 const LEAFLET_STYLE_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 
+// Support ensure leaflet style for this module.
 const ensureLeafletStyle = () => {
   if (document.getElementById(LEAFLET_STYLE_ID)) return;
 

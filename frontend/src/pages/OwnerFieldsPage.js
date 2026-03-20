@@ -28,13 +28,16 @@ const emptyForm = {
   amenities: ''
 };
 
+// Get discount percent for the current view.
 const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+// Get discounted hourly price for the current view.
 const getDiscountedHourlyPrice = (field) => {
   const price = Number(field?.pricePerHour || 0);
   const discountPercent = getDiscountPercent(field);
   return Number((price * (1 - discountPercent / 100)).toFixed(2));
 };
 
+// Normalize images into a consistent shape.
 const normalizeImages = (imagesValue) => {
   if (Array.isArray(imagesValue)) return imagesValue;
   if (typeof imagesValue === 'string') {
@@ -48,6 +51,7 @@ const normalizeImages = (imagesValue) => {
   return [];
 };
 
+// Resolve field image url into a display-safe value.
 const resolveFieldImageUrl = (rawImage) => {
   if (!rawImage) return DEFAULT_FIELD_IMAGE;
   if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
@@ -55,6 +59,7 @@ const resolveFieldImageUrl = (rawImage) => {
   return rawImage;
 };
 
+// Render the owner fields page.
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
@@ -88,6 +93,7 @@ const OwnerFieldsPage = () => {
   }, []);
 
   useEffect(() => {
+    // Support run for this page.
     const run = async () => {
       try {
         setLoading(true);
@@ -101,6 +107,7 @@ const OwnerFieldsPage = () => {
     run();
   }, [loadFields, showToast]);
 
+  // Reset form to its default state.
   const resetForm = () => {
     setForm(emptyForm);
     setImageFiles([]);
@@ -109,6 +116,7 @@ const OwnerFieldsPage = () => {
     setIsOpen(false);
   };
 
+  // Start create flow.
   const startCreate = () => {
     setForm(emptyForm);
     setImageFiles([]);
@@ -117,6 +125,7 @@ const OwnerFieldsPage = () => {
     setIsOpen(true);
   };
 
+  // Start edit flow.
   const startEdit = (field) => {
     setEditingFieldId(field.id);
     setImageFiles([]);
@@ -159,11 +168,13 @@ const OwnerFieldsPage = () => {
     ? selectedImagePreviews
     : existingImages.map((url, index) => ({ name: `Current image ${index + 1}`, url }));
 
+  // Handle change interactions.
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
   };
 
+  // Handle location change interactions.
   const handleLocationChange = (locationData) => {
     setForm((current) => ({
       ...current,
@@ -175,11 +186,13 @@ const OwnerFieldsPage = () => {
     }));
   };
 
+  // Handle image change interactions.
   const handleImageChange = (event) => {
     const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
     setImageFiles(nextFiles.slice(0, 5));
   };
 
+  // Handle submit interactions.
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
@@ -226,6 +239,7 @@ const OwnerFieldsPage = () => {
     }
   };
 
+  // Handle delete interactions.
   const handleDelete = async (field) => {
     const confirmed = await confirm(`Delete "${field.name}"?`, { title: 'Delete Field' });
     if (!confirmed) return;

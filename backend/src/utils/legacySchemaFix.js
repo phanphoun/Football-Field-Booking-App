@@ -1,3 +1,4 @@
+// Support table has column for this module.
 const tableHasColumn = async (sequelize, tableName, columnName) => {
   const [rows] = await sequelize.query(
     `
@@ -13,6 +14,7 @@ const tableHasColumn = async (sequelize, tableName, columnName) => {
   return Array.isArray(rows) && rows.length > 0;
 };
 
+// Support add column if missing for this module.
 const addColumnIfMissing = async (sequelize, tableName, columnName, definition) => {
   const exists = await tableHasColumn(sequelize, tableName, columnName);
   if (exists) return false;
@@ -21,6 +23,7 @@ const addColumnIfMissing = async (sequelize, tableName, columnName, definition) 
   return true;
 };
 
+// Normalize team member statuses into a consistent shape.
 const normalizeTeamMemberStatuses = async (sequelize) => {
   const [rows] = await sequelize.query(
     `
@@ -70,6 +73,7 @@ const normalizeTeamMemberStatuses = async (sequelize) => {
   return true;
 };
 
+// Support ensure team member joined at nullable for this module.
 const ensureTeamMemberJoinedAtNullable = async (sequelize) => {
   const [rows] = await sequelize.query(
     `
@@ -101,6 +105,7 @@ const ensureTeamMemberJoinedAtNullable = async (sequelize) => {
   return true;
 };
 
+// Apply legacy schema fixes to the current data.
 const applyLegacySchemaFixes = async (sequelize) => {
   const changes = [];
 

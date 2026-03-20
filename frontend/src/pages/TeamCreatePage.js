@@ -7,6 +7,7 @@ import teamService from '../services/teamService';
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 
+// Render the team create page.
 const TeamCreatePage = () => {
   const navigate = useNavigate();
 
@@ -25,6 +26,7 @@ const TeamCreatePage = () => {
   });
 
   useEffect(() => {
+    // Support fetch fields for this page.
     const fetchFields = async () => {
       try {
         setLoading(true);
@@ -49,6 +51,7 @@ const TeamCreatePage = () => {
     };
   }, [logoPreview]);
 
+  // Handle change interactions.
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -57,6 +60,7 @@ const TeamCreatePage = () => {
     }));
   };
 
+  // Handle logo change interactions.
   const handleLogoChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -83,6 +87,7 @@ const TeamCreatePage = () => {
     });
   };
 
+  // Handle submit interactions.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);

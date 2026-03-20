@@ -4,6 +4,7 @@ import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
+// Render the open matches page.
 const OpenMatchesPage = () => {
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
@@ -19,6 +20,7 @@ const OpenMatchesPage = () => {
     return String(captainedTeams[0].id);
   }, [captainedTeams]);
 
+  // Support load data for this page.
   const loadData = async () => {
     try {
       setLoading(true);
@@ -55,13 +57,17 @@ const OpenMatchesPage = () => {
     });
   }, [openMatches, defaultTeamId]);
 
+  // Format date for display.
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
+  // Format time for display.
   const formatTime = (dateString) =>
     new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // Support has pending request for this page.
   const hasPendingRequest = (match) =>
     Array.isArray(match.myRequests) && match.myRequests.some((request) => request.status === 'pending');
 
+  // Handle submit request interactions.
   const handleSubmitRequest = async (bookingId) => {
     try {
       const selectedTeamId = Number(selectedTeams[bookingId]);

@@ -13,17 +13,20 @@ const FILTER_OPTIONS = [
   { value: '', label: 'All' }
 ];
 
+// Support role label for this page.
 const roleLabel = (role) => {
   if (role === 'field_owner') return 'Field Owner';
   return role === 'captain' ? 'Captain' : role;
 };
 
+// Support status class for this page.
 const statusClass = (status) => {
   if (status === 'approved') return 'bg-green-100 text-green-700';
   if (status === 'rejected') return 'bg-red-100 text-red-700';
   return 'bg-yellow-100 text-yellow-700';
 };
 
+// Resolve avatar url into a display-safe value.
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) {
@@ -35,6 +38,7 @@ const resolveAvatarUrl = (user) => {
   return `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`;
 };
 
+// Render the admin role requests page.
 const AdminRoleRequestsPage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +91,7 @@ const AdminRoleRequestsPage = () => {
     });
   }, [requests, search]);
 
+  // Handle review interactions.
   const handleReview = async (requestId, action) => {
     const confirmed = await confirm(`Are you sure you want to ${action} this request?`, {
       title: `${action === 'approve' ? 'Approve' : 'Reject'} Request`
@@ -105,10 +110,12 @@ const AdminRoleRequestsPage = () => {
     }
   };
 
+  // Open view modal in the UI.
   const openViewModal = (user) => {
     setViewUser(user || null);
   };
 
+  // Close view modal in the UI.
   const closeViewModal = () => {
     setViewUser(null);
   };

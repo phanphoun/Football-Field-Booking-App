@@ -16,16 +16,19 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
+// Support status tone for this page.
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
 
+// Format money for display.
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+// Format booking schedule for display.
 const formatBookingSchedule = (startValue, endValue) => {
   const start = startValue ? new Date(startValue) : null;
   const end = endValue ? new Date(endValue) : null;
@@ -34,6 +37,7 @@ const formatBookingSchedule = (startValue, endValue) => {
   return `${start.toLocaleString()}${end ? ` - ${end.toLocaleTimeString()}` : ''}`;
 };
 
+// Format date time for display.
 const formatDateTime = (value) => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -41,6 +45,7 @@ const formatDateTime = (value) => {
   return parsed.toLocaleString();
 };
 
+// Format time only for display.
 const formatTimeOnly = (value) => {
   if (!value) return '-';
   const parsed = new Date(value);
@@ -48,6 +53,7 @@ const formatTimeOnly = (value) => {
   return parsed.toLocaleTimeString();
 };
 
+// Resolve avatar url into a display-safe value.
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -55,6 +61,7 @@ const resolveAvatarUrl = (user) => {
   return `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`;
 };
 
+// Render the owner bookings page.
 const OwnerBookingsPage = () => {
   const [searchParams] = useSearchParams();
   const { confirm } = useDialog();
@@ -75,6 +82,7 @@ const OwnerBookingsPage = () => {
   }, [fieldIdFilter]);
 
   useEffect(() => {
+    // Support load for this page.
     const load = async () => {
       try {
         setLoading(true);
@@ -102,6 +110,7 @@ const OwnerBookingsPage = () => {
     return bookings.filter((b) => b.status === statusFilter);
   }, [bookings, statusFilter]);
 
+  // Handle status interactions.
   const handleStatus = async (booking, nextStatus) => {
     try {
       setUpdatingId(booking.id);
@@ -128,6 +137,7 @@ const OwnerBookingsPage = () => {
     }
   };
 
+  // Support captain display name for this page.
   const captainDisplayName = (booking) => {
     if (booking?.team?.captain?.firstName || booking?.team?.captain?.lastName) {
       return `${booking.team?.captain?.firstName || ''} ${booking.team?.captain?.lastName || ''}`.trim();

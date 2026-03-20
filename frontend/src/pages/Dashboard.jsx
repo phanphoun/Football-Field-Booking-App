@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 
+// Render the dashboard page.
 const Dashboard = () => {
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -10,6 +11,7 @@ const Dashboard = () => {
     onConfirm: null
   });
 
+  // Open confirmation in the UI.
   const openConfirmation = ({ title, message, variant = 'default', onConfirm }) => {
     setModalConfig({
       isOpen: true,
@@ -20,6 +22,7 @@ const Dashboard = () => {
     });
   };
 
+  // Close confirmation in the UI.
   const closeConfirmation = () => {
     setModalConfig((current) => ({
       ...current,
@@ -27,6 +30,7 @@ const Dashboard = () => {
     }));
   };
 
+  // Handle confirm interactions.
   const handleConfirm = () => {
     modalConfig.onConfirm?.();
     closeConfirmation();

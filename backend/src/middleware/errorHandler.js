@@ -40,6 +40,7 @@ class ConflictError extends AppError {
   }
 }
 
+// Handle sequelize errors interactions.
 const handleSequelizeErrors = (error) => {
   if (error.name === 'SequelizeValidationError') {
     const errors = error.errors.map(err => ({
@@ -66,6 +67,7 @@ const handleSequelizeErrors = (error) => {
   return error;
 };
 
+// Handle jwterrors interactions.
 const handleJWTErrors = (error) => {
   if (error.name === 'JsonWebTokenError') {
     return new UnauthorizedError('Invalid token');
@@ -78,6 +80,7 @@ const handleJWTErrors = (error) => {
   return error;
 };
 
+// Support error handler for this module.
 const errorHandler = (error, req, res, next) => {
   let err = error;
 
@@ -130,11 +133,13 @@ const errorHandler = (error, req, res, next) => {
   });
 };
 
+// Support not found for this module.
 const notFound = (req, res, next) => {
   const error = new NotFoundError(`Route ${req.originalUrl}`);
   next(error);
 };
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };

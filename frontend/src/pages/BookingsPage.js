@@ -5,6 +5,7 @@ import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 
+// Render the bookings page.
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
   const navigate = useNavigate();
@@ -85,6 +86,7 @@ const BookingsPage = () => {
     loadBookings();
   }, [loadBookings]);
 
+  // Handle create booking interactions.
   const handleCreateBooking = () => {
     if (!canCreateBooking) {
       navigate('/app/settings', {
@@ -95,6 +97,7 @@ const BookingsPage = () => {
     navigate('/app/bookings/new');
   };
 
+  // Handle update status interactions.
   const handleUpdateStatus = async (bookingId, newStatus) => {
     try {
       if (newStatus === 'confirmed') {
@@ -115,10 +118,13 @@ const BookingsPage = () => {
     }
   };
 
+  // Check whether captain owner is true.
   const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
+  // Check whether captain in matched booking is true.
   const isCaptainInMatchedBooking = (booking) =>
     user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
 
+  // Handle toggle open for opponents interactions.
   const handleToggleOpenForOpponents = async (booking) => {
     try {
       setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
@@ -132,6 +138,7 @@ const BookingsPage = () => {
     }
   };
 
+  // Handle cancel matched opponent interactions.
   const handleCancelMatchedOpponent = async (booking) => {
     const confirmed = await confirm(
       `Do you want to cancel this matched game: ${booking.team?.name || 'Team A'} vs ${
@@ -153,6 +160,7 @@ const BookingsPage = () => {
     }
   };
 
+  // Handle respond to join request interactions.
   const handleRespondToJoinRequest = async (bookingId, requestId, action) => {
     const key = `${bookingId}-${requestId}-${action}`;
     try {
@@ -167,6 +175,7 @@ const BookingsPage = () => {
     }
   };
 
+  // Get status tone for the current view.
   const getStatusTone = (status) => {
     const tones = {
       pending: 'yellow',
@@ -244,9 +253,12 @@ const BookingsPage = () => {
       })
     : [];
 
+  // Format date for display.
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
+  // Format time for display.
   const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // Calculate duration from the current data.
   const calculateDuration = (startTime, endTime) => {
     const start = new Date(startTime);
     const end = new Date(endTime);

@@ -1,9 +1,11 @@
 const { MatchResult, Booking, Team, User, Field } = require('../models');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Get result includes for the current flow.
 const getResultIncludes = () => [
   { model: Booking, as: 'booking', include: [{ model: Field, as: 'field', attributes: ['id', 'ownerId', 'name'], required: false }] },
   { model: Team, as: 'homeTeam' },
@@ -12,6 +14,7 @@ const getResultIncludes = () => [
   { model: User, as: 'recorder', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
 ];
 
+// Check whether manage result for booking is allowed.
 const canManageResultForBooking = (booking, user) => {
   if (!booking || !user) return false;
   if (user.role === 'admin') return true;

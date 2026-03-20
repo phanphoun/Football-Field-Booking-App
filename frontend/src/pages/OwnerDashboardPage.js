@@ -13,16 +13,19 @@ import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
 
+// Support status tone for this page.
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
 
+// Format money for display.
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+// Render the owner dashboard page.
 const OwnerDashboardPage = () => {
   const navigate = useNavigate();
   const { confirm } = useDialog();
@@ -33,6 +36,7 @@ const OwnerDashboardPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Support fetch owner data for this page.
     const fetchOwnerData = async () => {
       try {
         setLoading(true);
@@ -113,6 +117,7 @@ const OwnerDashboardPage = () => {
     [fields.length, pendingBookings.length, confirmedBookings.length, revenueEstimate]
   );
 
+  // Handle status interactions.
   const handleStatus = async (bookingId, nextStatus) => {
     try {
       setUpdatingId(bookingId);

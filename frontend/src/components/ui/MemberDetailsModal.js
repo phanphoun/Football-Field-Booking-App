@@ -6,11 +6,13 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
+// Format role label for display.
 const formatRoleLabel = (value) =>
   String(value || 'member')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+// Format date for display.
 const formatDate = (value) => {
   if (!value) return 'Not available';
   const parsed = new Date(value);
@@ -18,6 +20,7 @@ const formatDate = (value) => {
   return parsed.toLocaleString();
 };
 
+// Format date only for display.
 const formatDateOnly = (value) => {
   if (!value) return 'Not set';
   const parsed = new Date(value);
@@ -25,6 +28,7 @@ const formatDateOnly = (value) => {
   return parsed.toLocaleDateString();
 };
 
+// Render the member details modal modal.
 const MemberDetailsModal = ({ member, onClose }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   if (!member) return null;

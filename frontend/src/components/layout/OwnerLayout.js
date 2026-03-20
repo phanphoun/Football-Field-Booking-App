@@ -23,6 +23,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
+// Render the owner layout for shared page structure.
 const OwnerLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -85,10 +86,12 @@ const OwnerLayout = () => {
     }
   ];
 
+  // Format role for display.
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : 'Field Owner';
   };
 
+  // Resolve avatar url into a display-safe value.
   const resolveAvatarUrl = () => {
     const rawAvatar = user?.avatarUrl || user?.avatar_url;
     if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -97,6 +100,7 @@ const OwnerLayout = () => {
     return `${API_ORIGIN}${normalizedPath}`;
   };
 
+  // Parse metadata into a usable value.
   const parseMetadata = (value) => {
     if (!value) return {};
     if (typeof value === 'object') return value;
@@ -111,10 +115,12 @@ const OwnerLayout = () => {
     return {};
   };
 
+  // Resolve notification sender name into a display-safe value.
   const resolveNotificationSenderName = (notification) => {
     return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
   };
 
+  // Resolve notification sender avatar into a display-safe value.
   const resolveNotificationSenderAvatar = (notification) => {
     const rawAvatar = notification?.sender?.avatarUrl;
     if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -148,6 +154,7 @@ const OwnerLayout = () => {
     }
   }, []);
 
+  // Support mark notification read for this module.
   const markNotificationRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {
       isRead: true,
@@ -155,6 +162,7 @@ const OwnerLayout = () => {
     });
   };
 
+  // Handle mark as read interactions.
   const handleMarkAsRead = async (notificationId) => {
     try {
       setNotificationActionLoading(true);
@@ -167,6 +175,7 @@ const OwnerLayout = () => {
     }
   };
 
+  // Handle mark all as read interactions.
   const handleMarkAllAsRead = async () => {
     try {
       setNotificationActionLoading(true);
@@ -181,6 +190,7 @@ const OwnerLayout = () => {
     }
   };
 
+  // Handle notification click interactions.
   const handleNotificationClick = async (notification) => {
     if (!notification || notificationActionLoading) return;
 
@@ -214,12 +224,14 @@ const OwnerLayout = () => {
   useEffect(() => {
     if (!notificationsMenuOpen) return undefined;
 
+    // Handle pointer down interactions.
     const handlePointerDown = (event) => {
       if (!notificationsMenuRef.current?.contains(event.target)) {
         setNotificationsMenuOpen(false);
       }
     };
 
+    // Handle escape interactions.
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setNotificationsMenuOpen(false);

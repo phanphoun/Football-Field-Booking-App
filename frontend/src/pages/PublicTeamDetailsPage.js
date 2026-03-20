@@ -8,6 +8,7 @@ import { ImagePreviewModal } from '../components/ui';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
+// Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
   if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
@@ -15,6 +16,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+// Render the public team details page.
 const PublicTeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
@@ -29,6 +31,7 @@ const PublicTeamDetailsPage = () => {
   const [historyAvailable, setHistoryAvailable] = useState(true);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
 
+  // Check whether request join is allowed.
   const canRequestJoin = () => {
     if (!isAuthenticated) return false;
     if (!user) return false;
@@ -39,6 +42,7 @@ const PublicTeamDetailsPage = () => {
   };
 
   useEffect(() => {
+    // Support fetch team and history for this page.
     const fetchTeamAndHistory = async () => {
       try {
         setLoading(true);
@@ -71,6 +75,7 @@ const PublicTeamDetailsPage = () => {
     fetchTeamAndHistory();
   }, [id]);
 
+  // Handle request join interactions.
   const handleRequestJoin = async () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/teams/${id}`, backgroundLocation: location } });

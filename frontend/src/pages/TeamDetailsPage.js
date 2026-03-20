@@ -12,6 +12,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
+// Render the team details page.
 const TeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
@@ -103,6 +104,7 @@ const TeamDetailsPage = () => {
   }, [id]);
 
   useEffect(() => {
+    // Support fetch team for this page.
     const fetchTeam = async () => {
       try {
         setLoading(true);
@@ -157,6 +159,7 @@ const TeamDetailsPage = () => {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate]);
 
+  // Handle join interactions.
   const handleJoin = async () => {
     try {
       setActionLoading(true);
@@ -174,6 +177,7 @@ const TeamDetailsPage = () => {
     }
   };
 
+  // Handle leave interactions.
   const handleLeave = async () => {
     try {
       setActionLoading(true);
@@ -191,6 +195,7 @@ const TeamDetailsPage = () => {
     }
   };
 
+  // Handle accept interactions.
   const handleAccept = async () => {
     try {
       setActionLoading(true);
@@ -208,6 +213,7 @@ const TeamDetailsPage = () => {
     }
   };
 
+  // Handle decline interactions.
   const handleDecline = async () => {
     try {
       setActionLoading(true);
@@ -225,6 +231,7 @@ const TeamDetailsPage = () => {
     }
   };
 
+  // Handle logo upload interactions.
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -295,7 +302,9 @@ const TeamDetailsPage = () => {
     ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
     : [];
   const isAdminUser = isAdmin();
+  // Open member details in the UI.
   const openMemberDetails = (member) => setSelectedMember(member);
+  // Close member details in the UI.
   const closeMemberDetails = () => setSelectedMember(null);
   const teamRecordCards = [
     {
@@ -341,11 +350,13 @@ const TeamDetailsPage = () => {
     { label: 'Team Status', value: team.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active' }
   ];
 
+  // Format match date for display.
   const formatMatchDate = (match) => {
     const dateValue = match?.dateTime || match?.matchDate || match?.date;
     return dateValue ? new Date(dateValue).toLocaleDateString() : 'Date unavailable';
   };
 
+  // Format match result for display.
   const formatMatchResult = (match) => {
     if (match?.result) {
       return match.result;
@@ -365,6 +376,7 @@ const TeamDetailsPage = () => {
     return 'Pending';
   };
 
+  // Format match summary for display.
   const formatMatchSummary = (match) => {
     if (match?.competitionName) {
       return match.competitionName;
@@ -381,6 +393,7 @@ const TeamDetailsPage = () => {
     return 'Team match';
   };
 
+  // Resolve user avatar url into a display-safe value.
   const resolveUserAvatarUrl = (memberUser) => {
     const rawAvatar = memberUser?.avatarUrl || memberUser?.avatar_url || null;
     const normalizedPath = rawAvatar

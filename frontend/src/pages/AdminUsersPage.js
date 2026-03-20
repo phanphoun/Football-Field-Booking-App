@@ -9,12 +9,14 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
+// Support status badge class for this page.
 const statusBadgeClass = (status) => {
   if (status === 'active') return 'bg-green-100 text-green-700';
   if (status === 'suspended') return 'bg-red-100 text-red-700';
   return 'bg-gray-200 text-gray-700';
 };
 
+// Support role badge class for this page.
 const roleBadgeClass = (role) => {
   if (role === 'admin') return 'bg-blue-100 text-blue-700';
   if (role === 'field_owner') return 'bg-amber-100 text-amber-700';
@@ -22,11 +24,13 @@ const roleBadgeClass = (role) => {
   return 'bg-slate-100 text-slate-700';
 };
 
+// Format role label for display.
 const formatRoleLabel = (role) =>
   String(role || 'unknown')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+// Resolve avatar url into a display-safe value.
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -35,6 +39,7 @@ const resolveAvatarUrl = (user) => {
   return `${API_ORIGIN}${normalizedPath}`;
 };
 
+// Render the admin users page.
 const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +56,7 @@ const AdminUsersPage = () => {
   const { confirm } = useDialog();
   const actionMenuRef = useRef(null);
 
+  // Support load users for this page.
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -70,6 +76,7 @@ const AdminUsersPage = () => {
   useEffect(() => {
     if (!openMenuUserId) return undefined;
 
+    // Handle pointer down interactions.
     const handlePointerDown = (event) => {
       if (!actionMenuRef.current?.contains(event.target)) {
         setOpenMenuUserId(null);
@@ -109,6 +116,7 @@ const AdminUsersPage = () => {
     });
   }, [users, query, roleFilter, statusFilter]);
 
+  // Handle delete interactions.
   const handleDelete = async (userId, username) => {
     setOpenMenuUserId(null);
     const confirmed = await confirm(`Delete user @${username}? This cannot be undone.`, { title: 'Delete User' });
@@ -126,6 +134,7 @@ const AdminUsersPage = () => {
     }
   };
 
+  // Open edit modal in the UI.
   const openEditModal = (user) => {
     setOpenMenuUserId(null);
     setEditUser(user);
@@ -135,25 +144,30 @@ const AdminUsersPage = () => {
     });
   };
 
+  // Close edit modal in the UI.
   const closeEditModal = () => {
     if (savingUserId) return;
     setEditUser(null);
   };
 
+  // Open view modal in the UI.
   const openViewModal = (user) => {
     if (openMenuUserId === user.id) return;
     setViewUser(user);
   };
 
+  // Close view modal in the UI.
   const closeViewModal = () => {
     setViewUser(null);
   };
 
+  // Handle edit form change interactions.
   const handleEditFormChange = (event) => {
     const { name, value } = event.target;
     setEditForm((current) => ({ ...current, [name]: value }));
   };
 
+  // Handle save edit interactions.
   const handleSaveEdit = async () => {
     if (!editUser?.id) return;
 

@@ -6,6 +6,7 @@
 /**
  * Validate registration data
  */
+// Validate register before continuing.
 const validateRegister = (req, res, next) => {
   const { username, email, password, firstName, lastName, phone, role } = req.body;
   const errors = [];
@@ -54,6 +55,7 @@ const validateRegister = (req, res, next) => {
 /**
  * Validate login data
  */
+// Validate login before continuing.
 const validateLogin = (req, res, next) => {
   const { email, password } = req.body;
   const errors = [];
@@ -80,6 +82,7 @@ const validateLogin = (req, res, next) => {
 /**
  * Validate profile update data
  */
+// Validate update profile before continuing.
 const validateUpdateProfile = (req, res, next) => {
   const { username, email, firstName, lastName, phone, password } = req.body;
   const errors = [];

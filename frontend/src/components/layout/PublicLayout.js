@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Button, useDialog, useToast } from '../ui';
 
+// Render the public layout for shared page structure.
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const PublicLayout = () => {
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
   const showAuthenticatedActions = !loading && isAuthenticated && hasResolvedUser;
 
+  // Handle logout interactions.
   const handleLogout = async () => {
     const confirmed = await confirm('Do you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
@@ -33,6 +35,7 @@ const PublicLayout = () => {
     []
   );
 
+  // Check whether active path is true.
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
   const isHomePage = location.pathname === '/';

@@ -20,8 +20,10 @@ const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 const SLOT_HOURS = Array.from({ length: 16 }, (_, index) => index + 6);
 
+// Check whether placeholder image is true.
 const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().includes('no field image');
 
+// Format day input for display.
 const formatDayInput = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -29,8 +31,10 @@ const formatDayInput = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Format hour label for display.
 const formatHourLabel = (hour) => `${String(hour).padStart(2, '0')}:00`;
 
+// Format slot range for display.
 const formatSlotRange = (hour) => {
   const start = new Date();
   start.setHours(hour, 0, 0, 0);
@@ -42,13 +46,17 @@ const formatSlotRange = (hour) => {
   })}`;
 };
 
+// Get discount percent for the current view.
 const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+// Get discounted price for the current view.
 const getDiscountedPrice = (field) => {
   const basePrice = Number(field?.pricePerHour || 0);
   const discountPercent = getDiscountPercent(field);
   return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
+// Check whether bookable field is true.
 const isBookableField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
+// Get status tone for the current view.
 const getStatusTone = (status) => {
   const normalizedStatus = String(status || 'available').toLowerCase();
   if (normalizedStatus === 'available') return 'green';
@@ -57,6 +65,7 @@ const getStatusTone = (status) => {
   return 'gray';
 };
 
+// Render the field details page.
 const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
@@ -77,6 +86,7 @@ const FieldDetailsPage = () => {
   const canBookThisField = isBookableField(field);
 
   useEffect(() => {
+    // Support fetch field for this page.
     const fetchField = async () => {
       try {
         setLoading(true);
@@ -95,6 +105,7 @@ const FieldDetailsPage = () => {
   }, [id]);
 
   useEffect(() => {
+    // Support fetch field schedule for this page.
     const fetchFieldSchedule = async () => {
       if (!field?.id || !scheduleDay) return;
 
@@ -114,6 +125,7 @@ const FieldDetailsPage = () => {
     fetchFieldSchedule();
   }, [field?.id, scheduleDay]);
 
+  // Handle book interactions.
   const handleBook = () => {
     const bookingPath = `/app/bookings/new?fieldId=${id}`;
 
@@ -130,6 +142,7 @@ const FieldDetailsPage = () => {
     navigate(bookingPath);
   };
 
+  // Handle slot book interactions.
   const handleSlotBook = (hour) => {
     if (!canCreateBooking) {
       handleBook();
@@ -139,6 +152,7 @@ const FieldDetailsPage = () => {
     navigate(`/app/bookings/new?fieldId=${id}&day=${scheduleDay}&time=${String(hour).padStart(2, '0')}:00&duration=1`);
   };
 
+  // Resolve field image url into a display-safe value.
   const resolveFieldImageUrl = (rawImage) => {
     if (!rawImage || isPlaceholderImage(rawImage)) return DEFAULT_FIELD_IMAGE;
     if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
@@ -146,6 +160,7 @@ const FieldDetailsPage = () => {
     return rawImage;
   };
 
+  // Normalize images into a consistent shape.
   const normalizeImages = (imagesValue) => {
     if (Array.isArray(imagesValue)) return imagesValue.filter((image) => !isPlaceholderImage(image));
     if (typeof imagesValue === 'string') {

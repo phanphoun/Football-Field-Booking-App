@@ -20,6 +20,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
+// Render the team manage page.
 const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ const TeamManagePage = () => {
   }, [id]);
 
   useEffect(() => {
+    // Support fetch all for this page.
     const fetchAll = async () => {
       try {
         setLoading(true);
@@ -109,6 +111,7 @@ const TeamManagePage = () => {
     };
   }, [inviteEmail, id]);
 
+  // Handle invite change interactions.
   const handleInviteChange = (value) => {
     setInviteEmail(value);
     setSelectedInvite(null);
@@ -116,12 +119,14 @@ const TeamManagePage = () => {
     setInviteSuccess(null);
   };
 
+  // Support choose suggestion for this page.
   const chooseSuggestion = (candidate) => {
     setInviteEmail(candidate.email || '');
     setSelectedInvite(candidate);
     setSuggestions([]);
   };
 
+  // Handle update request interactions.
   const handleUpdateRequest = async (requestUserId, nextStatus) => {
     try {
       setActionLoading(true);
@@ -137,6 +142,7 @@ const TeamManagePage = () => {
     }
   };
 
+  // Handle remove member interactions.
   const handleRemoveMember = async (member) => {
     const memberName = `${member.user?.firstName || member.user?.username || 'This member'} ${member.user?.lastName || ''}`.trim();
     const confirmed = await confirm(`Are you sure you want to remove ${memberName} from this team?`, {
@@ -203,6 +209,7 @@ const TeamManagePage = () => {
     : [];
   const pendingCount = Array.isArray(requests) ? requests.length : 0;
 
+  // Resolve user avatar url into a display-safe value.
   const resolveUserAvatarUrl = (memberUser) => {
     const rawAvatar = memberUser?.avatarUrl || memberUser?.avatar_url || null;
     const normalizedPath = rawAvatar
@@ -218,6 +225,7 @@ const TeamManagePage = () => {
     return `${API_ORIGIN}${normalizedPath}`;
   };
   
+  // Handle invite interactions.
   const handleInvite = async () => {
     const normalizedEmail = inviteEmail.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -246,12 +254,15 @@ const TeamManagePage = () => {
     }
   };
 
+  // Open member details in the UI.
   const openMemberDetails = (member) => {
     setSelectedMember(member);
   };
 
+  // Close member details in the UI.
   const closeMemberDetails = () => setSelectedMember(null);
 
+  // Handle delete team interactions.
   const handleDeleteTeam = async () => {
     const confirmed = await confirm(`Are you sure you want to delete ${team.name}? This action cannot be undone and all team data will be permanently deleted.`, {
       title: 'Delete Team',

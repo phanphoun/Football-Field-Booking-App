@@ -1,6 +1,7 @@
 const { Rating, Team, Booking, User, MatchResult } = require('../models');
 const { Op } = require('sequelize');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
@@ -89,6 +90,7 @@ const getMatchHistoryForRating = asyncHandler(async (req, res) => {
     attributes: ['id', 'bookingId', 'teamIdRater', 'teamIdRated', 'rating', 'review', 'sportsmanshipScore', 'createdAt']
   });
 
+  // Support rating key for this module.
   const ratingKey = (bookingId, teamIdRater) => `${bookingId}:${teamIdRater}`;
   const ratingMap = new Map();
   for (const row of ratingRows) {

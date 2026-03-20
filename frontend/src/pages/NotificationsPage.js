@@ -12,6 +12,7 @@ import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
 
+// Render the notifications page.
 const NotificationsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -22,12 +23,14 @@ const NotificationsPage = () => {
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
 
+  // Support load notifications for this page.
   const loadNotifications = async () => {
     const response = await apiService.get('/notifications');
     setNotifications(Array.isArray(response.data) ? response.data : []);
   };
 
   useEffect(() => {
+    // Support load for this page.
     const load = async () => {
       try {
         setLoading(true);
@@ -53,6 +56,7 @@ const NotificationsPage = () => {
     return notifications.filter(byType[activeFilter] || byType.all);
   }, [notifications, activeFilter]);
 
+  // Support mark as read for this page.
   const markAsRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {
       isRead: true,
@@ -60,6 +64,7 @@ const NotificationsPage = () => {
     });
   };
 
+  // Handle invite action interactions.
   const handleInviteAction = async (notification, action) => {
     const teamId = notification?.metadata?.teamId;
     if (!teamId) return;
@@ -80,6 +85,7 @@ const NotificationsPage = () => {
     }
   };
 
+  // Handle mark read interactions.
   const handleMarkRead = async (notification) => {
     try {
       setActionLoading(true);
@@ -93,6 +99,7 @@ const NotificationsPage = () => {
     }
   };
 
+  // Handle mark all read interactions.
   const handleMarkAllRead = async () => {
     try {
       setActionLoading(true);
@@ -115,10 +122,12 @@ const NotificationsPage = () => {
     }
   };
 
+  // Check whether respond to invite is allowed.
   const canRespondToInvite = (notification) => {
     return user?.role === 'player' && notification.type === 'team_invite' && !notification.isRead;
   };
 
+  // Check whether respond to match join request is allowed.
   const canRespondToMatchJoinRequest = (notification) => {
     const title = String(notification?.title || '').toLowerCase();
     const message = String(notification?.message || '').toLowerCase();
@@ -132,6 +141,7 @@ const NotificationsPage = () => {
     );
   };
 
+  // Support extract booking host team name for this page.
   const extractBookingHostTeamName = (notification) => {
     const title = String(notification?.title || '');
     const titlePrefix = 'Join request for ';
@@ -141,12 +151,14 @@ const NotificationsPage = () => {
     return '';
   };
 
+  // Support extract booking requester team name for this page.
   const extractBookingRequesterTeamName = (notification) => {
     const message = String(notification?.message || '');
     const match = message.match(/^(.*?)\s+requested to join your open match/i);
     return match?.[1]?.trim().toLowerCase() || '';
   };
 
+  // Resolve booking join request context into a display-safe value.
   const resolveBookingJoinRequestContext = async (notification) => {
     let bookingId = Number(notification?.metadata?.bookingId);
     let requestId = Number(notification?.metadata?.requestId);
@@ -184,6 +196,7 @@ const NotificationsPage = () => {
     return { bookingId: null, requestId: null };
   };
 
+  // Handle match join request action interactions.
   const handleMatchJoinRequestAction = async (notification, action) => {
     try {
       setActionLoading(true);

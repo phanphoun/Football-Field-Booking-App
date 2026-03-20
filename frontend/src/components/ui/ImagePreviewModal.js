@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
+// Render the image preview modal modal.
 const ImagePreviewModal = ({ open, imageUrl, title = 'Image preview', onClose }) => {
   useEffect(() => {
     if (!open) return undefined;
 
+    // Handle key down interactions.
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         onClose();

@@ -48,6 +48,7 @@ const leagueCache = {
   standings: new Map()
 };
 
+// Get cached value for the current flow.
 const getCachedValue = (bucket, key) => {
   const entry = bucket.get(key);
   if (!entry) return null;
@@ -58,6 +59,7 @@ const getCachedValue = (bucket, key) => {
   return entry.value;
 };
 
+// Set cached value for the current flow.
 const setCachedValue = (bucket, key, value, ttlMs) => {
   bucket.set(key, {
     value,
@@ -65,6 +67,7 @@ const setCachedValue = (bucket, key, value, ttlMs) => {
   });
 };
 
+// Format date header for display.
 const formatDateHeader = (utcDate) => {
   return new Date(utcDate).toLocaleDateString("en-US", {
     weekday: "long",
@@ -73,6 +76,7 @@ const formatDateHeader = (utcDate) => {
   });
 };
 
+// Format match time for display.
 const formatMatchTime = (utcDate) => {
   return new Date(utcDate).toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -80,6 +84,7 @@ const formatMatchTime = (utcDate) => {
   });
 };
 
+// Get date parts in timezone for the current flow.
 const getDatePartsInTimezone = (value, timeZone) => {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -94,11 +99,13 @@ const getDatePartsInTimezone = (value, timeZone) => {
   return { year, month, day };
 };
 
+// Format date key in timezone for display.
 const formatDateKeyInTimezone = (value, timeZone) => {
   const { year, month, day } = getDatePartsInTimezone(value, timeZone);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 };
 
+// Get today anchor in timezone for the current flow.
 const getTodayAnchorInTimezone = (timeZone) => {
   const { year, month, day } = getDatePartsInTimezone(new Date(), timeZone);
   return new Date(Date.UTC(year, month - 1, day));

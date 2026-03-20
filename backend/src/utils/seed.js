@@ -141,6 +141,7 @@ const amenitiesPool = [
 
 const dayOffsets = [-18, -16, -14, -12, -10, -8, -6, -4, -2, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
+// Create date for the current flow.
 const createDate = (dayOffset, hour, durationHours = 2) => {
   const start = new Date();
   start.setDate(start.getDate() + dayOffset);
@@ -160,6 +161,7 @@ const operatingHours = {
   sunday: { open: '08:00', close: '22:00' }
 };
 
+// Support seed database for this module.
 const seedDatabase = async () => {
   try {
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');

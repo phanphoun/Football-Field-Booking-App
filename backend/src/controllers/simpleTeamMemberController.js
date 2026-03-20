@@ -4,6 +4,7 @@ const { TeamMember } = require('../models');
  * GET /api/team-members
  * Simple version without complex logic
  */
+// Get all team members for the current flow.
 const getAllTeamMembers = (req, res) => {
   console.log('Simple getAllTeamMembers called');
   
@@ -37,6 +38,7 @@ const getAllTeamMembers = (req, res) => {
 /**
  * GET /api/team-members/:id
  */
+// Get team member by id for the current flow.
 const getTeamMemberById = (req, res) => {
   const { id } = req.params;
   
@@ -74,6 +76,7 @@ const getTeamMemberById = (req, res) => {
 /**
  * POST /api/team-members
  */
+// Create team member for the current flow.
 const createTeamMember = (req, res) => {
   const { teamId, userId, role } = req.body;
   
@@ -111,6 +114,7 @@ const createTeamMember = (req, res) => {
 /**
  * PUT /api/team-members/:id
  */
+// Update team member in local state.
 const updateTeamMember = (req, res) => {
   const { id } = req.params;
   const { role, status, isActive } = req.body;
@@ -150,6 +154,7 @@ const updateTeamMember = (req, res) => {
 /**
  * DELETE /api/team-members/:id
  */
+// Support delete team member for this module.
 const deleteTeamMember = (req, res) => {
   const { id } = req.params;
   

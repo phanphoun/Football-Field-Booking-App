@@ -7,6 +7,7 @@ const serverConfig = require('../config/serverConfig');
 
 const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
 
+// Get booked field ids for the current flow.
 const getBookedFieldIds = async (fieldIds = []) => {
   if (!Array.isArray(fieldIds) || fieldIds.length === 0) {
     return new Set();
@@ -26,6 +27,7 @@ const getBookedFieldIds = async (fieldIds = []) => {
   return new Set(activeBookings.map((booking) => Number(booking.fieldId)));
 };
 
+// Support attach effective field status for this module.
 const attachEffectiveFieldStatus = (field, bookedFieldIds) => {
   const payload = field && typeof field.toJSON === 'function' ? field.toJSON() : field;
   if (!payload) return payload;
@@ -40,9 +42,11 @@ const attachEffectiveFieldStatus = (field, bookedFieldIds) => {
   };
 };
 
+// Check whether managed field image path is true.
 const isManagedFieldImagePath = (imagePath) =>
   typeof imagePath === 'string' && imagePath.startsWith('/uploads/fields/');
 
+// Get candidate image paths for the current flow.
 const getCandidateImagePaths = (imagePath) => {
   if (!isManagedFieldImagePath(imagePath)) return [];
   const relative = imagePath.slice(1);
@@ -52,6 +56,7 @@ const getCandidateImagePaths = (imagePath) => {
   ];
 };
 
+// Support remove field image file for this module.
 const removeFieldImageFile = (imagePath) => {
   const candidates = getCandidateImagePaths(imagePath);
   candidates.forEach((absolute) => {
@@ -65,11 +70,13 @@ const removeFieldImageFile = (imagePath) => {
   });
 };
 
+// Resolve primary field image path into a display-safe value.
 const resolvePrimaryFieldImagePath = (imagePath) => {
   if (!isManagedFieldImagePath(imagePath)) return null;
   return path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', imagePath.slice(1));
 };
 
+// Get fields for the current flow.
 const getFields = async (req, res) => {
   try {
     const fields = await Field.findAll({ where: { isArchived: false } });
@@ -85,6 +92,7 @@ const getFields = async (req, res) => {
   }
 };
 
+// Get field for the current flow.
 const getField = async (req, res) => {
   try {
     const field = await Field.findOne({
@@ -113,6 +121,7 @@ const getField = async (req, res) => {
   }
 };
 
+// Get my fields for the current flow.
 const getMyFields = async (req, res) => {
   try {
     const where = {};
@@ -137,6 +146,7 @@ const getMyFields = async (req, res) => {
   }
 };
 
+// Create field for the current flow.
 const createField = async (req, res) => {
   try {
     const {
@@ -189,6 +199,7 @@ const createField = async (req, res) => {
   }
 };
 
+// Update field in local state.
 const updateField = async (req, res) => {
   try {
     const field = await Field.findByPk(req.params.id);
@@ -252,6 +263,7 @@ const updateField = async (req, res) => {
   }
 };
 
+// Support delete field for this module.
 const deleteField = async (req, res) => {
   try {
     const field = await Field.findByPk(req.params.id);
@@ -308,6 +320,7 @@ const deleteField = async (req, res) => {
   }
 };
 
+// Support upload field images for this module.
 const uploadFieldImages = async (req, res) => {
   try {
     const field = await Field.findByPk(req.params.id);
@@ -408,6 +421,7 @@ const uploadFieldImages = async (req, res) => {
   }
 };
 
+// Support delete field image for this module.
 const deleteFieldImage = async (req, res) => {
   try {
     const field = await Field.findByPk(req.params.id);
@@ -443,6 +457,7 @@ const deleteFieldImage = async (req, res) => {
   }
 };
 
+// Set field cover image for the current flow.
 const setFieldCoverImage = async (req, res) => {
   try {
     const field = await Field.findByPk(req.params.id);

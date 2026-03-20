@@ -9,6 +9,7 @@ const tones = {
   purple: 'bg-purple-100 text-purple-800'
 };
 
+// Support badge for this module.
 const Badge = ({ children, tone = 'gray', className = '' }) => {
   const t = tones[tone] || tones.gray;
   return (

@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 
 let WebSocketServer = null;
 
+// Get web socket server class for the current flow.
 const getWebSocketServerClass = () => {
   if (WebSocketServer) return WebSocketServer;
 
@@ -19,6 +20,7 @@ const getWebSocketServerClass = () => {
 let webSocketServer = null;
 const userConnections = new Map();
 
+// Support add user connection for this module.
 const addUserConnection = (userId, socket) => {
   const key = String(userId);
   const existing = userConnections.get(key) || new Set();
@@ -26,6 +28,7 @@ const addUserConnection = (userId, socket) => {
   userConnections.set(key, existing);
 };
 
+// Support remove user connection for this module.
 const removeUserConnection = (userId, socket) => {
   const key = String(userId);
   const existing = userConnections.get(key);
@@ -34,6 +37,7 @@ const removeUserConnection = (userId, socket) => {
   if (existing.size === 0) userConnections.delete(key);
 };
 
+// Support send event for this module.
 const sendEvent = (socket, event, payload) => {
   if (!socket || socket.readyState !== socket.OPEN) return;
   socket.send(
@@ -45,6 +49,7 @@ const sendEvent = (socket, event, payload) => {
   );
 };
 
+// Support emit to user for this module.
 const emitToUser = (userId, event, payload) => {
   const sockets = userConnections.get(String(userId));
   if (!sockets || sockets.size === 0) return 0;
@@ -59,6 +64,7 @@ const emitToUser = (userId, event, payload) => {
   return delivered;
 };
 
+// Support emit to all for this module.
 const emitToAll = (event, payload) => {
   if (!webSocketServer) return 0;
   let delivered = 0;
@@ -71,6 +77,7 @@ const emitToAll = (event, payload) => {
   return delivered;
 };
 
+// Resolve token from request into a display-safe value.
 const resolveTokenFromRequest = (request) => {
   const host = request.headers.host || 'localhost';
   const url = new URL(request.url || '/', `http://${host}`);
@@ -85,6 +92,7 @@ const resolveTokenFromRequest = (request) => {
   return null;
 };
 
+// Support initialize web socket server for this module.
 const initializeWebSocketServer = (httpServer) => {
   if (webSocketServer) return webSocketServer;
 

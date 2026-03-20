@@ -1,5 +1,6 @@
 let nodemailer = null;
 
+// Get nodemailer for the current flow.
 const getNodemailer = () => {
   if (nodemailer) return nodemailer;
 
@@ -14,10 +15,12 @@ const getNodemailer = () => {
   }
 };
 
+// Support has smtp config for this module.
 const hasSmtpConfig = () => {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS);
 };
 
+// Get transporter for the current flow.
 const getTransporter = () => {
   if (!hasSmtpConfig()) return null;
 
@@ -35,6 +38,7 @@ const getTransporter = () => {
   });
 };
 
+// Support send email for this module.
 const sendEmail = async ({ to, subject, text, html }) => {
   if (!to) return;
 

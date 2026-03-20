@@ -460,6 +460,7 @@ app.use((req, res) => {
   });
 });
 
+// Start server flow.
 const startServer = () => {
   const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);

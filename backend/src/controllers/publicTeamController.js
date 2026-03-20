@@ -1,6 +1,7 @@
 const { Team, User, Field, TeamMember, Rating, MatchResult, Booking } = require('../models');
 const { Op } = require('sequelize');
 
+// Map public team for the current result.
 const mapPublicTeam = (teamInstance, ratingSummary = null) => {
   const team = teamInstance?.toJSON ? teamInstance.toJSON() : teamInstance;
   const activeMembers =
@@ -40,6 +41,7 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
   };
 };
 
+// Get rating summaries for the current flow.
 const getRatingSummaries = async (teamIds = []) => {
   if (!teamIds.length) return {};
 
@@ -82,6 +84,7 @@ const getRatingSummaries = async (teamIds = []) => {
   return byTeam;
 };
 
+// Get public teams for the current flow.
 const getPublicTeams = async (req, res) => {
   try {
     const teams = await Team.findAll({
@@ -134,6 +137,7 @@ const getPublicTeams = async (req, res) => {
   }
 };
 
+// Get public team by id for the current flow.
 const getPublicTeamById = async (req, res) => {
   try {
     const team = await Team.findByPk(req.params.id, {
@@ -188,6 +192,7 @@ const getPublicTeamById = async (req, res) => {
   }
 };
 
+// Get public team match history for the current flow.
 const getPublicTeamMatchHistory = async (req, res) => {
   try {
     const teamId = Number(req.params.id);

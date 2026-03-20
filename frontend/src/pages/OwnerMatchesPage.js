@@ -17,11 +17,13 @@ import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
+// Support status tone for this page.
 const statusTone = (status) => {
   const tones = { confirmed: 'green', completed: 'blue' };
   return tones[status] || 'gray';
 };
 
+// Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (team) => {
   const raw = team?.logoUrl || team?.logo_url || team?.logo || null;
   if (!raw) return null;
@@ -30,6 +32,7 @@ const resolveTeamLogoUrl = (team) => {
   return `${API_ORIGIN}${normalized}`;
 };
 
+// Support team avatar for this page.
 const TeamAvatar = ({ teamName, logoUrl }) => {
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = !!logoUrl && !imageFailed;
@@ -55,6 +58,7 @@ const TeamAvatar = ({ teamName, logoUrl }) => {
   );
 };
 
+// Render the owner matches page.
 const OwnerMatchesPage = () => {
   const { user } = useAuth();
   const PAGE_SIZE = 10;
@@ -69,12 +73,14 @@ const OwnerMatchesPage = () => {
   const [teamLogosById, setTeamLogosById] = useState({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  // Support refresh for this page.
   const refresh = async () => {
     const res = await bookingService.getAllBookings({ limit: 300 });
     setBookings(Array.isArray(res.data) ? res.data : []);
   };
 
   useEffect(() => {
+    // Support load for this page.
     const load = async () => {
       try {
         setLoading(true);
@@ -116,6 +122,7 @@ const OwnerMatchesPage = () => {
 
     let cancelled = false;
 
+    // Support load team logos for this page.
     const loadTeamLogos = async () => {
       const entries = await Promise.all(
         missingIds.map(async (teamId) => {
@@ -149,12 +156,14 @@ const OwnerMatchesPage = () => {
     };
   }, [matches, teamLogosById]);
 
+  // Get initial draft for the current view.
   const getInitialDraft = (booking) => ({
     homeScore: booking?.matchResult?.homeScore ?? '',
     awayScore: booking?.matchResult?.awayScore ?? '',
     matchNotes: booking?.matchResult?.matchNotes || ''
   });
 
+  // Handle card click interactions.
   const handleCardClick = (booking) => {
     setError(null);
     setActiveCardId((prev) => (prev === booking.id ? null : booking.id));
@@ -164,6 +173,7 @@ const OwnerMatchesPage = () => {
     }));
   };
 
+  // Update draft in local state.
   const updateDraft = (bookingId, key, value) => {
     setResultDrafts((prev) => ({
       ...prev,
@@ -174,12 +184,14 @@ const OwnerMatchesPage = () => {
     }));
   };
 
+  // Check whether within edit window is true.
   const isWithinEditWindow = (booking) => {
     const startMs = booking?.startTime ? new Date(booking.startTime).getTime() : null;
     if (!startMs || Number.isNaN(startMs)) return false;
     return Date.now() - startMs <= RESULT_EDIT_WINDOW_MS;
   };
 
+  // Support request admin change for this page.
   const requestAdminChange = async (booking) => {
     try {
       setSavingId(booking.id);
@@ -226,6 +238,7 @@ const OwnerMatchesPage = () => {
     }
   };
 
+  // Support save result for this page.
   const saveResult = async (booking) => {
     if (booking.status !== 'completed') {
       setError('Result can only be entered after the match is completed.');
@@ -282,6 +295,7 @@ const OwnerMatchesPage = () => {
     }
   };
 
+  // Support mark match completed for this page.
   const markMatchCompleted = async (bookingId) => {
     try {
       setSavingId(bookingId);

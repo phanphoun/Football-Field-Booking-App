@@ -41,6 +41,7 @@ const GOOGLE_MAP_STYLES = {
   ]
 };
 
+// Support field location map for this module.
 const FieldLocationMap = ({ latitude, longitude }) => {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -54,6 +55,7 @@ const FieldLocationMap = ({ latitude, longitude }) => {
   useEffect(() => {
     let active = true;
 
+    // Support init map for this module.
     const initMap = async () => {
       try {
         const lat = Number(latitude);

@@ -4,12 +4,15 @@ import apiService, { getToken } from '../services/api';
 import { Badge, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 
+// Format money for display.
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+// Render the analytics page.
 const AnalyticsPage = () => {
+  // Open native date picker in the UI.
   const openNativeDatePicker = (event) => {
     if (typeof event.currentTarget.showPicker === 'function') {
       event.currentTarget.showPicker();
@@ -58,6 +61,7 @@ const AnalyticsPage = () => {
 
   const topFields = Array.isArray(data?.fieldPerformance) ? data.fieldPerformance : data?.topFields || [];
 
+  // Support download report for this page.
   const downloadReport = async () => {
     try {
       const token = getToken();

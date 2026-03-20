@@ -37,6 +37,7 @@ import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
 import OwnerLayout from './components/layout/OwnerLayout';
 
+// Support app routes for this module.
 const AppRoutes = () => {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
@@ -180,6 +181,7 @@ const AppRoutes = () => {
   );
 };
 
+// Render the app page.
 function App() {
   return (
     <AuthProvider>

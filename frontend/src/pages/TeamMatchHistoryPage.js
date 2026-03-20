@@ -4,6 +4,7 @@ import { ArrowLeftIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 import { Badge, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 
+// Render the team match history page.
 const TeamMatchHistoryPage = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
@@ -11,6 +12,7 @@ const TeamMatchHistoryPage = () => {
   const [history, setHistory] = useState({ teamName: '', stats: { total: 0, wins: 0, losses: 0, draws: 0 }, matches: [] });
 
   useEffect(() => {
+    // Support load history for this page.
     const loadHistory = async () => {
       try {
         setLoading(true);
@@ -27,12 +29,14 @@ const TeamMatchHistoryPage = () => {
     loadHistory();
   }, [id]);
 
+  // Support result tone for this page.
   const resultTone = (result) => {
     if (result === 'Win') return 'green';
     if (result === 'Loss') return 'red';
     return 'yellow';
   };
 
+  // Support result classes for this page.
   const resultClasses = (result) => {
     if (result === 'Win') return 'bg-emerald-50 border-emerald-200';
     if (result === 'Loss') return 'bg-rose-50 border-rose-200';

@@ -5,15 +5,18 @@ const multer = require('multer');
 const serverConfig = require('../config/serverConfig');
 const { ValidationError } = require('./errorHandler');
 
+// Support ensure dir for this module.
 const ensureDir = (dir) => {
   fs.mkdirSync(dir, { recursive: true });
 };
 
+// Support safe ext for this module.
 const safeExt = (originalName) => {
   const ext = path.extname(originalName || '').toLowerCase();
   return ext && ext.length <= 10 ? ext : '';
 };
 
+// Support make storage for this module.
 const makeStorage = (subdirFromReq) =>
   multer.diskStorage({
     destination: (req, file, cb) => {
@@ -37,6 +40,7 @@ const FILE_SIGNATURES = {
   'image/webp': [[0x52, 0x49, 0x46, 0x46]]
 };
 
+// Validate file signature before continuing.
 const validateFileSignature = (buffer, mimetype) => {
   const signatures = FILE_SIGNATURES[mimetype];
   if (!signatures) return false;
@@ -46,6 +50,7 @@ const validateFileSignature = (buffer, mimetype) => {
   });
 };
 
+// Support file filter for this module.
 const fileFilter = (req, file, cb) => {
   const allowed = serverConfig.upload.allowedTypes || [];
   if (!allowed.includes(file.mimetype)) {
