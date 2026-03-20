@@ -11,6 +11,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
@@ -37,6 +38,7 @@ const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { version } = useRealtime();
 
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
@@ -89,7 +91,7 @@ const TeamManagePage = () => {
       }
     };
     fetchAll();
-  }, [id, refresh]);
+  }, [id, refresh, version]);
 
   useEffect(() => {
     setJerseyColorsDraft(getTeamJerseyColors(team));

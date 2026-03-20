@@ -12,6 +12,7 @@ import {
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
+import { useRealtime } from '../context/RealtimeContext';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
@@ -24,6 +25,7 @@ const formatMoney = (value) => {
 };
 
 const OwnerDashboardPage = () => {
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
   const [fields, setFields] = useState([]);
@@ -51,7 +53,7 @@ const OwnerDashboardPage = () => {
     };
 
     fetchOwnerData();
-  }, []);
+  }, [version]);
 
   const pendingBookings = useMemo(() => bookings.filter((booking) => booking.status === 'pending'), [bookings]);
   const confirmedBookings = useMemo(() => bookings.filter((booking) => booking.status === 'confirmed'), [bookings]);

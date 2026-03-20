@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { UsersIcon, MapPinIcon, ShieldCheckIcon, CheckIcon, XMarkIcon, PhotoIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
@@ -195,6 +196,7 @@ const MatchDetailsModal = ({
 const TeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
@@ -319,7 +321,7 @@ const TeamDetailsPage = () => {
     };
 
     fetchTeam();
-  }, [id, refreshTeam]);
+  }, [id, refreshTeam, version]);
 
   useEffect(() => {
     if (!location.state?.successMessage && !location.state?.errorMessage) {

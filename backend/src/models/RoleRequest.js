@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 module.exports = (sequelize, DataTypes) => {
   class RoleRequest extends Model {
@@ -59,7 +60,8 @@ module.exports = (sequelize, DataTypes) => {
         {
           fields: ['status']
         }
-      ]
+      ],
+      hooks: buildRealtimeHooks('role_request')
     }
   );
 

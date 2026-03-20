@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 module.exports = (sequelize, DataTypes) => {
   class Notification extends Model {
@@ -73,7 +74,8 @@ module.exports = (sequelize, DataTypes) => {
         // Composite index for common query: unread notifications for a user ordered by time
         fields: ['userId', 'isRead', 'createdAt']
       }
-    ]
+    ],
+    hooks: buildRealtimeHooks('notification')
   });
   return Notification;
 };

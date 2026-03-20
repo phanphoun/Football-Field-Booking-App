@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 
 
@@ -245,7 +246,8 @@ module.exports = (sequelize, DataTypes) => {
 
     timestamps: true,
 
-    paranoid: false 
+    paranoid: false,
+    hooks: buildRealtimeHooks('user')
 
   });
 

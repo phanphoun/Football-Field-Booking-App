@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtime } from '../../context/RealtimeContext';
 import {
   HomeIcon, 
   BuildingOfficeIcon, 
@@ -41,6 +42,7 @@ const SidebarBrand = () => (
 
 const AppLayout = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -224,7 +226,7 @@ const AppLayout = () => {
     loadNotifications();
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
-  }, [location.pathname, loadNotifications]);
+  }, [location.pathname, loadNotifications, version]);
 
   const markNotificationRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {

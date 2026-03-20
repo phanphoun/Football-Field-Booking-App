@@ -9,6 +9,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
+import { useRealtime } from '../context/RealtimeContext';
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { getTeamJerseyColors } from '../utils/teamColors';
@@ -49,6 +50,7 @@ const resolveAvatarUrl = (user) => {
 };
 
 const OwnerBookingsPage = () => {
+  const { version } = useRealtime();
   const [searchParams] = useSearchParams();
   const { confirm } = useDialog();
   const fieldIdFilter = searchParams.get('fieldId');
@@ -80,7 +82,7 @@ const OwnerBookingsPage = () => {
       }
     };
     load();
-  }, [refresh]);
+  }, [refresh, version]);
 
   const counts = useMemo(() => {
     const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
@@ -8,6 +9,7 @@ import { getTeamJerseyColors } from '../utils/teamColors';
 
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
   const canCreateBooking = user?.role === 'captain';
@@ -84,7 +86,7 @@ const BookingsPage = () => {
 
   useEffect(() => {
     loadBookings();
-  }, [loadBookings]);
+  }, [loadBookings, version]);
 
   const handleCreateBooking = () => {
     if (!canCreateBooking) {
