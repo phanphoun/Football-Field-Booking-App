@@ -88,8 +88,6 @@ const resolveTeamJerseyColors = (payload) => {
   return undefined;
 };
 
-<<<<<<< HEAD
-=======
 const attachMemberCounts = async (teams = []) => {
   if (!Array.isArray(teams) || teams.length === 0) return [];
 
@@ -122,7 +120,6 @@ const attachMemberCounts = async (teams = []) => {
   });
 };
 
->>>>>>> a06de32262db2f40556b350be35c85326ac58b92
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
