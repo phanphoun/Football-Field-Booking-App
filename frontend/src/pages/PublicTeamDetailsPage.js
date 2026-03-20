@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
-import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { ImagePreviewModal } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -112,6 +113,8 @@ const PublicTeamDetailsPage = () => {
   const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
   const jerseyColors = getTeamJerseyColors(team);
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
+  const homeFieldAddress = buildLocationLabel(team.homeField || {});
+  const homeFieldLocationUrl = buildGoogleMapsLocationUrl(team.homeField || {});
 
   return (
     <div className="space-y-6">
@@ -155,9 +158,18 @@ const PublicTeamDetailsPage = () => {
               <div>
                 <div className="font-medium text-gray-900">Home Field</div>
                 <div>{team.homeField.name}</div>
-                <div className="text-xs text-gray-500">
-                  {team.homeField.address}, {team.homeField.city}
-                </div>
+                {homeFieldAddress && <div className="text-xs text-gray-500">{homeFieldAddress}</div>}
+                {homeFieldLocationUrl && (
+                  <a
+                    href={homeFieldLocationUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                    Location
+                  </a>
+                )}
               </div>
             </div>
           )}

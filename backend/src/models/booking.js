@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 
 
@@ -230,7 +231,8 @@ module.exports = (sequelize, DataTypes) => {
 
       }
 
-    ]
+    ],
+    hooks: buildRealtimeHooks('booking')
 
   });
 

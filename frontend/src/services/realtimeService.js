@@ -1,41 +1,80 @@
 import authService from './authService';
 
-const buildWsUrl = () => {
+const buildRealtimeUrl = () => {
   const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-  const origin = apiBase.replace(/\/api\/?$/, '');
-  const wsBase = origin.startsWith('https://')
-    ? origin.replace('https://', 'wss://')
-    : origin.replace('http://', 'ws://');
-  return `${wsBase}/ws`;
+  return `${apiBase.replace(/\/api\/?$/, '')}/api/realtime/stream`;
+};
+
+let eventSource = null;
+let reconnectTimer = null;
+let reconnectDelay = 1000;
+const listeners = new Set();
+
+const notifyListeners = (message) => {
+  listeners.forEach((listener) => {
+    try {
+      listener(message);
+    } catch (_) {}
+  });
+};
+
+const cleanupConnection = () => {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+};
+
+const scheduleReconnect = () => {
+  if (reconnectTimer || listeners.size === 0) return;
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null;
+    realtimeService.ensureConnected();
+  }, reconnectDelay);
+  reconnectDelay = Math.min(reconnectDelay * 2, 10000);
 };
 
 const realtimeService = {
-  connect: ({ onMessage, onOpen, onError, onClose } = {}) => {
+  ensureConnected() {
     const token = authService.getToken();
-    if (!token) return null;
+    if (!token || eventSource || listeners.size === 0) return;
 
-    const socket = new WebSocket(`${buildWsUrl()}?token=${encodeURIComponent(token)}`);
+    cleanupConnection();
+    const streamUrl = `${buildRealtimeUrl()}?token=${encodeURIComponent(token)}`;
+    eventSource = new EventSource(streamUrl);
 
-    socket.onopen = () => {
-      if (onOpen) onOpen();
+    eventSource.onopen = () => {
+      reconnectDelay = 1000;
+      notifyListeners({ event: 'sse:open' });
     };
 
-    socket.onerror = (event) => {
-      if (onError) onError(event);
-    };
-
-    socket.onclose = (event) => {
-      if (onClose) onClose(event);
-    };
-
-    socket.onmessage = (event) => {
+    eventSource.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data);
-        if (onMessage) onMessage(message);
+        const parsed = JSON.parse(event.data);
+        notifyListeners(parsed);
       } catch (_) {}
     };
 
-    return socket;
+    eventSource.onerror = () => {
+      cleanupConnection();
+      scheduleReconnect();
+    };
+  },
+
+  subscribe(listener) {
+    listeners.add(listener);
+    this.ensureConnected();
+
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        if (reconnectTimer) {
+          window.clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        cleanupConnection();
+      }
+    };
   }
 };
 

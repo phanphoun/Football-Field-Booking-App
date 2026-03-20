@@ -11,9 +11,11 @@ import apiService from '../services/api';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
+  const { version } = useRealtime();
   const { user } = useAuth();
 
   const [notifications, setNotifications] = useState([]);
@@ -40,7 +42,7 @@ const NotificationsPage = () => {
       }
     };
     load();
-  }, []);
+  }, [version]);
 
   const filteredNotifications = useMemo(() => {
     const byType = {

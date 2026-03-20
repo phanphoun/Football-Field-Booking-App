@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useRealtime } from '../context/RealtimeContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
@@ -8,6 +9,7 @@ import { getTeamJerseyColors } from '../utils/teamColors';
 
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
   const canCreateBooking = user?.role === 'captain';
@@ -84,7 +86,7 @@ const BookingsPage = () => {
 
   useEffect(() => {
     loadBookings();
-  }, [loadBookings]);
+  }, [loadBookings, version]);
 
   const handleCreateBooking = () => {
     if (!canCreateBooking) {
@@ -330,7 +332,16 @@ const BookingsPage = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center flex-wrap gap-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
+                      {booking.field?.id ? (
+                        <Link
+                          to={`/app/fields/${booking.field.id}`}
+                          className="text-lg font-medium text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
+                        >
+                          {booking.field?.name || 'Unknown Field'}
+                        </Link>
+                      ) : (
+                        <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
+                      )}
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
                         {booking.status}
                       </Badge>
@@ -368,9 +379,8 @@ const BookingsPage = () => {
                     </div>
 
                     {booking.status === 'pending' && isCaptainOwner(booking) && (
-                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        Waiting for field owner approval. Other captains can still request this same slot until owner confirms
-                        one booking.
+                      <div className="mt-2 inline-flex rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Waiting for owner approval. This slot is still open until confirmed.
                       </div>
                     )}
 

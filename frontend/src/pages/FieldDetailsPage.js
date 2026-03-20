@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ChatBubbleLeftRightIcon,
+  ArrowTopRightOnSquareIcon,
   BuildingOfficeIcon,
   CalendarIcon,
   ClockIcon,
@@ -13,6 +14,7 @@ import FieldLocationMap from '../components/maps/FieldLocationMap';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
+import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -75,6 +77,8 @@ const FieldDetailsPage = () => {
   const discountPercent = getDiscountPercent(field);
   const discountedPrice = getDiscountedPrice(field);
   const canBookThisField = isBookableField(field);
+  const fieldAddressLabel = useMemo(() => buildLocationLabel(field || {}), [field]);
+  const locationUrl = useMemo(() => buildGoogleMapsLocationUrl(field || {}), [field]);
 
   useEffect(() => {
     const fetchField = async () => {
@@ -258,7 +262,7 @@ const FieldDetailsPage = () => {
               <div className="mt-2 space-y-1 text-sm text-gray-600">
                 <div className="flex items-center">
                   <MapPinIcon className="mr-2 h-4 w-4 text-gray-400" />
-                  {field.address}, {field.city}, {field.province}
+                  {fieldAddressLabel || 'Address not specified'}
                 </div>
                 <div className="flex items-center">
                   <BuildingOfficeIcon className="mr-2 h-4 w-4 text-gray-400" />
@@ -279,6 +283,12 @@ const FieldDetailsPage = () => {
             </div>
 
             <div className="flex items-center gap-3">
+              {locationUrl && (
+                <Button as="a" href={locationUrl} target="_blank" rel="noreferrer" variant="outline">
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                  Location
+                </Button>
+              )}
               {!isAdmin && (
                 <Button onClick={handleBook} disabled={isFieldClosed}>
                   {isFieldClosed
@@ -398,7 +408,7 @@ const FieldDetailsPage = () => {
                     <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
                       <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                       <span>
-                        {[field.address, field.city, field.province, field.country].filter(Boolean).join(', ') || 'Address not specified'}
+                        {fieldAddressLabel || 'Address not specified'}
                       </span>
                     </div>
                     {(field.latitude || field.longitude) && (
@@ -412,7 +422,7 @@ const FieldDetailsPage = () => {
                     <div>
                       <h2 className="text-sm font-semibold text-gray-900">Location Map</h2>
                       <div className="mt-3">
-                        <FieldLocationMap latitude={field.latitude} longitude={field.longitude} />
+                        <FieldLocationMap latitude={field.latitude} longitude={field.longitude} locationUrl={locationUrl} />
                       </div>
                     </div>
                   )}

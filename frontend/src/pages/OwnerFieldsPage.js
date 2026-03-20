@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
@@ -229,13 +230,13 @@ const OwnerFieldsPage = () => {
   }, [selectedImagePreviews]);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen && !isStatusOpen) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen]);
+  }, [isOpen, isStatusOpen]);
 
   const visibleImagePreviews = selectedImagePreviews.length > 0
     ? selectedImagePreviews
@@ -256,6 +257,8 @@ const OwnerFieldsPage = () => {
   const liveDiscountedPrice = liveBasePrice > 0
     ? Number((liveBasePrice * (1 - liveDiscountPercent / 100)).toFixed(2))
     : 0;
+  const modalFieldName = form.name.trim() || 'Untitled field';
+  const renderPortal = (content) => (typeof document !== 'undefined' ? createPortal(content, document.body) : null);
   const isFormReady =
     form.name.trim().length > 0 &&
     Number(form.pricePerHour) > 0 &&
@@ -279,8 +282,18 @@ const OwnerFieldsPage = () => {
   };
 
   const handleImageChange = (event) => {
-    const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
-    setImageFiles(nextFiles.slice(0, 5));
+    const selectedFiles = Array.from(event.target.files || []);
+    const nextFiles = selectedFiles.filter((file) => String(file.type || '').startsWith('image/'));
+    const limitedFiles = nextFiles.slice(0, 5);
+
+    if (selectedFiles.length !== nextFiles.length) {
+      showToast('Only image files can be uploaded for field photos.', { type: 'error' });
+    }
+    if (nextFiles.length > 5) {
+      showToast('You can upload up to 5 field photos at a time.', { type: 'error' });
+    }
+
+    setImageFiles(limitedFiles);
     // Allow selecting the same file again (browser otherwise may not trigger onChange).
     event.target.value = '';
   };
@@ -369,37 +382,6 @@ const OwnerFieldsPage = () => {
       resetForm();
     } catch (err) {
       showToast(getApiErrorMessage(err, 'Failed to save field'), { type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUploadPhotosOnly = async () => {
-    if (!editingFieldId) {
-      showToast('Please save field first, then upload photos.', { type: 'error' });
-      return;
-    }
-    if (imageFiles.length === 0) {
-      showToast('Please select at least one photo.', { type: 'error' });
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const response = await fieldService.uploadFieldImages(editingFieldId, imageFiles, {
-        replaceExisting: true
-      });
-
-      const uploadedImages = Array.isArray(response?.data?.images) ? response.data.images : [];
-      if (uploadedImages.length > 0) {
-        setExistingImages(uploadedImages);
-        setImageVersionToken(Date.now());
-      }
-      setImageFiles([]);
-      await loadFields();
-      showToast(`Uploaded ${uploadedImages.length || imageFiles.length} photo(s).`, { type: 'success' });
-    } catch (err) {
-      showToast(getApiErrorMessage(err, 'Failed to upload photos'), { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -522,34 +504,42 @@ const OwnerFieldsPage = () => {
           </button>
         </div>
       </div>
-      {isOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+      {isOpen && renderPortal(
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-5"
+          onClick={resetForm}
+        >
           <form
             onSubmit={handleSubmit}
-            className="flex max-h-[calc(100vh-28px)] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_28px_70px_rgba(15,23,42,0.24)]"
+            className="flex h-[min(820px,calc(100vh-24px))] w-full max-w-[1120px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:h-[min(820px,calc(100vh-40px))]"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur md:px-8">
+            <div className="shrink-0 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 md:px-6">
               <div>
-                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                   {editingFieldId ? 'Edit Field' : 'Create Field'}
                 </span>
-                <h2 className="mt-3 text-2xl font-bold text-gray-900">
+                <h2 className="mt-2 text-[1.9rem] font-bold leading-tight text-slate-950">
                   {editingFieldId ? 'Update Field Information' : 'Add a New Field'}
                 </h2>
+                <p className="mt-1.5 text-sm text-slate-500">
+                  Update pricing, location, amenities, and photos in one place.
+                </p>
               </div>
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close field form"
               >
-                x
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="border-b border-slate-100 bg-emerald-50/70 px-6 py-3 md:px-8">
+            <div className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white px-5 py-3 md:px-6">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700">Live Preview</span>
-                <span className="text-slate-700">{form.name || 'Untitled field'}</span>
+                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700 shadow-sm">Live Preview</span>
+                <span className="font-medium text-slate-700">{modalFieldName}</span>
                 <span className="text-slate-400">|</span>
                 <span className="font-semibold text-slate-900">{liveBasePrice > 0 ? `$${liveDiscountedPrice}/hr` : 'Set price'}</span>
                 {liveDiscountPercent > 0 && (
@@ -557,11 +547,22 @@ const OwnerFieldsPage = () => {
                     {liveDiscountPercent}% OFF
                   </span>
                 )}
+                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {form.fieldType || 'Field type'}
+                </span>
+                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {Number(form.capacity) > 0 ? `${form.capacity} players` : 'Set capacity'}
+                </span>
               </div>
             </div>
 
-            <div className="overflow-y-auto px-6 py-5 md:px-8">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="min-h-0 overflow-y-auto bg-slate-50/50 px-5 py-4 md:px-6 md:py-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-3">
+              <h3 className="text-lg font-semibold text-slate-900">Field Details</h3>
+              <p className="mt-1 text-sm text-slate-500">Set the essential details players see before booking.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Name</span>
                 <input name="name" value={form.name} onChange={handleChange} placeholder="Field name" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
@@ -610,8 +611,13 @@ const OwnerFieldsPage = () => {
                 </div>
               )}
             </div>
+            </div>
 
-            <div className="mt-5">
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <div className="mb-3">
+                <h3 className="text-lg font-semibold text-slate-900">Location</h3>
+                <p className="mt-1 text-sm text-slate-500">Search, click, or drag the pin to set the field location.</p>
+              </div>
               <FieldLocationPicker
                 value={{
                   address: form.address,
@@ -624,13 +630,13 @@ const OwnerFieldsPage = () => {
               />
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <label htmlFor="field-images" className="block text-sm font-semibold text-slate-900">
+                  <label htmlFor="field-images" className="block text-lg font-semibold text-slate-900">
                     Photos
                   </label>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500">
                     Upload up to 5 images. Images are compressed before upload to keep pages fast.
                   </p>
                 </div>
@@ -651,14 +657,14 @@ const OwnerFieldsPage = () => {
                 className="sr-only"
               />
 
-              {imageFiles.length > 0 && (
+              {imageFiles.length > 0 && !editingFieldId && (
                 <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                   {imageFiles.length} new image(s) selected
                 </div>
               )}
-              {editingFieldId && (
+              {editingFieldId && imageFiles.length > 0 && (
                 <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                  Uploading new photos will replace current photos
+                  New photos are ready and will replace current photos when you click Save
                 </div>
               )}
               {imageFiles.length === 0 && existingImages.length > 0 && (
@@ -701,48 +707,43 @@ const OwnerFieldsPage = () => {
                   No photos selected yet.
                 </div>
               )}
-
-              {editingFieldId && (
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleUploadPhotosOnly}
-                    disabled={saving || imageFiles.length === 0}
-                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    {saving ? 'Uploading...' : 'Upload Selected Photos'}
-                  </button>
-                </div>
-              )}
             </div>
 
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              rows={4}
-              placeholder="Field description"
-              className="mt-5 w-full rounded-xl border border-gray-300 px-4 py-3"
-            />
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <label className="space-y-2">
+                <span className="block text-lg font-semibold text-slate-900">Field Description</span>
+                <span className="block text-sm text-slate-500">Share what makes this field special for players and captains.</span>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Field description"
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3"
+                />
+              </label>
+            </div>
             </div>
 
-            <div className="sticky bottom-0 z-20 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur md:px-8">
+            <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3.5 md:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">
                 {isFormReady ? 'Ready to save' : 'Fill required details: name, price, capacity, and location'}
               </p>
               <div className="flex gap-3">
-                <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700">
+                <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
                   Cancel
                 </button>
-                <button type="submit" disabled={saving || !isFormReady} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+                <button type="submit" disabled={saving || !isFormReady} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">
                   {saving ? 'Saving...' : 'Save'}
                 </button>
+              </div>
               </div>
             </div>
           </form>
         </div>
       )}
-      {isStatusOpen && (
+      {isStatusOpen && renderPortal(
         <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
           <form
             onSubmit={handleStatusSubmit}

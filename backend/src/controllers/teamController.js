@@ -1,4 +1,4 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -14,7 +14,7 @@ const getTeamBaseIncludes = () => [
   {
     model: Field,
     as: 'homeField',
-    attributes: ['id', 'name', 'address', 'city', 'province'],
+    attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
     required: false
   }
 ];
@@ -88,6 +88,37 @@ const resolveTeamJerseyColors = (payload) => {
   return undefined;
 };
 
+const attachMemberCounts = async (teams = []) => {
+  if (!Array.isArray(teams) || teams.length === 0) return [];
+
+  const teamIds = teams.map((team) => Number(team.id)).filter(Boolean);
+  const memberCountRows = await TeamMember.findAll({
+    where: {
+      teamId: { [Op.in]: teamIds },
+      status: 'active',
+      isActive: true
+    },
+    attributes: [
+      'teamId',
+      [sequelize.fn('COUNT', sequelize.col('userId')), 'memberCount']
+    ],
+    group: ['teamId'],
+    raw: true
+  });
+
+  const memberCountByTeamId = memberCountRows.reduce((acc, row) => {
+    acc[Number(row.teamId)] = Number(row.memberCount || 0);
+    return acc;
+  }, {});
+
+  return teams.map((team) => {
+    const teamJson = team?.toJSON ? team.toJSON() : team;
+    return {
+      ...teamJson,
+      memberCount: memberCountByTeamId[Number(teamJson.id)] || 0
+    };
+  });
+};
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
@@ -101,7 +132,9 @@ const getAllTeams = asyncHandler(async (req, res) => {
     ...(offset ? { offset } : {})
   });
 
-  res.json({ success: true, data: teams });
+  const teamsWithMemberCounts = includeDetails ? teams : await attachMemberCounts(teams);
+
+  res.json({ success: true, data: teamsWithMemberCounts });
 });
 
 const getTeamById = asyncHandler(async (req, res) => {
@@ -141,7 +174,9 @@ const getMyTeams = asyncHandler(async (req, res) => {
     order: [['createdAt', 'DESC']]
   });
 
-  res.json({ success: true, data: teams });
+  const teamsWithMemberCounts = await attachMemberCounts(teams);
+
+  res.json({ success: true, data: teamsWithMemberCounts });
 });
 
 const getCaptainedTeams = asyncHandler(async (req, res) => {
@@ -151,7 +186,9 @@ const getCaptainedTeams = asyncHandler(async (req, res) => {
     order: [['createdAt', 'DESC']]
   });
 
-  res.json({ success: true, data: teams });
+  const teamsWithMemberCounts = await attachMemberCounts(teams);
+
+  res.json({ success: true, data: teamsWithMemberCounts });
 });
 
 const getMyInvitations = asyncHandler(async (req, res) => {
@@ -175,10 +212,14 @@ const getMyInvitations = asyncHandler(async (req, res) => {
     .map((invitation) => invitation.team)
     .filter(Boolean);
 
-  res.json({ success: true, data: inviteTeams });
+  const inviteTeamsWithMemberCounts = await attachMemberCounts(inviteTeams);
+
+  res.json({ success: true, data: inviteTeamsWithMemberCounts });
 });
 
 const createTeam = asyncHandler(async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { name, description, skillLevel, maxPlayers, homeFieldId, logoUrl, isActive } = req.body;
     const jerseyColors = resolveTeamJerseyColors(req.body);
@@ -195,7 +236,7 @@ const createTeam = asyncHandler(async (req, res) => {
       jerseyColors,
       isActive,
       captainId: req.user.id
-    });
+    }, { transaction });
 
     await TeamMember.create({
       teamId: team.id,
@@ -204,10 +245,12 @@ const createTeam = asyncHandler(async (req, res) => {
       status: 'active',
       joinedAt: new Date(),
       isActive: true
-    });
+    }, { transaction });
 
+    await transaction.commit();
     res.status(201).json({ success: true, data: team });
   } catch (error) {
+    await transaction.rollback();
     console.error('Create team error:', error);
     res.status(400).json({ success: false, message: error.message });
   }
@@ -458,8 +501,28 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       [Op.or]: [{ homeTeamId: teamId }, { awayTeamId: teamId }]
     },
     include: [
-      { model: Team, as: 'homeTeam', attributes: ['id', 'name'] },
-      { model: Team, as: 'awayTeam', attributes: ['id', 'name'] },
+      {
+        model: Team,
+        as: 'homeTeam',
+        attributes: ['id', 'name', 'logoUrl'],
+        include: [{
+          model: User,
+          as: 'captain',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role'],
+          required: false
+        }]
+      },
+      {
+        model: Team,
+        as: 'awayTeam',
+        attributes: ['id', 'name', 'logoUrl'],
+        include: [{
+          model: User,
+          as: 'captain',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role'],
+          required: false
+        }]
+      },
       { model: Booking, as: 'booking', attributes: ['startTime', 'fieldId'], include: [{ model: Field, as: 'field', attributes: ['id', 'name'], required: false }], required: false }
     ],
     order: [['recordedAt', 'DESC']]
@@ -478,7 +541,25 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     return {
       id: match.id,
       bookingId: match.bookingId,
+      fieldId: match.booking?.fieldId || match.booking?.field?.id || null,
+      teamName: isHome ? match.homeTeam?.name || 'Unknown Team' : match.awayTeam?.name || 'Unknown Team',
+      teamLogoUrl: isHome ? match.homeTeam?.logoUrl || null : match.awayTeam?.logoUrl || null,
+      teamCaptain: isHome ? match.homeTeam?.captain || null : match.awayTeam?.captain || null,
+      teamCaptainName:
+        isHome
+          ? `${match.homeTeam?.captain?.firstName || ''} ${match.homeTeam?.captain?.lastName || ''}`.trim() ||
+            match.homeTeam?.captain?.username ||
+            'Unknown captain'
+          : `${match.awayTeam?.captain?.firstName || ''} ${match.awayTeam?.captain?.lastName || ''}`.trim() ||
+            match.awayTeam?.captain?.username ||
+            'Unknown captain',
       opponentTeamName: opponentTeam?.name || 'Unknown Team',
+      opponentTeamLogoUrl: opponentTeam?.logoUrl || null,
+      opponentCaptain: opponentTeam?.captain || null,
+      opponentCaptainName:
+        `${opponentTeam?.captain?.firstName || ''} ${opponentTeam?.captain?.lastName || ''}`.trim() ||
+        opponentTeam?.captain?.username ||
+        'Unknown captain',
       date: match.booking?.startTime || match.recordedAt || match.createdAt,
       fieldName: match.booking?.field?.name || null,
       finalScore: `${myScore}-${opponentScore}`,

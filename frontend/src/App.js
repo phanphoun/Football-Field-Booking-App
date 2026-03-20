@@ -32,6 +32,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
 import { DialogProvider, ToastProvider } from './components/ui';
+import { RealtimeProvider } from './context/RealtimeContext';
 
 import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
@@ -66,6 +67,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to={getPreferredStartPath('app')} replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="fields" element={<FieldsPage />} />
+          <Route path="fields/:id" element={<FieldDetailsPage />} />
           <Route path="league" element={<LeaguePage />} />
           <Route path="teams" element={<TeamsPage />} />
           <Route
@@ -152,6 +154,7 @@ const AppRoutes = () => {
           <Route index element={<Navigate to={getPreferredStartPath('owner')} replace />} />
           <Route path="dashboard" element={<OwnerDashboardPage />} />
           <Route path="fields" element={<OwnerFieldsPage />} />
+          <Route path="fields/:id" element={<FieldDetailsPage />} />
           <Route path="bookings" element={<OwnerBookingsPage />} />
           <Route
             path="bookings/new"
@@ -205,11 +208,13 @@ function App() {
     <AuthProvider>
       <ToastProvider>
         <DialogProvider>
-          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <div className="App">
-              <AppRoutes />
-            </div>
-          </Router>
+          <RealtimeProvider>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <div className="App">
+                <AppRoutes />
+              </div>
+            </Router>
+          </RealtimeProvider>
         </DialogProvider>
       </ToastProvider>
     </AuthProvider>

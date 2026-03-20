@@ -38,7 +38,10 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
           name: team.homeField.name,
           address: team.homeField.address,
           city: team.homeField.city,
-          province: team.homeField.province
+          province: team.homeField.province,
+          country: team.homeField.country,
+          latitude: team.homeField.latitude,
+          longitude: team.homeField.longitude
         }
       : null,
     memberCount: activeMembers.length,
@@ -116,7 +119,7 @@ const getPublicTeams = async (req, res) => {
         {
           model: Field,
           as: 'homeField',
-          attributes: ['id', 'name', 'address', 'city', 'province'],
+          attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
           required: false
         },
         {
@@ -169,7 +172,7 @@ const getPublicTeamById = async (req, res) => {
         {
           model: Field,
           as: 'homeField',
-          attributes: ['id', 'name', 'address', 'city', 'province'],
+          attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
           required: false
         },
         {

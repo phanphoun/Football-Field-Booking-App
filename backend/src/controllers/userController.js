@@ -187,7 +187,7 @@ const searchUsers = asyncHandler(async (req, res) => {
 
   const users = await User.findAll({
     where,
-    attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+    attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'avatarUrl'],
     limit: 10
   });
 

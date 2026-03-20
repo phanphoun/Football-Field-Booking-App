@@ -17,7 +17,7 @@ import {
   UsersIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
+import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
@@ -159,8 +159,7 @@ const DashboardPage = () => {
           icon: UsersIcon,
           iconWrap: 'bg-emerald-600',
           cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
-          textClass: 'text-emerald-950',
-          helper: 'Teams under your leadership'
+          textClass: 'text-emerald-950'
         },
         {
           name: 'Pending Requests',
@@ -168,8 +167,7 @@ const DashboardPage = () => {
           icon: ClipboardDocumentCheckIcon,
           iconWrap: 'bg-amber-500',
           cardClass: 'border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70',
-          textClass: 'text-amber-950',
-          helper: 'Players waiting for approval'
+          textClass: 'text-amber-950'
         },
         {
           name: 'My Bookings',
@@ -177,8 +175,7 @@ const DashboardPage = () => {
           icon: CalendarIcon,
           iconWrap: 'bg-blue-600',
           cardClass: 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70',
-          textClass: 'text-blue-950',
-          helper: 'Reservations you created'
+          textClass: 'text-blue-950'
         },
         {
           name: 'Fields Available',
@@ -186,8 +183,7 @@ const DashboardPage = () => {
           icon: BuildingOfficeIcon,
           iconWrap: 'bg-cyan-600',
           cardClass: 'border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-cyan-100/70',
-          textClass: 'text-cyan-950',
-          helper: 'Open venues to book'
+          textClass: 'text-cyan-950'
         }
       ];
     }
@@ -202,8 +198,7 @@ const DashboardPage = () => {
           icon: UsersIcon,
           iconWrap: 'bg-emerald-600',
           cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
-          textClass: 'text-emerald-950',
-          helper: 'Teams you currently joined'
+          textClass: 'text-emerald-950'
         },
         {
           name: 'Invitations',
@@ -211,17 +206,15 @@ const DashboardPage = () => {
           icon: BellAlertIcon,
           iconWrap: 'bg-amber-500',
           cardClass: 'border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70',
-          textClass: 'text-amber-950',
-          helper: 'Unread team invites'
+          textClass: 'text-amber-950'
         },
         {
-          name: 'My Bookings',
+          name: 'Team Bookings',
           value: stats?.bookings ?? bookings.length,
           icon: CalendarIcon,
           iconWrap: 'bg-blue-600',
           cardClass: 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70',
-          textClass: 'text-blue-950',
-          helper: 'Reservations you made'
+          textClass: 'text-blue-950'
         },
         {
           name: 'Upcoming',
@@ -229,8 +222,7 @@ const DashboardPage = () => {
           icon: CalendarIcon,
           iconWrap: 'bg-violet-600',
           cardClass: 'border-violet-100 bg-gradient-to-br from-violet-50 via-white to-violet-100/70',
-          textClass: 'text-violet-950',
-          helper: 'Next items on your schedule'
+          textClass: 'text-violet-950'
         }
       ];
     }
@@ -244,8 +236,7 @@ const DashboardPage = () => {
         icon: UserCircleIcon,
         iconWrap: 'bg-indigo-600',
         cardClass: 'border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/70',
-        textClass: 'text-indigo-950',
-        helper: 'Registered platform accounts'
+        textClass: 'text-indigo-950'
       },
       {
         name: 'Fields',
@@ -253,8 +244,7 @@ const DashboardPage = () => {
         icon: BuildingOfficeIcon,
         iconWrap: 'bg-blue-600',
         cardClass: 'border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70',
-        textClass: 'text-blue-950',
-        helper: 'Published playing venues'
+        textClass: 'text-blue-950'
       },
       {
         name: 'Teams',
@@ -262,8 +252,7 @@ const DashboardPage = () => {
         icon: UsersIcon,
         iconWrap: 'bg-emerald-600',
         cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
-        textClass: 'text-emerald-950',
-        helper: 'Active registered teams'
+        textClass: 'text-emerald-950'
       },
       {
         name: 'Pending Requests',
@@ -271,8 +260,7 @@ const DashboardPage = () => {
         icon: ClipboardDocumentCheckIcon,
         iconWrap: 'bg-amber-500',
         cardClass: 'border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70',
-        textClass: 'text-amber-950',
-        helper: 'Access changes awaiting review'
+        textClass: 'text-amber-950'
       }
     ];
   }, [
@@ -394,15 +382,14 @@ const DashboardPage = () => {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
           <Card key={stat.name} className={`overflow-hidden ${stat.cardClass}`}>
-            <CardBody className="p-5">
-              <div className="flex items-start gap-4">
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm ${stat.iconWrap}`}>
+            <CardBody className="px-4 py-4">
+              <div className="flex items-center gap-4">
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm ${stat.iconWrap}`}>
                   <stat.icon className="h-6 w-6 text-white" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{stat.name}</div>
-                  <div className={`mt-3 text-3xl font-bold leading-none ${stat.textClass}`}>{stat.value}</div>
-                  <div className="mt-2 text-sm text-slate-600">{stat.helper}</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{stat.name}</div>
+                  <AnimatedStatValue value={stat.value} className={`mt-1.5 text-[1.8rem] font-bold leading-none ${stat.textClass}`} />
                 </div>
               </div>
             </CardBody>

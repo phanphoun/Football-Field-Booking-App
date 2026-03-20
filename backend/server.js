@@ -25,10 +25,16 @@ const matchResultRoutes = require('./src/routes/matchResultRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
+const realtimeRoutes = require('./src/routes/realtimeRoutes');
 
-const API_KEY = "88aaa20e57db47deb4847097dcf9c6a4"; // Using API key directly for now
+const API_KEY = process.env.FOOTBALL_API_KEY;
 const BASE_URL = "https://api.football-data.org/v4";
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Bangkok";
+
+// Warn if API key is missing
+if (!API_KEY) {
+  console.warn('⚠️  Warning: FOOTBALL_API_KEY not set. League features will be disabled.');
+}
 
 const leagues = [
   { code: "PL", name: "Premier League" },
@@ -186,25 +192,31 @@ app.use('/uploads', (req, res, next) => {
 app.use('/uploads', express.static(path.join(__dirname, '..', 'frontend', 'public', 'uploads')));
 // Backward compatibility for previously uploaded files in backend/uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads/fields', (req, res, next) => {
+const sendMissingFieldImageFallback = (req, res, next) => {
   const requestedPath = decodeURIComponent(req.path || '').replace(/^\/+/, '');
   if (!requestedPath) {
     return next();
   }
 
-  const frontendUploadFile = path.join(__dirname, '..', 'frontend', 'public', 'uploads', 'fields', requestedPath);
-  const backendUploadFile = path.join(__dirname, 'uploads', 'fields', requestedPath);
-  const hasFrontendFile = fs.existsSync(frontendUploadFile);
-  const hasBackendFile = fs.existsSync(backendUploadFile);
+  const candidateFiles = [
+    path.join(__dirname, '..', 'frontend', 'public', 'uploads', 'field', requestedPath),
+    path.join(__dirname, '..', 'frontend', 'public', 'uploads', 'fields', requestedPath),
+    path.join(__dirname, 'uploads', 'field', requestedPath),
+    path.join(__dirname, 'uploads', 'fields', requestedPath)
+  ];
+  const hasAnyCandidate = candidateFiles.some((absolutePath) => fs.existsSync(absolutePath));
 
-  if (hasFrontendFile || hasBackendFile) {
+  if (hasAnyCandidate) {
     return next();
   }
 
   const fallbackImage = path.join(__dirname, '..', 'frontend', 'public', 'hero-manu.jpg');
   res.setHeader('Cache-Control', 'public, max-age=300');
   return res.sendFile(fallbackImage);
-});
+};
+
+app.use('/uploads/field', sendMissingFieldImageFallback);
+app.use('/uploads/fields', sendMissingFieldImageFallback);
 
 // ============= API ROUTES =============
 
@@ -277,9 +289,13 @@ app.use('/api/match-results', matchResultRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/realtime', realtimeRoutes);
 
 // League API Routes
 app.get("/api/matches", async (req, res) => {
+  if (!API_KEY) {
+    return res.status(503).json({ error: 'League data service is unavailable. API key not configured.' });
+  }
   try {
     const { league } = req.query; // Get league filter from query params
     const cacheKey = `matches:${league || "ALL"}`;
@@ -358,6 +374,9 @@ app.get("/api/matches", async (req, res) => {
 });
 
 app.get("/api/leagues/standings", async (req, res) => {
+  if (!API_KEY) {
+    return res.status(503).json({ error: 'League data service is unavailable. API key not configured.' });
+  }
   try {
     const { league } = req.query;
     const selectedLeagues = league

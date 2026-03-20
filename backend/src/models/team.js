@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 module.exports = (sequelize, DataTypes) => {
   class Team extends Model {
@@ -150,7 +151,8 @@ module.exports = (sequelize, DataTypes) => {
         { fields: ['home_field_id'] },
         { fields: ['skill_level'] },
         { fields: ['is_active'] }
-      ]
+      ],
+      hooks: buildRealtimeHooks('team')
     }
   );
 

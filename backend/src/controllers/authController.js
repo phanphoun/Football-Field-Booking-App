@@ -4,6 +4,22 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+
+// Magic number signatures for common image formats
+const FILE_SIGNATURES = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/png': [[0x89, 0x50, 0x4E, 0x47]],
+  'image/gif': [[0x47, 0x49, 0x46, 0x38]],
+  'image/webp': [[0x52, 0x49, 0x46, 0x46]]
+};
+
+const validateFileSignature = (buffer, mimetype) => {
+  const signatures = FILE_SIGNATURES[mimetype];
+  if (!signatures) return false;
+  return signatures.some(signature => {
+    return signature.every((byte, index) => buffer[index] === byte);
+  });
+};
 const serverConfig = require('../config/serverConfig');
 const { createInAppNotification } = require('../utils/notify');
 
@@ -60,15 +76,12 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Username must be between 3 and 30 characters.' });
     }
 
-    // Check if user exists
+    // Check if user exists (prevent user enumeration with generic message)
     const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this email already exists.' });
-    }
-
     const existingUsername = await User.findOne({ where: { username } });
-    if (existingUsername) {
-      return res.status(400).json({ error: 'Username already taken.' });
+
+    if (existingUser || existingUsername) {
+      return res.status(400).json({ error: 'Email or username already in use.' });
     }
 
     // Hash password with stronger salt rounds
@@ -342,6 +355,28 @@ const uploadProfileAvatar = async (req, res) => {
 
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Validate file signature to prevent malicious uploads
+      try {
+        const fileBuffer = fs.readFileSync(req.file.path);
+        const isValid = validateFileSignature(fileBuffer.slice(0, 10), req.file.mimetype);
+
+        if (!isValid) {
+          // Delete the invalid file
+          fs.unlinkSync(req.file.path);
+          return res.status(400).json({
+            error: 'File content does not match the declared type. Upload rejected for security reasons.'
+          });
+        }
+      } catch (validationError) {
+        console.error('File signature validation error:', validationError);
+        try {
+          if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup invalid file:', cleanupError);
+        }
+        return res.status(500).json({ error: 'File validation failed' });
       }
 
       try {

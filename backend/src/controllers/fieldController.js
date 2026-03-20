@@ -67,14 +67,19 @@ const attachEffectiveFieldStatus = (field, bookedFieldIds) => {
 };
 
 const isManagedFieldImagePath = (imagePath) =>
-  typeof imagePath === 'string' && imagePath.startsWith('/uploads/fields/');
+  typeof imagePath === 'string' &&
+  (imagePath.startsWith('/uploads/field/') || imagePath.startsWith('/uploads/fields/'));
 
 const getCandidateImagePaths = (imagePath) => {
   if (!isManagedFieldImagePath(imagePath)) return [];
   const relative = imagePath.slice(1);
+  const fileName = path.basename(relative);
   return [
     path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', relative),
-    path.resolve(__dirname, '..', '..', 'uploads', 'fields', path.basename(relative))
+    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'uploads', 'field', fileName),
+    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'uploads', 'fields', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', 'field', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', 'fields', fileName)
   ];
 };
 
@@ -89,6 +94,33 @@ const removeFieldImageFile = (imagePath) => {
       console.warn(`Failed to remove field image file at ${absolute}:`, error.message);
     }
   });
+};
+
+const removeTemporaryUploadFiles = (files = []) => {
+  files.forEach((file) => {
+    const absolutePath = file?.path;
+    if (!absolutePath) return;
+
+    try {
+      if (fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+      }
+    } catch (error) {
+      console.warn(`Failed to remove temporary upload file at ${absolutePath}:`, error.message);
+    }
+  });
+};
+
+const normalizeUploadedFieldFiles = (filesPayload) => {
+  if (Array.isArray(filesPayload)) {
+    return filesPayload;
+  }
+
+  if (!filesPayload || typeof filesPayload !== 'object') {
+    return [];
+  }
+
+  return ['images', 'image'].flatMap((key) => (Array.isArray(filesPayload[key]) ? filesPayload[key] : []));
 };
 
 const normalizeClosureMessage = (value) => {
@@ -426,7 +458,7 @@ const uploadFieldImages = async (req, res) => {
 
     const maxImageSize = serverConfig.upload.maxSize;
     const projectRoot = path.resolve(__dirname, '..', '..');
-    const uploadDir = path.resolve(projectRoot, '..', 'frontend', 'public', 'uploads', 'fields');
+    const uploadDir = path.resolve(projectRoot, '..', 'frontend', 'public', 'uploads', 'field');
     fs.mkdirSync(uploadDir, { recursive: true });
 
     const storage = multer.diskStorage({
@@ -446,7 +478,10 @@ const uploadFieldImages = async (req, res) => {
         }
         cb(null, true);
       }
-    }).array('images', 5);
+    }).fields([
+      { name: 'images', maxCount: 5 },
+      { name: 'image', maxCount: 5 }
+    ]);
 
     upload(req, res, async (err) => {
       if (err) {
@@ -456,8 +491,15 @@ const uploadFieldImages = async (req, res) => {
         return res.status(400).json({ success: false, message: err.message || 'Upload failed' });
       }
 
-      if (!Array.isArray(req.files) || req.files.length === 0) {
+      const uploadedFiles = normalizeUploadedFieldFiles(req.files);
+
+      if (uploadedFiles.length === 0) {
         return res.status(400).json({ success: false, message: 'No files uploaded' });
+      }
+
+      if (uploadedFiles.length > 5) {
+        removeTemporaryUploadFiles(uploadedFiles);
+        return res.status(400).json({ success: false, message: 'You can upload up to 5 images at a time' });
       }
 
       const currentImages = Array.isArray(field.images) ? field.images : [];
@@ -473,9 +515,14 @@ const uploadFieldImages = async (req, res) => {
           // Also clean stale files for this field id to prevent duplicates from piling up.
           try {
             const stalePattern = new RegExp(`^field-${field.id}-`, 'i');
+            const activeUploadFileNames = new Set(
+              uploadedFiles
+                .map((file) => String(file?.filename || '').trim())
+                .filter(Boolean)
+            );
             const allFiles = fs.readdirSync(uploadDir);
             allFiles
-              .filter((name) => stalePattern.test(name))
+              .filter((name) => stalePattern.test(name) && !activeUploadFileNames.has(name))
               .forEach((name) => {
                 const abs = path.resolve(uploadDir, name);
                 if (fs.existsSync(abs)) fs.unlinkSync(abs);
@@ -484,7 +531,7 @@ const uploadFieldImages = async (req, res) => {
             // Ignore cleanup errors and continue with uploaded files.
           }
 
-          mergedImages = req.files.map((file, index) => {
+          mergedImages = uploadedFiles.map((file, index) => {
             const ext = path.extname(file.originalname || file.filename || '').toLowerCase() || '.jpg';
             const stableName = `field-${field.id}-${index + 1}${ext}`;
             const stableAbs = path.resolve(uploadDir, stableName);
@@ -496,13 +543,13 @@ const uploadFieldImages = async (req, res) => {
               if (sourceAbs !== stableAbs) {
                 fs.renameSync(sourceAbs, stableAbs);
               }
-              return `/uploads/fields/${stableName}`;
+              return `/uploads/field/${stableName}`;
             } catch {
-              return `/uploads/fields/${file.filename}`;
+              return `/uploads/field/${file.filename}`;
             }
           });
         } else {
-        const newImages = req.files.map((file) => `/uploads/fields/${file.filename}`);
+        const newImages = uploadedFiles.map((file) => `/uploads/field/${file.filename}`);
         mergedImages = [...currentImages, ...newImages];
       }
 
