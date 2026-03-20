@@ -630,7 +630,15 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-    await booking.update({ status }, { transaction });
+    const bookingUpdate = { status };
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      bookingUpdate.ownerRevenueLocked = true;
+    }
+    if (status === 'cancelled' && previousStatus === 'confirmed') {
+      bookingUpdate.ownerRevenueLocked = true;
+    }
+
+    await booking.update(bookingUpdate, { transaction });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';

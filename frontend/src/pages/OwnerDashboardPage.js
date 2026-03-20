@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowTrendingUpIcon,
@@ -33,26 +33,41 @@ const OwnerDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState(null);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchOwnerData = async () => {
+      const isInitialLoad = !hasLoadedRef.current;
       try {
-        setLoading(true);
+        if (isInitialLoad) {
+          setLoading(true);
+        }
         setError(null);
         const [fieldsRes, bookingsRes] = await Promise.all([
           fieldService.getMyFields(),
           bookingService.getAllBookings({ limit: 200 })
         ]);
+        if (cancelled) return;
         setFields(Array.isArray(fieldsRes.data) ? fieldsRes.data : []);
         setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+        hasLoadedRef.current = true;
       } catch (err) {
+        if (cancelled) return;
         setError(err?.error || 'Failed to load owner dashboard');
       } finally {
-        setLoading(false);
+        if (!cancelled && isInitialLoad) {
+          setLoading(false);
+        }
       }
     };
 
     fetchOwnerData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [version]);
 
   const pendingBookings = useMemo(() => bookings.filter((booking) => booking.status === 'pending'), [bookings]);
@@ -69,7 +84,7 @@ const OwnerDashboardPage = () => {
 
   const revenueEstimate = useMemo(() => {
     return bookings
-      .filter((booking) => booking.status === 'confirmed' || booking.status === 'completed')
+      .filter((booking) => booking.ownerRevenueLocked || booking.status === 'confirmed' || booking.status === 'completed')
       .reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
   }, [bookings]);
 
@@ -134,8 +149,24 @@ const OwnerDashboardPage = () => {
         await bookingService.completeBooking(bookingId);
       }
 
-      const bookingsRes = await bookingService.getAllBookings({ limit: 200 });
-      setBookings(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
+      setBookings((current) =>
+        current.map((booking) => {
+          if (booking.id !== bookingId) return booking;
+
+          const ownerRevenueLocked =
+            nextStatus === 'confirmed'
+              ? true
+              : nextStatus === 'cancelled' && booking.status === 'confirmed'
+                ? true
+                : booking.ownerRevenueLocked;
+
+          return {
+            ...booking,
+            status: nextStatus,
+            ownerRevenueLocked
+          };
+        })
+      );
     } catch (err) {
       setError(err?.error || 'Failed to update booking');
     } finally {
