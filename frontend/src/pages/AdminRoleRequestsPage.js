@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
-import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -136,19 +136,19 @@ const AdminRoleRequestsPage = () => {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Total</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{stats.total}</p>
+          <AnimatedStatValue value={stats.total} className="mt-1 text-2xl font-bold text-gray-900" />
         </div>
         <div className="rounded-[24px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Pending</p>
-          <p className="mt-1 text-2xl font-bold text-yellow-700">{stats.pending}</p>
+          <AnimatedStatValue value={stats.pending} className="mt-1 text-2xl font-bold text-yellow-700" />
         </div>
         <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Approved</p>
-          <p className="mt-1 text-2xl font-bold text-green-700">{stats.approved}</p>
+          <AnimatedStatValue value={stats.approved} className="mt-1 text-2xl font-bold text-green-700" />
         </div>
         <div className="rounded-[24px] border border-red-100 bg-gradient-to-br from-red-50 via-white to-red-100/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Rejected</p>
-          <p className="mt-1 text-2xl font-bold text-red-700">{stats.rejected}</p>
+          <AnimatedStatValue value={stats.rejected} className="mt-1 text-2xl font-bold text-red-700" />
         </div>
       </div>
 

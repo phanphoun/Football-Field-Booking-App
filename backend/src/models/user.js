@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 
 
@@ -24,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
 
       User.belongsToMany(models.Team, { 
 
-        through: models.TeamMember, 
+        through: models.TeamMember,
 
         foreignKey: 'userId',
 
@@ -245,7 +246,8 @@ module.exports = (sequelize, DataTypes) => {
 
     timestamps: true,
 
-    paranoid: false 
+    paranoid: false,
+    hooks: buildRealtimeHooks('user')
 
   });
 

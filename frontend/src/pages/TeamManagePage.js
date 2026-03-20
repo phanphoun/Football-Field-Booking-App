@@ -11,6 +11,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
@@ -37,8 +38,9 @@ const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin } = useAuth();
   const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
+  const { user, isAdmin } = useAuth();
+  const { version } = useRealtime();
 
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
@@ -91,7 +93,18 @@ const TeamManagePage = () => {
       }
     };
     fetchAll();
-  }, [id, refresh]);
+  }, [id, refresh, version]);
+
+  useEffect(() => {
+    setJerseyColorsDraft(getTeamJerseyColors(team));
+  }, [team]);
+
+  useEffect(() => {
+    setActiveColorIndex((prev) => {
+      if (jerseyColorsDraft.length === 0) return 0;
+      return Math.min(prev, jerseyColorsDraft.length - 1);
+    });
+  }, [jerseyColorsDraft]);
 
   useEffect(() => {
     setJerseyColorsDraft(getTeamJerseyColors(team));
@@ -293,7 +306,12 @@ const TeamManagePage = () => {
     setJerseyColorsDraft((prev) => {
       const current = Array.isArray(prev) ? [...prev] : [DEFAULT_JERSEY_COLOR];
       if (current.length >= 5) return current;
-      return [...current, DEFAULT_JERSEY_COLOR];
+const normalizedCurrent = current.map((color) => normalizeHexColor(color) || DEFAULT_JERSEY_COLOR);
+      const nextColor =
+        JERSEY_COLOR_PRESETS.find((preset) => !normalizedCurrent.includes(preset)) || DEFAULT_JERSEY_COLOR;
+      const next = [...current, nextColor];
+      setActiveColorIndex(next.length - 1);
+      return next;
     });
   };
 
@@ -555,10 +573,23 @@ const TeamManagePage = () => {
                       <li
                         key={u.id}
                         onClick={() => chooseSuggestion(u)}
-                        className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer transition-colors"
                       >
-                        <div className="font-medium">{u.firstName || u.username} {u.lastName || ''}</div>
-                        <div className="text-xs text-gray-500">{u.username} {u.email ? `- ${u.email}` : ''}</div>
+                        <img
+                          src={resolveUserAvatarUrl(u)}
+                          alt={`${u.firstName || u.username || 'Player'} avatar`}
+                          className="h-10 w-10 rounded-full border border-gray-200 bg-gray-100 object-cover"
+                          onError={(e) => {
+                            const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                            if (e.currentTarget.src !== fallbackUrl) {
+                              e.currentTarget.src = fallbackUrl;
+                            }
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{u.firstName || u.username} {u.lastName || ''}</div>
+                          <div className="truncate text-xs text-gray-500">{u.username} {u.email ? `- ${u.email}` : ''}</div>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -574,8 +605,24 @@ const TeamManagePage = () => {
               </button>
             </div>
             {selectedInvite && (
-              <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-                Selected: <span className="font-medium">{selectedInvite.firstName || selectedInvite.username}</span> ({selectedInvite.email})
+              <div className="flex items-center gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                <img
+                  src={resolveUserAvatarUrl(selectedInvite)}
+                  alt={`${selectedInvite.firstName || selectedInvite.username || 'Player'} avatar`}
+                  className="h-9 w-9 rounded-full border border-gray-200 bg-gray-100 object-cover"
+                  onError={(e) => {
+                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    if (e.currentTarget.src !== fallbackUrl) {
+                      e.currentTarget.src = fallbackUrl;
+                    }
+                  }}
+                />
+                <div className="min-w-0">
+                  <div className="truncate">
+                    Selected: <span className="font-medium">{selectedInvite.firstName || selectedInvite.username}</span>
+                  </div>
+                  <div className="truncate">{selectedInvite.email}</div>
+                </div>
               </div>
             )}
           </div>

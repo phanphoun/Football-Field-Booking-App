@@ -12,6 +12,7 @@ import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import notificationService from '../services/notificationService';
+import { useRealtime } from '../context/RealtimeContext';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -57,6 +58,7 @@ const TeamAvatar = ({ teamName, logoUrl }) => {
 
 const OwnerMatchesPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const PAGE_SIZE = 10;
   const RESULT_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
   const [bookings, setBookings] = useState([]);
@@ -89,7 +91,7 @@ const OwnerMatchesPage = () => {
       }
     };
     load();
-  }, []);
+  }, [version]);
 
   const matches = useMemo(() => {
     return bookings

@@ -18,7 +18,8 @@ if (process.env.NODE_ENV === 'development') {
       if (message.includes('chrome-extension://') || 
           message.includes('chrome-extension') ||
           message.includes('elementFromPoint') ||
-          message.includes('Failed to fetch dynamically imported module')) {
+          message.includes('Failed to fetch dynamically imported module') ||
+          message.includes('ResizeObserver loop completed with undelivered notifications')) {
         return true; // Filter out
       }
     }
@@ -38,12 +39,52 @@ if (process.env.NODE_ENV === 'development') {
   };
 }
 
+// Patch ResizeObserver to prevent loop errors
+const originalResizeObserver = window.ResizeObserver;
+window.ResizeObserver = class extends originalResizeObserver {
+  constructor(callback) {
+    super((entries, observer) => {
+      // Use requestAnimationFrame to prevent loop errors
+      requestAnimationFrame(() => {
+        try {
+          callback(entries, observer);
+        } catch (error) {
+          // Silently ignore ResizeObserver loop errors
+          if (error.message === 'ResizeObserver loop completed with undelivered notifications.') {
+            return;
+          }
+          throw error;
+        }
+      });
+    });
+  }
+};
+
+// Handle ResizeObserver error globally
+window.addEventListener('error', (event) => {
+  if (event.message === 'ResizeObserver loop completed with undelivered notifications.') {
+    event.preventDefault();
+    event.stopPropagation();
+    return false;
+  }
+});
+
+// Handle unhandled promise rejections for ResizeObserver
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message === 'ResizeObserver loop completed with undelivered notifications.') {
+    event.preventDefault();
+    return false;
+  }
+});
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
+const app = process.env.NODE_ENV === 'development' ? <App /> : (
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
+
+root.render(app);
 
 
 

@@ -1,5 +1,6 @@
 export { default as Button } from './Button';
 export { default as Badge } from './Badge';
+export { default as AnimatedStatValue } from './AnimatedStatValue';
 export { default as Card, CardBody, CardHeader } from './Card';
 export { default as ConfirmationModal } from './ConfirmationModal';
 export { DialogProvider, useDialog } from './DialogProvider';
