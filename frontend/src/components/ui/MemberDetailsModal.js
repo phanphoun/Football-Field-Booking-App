@@ -1,15 +1,8 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import ImagePreviewModal from './ImagePreviewModal';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
-
-const formatRoleLabel = (value) =>
-  String(value || 'member')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+import { buildAssetUrl } from '../../config/appConfig';
+import { formatRoleLabel } from '../../utils/formatters';
 
 const formatDate = (value) => {
   if (!value) return 'Not available';
@@ -32,12 +25,7 @@ const MemberDetailsModal = ({ member, onClose }) => {
   const profile = member.user || member;
   const fullName =
     `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || profile?.username || 'Member';
-  const rawAvatar = profile?.avatarUrl || profile?.avatar_url;
-  const avatarUrl = rawAvatar
-    ? /^https?:\/\//i.test(rawAvatar)
-      ? rawAvatar
-      : `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`
-    : `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+  const avatarUrl = buildAssetUrl(profile?.avatarUrl || profile?.avatar_url);
 
   return (
     <>
@@ -82,7 +70,7 @@ const MemberDetailsModal = ({ member, onClose }) => {
                     className="h-20 w-20 cursor-zoom-in rounded-full border border-slate-200 bg-white object-cover transition hover:scale-[1.03]"
                     onClick={() => setPreviewOpen(true)}
                     onError={(event) => {
-                      const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                      const fallbackUrl = buildAssetUrl();
                       if (event.currentTarget.src !== fallbackUrl) {
                         event.currentTarget.src = fallbackUrl;
                       }

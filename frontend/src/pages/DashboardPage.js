@@ -8,6 +8,7 @@ import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import {
+  ArrowRightIcon,
   BellAlertIcon,
   BuildingOfficeIcon,
   CalendarIcon,
@@ -310,6 +311,103 @@ const DashboardPage = () => {
       .slice(0, 6);
   }, [notifications]);
 
+  const spotlightStats = useMemo(() => {
+    if (role === 'captain') {
+      return [
+        {
+          label: 'Next booking',
+          value: upcomingBookings[0]?.field?.name || 'Nothing scheduled',
+          note: upcomingBookings[0]?.startTime ? new Date(upcomingBookings[0].startTime).toLocaleString() : 'Create a booking to get started'
+        },
+        {
+          label: 'Teams managed',
+          value: String(captainedTeams.length),
+          note: captainedTeams.length > 0 ? 'Active captain workspaces' : 'Create or captain a team'
+        },
+        {
+          label: 'Join queue',
+          value: String(joinRequestsByTeam.reduce((sum, item) => sum + item.pendingCount, 0)),
+          note: 'Requests waiting for your review'
+        }
+      ];
+    }
+
+    if (role === 'player') {
+      return [
+        {
+          label: 'Next match day',
+          value: upcomingBookings[0]?.field?.name || 'No upcoming booking',
+          note: upcomingBookings[0]?.startTime ? new Date(upcomingBookings[0].startTime).toLocaleString() : 'Watch for team activity and invites'
+        },
+        {
+          label: 'My teams',
+          value: String(myTeams.length),
+          note: myTeams.length > 0 ? 'Teams you currently belong to' : 'Join a team to unlock match activity'
+        },
+        {
+          label: 'Open invites',
+          value: String(inviteNotifications.length),
+          note: 'Unread team invitations'
+        }
+      ];
+    }
+
+    return [
+      {
+        label: 'Role queue',
+        value: String(pendingAdminRoleRequests.length),
+        note: 'Pending approvals requiring admin action'
+      },
+      {
+        label: 'Newest user',
+        value:
+          (`${recentUsers[0]?.firstName || ''} ${recentUsers[0]?.lastName || ''}`.trim() ||
+            recentUsers[0]?.username ||
+            'No recent users'),
+        note: recentUsers[0]?.createdAt ? new Date(recentUsers[0].createdAt).toLocaleString() : 'New registrations will show here'
+      },
+      {
+        label: 'Recent bookings',
+        value: String(recentBookings.length),
+        note: 'Latest activity across the platform'
+      }
+    ];
+  }, [
+    role,
+    upcomingBookings,
+    captainedTeams.length,
+    joinRequestsByTeam,
+    myTeams.length,
+    inviteNotifications.length,
+    pendingAdminRoleRequests.length,
+    recentUsers,
+    recentBookings.length
+  ]);
+
+  const quickActions = useMemo(() => {
+    if (role === 'captain') {
+      return [
+        { label: 'Create booking', helper: 'Reserve a field for your team', to: canCreateBooking ? '/app/bookings/new' : '/app/bookings' },
+        { label: 'Manage teams', helper: 'Review members and requests', to: '/app/teams' },
+        { label: 'Find fields', helper: 'Browse available venues', to: '/app/fields' }
+      ];
+    }
+
+    if (role === 'player') {
+      return [
+        { label: 'View bookings', helper: 'See your upcoming sessions', to: '/app/bookings' },
+        { label: 'Explore teams', helper: 'Join a squad or manage memberships', to: '/app/teams' },
+        { label: 'Browse fields', helper: 'Discover venues near you', to: '/app/fields' }
+      ];
+    }
+
+    return [
+      { label: 'Review role requests', helper: 'Approve captain and owner access', to: '/app/admin/role-requests' },
+      { label: 'Manage users', helper: 'Inspect platform members', to: '/app/admin/users' },
+      { label: 'Check bookings', helper: 'Monitor booking activity', to: '/app/bookings' }
+    ];
+  }, [role, canCreateBooking]);
+
   const markNotificationRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {
       isRead: true,
@@ -361,19 +459,38 @@ const DashboardPage = () => {
   return (
     <div className="space-y-8">
       <div className={`rounded-[28px] border border-slate-200 bg-gradient-to-br p-6 shadow-sm ${activeTheme.accent}`}>
-        <div className="flex items-end justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
             <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
               {activeTheme.badge}
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Dashboard</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{activeTheme.description}</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              {quickActions.map((action) => (
+                <Button
+                  key={action.label}
+                  as={Link}
+                  to={action.to}
+                  variant={action.label === quickActions[0].label ? 'primary' : 'outline'}
+                  size="sm"
+                  className={`rounded-xl px-4 ${action.label === quickActions[0].label ? 'shadow-sm shadow-emerald-600/20' : 'border-slate-300 bg-white/90'}`}
+                >
+                  {action.label}
+                  {action.label === quickActions[0].label && <ArrowRightIcon className="h-4 w-4" />}
+                </Button>
+              ))}
+            </div>
           </div>
-          {role !== 'admin' && (
-            <Badge tone="gray" className="capitalize">
-              {role || 'user'}
-            </Badge>
-          )}
+          <div className="grid w-full max-w-3xl grid-cols-1 gap-3 md:grid-cols-3">
+            {spotlightStats.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                <div className="mt-2 truncate text-lg font-bold text-slate-950">{item.value}</div>
+                <div className="mt-1 text-xs leading-5 text-slate-500">{item.note}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -399,9 +516,18 @@ const DashboardPage = () => {
 
       <Card className="overflow-hidden">
         <CardHeader className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900">
-            {role === 'captain' ? 'Pending Join Requests' : role === 'admin' ? 'Pending Role Requests' : 'Upcoming Bookings'}
-          </h3>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">
+              {role === 'captain' ? 'Pending Join Requests' : role === 'admin' ? 'Pending Role Requests' : 'Upcoming Bookings'}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {role === 'captain'
+                ? 'Keep team membership flowing by clearing request queues quickly.'
+                : role === 'admin'
+                  ? 'Recent access requests that need review from the admin side.'
+                  : 'Your next confirmed or pending sessions in chronological order.'}
+            </p>
+          </div>
           {role === 'captain' ? (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/teams')}>
               Teams
@@ -508,6 +634,98 @@ const DashboardPage = () => {
           )}
         </div>
       </Card>
+
+      {role !== 'admin' && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Recent Bookings</h3>
+                <p className="mt-1 text-sm text-slate-500">Latest booking activity connected to your account.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate('/app/bookings')}>
+                View all
+              </Button>
+            </CardHeader>
+            <div className="bg-white">
+              {recentBookings.length > 0 ? (
+                <div className="divide-y divide-slate-200">
+                  {recentBookings.slice(0, 5).map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || 'Field booking'}</div>
+                        <div className="mt-1 truncate text-xs text-slate-500">
+                          {booking.team?.name || 'No team'} | {new Date(booking.startTime).toLocaleString()}
+                        </div>
+                      </div>
+                      <Badge tone={statusTone(booking.status)} className="capitalize">
+                        {booking.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6">
+                  <EmptyState
+                    icon={CalendarIcon}
+                    title="No recent bookings"
+                    description="Once bookings are created, the latest activity will appear here."
+                  />
+                </div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <CardHeader className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">{role === 'captain' ? 'Team Snapshot' : 'Team Activity'}</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {role === 'captain'
+                    ? 'Quick view of the teams you lead and their pending workload.'
+                    : 'Your current team footprint and invitation activity.'}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate('/app/teams')}>
+                Open teams
+              </Button>
+            </CardHeader>
+            <div className="bg-white p-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {role === 'captain' ? 'Captained teams' : 'Joined teams'}
+                  </div>
+                  <div className="mt-2 text-3xl font-bold text-slate-950">
+                    {role === 'captain' ? captainedTeams.length : myTeams.length}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {role === 'captain' ? 'Teams you actively manage' : 'Teams where you are currently a member'}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {role === 'captain' ? 'Pending join requests' : 'Pending invitations'}
+                  </div>
+                  <div className="mt-2 text-3xl font-bold text-slate-950">
+                    {role === 'captain'
+                      ? joinRequestsByTeam.reduce((sum, item) => sum + item.pendingCount, 0)
+                      : inviteNotifications.length}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {role === 'captain' ? 'Players waiting for a decision' : 'Invites waiting for your response'}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">
+                {role === 'captain'
+                  ? 'Tip: clear join requests quickly to keep your squad ready for bookings and open matches.'
+                  : 'Tip: accepting invitations and tracking bookings here gives you a faster path into upcoming matches.'}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {role === 'admin' && (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

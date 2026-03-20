@@ -64,10 +64,12 @@ const authService = {
   },
 
   // Submit a role upgrade request
-  requestRoleUpgrade: async (requestedRole, note = '') => {
+  requestRoleUpgrade: async (requestedRole, note = '', paymentReference = '') => {
     return apiService.post('/auth/role-requests', {
       requestedRole,
-      note
+      note,
+      paymentAcknowledged: true,
+      paymentReference
     });
   },
 

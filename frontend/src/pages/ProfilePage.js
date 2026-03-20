@@ -18,10 +18,8 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { buildAssetUrl } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const MAX_AVATAR_SIZE_MB = 5;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 
@@ -49,9 +47,7 @@ const openNativeDatePicker = (event) => {
 
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
-  if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
-  const normalizedLogoPath = rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
-  return `${API_ORIGIN}${normalizedLogoPath}`;
+  return buildAssetUrl(rawLogo, null);
 };
 
 const ProfilePage = () => {
@@ -127,11 +123,7 @@ const ProfilePage = () => {
 
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
-    const rawAvatar = user?.avatarUrl || user?.avatar_url;
-    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
-    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-    return `${API_ORIGIN}${normalizedPath}`;
+    return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   })();
 
   const handleChange = (event) => {
@@ -260,7 +252,7 @@ const ProfilePage = () => {
                 className="h-24 w-24 cursor-zoom-in rounded-full border-4 border-emerald-100 object-cover"
                 onClick={() => setImagePreviewOpen(true)}
                 onError={(event) => {
-                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
+                  const fallbackUrl = buildAssetUrl();
                   if (event.currentTarget.src !== fallbackUrl) {
                     event.currentTarget.src = fallbackUrl;
                   }
@@ -581,3 +573,4 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+
