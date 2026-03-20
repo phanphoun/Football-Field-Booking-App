@@ -194,6 +194,9 @@ const applyLegacySchemaFixes = async (sequelize) => {
   if (await addColumnIfMissing(sequelize, 'fields', 'closureEndAt', 'DATETIME NULL')) {
     changes.push('fields.closureEndAt');
   }
+  if (await addColumnIfMissing(sequelize, 'fields', 'country', 'VARCHAR(100) NULL')) {
+    changes.push('fields.country');
+  }
 
   if (await addColumnIfMissing(sequelize, 'users', 'avatarUrl', 'VARCHAR(255) NULL')) {
     changes.push('users.avatarUrl');
