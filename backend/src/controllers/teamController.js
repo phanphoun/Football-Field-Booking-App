@@ -52,6 +52,74 @@ const getUserDisplayName = async (userId) => {
   return fullName || actor.username || 'A user';
 };
 
+const normalizeShirtColor = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+
+  const normalized = String(value).trim().toUpperCase();
+  if (!normalized) return null;
+
+  return normalized.startsWith('#') ? normalized : `#${normalized}`;
+};
+
+const normalizeJerseyColors = (values) => {
+  if (values === undefined) return undefined;
+  if (values === null) return null;
+  if (!Array.isArray(values)) return null;
+
+  const normalized = values
+    .map((value) => normalizeShirtColor(value))
+    .filter((value) => /^#[0-9A-F]{6}$/i.test(String(value || '')));
+
+  return Array.from(new Set(normalized)).slice(0, 5);
+};
+
+const resolveTeamJerseyColors = (payload) => {
+  const normalizedList = normalizeJerseyColors(payload?.jerseyColors);
+  if (normalizedList !== undefined) {
+    return normalizedList && normalizedList.length > 0 ? normalizedList : null;
+  }
+
+  const normalizedSingle = normalizeShirtColor(payload?.shirtColor);
+  if (normalizedSingle && /^#[0-9A-F]{6}$/i.test(normalizedSingle)) {
+    return [normalizedSingle];
+  }
+
+  return undefined;
+};
+
+const attachMemberCounts = async (teams = []) => {
+  if (!Array.isArray(teams) || teams.length === 0) return [];
+
+  const teamIds = teams.map((team) => Number(team.id)).filter(Boolean);
+  const memberCountRows = await TeamMember.findAll({
+    where: {
+      teamId: { [Op.in]: teamIds },
+      status: 'active',
+      isActive: true
+    },
+    attributes: [
+      'teamId',
+      [sequelize.fn('COUNT', sequelize.col('userId')), 'memberCount']
+    ],
+    group: ['teamId'],
+    raw: true
+  });
+
+  const memberCountByTeamId = memberCountRows.reduce((acc, row) => {
+    acc[Number(row.teamId)] = Number(row.memberCount || 0);
+    return acc;
+  }, {});
+
+  return teams.map((team) => {
+    const teamJson = team?.toJSON ? team.toJSON() : team;
+    return {
+      ...teamJson,
+      memberCount: memberCountByTeamId[Number(teamJson.id)] || 0
+    };
+  });
+};
+
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
@@ -65,7 +133,9 @@ const getAllTeams = asyncHandler(async (req, res) => {
     ...(offset ? { offset } : {})
   });
 
-  res.json({ success: true, data: teams });
+  const teamsWithMemberCounts = includeDetails ? teams : await attachMemberCounts(teams);
+
+  res.json({ success: true, data: teamsWithMemberCounts });
 });
 
 const getTeamById = asyncHandler(async (req, res) => {
@@ -105,7 +175,9 @@ const getMyTeams = asyncHandler(async (req, res) => {
     order: [['createdAt', 'DESC']]
   });
 
-  res.json({ success: true, data: teams });
+  const teamsWithMemberCounts = await attachMemberCounts(teams);
+
+  res.json({ success: true, data: teamsWithMemberCounts });
 });
 
 const getCaptainedTeams = asyncHandler(async (req, res) => {
@@ -115,7 +187,9 @@ const getCaptainedTeams = asyncHandler(async (req, res) => {
     order: [['createdAt', 'DESC']]
   });
 
-  res.json({ success: true, data: teams });
+  const teamsWithMemberCounts = await attachMemberCounts(teams);
+
+  res.json({ success: true, data: teamsWithMemberCounts });
 });
 
 const getMyInvitations = asyncHandler(async (req, res) => {
@@ -139,7 +213,9 @@ const getMyInvitations = asyncHandler(async (req, res) => {
     .map((invitation) => invitation.team)
     .filter(Boolean);
 
-  res.json({ success: true, data: inviteTeams });
+  const inviteTeamsWithMemberCounts = await attachMemberCounts(inviteTeams);
+
+  res.json({ success: true, data: inviteTeamsWithMemberCounts });
 });
 
 const createTeam = asyncHandler(async (req, res) => {
@@ -147,6 +223,8 @@ const createTeam = asyncHandler(async (req, res) => {
 
   try {
     const { name, description, skillLevel, maxPlayers, homeFieldId, logoUrl, isActive } = req.body;
+    const jerseyColors = resolveTeamJerseyColors(req.body);
+    const shirtColor = jerseyColors?.[0] || normalizeShirtColor(req.body.shirtColor);
 
     const team = await Team.create({
       name,
@@ -155,6 +233,8 @@ const createTeam = asyncHandler(async (req, res) => {
       maxPlayers,
       homeFieldId,
       logoUrl,
+      shirtColor,
+      jerseyColors,
       isActive,
       captainId: req.user.id
     }, { transaction });
@@ -193,6 +273,15 @@ const updateTeam = asyncHandler(async (req, res) => {
     const updateData = {};
     for (const key of updatableFields) {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
+    }
+    const jerseyColors = resolveTeamJerseyColors(req.body);
+    if (jerseyColors !== undefined) {
+      updateData.jerseyColors = jerseyColors;
+      updateData.shirtColor = Array.isArray(jerseyColors) && jerseyColors.length > 0 ? jerseyColors[0] : null;
+    } else if (req.body.shirtColor !== undefined) {
+      const normalizedColor = normalizeShirtColor(req.body.shirtColor);
+      updateData.shirtColor = normalizedColor;
+      updateData.jerseyColors = normalizedColor ? [normalizedColor] : null;
     }
 
     const updatedTeam = await team.update(updateData);
@@ -413,8 +502,28 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       [Op.or]: [{ homeTeamId: teamId }, { awayTeamId: teamId }]
     },
     include: [
-      { model: Team, as: 'homeTeam', attributes: ['id', 'name'] },
-      { model: Team, as: 'awayTeam', attributes: ['id', 'name'] },
+      {
+        model: Team,
+        as: 'homeTeam',
+        attributes: ['id', 'name', 'logoUrl'],
+        include: [{
+          model: User,
+          as: 'captain',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role'],
+          required: false
+        }]
+      },
+      {
+        model: Team,
+        as: 'awayTeam',
+        attributes: ['id', 'name', 'logoUrl'],
+        include: [{
+          model: User,
+          as: 'captain',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role'],
+          required: false
+        }]
+      },
       { model: Booking, as: 'booking', attributes: ['startTime', 'fieldId'], include: [{ model: Field, as: 'field', attributes: ['id', 'name'], required: false }], required: false }
     ],
     order: [['recordedAt', 'DESC']]
@@ -433,7 +542,25 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     return {
       id: match.id,
       bookingId: match.bookingId,
+      fieldId: match.booking?.fieldId || match.booking?.field?.id || null,
+      teamName: isHome ? match.homeTeam?.name || 'Unknown Team' : match.awayTeam?.name || 'Unknown Team',
+      teamLogoUrl: isHome ? match.homeTeam?.logoUrl || null : match.awayTeam?.logoUrl || null,
+      teamCaptain: isHome ? match.homeTeam?.captain || null : match.awayTeam?.captain || null,
+      teamCaptainName:
+        isHome
+          ? `${match.homeTeam?.captain?.firstName || ''} ${match.homeTeam?.captain?.lastName || ''}`.trim() ||
+            match.homeTeam?.captain?.username ||
+            'Unknown captain'
+          : `${match.awayTeam?.captain?.firstName || ''} ${match.awayTeam?.captain?.lastName || ''}`.trim() ||
+            match.awayTeam?.captain?.username ||
+            'Unknown captain',
       opponentTeamName: opponentTeam?.name || 'Unknown Team',
+      opponentTeamLogoUrl: opponentTeam?.logoUrl || null,
+      opponentCaptain: opponentTeam?.captain || null,
+      opponentCaptainName:
+        `${opponentTeam?.captain?.firstName || ''} ${opponentTeam?.captain?.lastName || ''}`.trim() ||
+        opponentTeam?.captain?.username ||
+        'Unknown captain',
       date: match.booking?.startTime || match.recordedAt || match.createdAt,
       fieldName: match.booking?.field?.name || null,
       finalScore: `${myScore}-${opponentScore}`,

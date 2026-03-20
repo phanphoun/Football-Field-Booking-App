@@ -11,6 +11,12 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
     name: team.name,
     description: team.description,
     skillLevel: team.skillLevel,
+    shirtColor: team.shirtColor || team.shirt_color || null,
+    jerseyColors: Array.isArray(team.jerseyColors || team.jersey_colors)
+      ? team.jerseyColors || team.jersey_colors
+      : team.shirtColor || team.shirt_color
+      ? [team.shirtColor || team.shirt_color]
+      : [],
     maxPlayers: team.maxPlayers,
     logoUrl: team.logoUrl || team.logo_url || team.logo || null,
     captainId: team.captainId,
@@ -91,6 +97,8 @@ const getPublicTeams = async (req, res) => {
         'name',
         'description',
         'skillLevel',
+        'shirtColor',
+        'jerseyColors',
         'maxPlayers',
         'logoUrl',
         'captainId',
@@ -142,6 +150,8 @@ const getPublicTeamById = async (req, res) => {
         'name',
         'description',
         'skillLevel',
+        'shirtColor',
+        'jerseyColors',
         'maxPlayers',
         'logoUrl',
         'captainId',

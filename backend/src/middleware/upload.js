@@ -38,6 +38,11 @@ const FILE_SIGNATURES = {
 };
 
 const validateFileSignature = (buffer, mimetype) => {
+  if (mimetype === 'image/svg+xml') {
+    const content = buffer.toString('utf8').trim().toLowerCase();
+    return content.includes('<svg') && !content.includes('<script');
+  }
+
   const signatures = FILE_SIGNATURES[mimetype];
   if (!signatures) return false;
 
@@ -69,7 +74,9 @@ const validateUploadedFile = (req, res, next) => {
 
   try {
     const buffer = fs.readFileSync(filePath);
-    const isValid = validateFileSignature(buffer.slice(0, 10), mimetype);
+    const isValid = mimetype === 'image/svg+xml'
+      ? validateFileSignature(buffer, mimetype)
+      : validateFileSignature(buffer.slice(0, 10), mimetype);
 
     if (!isValid) {
       // Delete the invalid file

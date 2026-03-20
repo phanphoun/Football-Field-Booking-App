@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import userService from '../services/userService';
-import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
@@ -204,19 +204,19 @@ const AdminUsersPage = () => {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Total</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{stats.total}</p>
+          <AnimatedStatValue value={stats.total} className="mt-1 text-2xl font-bold text-gray-900" />
         </div>
         <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Active</p>
-          <p className="mt-1 text-2xl font-bold text-green-700">{stats.active}</p>
+          <AnimatedStatValue value={stats.active} className="mt-1 text-2xl font-bold text-green-700" />
         </div>
         <div className="rounded-[24px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Admins</p>
-          <p className="mt-1 text-2xl font-bold text-blue-700">{stats.admins}</p>
+          <AnimatedStatValue value={stats.admins} className="mt-1 text-2xl font-bold text-blue-700" />
         </div>
         <div className="rounded-[24px] border border-red-100 bg-gradient-to-br from-red-50 via-white to-red-100/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-500">Suspended</p>
-          <p className="mt-1 text-2xl font-bold text-red-700">{stats.suspended}</p>
+          <AnimatedStatValue value={stats.suspended} className="mt-1 text-2xl font-bold text-red-700" />
         </div>
       </div>
 

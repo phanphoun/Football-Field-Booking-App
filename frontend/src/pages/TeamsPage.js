@@ -5,6 +5,7 @@ import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroi
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { ImagePreviewModal } from '../components/ui';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -294,6 +295,7 @@ const TeamsPage = () => {
         {teams.length > 0 ? (
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+            const jerseyColors = getTeamJerseyColors(team);
 
             return (
             <div
@@ -350,6 +352,14 @@ const TeamsPage = () => {
                       </span>
                     </div>
                   )}
+                  <div className="flex items-center gap-2">
+                    <span>Jersey:</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                      {jerseyColors.map((color, index) => (
+                        <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
+                      ))}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-5 flex gap-2">

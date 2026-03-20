@@ -1,5 +1,12 @@
 const rateLimit = require('express-rate-limit');
 
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+const isLocalRequest = (ip = '') => {
+  const normalizedIp = String(ip).trim();
+  return normalizedIp === '::1' || normalizedIp === '127.0.0.1' || normalizedIp === '::ffff:127.0.0.1';
+};
+
 const createRateLimiter = (windowMs, max, message) => {
   return rateLimit({
     windowMs,
@@ -10,6 +17,7 @@ const createRateLimiter = (windowMs, max, message) => {
     },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => isDevelopment && isLocalRequest(req.ip),
     handler: (req, res) => {
       console.warn('Rate limit exceeded:', {
         ip: req.ip,
@@ -24,9 +32,6 @@ const createRateLimiter = (windowMs, max, message) => {
     }
   });
 };
-
-// Environment-based rate limiting
-const isDevelopment = process.env.NODE_ENV === 'development';
 
 // General API rate limiting
 const generalLimiter = createRateLimiter(

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { ImagePreviewModal } from '../components/ui';
+import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -109,6 +110,7 @@ const PublicTeamDetailsPage = () => {
   }
 
   const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
+  const jerseyColors = getTeamJerseyColors(team);
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
 
   return (
@@ -166,6 +168,15 @@ const PublicTeamDetailsPage = () => {
               <div className="capitalize">{team.skillLevel}</div>
             </div>
           )}
+
+          <div>
+            <div className="font-medium text-gray-900">Jersey Colors</div>
+            <div className="mt-1 inline-flex items-center gap-1.5">
+              {jerseyColors.map((color, index) => (
+                <span key={`${color}-${index}`} className="h-4 w-4 rounded-full border border-gray-300" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+          </div>
 
           <div>
             <div className="font-medium text-gray-900">Team Created</div>

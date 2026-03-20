@@ -7,7 +7,6 @@ import {
   CalendarIcon,
   TrophyIcon,
   ArrowLeftIcon,
-  UserCircleIcon,
   Cog6ToothIcon,
   BellAlertIcon,
   ClipboardDocumentCheckIcon,
@@ -22,6 +21,18 @@ import { ImagePreviewModal, useToast } from '../ui';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
+const BRAND_NAME = 'អាណាចក្រភ្នំស្វាយ';
+
+const SidebarBrand = () => (
+  <div className="flex items-center gap-3">
+    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-600 text-lg font-bold text-white shadow-sm">
+      FB
+    </div>
+    <div className="khmer-brand-font min-w-0 text-[18px] font-extrabold leading-none text-slate-900">
+      {BRAND_NAME}
+    </div>
+  </div>
+);
 
 const OwnerLayout = () => {
   const { user } = useAuth();
@@ -39,18 +50,13 @@ const OwnerLayout = () => {
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
-  const profileItem = {
-    name: 'Profile',
-    href: '/owner/profile',
-    icon: UserCircleIcon,
-    current: location.pathname === '/owner/profile'
-  };
   const settingsItem = {
     name: 'Settings',
     href: '/owner/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/owner/settings'
   };
+  const profileCurrent = location.pathname === '/owner/profile';
 
   const navigation = [
     {
@@ -263,7 +269,7 @@ const OwnerLayout = () => {
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-lg font-semibold text-gray-900">Owner Panel</h1>
+            <SidebarBrand />
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -277,16 +283,16 @@ const OwnerLayout = () => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
                     item.current
-                      ? 'bg-blue-100 text-blue-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-green-100 text-green-900'
+                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
                   <item.icon
                     className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                      item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                      item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-green-700'
                     }`}
                   />
                   {item.name}
@@ -296,12 +302,12 @@ const OwnerLayout = () => {
 
             <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
-                to={profileItem.href}
+                to="/owner/profile"
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
-                  profileItem.current
-                    ? 'bg-white text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                  profileCurrent
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <img
@@ -328,15 +334,15 @@ const OwnerLayout = () => {
               <Link
                 to={settingsItem.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
                   settingsItem.current
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <settingsItem.icon
                   className={`h-5 w-5 flex-shrink-0 ${
-                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
+                    settingsItem.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
                 {settingsItem.name}
@@ -350,7 +356,7 @@ const OwnerLayout = () => {
       <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
-            <h1 className="text-lg font-semibold text-gray-900">Owner Panel</h1>
+            <SidebarBrand />
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             <nav className="flex-1 space-y-1 px-2 py-4">
@@ -358,15 +364,15 @@ const OwnerLayout = () => {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
                     item.current
-                      ? 'bg-blue-100 text-blue-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-green-100 text-green-900'
+                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   }`}
                 >
                   <item.icon
                     className={`mr-3 h-5 w-5 flex-shrink-0 ${
-                      item.current ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                      item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-green-700'
                     }`}
                   />
                   {item.name}
@@ -376,11 +382,11 @@ const OwnerLayout = () => {
 
             <div className="border-t border-gray-200 p-3 space-y-2">
               <Link
-                to={profileItem.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${
-                  profileItem.current
-                    ? 'bg-white text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                to="/owner/profile"
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                  profileCurrent
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <img
@@ -406,15 +412,15 @@ const OwnerLayout = () => {
               </Link>
               <Link
                 to={settingsItem.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
                   settingsItem.current
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-green-100 text-green-900'
+                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <settingsItem.icon
                   className={`h-5 w-5 flex-shrink-0 ${
-                    settingsItem.current ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-500'
+                    settingsItem.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
                 {settingsItem.name}
