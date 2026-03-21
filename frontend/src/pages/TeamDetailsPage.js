@@ -1633,7 +1633,6 @@ const TeamDetailsPage = () => {
                   onChange={(e) => setRatingForm((prev) => ({ ...prev, review: e.target.value }))}
                   maxLength={500}
                   rows={5}
-                  placeholder="Share your experience with this team... (e.g., great sportsmanship, very skilled players, arrived on time)"
                   className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-green-500"
                 />
                 <div className="mt-2 text-right text-xs text-slate-400">{ratingForm.review.length}/500</div>

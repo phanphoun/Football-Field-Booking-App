@@ -340,6 +340,43 @@ const OwnerMatchesPage = () => {
     }
   };
 
+  const saveMvp = async (booking) => {
+    if (booking.status !== 'completed') {
+      setError('MVP can only be selected after the match is completed.');
+      return;
+    }
+
+    const draft = resultDrafts[booking.id] || getInitialDraft(booking);
+    const selectedMvpId = draft?.mvpPlayerId ? Number(draft.mvpPlayerId) : null;
+
+    if (!booking?.matchResult?.id) {
+      setError('Please save the match result before selecting MVP.');
+      return;
+    }
+
+    if (!selectedMvpId) {
+      setError('Please choose one player to set as MVP.');
+      return;
+    }
+
+    try {
+      setSavingId(booking.id);
+      setError(null);
+      setSuccessMessage(null);
+
+      await bookingService.updateMatchResult(booking.matchResult.id, {
+        mvpPlayerId: selectedMvpId
+      });
+
+      await refresh();
+      setSuccessMessage('MVP saved successfully.');
+    } catch (err) {
+      setError(err?.error || 'Failed to save MVP');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const markMatchCompleted = async (bookingId) => {
     try {
       setSavingId(bookingId);
@@ -402,6 +439,8 @@ const OwnerMatchesPage = () => {
                 const hasResult = !!m.matchResult?.id;
                 const canEditWindow = isWithinEditWindow(m);
                 const canInputResult = m.status === 'completed' && canEditWindow;
+                const canOpenCard = m.status === 'completed';
+                const canSetMvp = m.status === 'completed' && hasResult;
                 const homeTeamName = m.team?.name || 'Home Team';
                 const awayTeamName = m.opponentTeam?.name || 'Away Team';
                 const homeTeamLogo = teamLogosById[m.team?.id] ?? resolveTeamLogoUrl(m.team);
@@ -424,9 +463,9 @@ const OwnerMatchesPage = () => {
                   <div key={m.id} className="p-4">
                     <button
                       type="button"
-                      onClick={() => canInputResult && handleCardClick(m)}
+                      onClick={() => canOpenCard && handleCardClick(m)}
                       className={`w-full text-left rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                        canInputResult ? 'hover:border-blue-200 hover:shadow-md cursor-pointer' : 'opacity-90 cursor-not-allowed'
+                        canOpenCard ? 'hover:border-blue-200 hover:shadow-md cursor-pointer' : 'opacity-90 cursor-not-allowed'
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -470,7 +509,9 @@ const OwnerMatchesPage = () => {
                         <div className="mt-2 text-xs text-amber-700">
                           {m.status !== 'completed'
                             ? 'Input is locked until this match is marked completed.'
-                            : 'Result editing is locked after 24 hours.'}
+                            : hasResult
+                            ? 'Result editing is locked after 24 hours, but MVP can still be managed below.'
+                            : 'Save the match result first, then set MVP.'}
                         </div>
                       )}
                     </button>
@@ -503,6 +544,7 @@ const OwnerMatchesPage = () => {
                               value={draft.homeScore}
                               onChange={(e) => updateDraft(m.id, 'homeScore', e.target.value)}
                               className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                              disabled={!canInputResult}
                             />
                           </div>
                           <div>
@@ -513,6 +555,7 @@ const OwnerMatchesPage = () => {
                               value={draft.awayScore}
                               onChange={(e) => updateDraft(m.id, 'awayScore', e.target.value)}
                               className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                              disabled={!canInputResult}
                             />
                           </div>
                         </div>
@@ -523,17 +566,18 @@ const OwnerMatchesPage = () => {
                             value={draft.matchNotes}
                             onChange={(e) => updateDraft(m.id, 'matchNotes', e.target.value)}
                             className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                            disabled={!canInputResult}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-700">MVP (optional)</label>
+                          <label className="block text-xs font-medium text-gray-700">MVP Player</label>
                           <select
                             value={draft.mvpPlayerId ?? ''}
                             onChange={(e) => updateDraft(m.id, 'mvpPlayerId', e.target.value)}
                             className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                            disabled={eligiblePlayersLoadingMap[m.id]}
+                            disabled={eligiblePlayersLoadingMap[m.id] || !canSetMvp}
                           >
-                            <option value="">No MVP selected</option>
+                            <option value="">{hasResult ? 'Select one player' : 'Save result first'}</option>
                             {eligiblePlayers.map((player) => {
                               const fullName = `${player.firstName || ''} ${player.lastName || ''}`.trim();
                               const label = fullName || player.username || `Player #${player.id}`;
@@ -552,12 +596,21 @@ const OwnerMatchesPage = () => {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button size="sm" disabled={isSaving} onClick={() => saveResult(m)}>
+                          <Button size="sm" disabled={isSaving || !canInputResult} onClick={() => saveResult(m)}>
                             {isSaving ? 'Saving...' : hasResult ? 'Update Result' : 'Save Result'}
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={isSaving || !canSetMvp} onClick={() => saveMvp(m)}>
+                            {isSaving ? 'Saving...' : m?.matchResult?.mvpPlayerId ? 'Update MVP' : 'Set MVP'}
                           </Button>
                           <Button size="sm" variant="outline" disabled={isSaving} onClick={() => setActiveCardId(null)}>
                             Cancel
                           </Button>
+                          {!canInputResult && canSetMvp && (
+                            <span className="text-xs text-gray-600 inline-flex items-center gap-1">
+                              <CheckCircleIcon className="h-4 w-4" />
+                              Score editing is locked, but MVP is still available.
+                            </span>
+                          )}
                           {m.status === 'confirmed' && (
                             <span className="text-xs text-gray-600 inline-flex items-center gap-1">
                               <CheckCircleIcon className="h-4 w-4" />
