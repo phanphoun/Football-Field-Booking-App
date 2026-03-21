@@ -2,11 +2,11 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-<<<<<<< HEAD
   {
     model: Field,
     as: 'field',
     attributes: [
+      'id',
       'name',
       'address',
       'pricePerHour',
@@ -17,9 +17,6 @@ const BOOKING_BASE_INCLUDE = [
       'closureEndAt'
     ]
   },
-=======
-  { model: Field, as: 'field', attributes: ['id', 'name', 'address', 'pricePerHour', 'discountPercent'] },
->>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
   {
     model: Team,
     as: 'team',
@@ -47,7 +44,6 @@ const BOOKING_BASE_INCLUDE = [
     required: false
   },
   { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
-<<<<<<< HEAD
   {
     model: MatchResult,
     as: 'matchResult',
@@ -55,9 +51,6 @@ const BOOKING_BASE_INCLUDE = [
     include: [{ model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'firstName', 'lastName'], required: false }],
     required: false
   },
-=======
-  { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
->>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
@@ -648,12 +641,8 @@ const updateBookingStatus = async (req, res) => {
         { model: Field, as: 'field' },
         { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] },
         { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }
-<<<<<<< HEAD
-      ]
-=======
       ],
       transaction
->>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
     });
 
     if (!booking) {
@@ -763,24 +752,18 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-<<<<<<< HEAD
     const updatePayload = { status };
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      updatePayload.ownerRevenueLocked = true;
+    }
+    if (status === 'cancelled' && previousStatus === 'confirmed') {
+      updatePayload.ownerRevenueLocked = true;
+    }
     if (hasScheduleUpdate) {
       updatePayload.startTime = nextStartTime;
       updatePayload.endTime = nextEndTime;
     }
-    await booking.update(updatePayload);
-=======
-    const bookingUpdate = { status };
-    if (status === 'confirmed' && previousStatus !== 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
-    }
-    if (status === 'cancelled' && previousStatus === 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
-    }
-
-    await booking.update(bookingUpdate, { transaction });
->>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
+    await booking.update(updatePayload, { transaction });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
@@ -846,12 +829,8 @@ const updateBookingStatus = async (req, res) => {
           status: 'pending',
           [Op.and]: [{ startTime: { [Op.lt]: nextEndTime } }, { endTime: { [Op.gt]: nextStartTime } }]
         },
-<<<<<<< HEAD
-        include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }]
-=======
         include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }],
         transaction
->>>>>>> c6528a2aa074be7b4c4b29f0bcb0e1851b81dee1
       });
 
       if (overlappingPending.length > 0) {
