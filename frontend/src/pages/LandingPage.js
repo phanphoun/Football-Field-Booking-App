@@ -603,6 +603,9 @@ const LandingPage = () => {
       .map((booking) => {
         const start = formatHHMM(booking.startTime);
         const end = formatHHMM(booking.endTime);
+        const homeTeamName = booking.teamName || booking?.team?.name || 'Booked Slot';
+        const opponentTeamName = booking?.opponentTeam?.name || null;
+        const teamDisplay = opponentTeamName ? `${homeTeamName} vs ${opponentTeamName}` : homeTeamName;
         const isOwnBooking =
           Number(booking?.createdBy) === Number(user?.id) ||
           Number(booking?.team?.captainId) === Number(user?.id);
@@ -612,7 +615,7 @@ const LandingPage = () => {
           bookingId: booking.id,
           status: booking.status,
           fieldKey: booking.fieldId,
-          team: booking.teamName || booking?.team?.name || 'Booked Slot',
+          team: teamDisplay,
           start,
           end,
           startMinutes: parseSlotToMinutes(start),

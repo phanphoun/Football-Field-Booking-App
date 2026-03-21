@@ -5,7 +5,8 @@ const { Field, Booking } = require('../models');
 const { Op } = require('sequelize');
 const serverConfig = require('../config/serverConfig');
 
-const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
+// A field is considered "booked" for UI availability only during an active confirmed slot.
+const ACTIVE_BOOKING_STATUSES = ['confirmed'];
 
 const getBookedFieldIds = async (fieldIds = []) => {
   if (!Array.isArray(fieldIds) || fieldIds.length === 0) {
@@ -17,6 +18,7 @@ const getBookedFieldIds = async (fieldIds = []) => {
     where: {
       fieldId: { [Op.in]: fieldIds },
       status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+      startTime: { [Op.lte]: new Date() },
       endTime: { [Op.gt]: new Date() }
     },
     group: ['fieldId'],
@@ -31,8 +33,32 @@ const attachEffectiveFieldStatus = (field, bookedFieldIds) => {
   if (!payload) return payload;
 
   const baseStatus = String(payload.status || 'available').toLowerCase();
+  let effectiveBaseStatus = baseStatus;
+
+  // Respect closure window timing: if status is unavailable/maintenance but the
+  // current time is outside the configured window, treat as available.
+  if (baseStatus !== 'available') {
+    const nowMs = Date.now();
+    const closureStart = payload.closureStartAt ? new Date(payload.closureStartAt) : null;
+    const closureEnd = payload.closureEndAt ? new Date(payload.closureEndAt) : null;
+    const closureStartMs = closureStart && !Number.isNaN(closureStart.getTime()) ? closureStart.getTime() : null;
+    const closureEndMs = closureEnd && !Number.isNaN(closureEnd.getTime()) ? closureEnd.getTime() : null;
+    const hasWindow = closureStartMs !== null || closureEndMs !== null;
+
+    if (hasWindow) {
+      const inWindow =
+        (closureStartMs === null || nowMs >= closureStartMs) &&
+        (closureEndMs === null || nowMs < closureEndMs);
+      if (!inWindow) {
+        effectiveBaseStatus = 'available';
+      }
+    }
+  }
+
   const effectiveStatus =
-    baseStatus === 'available' && bookedFieldIds.has(Number(payload.id)) ? 'booked' : baseStatus;
+    effectiveBaseStatus === 'available' && bookedFieldIds.has(Number(payload.id))
+      ? 'booked'
+      : effectiveBaseStatus;
 
   return {
     ...payload,
@@ -41,14 +67,19 @@ const attachEffectiveFieldStatus = (field, bookedFieldIds) => {
 };
 
 const isManagedFieldImagePath = (imagePath) =>
-  typeof imagePath === 'string' && imagePath.startsWith('/uploads/fields/');
+  typeof imagePath === 'string' &&
+  (imagePath.startsWith('/uploads/field/') || imagePath.startsWith('/uploads/fields/'));
 
 const getCandidateImagePaths = (imagePath) => {
   if (!isManagedFieldImagePath(imagePath)) return [];
   const relative = imagePath.slice(1);
+  const fileName = path.basename(relative);
   return [
     path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', relative),
-    path.resolve(__dirname, '..', '..', 'uploads', 'fields', path.basename(relative))
+    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'uploads', 'field', fileName),
+    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'uploads', 'fields', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', 'field', fileName),
+    path.resolve(__dirname, '..', '..', 'uploads', 'fields', fileName)
   ];
 };
 
@@ -65,9 +96,31 @@ const removeFieldImageFile = (imagePath) => {
   });
 };
 
-const resolvePrimaryFieldImagePath = (imagePath) => {
-  if (!isManagedFieldImagePath(imagePath)) return null;
-  return path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', imagePath.slice(1));
+const removeTemporaryUploadFiles = (files = []) => {
+  files.forEach((file) => {
+    const absolutePath = file?.path;
+    if (!absolutePath) return;
+
+    try {
+      if (fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+      }
+    } catch (error) {
+      console.warn(`Failed to remove temporary upload file at ${absolutePath}:`, error.message);
+    }
+  });
+};
+
+const normalizeUploadedFieldFiles = (filesPayload) => {
+  if (Array.isArray(filesPayload)) {
+    return filesPayload;
+  }
+
+  if (!filesPayload || typeof filesPayload !== 'object') {
+    return [];
+  }
+
+  return ['images', 'image'].flatMap((key) => (Array.isArray(filesPayload[key]) ? filesPayload[key] : []));
 };
 
 const normalizeClosureMessage = (value) => {
@@ -85,16 +138,29 @@ const normalizeOptionalDate = (value) => {
 const getFields = async (req, res) => {
   try {
     const where = { isArchived: false };
-    if (req.query.status) {
-      where.status = req.query.status;
-    }
     if (req.query.city) {
       where.city = req.query.city;
     }
 
-    const fields = await Field.findAll({ where });
+    const fields = await Field.findAll({
+      where,
+      include: [
+        {
+          association: 'owner',
+          attributes: ['id', 'username', 'firstName', 'lastName'],
+          required: false
+        }
+      ]
+    });
     const bookedFieldIds = await getBookedFieldIds(fields.map((field) => field.id));
-    res.json({ success: true, data: fields.map((field) => attachEffectiveFieldStatus(field, bookedFieldIds)) });
+    const effectiveFields = fields.map((field) => attachEffectiveFieldStatus(field, bookedFieldIds));
+    const requestedStatus = String(req.query.status || '').toLowerCase();
+    const filteredFields =
+      requestedStatus
+        ? effectiveFields.filter((field) => String(field?.status || '').toLowerCase() === requestedStatus)
+        : effectiveFields;
+
+    res.json({ success: true, data: filteredFields });
   } catch (error) {
     console.error('Get fields error:', error);
     res.status(500).json({
@@ -392,7 +458,7 @@ const uploadFieldImages = async (req, res) => {
 
     const maxImageSize = serverConfig.upload.maxSize;
     const projectRoot = path.resolve(__dirname, '..', '..');
-    const uploadDir = path.resolve(projectRoot, '..', 'frontend', 'public', 'uploads', 'fields');
+    const uploadDir = path.resolve(projectRoot, '..', 'frontend', 'public', 'uploads', 'field');
     fs.mkdirSync(uploadDir, { recursive: true });
 
     const storage = multer.diskStorage({
@@ -412,7 +478,10 @@ const uploadFieldImages = async (req, res) => {
         }
         cb(null, true);
       }
-    }).array('images', 5);
+    }).fields([
+      { name: 'images', maxCount: 5 },
+      { name: 'image', maxCount: 5 }
+    ]);
 
     upload(req, res, async (err) => {
       if (err) {
@@ -422,43 +491,65 @@ const uploadFieldImages = async (req, res) => {
         return res.status(400).json({ success: false, message: err.message || 'Upload failed' });
       }
 
-      if (!Array.isArray(req.files) || req.files.length === 0) {
+      const uploadedFiles = normalizeUploadedFieldFiles(req.files);
+
+      if (uploadedFiles.length === 0) {
         return res.status(400).json({ success: false, message: 'No files uploaded' });
+      }
+
+      if (uploadedFiles.length > 5) {
+        removeTemporaryUploadFiles(uploadedFiles);
+        return res.status(400).json({ success: false, message: 'You can upload up to 5 images at a time' });
       }
 
       const currentImages = Array.isArray(field.images) ? field.images : [];
       const replaceExisting = String(req.body?.replaceExisting || '').toLowerCase() === 'true';
       let mergedImages;
 
-      if (replaceExisting) {
-        const remappedImages = req.files.map((file, index) => {
-          const oldPath = currentImages[index];
-          if (!isManagedFieldImagePath(oldPath)) {
-            return `/uploads/fields/${file.filename}`;
-          }
+        if (replaceExisting) {
+          // Remove currently referenced managed images first.
+          currentImages
+            .filter((imgPath) => isManagedFieldImagePath(imgPath))
+            .forEach((imgPath) => removeFieldImageFile(imgPath));
 
-          const targetAbs = resolvePrimaryFieldImagePath(oldPath);
-          if (!targetAbs) return `/uploads/fields/${file.filename}`;
-
-          const sourceAbs = file.path;
+          // Also clean stale files for this field id to prevent duplicates from piling up.
           try {
-            if (sourceAbs !== targetAbs) {
-              if (fs.existsSync(targetAbs)) {
-                fs.unlinkSync(targetAbs);
-              }
-              fs.renameSync(sourceAbs, targetAbs);
-            }
-            return oldPath;
+            const stalePattern = new RegExp(`^field-${field.id}-`, 'i');
+            const activeUploadFileNames = new Set(
+              uploadedFiles
+                .map((file) => String(file?.filename || '').trim())
+                .filter(Boolean)
+            );
+            const allFiles = fs.readdirSync(uploadDir);
+            allFiles
+              .filter((name) => stalePattern.test(name) && !activeUploadFileNames.has(name))
+              .forEach((name) => {
+                const abs = path.resolve(uploadDir, name);
+                if (fs.existsSync(abs)) fs.unlinkSync(abs);
+              });
           } catch {
-            return `/uploads/fields/${file.filename}`;
+            // Ignore cleanup errors and continue with uploaded files.
           }
-        });
 
-        const removedOldImages = currentImages.slice(req.files.length);
-        removedOldImages.forEach((oldPath) => removeFieldImageFile(oldPath));
-        mergedImages = remappedImages;
-      } else {
-        const newImages = req.files.map((file) => `/uploads/fields/${file.filename}`);
+          mergedImages = uploadedFiles.map((file, index) => {
+            const ext = path.extname(file.originalname || file.filename || '').toLowerCase() || '.jpg';
+            const stableName = `field-${field.id}-${index + 1}${ext}`;
+            const stableAbs = path.resolve(uploadDir, stableName);
+            const sourceAbs = file.path;
+            try {
+              if (fs.existsSync(stableAbs)) {
+                fs.unlinkSync(stableAbs);
+              }
+              if (sourceAbs !== stableAbs) {
+                fs.renameSync(sourceAbs, stableAbs);
+              }
+              return `/uploads/field/${stableName}`;
+            } catch {
+              return `/uploads/field/${file.filename}`;
+            }
+          });
+        } else {
+        const newImages = uploadedFiles.map((file) => `/uploads/field/${file.filename}`);
         mergedImages = [...currentImages, ...newImages];
       }
 

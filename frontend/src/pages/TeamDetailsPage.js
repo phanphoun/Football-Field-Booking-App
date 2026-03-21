@@ -20,11 +20,14 @@ import {
   FlagIcon,
   HandThumbUpIcon,
   UserGroupIcon,
-  StarIcon
+  StarIcon,
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { compressImageForUpload } from '../utils/imageCompression';
+import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
@@ -530,13 +533,20 @@ const TeamDetailsPage = () => {
       setActionLoading(true);
       setPageError(null);
 
+      const compressedFile = await compressImageForUpload(file, {
+        maxWidth: 900,
+        maxHeight: 900,
+        targetMaxBytes: 450 * 1024,
+        minCompressBytes: 150 * 1024
+      });
+
       if (pendingLogoPreview) {
         URL.revokeObjectURL(pendingLogoPreview);
       }
-      setPendingLogoPreview(URL.createObjectURL(file));
+      setPendingLogoPreview(URL.createObjectURL(compressedFile));
       
       const formData = new FormData();
-      formData.append('logo', file);
+      formData.append('logo', compressedFile);
 
       const response = await teamService.uploadTeamLogo(id, formData);
       if (response.success) {
@@ -565,6 +575,8 @@ const TeamDetailsPage = () => {
   const captainName = team?.captain?.firstName || team?.captain?.username || 'Unknown';
   const createdDate = team?.createdAt ? new Date(team.createdAt).toLocaleDateString() : 'Unknown';
   const teamJerseyColors = getTeamJerseyColors(team);
+  const teamHomeFieldAddress = buildLocationLabel(team?.homeField || {});
+  const teamHomeFieldLocationUrl = buildGoogleMapsLocationUrl(team?.homeField || {});
   const history = matchHistory;
   const teamRecordCards = [
     {
@@ -602,7 +614,28 @@ const TeamDetailsPage = () => {
     { label: 'Captain', value: captainName },
     { label: 'Active Members', value: `${activeMembers.length}/${team?.maxPlayers || 0}` },
     { label: 'Skill Level', value: team?.skillLevel ? team.skillLevel.charAt(0).toUpperCase() + team.skillLevel.slice(1) : 'Not set' },
-    { label: 'Home Field', value: team?.homeField?.name || 'No home field' },
+    {
+      label: 'Home Field',
+      value: team?.homeField?.name || 'No home field',
+      renderValue: team.homeField ? (
+        <div className="mt-2 space-y-2">
+          <p className="text-sm font-semibold text-gray-800">{team.homeField.name}</p>
+          {teamHomeFieldAddress && <p className="text-xs leading-5 text-gray-500">{teamHomeFieldAddress}</p>}
+          {teamHomeFieldLocationUrl && (
+            <a
+              href={teamHomeFieldLocationUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+            >
+              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+              Location
+            </a>
+          )}
+        </div>
+      ) : null
+    },
+    { label: 'Jersey Colors', value: `${teamJerseyColors.length} colors selected` },
     { label: 'Created', value: createdDate },
     { label: 'Max Players', value: team?.maxPlayers || 0 },
     { label: 'Team Status', value: team?.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active' },
@@ -622,7 +655,7 @@ const TeamDetailsPage = () => {
             ))}
           </div>
         ) : null
-    }
+      }
   ];
 
   const formatMatchDate = (match) => {
@@ -944,12 +977,22 @@ const TeamDetailsPage = () => {
       )}
 
       <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.16),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.14),_transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-5 shadow-sm sm:p-6">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-          <div className="group rounded-[28px] bg-transparent px-2 pt-0 pb-2 transition duration-200 hover:-translate-y-1">
-            <div className="text-sm font-semibold text-slate-500">Team Identity</div>
-            <h2 className="mt-1 text-2xl font-bold text-slate-950">Team Logo</h2>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+          <div className="group rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Team Identity</div>
+                <h2 className="mt-2 text-2xl font-bold text-slate-950">Team Logo</h2>
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
+                Max 5MB
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Used across team pages and member views. A square image works best.
+            </p>
 
-            <div className="relative mx-auto mt-4 flex h-[220px] w-[220px] items-center justify-center overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),rgba(240,249,255,0.9)_55%,rgba(236,253,245,0.92))] shadow-inner transition duration-200 group-hover:scale-[1.02]">
+            <div className="relative mx-auto mt-5 flex h-[200px] w-[200px] items-center justify-center overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),rgba(240,249,255,0.9)_55%,rgba(236,253,245,0.92))] shadow-inner transition duration-200 group-hover:scale-[1.02]">
               {teamLogoUrl ? (
                 <img
                   src={teamLogoUrl}
@@ -980,6 +1023,21 @@ const TeamDetailsPage = () => {
               )}
             </div>
 
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+              <span>Recommended size: 512 x 512 px</span>
+              {isCaptainOfTeam && (
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('logo-upload').click()}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
+                >
+                  <ArrowUpTrayIcon className="h-4 w-4" />
+                  Change Logo
+                </button>
+              )}
+            </div>
+
             <input
               id="logo-upload"
               type="file"
@@ -989,6 +1047,7 @@ const TeamDetailsPage = () => {
             />
           </div>
 
+          <div className="rounded-[30px] border border-white/80 bg-white/80 p-5 shadow-sm">
           <div className="space-y-5">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0 flex-1">
@@ -1044,8 +1103,21 @@ const TeamDetailsPage = () => {
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-amber-100 hover:shadow-md">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Home Field</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">{team.homeField?.name || 'No home field'}</div>
+                {teamHomeFieldAddress && <div className="mt-1 text-sm leading-5 text-slate-500">{teamHomeFieldAddress}</div>}
+                {teamHomeFieldLocationUrl && (
+                  <a
+                    href={teamHomeFieldLocationUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                    Open Location
+                  </a>
+                )}
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

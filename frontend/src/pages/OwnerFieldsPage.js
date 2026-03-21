@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { createPortal } from 'react-dom';
+import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
@@ -52,10 +52,15 @@ const normalizeImages = (imagesValue) => {
   return [];
 };
 
-const resolveFieldImageUrl = (rawImage) => {
+const resolveFieldImageUrl = (rawImage, versionToken = '') => {
   if (!rawImage) return DEFAULT_FIELD_IMAGE;
   if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-  if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+  if (String(rawImage).startsWith('/uploads/')) {
+    const baseUrl = `${API_ORIGIN}${rawImage}`;
+    if (!versionToken) return baseUrl;
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}v=${encodeURIComponent(String(versionToken))}`;
+  }
   return rawImage;
 };
 
@@ -99,25 +104,42 @@ const isOwnedByCurrentUser = (field, user) => {
   return String(ownerId) === String(userId);
 };
 
+const normalizeEditableStatus = (value) => {
+  const normalized = String(value || 'available').toLowerCase();
+  if (normalized === 'booked') return 'available';
+  if (normalized === 'maintenance' || normalized === 'unavailable' || normalized === 'available') {
+    return normalized;
+  }
+  return 'available';
+};
+
+const getApiErrorMessage = (err, fallbackMessage) => {
+  const validationErrors = Array.isArray(err?.data?.errors) ? err.data.errors : [];
+  if (validationErrors.length > 0) {
+    const first = validationErrors[0];
+    const field = first?.field ? `${first.field}: ` : '';
+    return `${field}${first?.message || 'Invalid value'}`;
+  }
+  return err?.error || fallbackMessage;
+};
+
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
+  const [statusEditingField, setStatusEditingField] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  const [imageVersionToken, setImageVersionToken] = useState(0);
   const [form, setForm] = useState(emptyForm);
 
-  const selectedField = useMemo(
-    () => fields.find((field) => Number(field.id) === Number(editingFieldId)) || null,
-    [editingFieldId, fields]
-  );
   const visibleFields = useMemo(() => fields, [fields]);
 
   const loadFields = useCallback(async () => {
@@ -151,14 +173,28 @@ const OwnerFieldsPage = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
+    setImageVersionToken(0);
     setEditingFieldId(null);
     setIsOpen(false);
+  };
+
+  const resetStatusForm = () => {
+    setStatusEditingField(null);
+    setForm((current) => ({
+      ...current,
+      status: 'available',
+      closureMessage: '',
+      closureStartAt: '',
+      closureEndAt: ''
+    }));
+    setIsStatusOpen(false);
   };
 
   const startCreate = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
+    setImageVersionToken(0);
     setEditingFieldId(null);
     setIsOpen(true);
   };
@@ -166,7 +202,8 @@ const OwnerFieldsPage = () => {
   const startEdit = (field) => {
     setEditingFieldId(field.id);
     setImageFiles([]);
-    setExistingImages(normalizeImages(field.images).map((image) => resolveFieldImageUrl(image)));
+    setExistingImages(normalizeImages(field.images));
+    setImageVersionToken(new Date(field.updatedAt || Date.now()).getTime());
     setForm({
       name: field.name || '',
       description: field.description || '',
@@ -178,7 +215,7 @@ const OwnerFieldsPage = () => {
       pricePerHour: field.pricePerHour ?? '',
       discountPercent: field.discountPercent ?? '',
       capacity: field.capacity ?? '',
-      status: field.status || 'available',
+      status: normalizeEditableStatus(field.status),
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
       amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : '',
@@ -204,9 +241,41 @@ const OwnerFieldsPage = () => {
     };
   }, [selectedImagePreviews]);
 
+  useEffect(() => {
+    if (!isOpen && !isStatusOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, isStatusOpen]);
+
   const visibleImagePreviews = selectedImagePreviews.length > 0
     ? selectedImagePreviews
-    : existingImages.map((url, index) => ({ name: `Current image ${index + 1}`, url }));
+    : existingImages.map((path, index) => ({
+        name: `Current image ${index + 1}`,
+        url: resolveFieldImageUrl(path, imageVersionToken || editingFieldId || Date.now()),
+        isCurrent: true,
+        index
+      }));
+
+  const amenitiesPreview = useMemo(
+    () => (form.amenities || '').split(',').map((item) => item.trim()).filter(Boolean).slice(0, 5),
+    [form.amenities]
+  );
+
+  const liveDiscountPercent = Math.min(100, Math.max(0, Number(form.discountPercent || 0)));
+  const liveBasePrice = Number(form.pricePerHour || 0);
+  const liveDiscountedPrice = liveBasePrice > 0
+    ? Number((liveBasePrice * (1 - liveDiscountPercent / 100)).toFixed(2))
+    : 0;
+  const modalFieldName = form.name.trim() || 'Untitled field';
+  const renderPortal = (content) => (typeof document !== 'undefined' ? createPortal(content, document.body) : null);
+  const isFormReady =
+    form.name.trim().length > 0 &&
+    Number(form.pricePerHour) > 0 &&
+    Number(form.capacity) > 0 &&
+    form.address.trim().length > 0;
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -225,8 +294,20 @@ const OwnerFieldsPage = () => {
   };
 
   const handleImageChange = (event) => {
-    const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
-    setImageFiles(nextFiles.slice(0, 5));
+    const selectedFiles = Array.from(event.target.files || []);
+    const nextFiles = selectedFiles.filter((file) => String(file.type || '').startsWith('image/'));
+    const limitedFiles = nextFiles.slice(0, 5);
+
+    if (selectedFiles.length !== nextFiles.length) {
+      showToast('Only image files can be uploaded for field photos.', { type: 'error' });
+    }
+    if (nextFiles.length > 5) {
+      showToast('You can upload up to 5 field photos at a time.', { type: 'error' });
+    }
+
+    setImageFiles(limitedFiles);
+    // Allow selecting the same file again (browser otherwise may not trigger onChange).
+    event.target.value = '';
   };
 
   const applyClosureDaysPreset = (days) => {
@@ -243,6 +324,23 @@ const OwnerFieldsPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!form.name?.trim()) {
+      showToast('name: Field name is required', { type: 'error' });
+      return;
+    }
+    if (!form.address?.trim()) {
+      showToast('address: Address is required. Please pick a location.', { type: 'error' });
+      return;
+    }
+    if (!Number.isFinite(Number(form.pricePerHour)) || Number(form.pricePerHour) < 0) {
+      showToast('pricePerHour: Price per hour must be a positive number', { type: 'error' });
+      return;
+    }
+    if (!Number.isInteger(Number(form.capacity)) || Number(form.capacity) < 1) {
+      showToast('capacity: Capacity must be a positive integer', { type: 'error' });
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -257,7 +355,7 @@ const OwnerFieldsPage = () => {
         pricePerHour: Number(form.pricePerHour),
         discountPercent: form.discountPercent === '' ? 0 : Number(form.discountPercent),
         capacity: Number(form.capacity),
-        status: form.status,
+        status: normalizeEditableStatus(form.status),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
         amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : [],
@@ -273,23 +371,46 @@ const OwnerFieldsPage = () => {
 
       if (editingFieldId) {
         await fieldService.updateField(editingFieldId, payload);
+        let uploadedCount = 0;
         if (imageFiles.length > 0) {
-          await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: true });
+          await fieldService.uploadFieldImages(editingFieldId, imageFiles, {
+            replaceExisting: true
+          });
+          uploadedCount = imageFiles.length;
         }
-        showToast('Field updated.', { type: 'success' });
+        showToast(uploadedCount > 0 ? `Field updated with ${uploadedCount} photo(s).` : 'Field updated. No new photo selected.', { type: 'success' });
       } else {
         const created = await fieldService.createField(payload);
         const createdId = created?.data?.id;
+        let uploadedCount = 0;
         if (createdId && imageFiles.length > 0) {
           await fieldService.uploadFieldImages(createdId, imageFiles);
+          uploadedCount = imageFiles.length;
         }
-        showToast('Field created.', { type: 'success' });
+        showToast(uploadedCount > 0 ? `Field created with ${uploadedCount} photo(s).` : 'Field created. Add photos any time by editing.', { type: 'success' });
       }
 
       await loadFields();
       resetForm();
     } catch (err) {
-      showToast(err?.error || 'Failed to save field', { type: 'error' });
+      showToast(getApiErrorMessage(err, 'Failed to save field'), { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCurrentImage = async (imageIndex) => {
+    if (!editingFieldId && editingFieldId !== 0) return;
+    try {
+      setSaving(true);
+      const response = await fieldService.deleteFieldImage(editingFieldId, imageIndex);
+      const nextImages = Array.isArray(response?.data?.images) ? response.data.images : [];
+      setExistingImages(nextImages);
+      setImageVersionToken(Date.now());
+      await loadFields();
+      showToast('Photo deleted.', { type: 'success' });
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to delete photo'), { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -311,32 +432,48 @@ const OwnerFieldsPage = () => {
     }
   };
 
-  const handleToggleFieldStatus = async (field) => {
-    const isCurrentlyOpen = (field?.status || 'available') === 'available';
-    const nextStatus = isCurrentlyOpen ? 'unavailable' : 'available';
+  const startStatusEdit = (field) => {
+    setStatusEditingField(field);
+    setForm((current) => ({
+      ...current,
+      status: normalizeEditableStatus(field?.status),
+      closureMessage: field?.closureMessage || '',
+      closureStartAt: toDateInputValue(field?.closureStartAt),
+      closureEndAt: toDateInputValue(field?.closureEndAt)
+    }));
+    setIsStatusOpen(true);
+  };
 
-    const confirmed = await confirm(
-      isCurrentlyOpen
-        ? `Close "${field.name}" for now? Players will not be able to create new bookings.`
-        : `Open "${field.name}" for booking again?`,
-      { title: isCurrentlyOpen ? 'Close Field' : 'Open Field' }
-    );
-    if (!confirmed) return;
+  const handleStatusSubmit = async (event) => {
+    event.preventDefault();
+    if (!statusEditingField?.id) return;
 
     try {
       setSaving(true);
+      const nextStatus = normalizeEditableStatus(form.status);
 
-      await fieldService.updateField(field.id, {
+      await fieldService.updateField(statusEditingField.id, {
+        name: statusEditingField.name,
+        address: statusEditingField.address,
+        pricePerHour: Number(statusEditingField.pricePerHour),
+        capacity: Number(statusEditingField.capacity),
+        discountPercent: Number(statusEditingField.discountPercent || 0),
         status: nextStatus,
-        closureMessage: nextStatus === 'available' ? null : field?.closureMessage || 'Temporarily closed by field owner.',
-        closureStartAt: nextStatus === 'available' ? null : new Date().toISOString(),
-        closureEndAt: nextStatus === 'available' ? null : field?.closureEndAt || null
+        closureMessage:
+          nextStatus === 'available'
+            ? null
+            : form.closureMessage?.trim()
+            ? form.closureMessage.trim()
+            : 'Temporarily closed by field owner.',
+        closureStartAt: nextStatus === 'available' ? null : toIsoOrNull(form.closureStartAt) || new Date().toISOString(),
+        closureEndAt: nextStatus === 'available' ? null : toIsoOrNull(form.closureEndAt)
       });
 
-      showToast(nextStatus === 'available' ? 'Field is now open for booking.' : 'Field is now closed for booking.', { type: 'success' });
+      showToast('Field status updated.', { type: 'success' });
       await loadFields();
+      resetStatusForm();
     } catch (err) {
-      showToast(err?.error || 'Failed to update field status', { type: 'error' });
+      showToast(getApiErrorMessage(err, 'Failed to update field status'), { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -371,31 +508,65 @@ const OwnerFieldsPage = () => {
           Add Field
         </button>
       </div>
-      {isOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/65 p-4 backdrop-blur-sm">
+      {isOpen && renderPortal(
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-5"
+          onClick={resetForm}
+        >
           <form
             onSubmit={handleSubmit}
-            className="max-h-[calc(100vh-32px)] w-full max-w-5xl overflow-y-auto rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_28px_70px_rgba(15,23,42,0.24)] md:p-8"
+            className="flex h-[min(820px,calc(100vh-24px))] w-full max-w-[1120px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:h-[min(820px,calc(100vh-40px))]"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-6 flex items-center justify-between">
+            <div className="shrink-0 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 md:px-6">
               <div>
-                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                   {editingFieldId ? 'Edit Field' : 'Create Field'}
                 </span>
-                <h2 className="mt-3 text-2xl font-bold text-gray-900">
+                <h2 className="mt-2 text-[1.9rem] font-bold leading-tight text-slate-950">
                   {editingFieldId ? 'Update Field Information' : 'Add a New Field'}
                 </h2>
+                <p className="mt-1.5 text-sm text-slate-500">
+                  Update pricing, location, amenities, and photos in one place.
+                </p>
               </div>
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close field form"
               >
-                x
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white px-5 py-3 md:px-6">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700 shadow-sm">Live Preview</span>
+                <span className="font-medium text-slate-700">{modalFieldName}</span>
+                <span className="text-slate-400">|</span>
+                <span className="font-semibold text-slate-900">{liveBasePrice > 0 ? `$${liveDiscountedPrice}/hr` : 'Set price'}</span>
+                {liveDiscountPercent > 0 && (
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {liveDiscountPercent}% OFF
+                  </span>
+                )}
+                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {form.fieldType || 'Field type'}
+                </span>
+                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {Number(form.capacity) > 0 ? `${form.capacity} players` : 'Set capacity'}
+                </span>
+              </div>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto bg-slate-50/50 px-5 py-4 md:px-6 md:py-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-3">
+              <h3 className="text-lg font-semibold text-slate-900">Field Details</h3>
+              <p className="mt-1 text-sm text-slate-500">Set the essential details players see before booking.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Name</span>
                 <input name="name" value={form.name} onChange={handleChange} placeholder="Field name" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
@@ -431,84 +602,26 @@ const OwnerFieldsPage = () => {
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Status</span>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="available">Available</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="unavailable">Unavailable</option>
-                </select>
-              </label>
-              <label className="space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Amenities</span>
                 <input name="amenities" value={form.amenities} onChange={handleChange} placeholder="parking, showers, lights" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
-              <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Field Status</span>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="available">Open</option>
-                  <option value="unavailable">Closed</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
-              </label>
+              {amenitiesPreview.length > 0 && (
+                <div className="md:col-span-2 -mt-1 flex flex-wrap gap-2">
+                  {amenitiesPreview.map((item) => (
+                    <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             </div>
 
-            {form.status !== 'available' && (
-              <div className="mt-4 space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <label className="space-y-2">
-                    <span className="block text-sm font-medium text-slate-700">Close Date</span>
-                    <input
-                      name="closureStartAt"
-                      type="date"
-                      value={form.closureStartAt}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
-                    />
-                  </label>
-                  <label className="space-y-2">
-                    <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
-                    <input
-                      name="closureEndAt"
-                      type="date"
-                      value={form.closureEndAt}
-                      min={form.closureStartAt || undefined}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
-                    />
-                  </label>
-                </div>
-                <div>
-                  <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {CLOSURE_DAY_PRESETS.map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        onClick={() => applyClosureDaysPreset(days)}
-                        className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        +{days} {days === 1 ? 'day' : 'days'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <label className="block space-y-2">
-                  <span className="block text-sm font-medium text-slate-700">Closure Message</span>
-                  <textarea
-                    name="closureMessage"
-                    value={form.closureMessage}
-                    onChange={handleChange}
-                    rows={3}
-                    maxLength={500}
-                    placeholder="Example: Closed for maintenance until 6 PM."
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3"
-                  />
-                  <span className="block text-xs text-slate-500">This message is shown to users when booking is unavailable.</span>
-                </label>
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <div className="mb-3">
+                <h3 className="text-lg font-semibold text-slate-900">Location</h3>
+                <p className="mt-1 text-sm text-slate-500">Search, click, or drag the pin to set the field location.</p>
               </div>
-            )}
-
-            <div className="mt-5">
               <FieldLocationPicker
                 value={{
                   address: form.address,
@@ -521,14 +634,14 @@ const OwnerFieldsPage = () => {
               />
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <label htmlFor="field-images" className="block text-sm font-semibold text-slate-900">
+                  <label htmlFor="field-images" className="block text-lg font-semibold text-slate-900">
                     Photos
                   </label>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Upload up to 5 images. New uploads replace the current saved photos.
+                  <p className="mt-1 text-sm text-slate-500">
+                    Upload up to 5 images. Images are compressed before upload to keep pages fast.
                   </p>
                 </div>
                 <label
@@ -548,9 +661,14 @@ const OwnerFieldsPage = () => {
                 className="sr-only"
               />
 
-              {imageFiles.length > 0 && (
+              {imageFiles.length > 0 && !editingFieldId && (
                 <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                   {imageFiles.length} new image(s) selected
+                </div>
+              )}
+              {editingFieldId && imageFiles.length > 0 && (
+                <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                  New photos are ready and will replace current photos when you click Save
                 </div>
               )}
               {imageFiles.length === 0 && existingImages.length > 0 && (
@@ -569,9 +687,21 @@ const OwnerFieldsPage = () => {
                       <img src={image.url} alt={image.name} className="h-36 w-full object-cover" />
                       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                         <p className="truncate text-xs font-medium text-slate-600">{image.name}</p>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
-                          {imageFiles.length > 0 ? 'New' : 'Current'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
+                            {imageFiles.length > 0 ? 'New' : 'Current'}
+                          </span>
+                          {image.isCurrent && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCurrentImage(image.index)}
+                              disabled={saving}
+                              className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -583,21 +713,127 @@ const OwnerFieldsPage = () => {
               )}
             </div>
 
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              rows={4}
-              placeholder="Field description"
-              className="mt-5 w-full rounded-xl border border-gray-300 px-4 py-3"
-            />
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <label className="space-y-2">
+                <span className="block text-lg font-semibold text-slate-900">Field Description</span>
+                <span className="block text-sm text-slate-500">Share what makes this field special for players and captains.</span>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Field description"
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3"
+                />
+              </label>
+            </div>
+            </div>
 
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700">
+            <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3.5 md:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-slate-500">
+                {isFormReady ? 'Ready to save' : 'Fill required details: name, price, capacity, and location'}
+              </p>
+              <div className="flex gap-3">
+                <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving || !isFormReady} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+      {isStatusOpen && renderPortal(
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleStatusSubmit}
+            className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.28)]"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">Update Field Status</h3>
+              <button type="button" onClick={resetStatusForm} className="rounded-full bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
+                Close
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{statusEditingField?.name || 'Field'}</p>
+
+            <div className="mt-4 space-y-4">
+              <label className="block space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Field Status</span>
+                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
+                  <option value="available">Open</option>
+                  <option value="unavailable">Closed</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </label>
+
+              {form.status !== 'available' && (
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700">Close Date</span>
+                      <input
+                        name="closureStartAt"
+                        type="date"
+                        value={form.closureStartAt}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
+                      <input
+                        name="closureEndAt"
+                        type="date"
+                        value={form.closureEndAt}
+                        min={form.closureStartAt || undefined}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {CLOSURE_DAY_PRESETS.map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => applyClosureDaysPreset(days)}
+                          className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          +{days} {days === 1 ? 'day' : 'days'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Closure Reason</span>
+                    <textarea
+                      name="closureMessage"
+                      value={form.closureMessage}
+                      onChange={handleChange}
+                      rows={3}
+                      maxLength={500}
+                      placeholder="Example: Field maintenance until 6 PM."
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                    <span className="block text-xs text-slate-500">This reason is shown to captains when booking is unavailable.</span>
+                  </label>
+                </>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={resetStatusForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700">
                 Cancel
               </button>
-              <button type="submit" disabled={saving} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save'}
+              <button type="submit" disabled={saving} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Status'}
               </button>
             </div>
           </form>
@@ -605,62 +841,123 @@ const OwnerFieldsPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {visibleFields.map((field) => {
-          const images = normalizeImages(field.images);
-          const coverImage = resolveFieldImageUrl(images[0]);
-          const isOwned = isOwnedByCurrentUser(field, user);
+        {visibleFields.length > 0 ? (
+          visibleFields.map((field) => {
+            const images = normalizeImages(field.images);
+            const coverImage = resolveFieldImageUrl(images[0], field.updatedAt || field.id);
+            const isOwned = isOwnedByCurrentUser(field, user);
+            const discountPercent = getDiscountPercent(field);
+            const discountedPrice = getDiscountedHourlyPrice(field);
 
-          return (
-            <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <img
-                src={coverImage}
-                alt={field.name}
-                className="h-48 w-full object-cover"
-                onError={(event) => {
-                  if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                    event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                  }
-                }}
-              />
-              <div className="space-y-3 p-5">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                  <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                    <MapPinIcon className="h-4 w-4" />
-                    {field.address}, {field.city}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>${field.pricePerHour}/hr</span>
-                  <span>{field.capacity} players</span>
-                </div>
-                {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(field)}
-                    disabled={!isOwned || saving}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <PencilSquareIcon className="h-4 w-4" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(field)}
-                    disabled={!isOwned || saving}
-                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete
-                  </button>
+            return (
+              <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <img
+                  src={coverImage}
+                  alt={field.name}
+                  className="h-48 w-full object-cover"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                    }
+                  }}
+                />
+                <div className="space-y-4 p-5">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+                      <MapPinIcon className="h-4 w-4" />
+                      {field.address}, {field.city}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex flex-col">
+                      {discountPercent > 0 ? (
+                        <>
+                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
+                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
+                        </>
+                      ) : (
+                        <span>${field.pricePerHour}/hr</span>
+                      )}
+                    </div>
+                    <span>{field.capacity} players</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                        field.status === 'available'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : field.status === 'maintenance'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}
+                    >
+                      {field.status || 'available'}
+                    </span>
+                  </div>
+
+                  {field.closureMessage && field.status !== 'available' && (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      {field.closureMessage}
+                    </p>
+                  )}
+
+                  {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
+                      <br />
+                      {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
+                    </p>
+                  )}
+
+                  {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startStatusEdit(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                        field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
+                    >
+                      {field.status === 'available' ? 'Close Field' : 'Open Field'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEdit(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      <PencilSquareIcon className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDelete(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-
-        {fields.length === 0 && (
+            );
+          })
+        ) : (
           <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center">
             <PhotoIcon className="mx-auto h-10 w-10 text-gray-400" />
             <h3 className="mt-4 text-lg font-semibold text-gray-900">No fields yet</h3>
@@ -673,3 +970,4 @@ const OwnerFieldsPage = () => {
 };
 
 export default OwnerFieldsPage;
+

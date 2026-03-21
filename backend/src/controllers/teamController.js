@@ -15,7 +15,7 @@ const getTeamBaseIncludes = () => [
   {
     model: Field,
     as: 'homeField',
-    attributes: ['id', 'name', 'address', 'city', 'province'],
+    attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
     required: false
   }
 ];

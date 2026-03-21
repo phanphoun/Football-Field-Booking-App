@@ -46,6 +46,7 @@ const AdminUsersPage = () => {
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
   const [editUser, setEditUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
+  const [viewUserLoading, setViewUserLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [editForm, setEditForm] = useState({ role: 'player', status: 'active' });
   const { confirm } = useDialog();
@@ -140,13 +141,32 @@ const AdminUsersPage = () => {
     setEditUser(null);
   };
 
-  const openViewModal = (user) => {
+  const openViewModal = async (user) => {
     if (openMenuUserId === user.id) return;
     setViewUser(user);
+    setViewUserLoading(true);
+    try {
+      const response = await userService.getUserById(user.id);
+      setViewUser(response?.data || user);
+    } catch (error) {
+      setFlash({ type: 'error', message: error.error || 'Failed to load user details.' });
+    } finally {
+      setViewUserLoading(false);
+    }
   };
 
   const closeViewModal = () => {
+    setViewUserLoading(false);
     setViewUser(null);
+  };
+
+  const getActivePlayerTeams = (user) => {
+    const teams = Array.isArray(user?.teams) ? user.teams : [];
+    return teams.filter((team) => {
+      const membership = team?.TeamMember;
+      if (!membership) return false;
+      return membership.status === 'active' && membership.isActive !== false;
+    });
   };
 
   const handleEditFormChange = (event) => {
@@ -498,6 +518,77 @@ const AdminUsersPage = () => {
                 <p className="mt-2 text-sm text-gray-700">{viewUser.address || 'No address'}</p>
               </div>
             </div>
+
+            {viewUserLoading ? (
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                Loading more details...
+              </div>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Owned Fields</p>
+                    <span className="text-xs font-semibold text-gray-500">{Array.isArray(viewUser.fields) ? viewUser.fields.length : 0}</span>
+                  </div>
+                  {Array.isArray(viewUser.fields) && viewUser.fields.length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {viewUser.fields.map((field) => (
+                        <div key={`field-${field.id}`} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
+                          <p className="font-semibold text-gray-900">{field.name}</p>
+                          <p className="text-gray-600">
+                            {field.city} · {field.fieldType} · {String(field.surfaceType || '').replace('_', ' ')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-600">No fields owned.</p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Captain Teams</p>
+                    <span className="text-xs font-semibold text-gray-500">{Array.isArray(viewUser.captainedTeams) ? viewUser.captainedTeams.length : 0}</span>
+                  </div>
+                  {Array.isArray(viewUser.captainedTeams) && viewUser.captainedTeams.length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {viewUser.captainedTeams.map((team) => (
+                        <div key={`captain-team-${team.id}`} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
+                          <p className="font-semibold text-gray-900">{team.name}</p>
+                          <p className="text-gray-600">
+                            {team.skillLevel} · {team.isActive ? 'Active' : 'Inactive'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-600">No captain teams.</p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Player Teams</p>
+                    <span className="text-xs font-semibold text-gray-500">{getActivePlayerTeams(viewUser).length}</span>
+                  </div>
+                  {getActivePlayerTeams(viewUser).length > 0 ? (
+                    <div className="mt-3 space-y-2">
+                      {getActivePlayerTeams(viewUser).map((team) => (
+                        <div key={`player-team-${team.id}`} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
+                          <p className="font-semibold text-gray-900">{team.name}</p>
+                          <p className="text-gray-600">
+                            {team.skillLevel} · {team.isActive ? 'Active' : 'Inactive'} · {team?.TeamMember?.role || 'player'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-600">No active player teams.</p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </ConfirmationModal>

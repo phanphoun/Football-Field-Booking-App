@@ -1,11 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarIcon, ClockIcon, UsersIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { useAuth } from '../context/AuthContext';
 
 const OpenMatchesPage = () => {
+  const { user } = useAuth();
+  const isCaptain = user?.role === 'captain';
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
   const [selectedTeams, setSelectedTeams] = useState({});
@@ -20,7 +23,15 @@ const OpenMatchesPage = () => {
     return String(captainedTeams[0].id);
   }, [captainedTeams]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!isCaptain) {
+      setOpenMatches([]);
+      setCaptainedTeams([]);
+      setError('This feature is available for team captains only.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -39,11 +50,11 @@ const OpenMatchesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isCaptain]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (!defaultTeamId) return;

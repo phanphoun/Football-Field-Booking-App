@@ -108,7 +108,8 @@ const TeamManagePage = () => {
   }, [jerseyColorsDraft]);
 
   useEffect(() => {
-    setJerseyColorsDraft(getTeamJerseyColors(team));
+    const existing = getTeamJerseyColors(team);
+    setJerseyColorsDraft(existing.length > 0 ? existing : [DEFAULT_JERSEY_COLOR]);
   }, [team]);
 
   useEffect(() => {
@@ -335,6 +336,10 @@ const TeamManagePage = () => {
       setError(null);
       setSuccessMessage(null);
       const normalizedColors = normalizeJerseyColors(jerseyColorsDraft);
+      if (normalizedColors.length < 1) {
+        setError('Please choose at least 1 jersey color.');
+        return;
+      }
       const response = await teamService.updateTeam(id, { jerseyColors: normalizedColors });
       if (response.success) {
         setSuccessMessage('Team jersey colors updated successfully.');

@@ -4,6 +4,7 @@ import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import { DEFAULT_JERSEY_COLOR, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
+import { compressImageForUpload } from '../utils/imageCompression';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
@@ -66,7 +67,7 @@ const TeamCreatePage = () => {
     setFormData((prev) => {
       const next = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       next[index] = normalized;
-      return { ...prev, jerseyColors: normalizeJerseyColors(next) };
+      return { ...prev, jerseyColors: next };
     });
   };
 
@@ -83,11 +84,11 @@ const TeamCreatePage = () => {
       const current = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       if (current.length <= 1) return prev;
       current.splice(index, 1);
-      return { ...prev, jerseyColors: normalizeJerseyColors(current) };
+      return { ...prev, jerseyColors: current };
     });
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -103,13 +104,20 @@ const TeamCreatePage = () => {
       return;
     }
 
+    const compressedFile = await compressImageForUpload(file, {
+      maxWidth: 900,
+      maxHeight: 900,
+      targetMaxBytes: 450 * 1024,
+      minCompressBytes: 150 * 1024
+    });
+
     setError(null);
-    setSelectedLogoFile(file);
+    setSelectedLogoFile(compressedFile);
     setLogoPreview((prev) => {
       if (prev) {
         URL.revokeObjectURL(prev);
       }
-      return URL.createObjectURL(file);
+      return URL.createObjectURL(compressedFile);
     });
   };
 
@@ -119,13 +127,19 @@ const TeamCreatePage = () => {
     setSubmitting(true);
 
     try {
+      const normalizedColors = normalizeJerseyColors(formData.jerseyColors);
+      if (normalizedColors.length < 1) {
+        setError('Please choose at least 1 jersey color.');
+        return;
+      }
+
       const payload = {
         name: formData.name,
         description: formData.description || undefined,
         skillLevel: formData.skillLevel,
         maxPlayers: Number(formData.maxPlayers) || 11,
         homeFieldId: formData.homeFieldId ? Number(formData.homeFieldId) : undefined,
-        jerseyColors: normalizeJerseyColors(formData.jerseyColors)
+        jerseyColors: normalizedColors
       };
 
       if (!payload.name || !payload.name.trim()) {
