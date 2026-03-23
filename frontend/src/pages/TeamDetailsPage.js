@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
@@ -47,10 +48,36 @@ const TeamMatchLogo = ({ teamName, logoUrl }) => {
   );
 };
 
-const formatCaptainName = (captain) => {
-  if (!captain) return 'Unknown captain';
+const formatCaptainName = (captain, text = (value) => value) => {
+  if (!captain) return text('Unknown captain', 'មិនស្គាល់ប្រធានក្រុម');
   const fullName = `${captain.firstName || ''} ${captain.lastName || ''}`.trim();
-  return fullName || captain.username || 'Unknown captain';
+  return fullName || captain.username || text('Unknown captain', 'មិនស្គាល់ប្រធានក្រុម');
+};
+
+const formatSkillLevel = (skillLevel, text) => {
+  const normalized = String(skillLevel || '').toLowerCase();
+  if (normalized === 'beginner') return text('Beginner', 'ដំបូង');
+  if (normalized === 'intermediate') return text('Intermediate', 'មធ្យម');
+  if (normalized === 'advanced') return text('Advanced', 'ខ្ពស់');
+  if (normalized === 'professional') return text('Professional', 'អាជីព');
+  return skillLevel || text('Not set', 'មិនទាន់កំណត់');
+};
+
+const formatTeamStatus = (status, text) => {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'active') return text('Active', 'សកម្ម');
+  if (normalized === 'inactive') return text('Inactive', 'មិនសកម្ម');
+  if (normalized === 'pending') return text('Pending', 'កំពុងរង់ចាំ');
+  return status || text('Active', 'សកម្ម');
+};
+
+const formatMatchOutcome = (result, text) => {
+  const normalized = String(result || '').toLowerCase();
+  if (normalized === 'win') return text('Win', 'ឈ្នះ');
+  if (normalized === 'loss') return text('Loss', 'ចាញ់');
+  if (normalized === 'draw') return text('Draw', 'ស្មើ');
+  if (normalized === 'pending') return text('Pending', 'កំពុងរង់ចាំ');
+  return result || text('Pending', 'កំពុងរង់ចាំ');
 };
 
 const MatchDetailsModal = ({
@@ -63,11 +90,13 @@ const MatchDetailsModal = ({
   fieldLabel,
   matchDate,
   matchSummary,
+  language,
   onOpenCaptain,
   onOpenOpponentCaptain,
   onClose
 }) => {
   if (!match) return null;
+  const text = (en, km) => (language === 'km' ? km : en);
 
   return (
     <div
@@ -84,10 +113,10 @@ const MatchDetailsModal = ({
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div>
             <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-200">
-              Match Details
+              {text('Match Details', 'ព័ត៌មានការប្រកួត')}
             </span>
             <h3 id="match-details-title" className="mt-3 text-2xl font-bold tracking-tight text-slate-900">
-              {teamName} vs {match?.opponentTeamName || 'Opponent'}
+              {teamName} vs {match?.opponentTeamName || text('Opponent', 'គូប្រកួត')}
             </h3>
             <p className="mt-1 text-sm text-slate-500">{matchSummary}</p>
           </div>
@@ -95,7 +124,7 @@ const MatchDetailsModal = ({
             type="button"
             onClick={onClose}
             className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Close match details"
+            aria-label={text('Close match details', 'បិទព័ត៌មានការប្រកួត')}
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -108,48 +137,48 @@ const MatchDetailsModal = ({
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <TeamMatchLogo teamName={teamName} logoUrl={teamLogoUrl} />
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Team</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Team', 'ក្រុម')}</p>
                     <p className="truncate text-base font-semibold text-slate-900">{teamName}</p>
                     <button
                       type="button"
                       onClick={() => onOpenCaptain?.()}
                       className="mt-1 truncate text-left text-xs text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
                     >
-                      Captain: {teamCaptainName}
+                      {text('Captain', 'ប្រធានក្រុម')}: {teamCaptainName}
                     </button>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Score</div>
-                  <div className="mt-1.5 text-2xl font-bold text-slate-900">{match?.finalScore || 'Pending'}</div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{text('Score', 'លទ្ធផល')}</div>
+                  <div className="mt-1.5 text-2xl font-bold text-slate-900">{match?.finalScore || text('Pending', 'កំពុងរង់ចាំ')}</div>
                 </div>
                 <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
                   <div className="min-w-0 text-right">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Opponent</p>
-                    <p className="truncate text-base font-semibold text-slate-900">{match?.opponentTeamName || 'Opponent'}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Opponent', 'គូប្រកួត')}</p>
+                    <p className="truncate text-base font-semibold text-slate-900">{match?.opponentTeamName || text('Opponent', 'គូប្រកួត')}</p>
                     <button
                       type="button"
                       onClick={() => onOpenOpponentCaptain?.()}
                       className="mt-1 truncate text-right text-xs text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
                     >
-                      Captain: {opponentCaptainName}
+                      {text('Captain', 'ប្រធានក្រុម')}: {opponentCaptainName}
                     </button>
                   </div>
-                  <TeamMatchLogo teamName={match?.opponentTeamName || 'Opponent'} logoUrl={opponentLogoUrl} />
+                  <TeamMatchLogo teamName={match?.opponentTeamName || text('Opponent', 'គូប្រកួត')} logoUrl={opponentLogoUrl} />
                 </div>
               </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Date</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Date', 'កាលបរិច្ឆេទ')}</p>
               <p className="mt-2 text-sm font-semibold text-slate-800">{matchDate}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Result</p>
-              <p className="mt-2 text-sm font-semibold text-slate-800">{match?.result || 'Pending'}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Result', 'ស្ថានភាព')}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-800">{formatMatchOutcome(match?.result, text)}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Field</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Field', 'ទីលាន')}</p>
               <div className="mt-2 text-sm font-semibold text-slate-800">
                 {match?.fieldId ? (
                   <Link
@@ -165,16 +194,16 @@ const MatchDetailsModal = ({
               </div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Summary</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Summary', 'សេចក្តីសង្ខេប')}</p>
               <p className="mt-2 text-sm text-slate-700">{matchSummary}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Booking ID</p>
-              <p className="mt-2 text-sm text-slate-700">{match?.bookingId || 'Not linked'}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Booking ID', 'លេខកក់')}</p>
+              <p className="mt-2 text-sm text-slate-700">{match?.bookingId || text('Not linked', 'មិនទាន់ភ្ជាប់')}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Match ID</p>
-              <p className="mt-2 text-sm text-slate-700">{match?.id || 'Not available'}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{text('Match ID', 'លេខការប្រកួត')}</p>
+              <p className="mt-2 text-sm text-slate-700">{match?.id || text('Not available', 'មិនមាន')}</p>
             </div>
           </div>
         </div>
@@ -185,7 +214,7 @@ const MatchDetailsModal = ({
             onClick={onClose}
             className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-teal-700"
           >
-            Close
+            {text('Close', 'បិទ')}
           </button>
         </div>
       </div>
@@ -196,6 +225,8 @@ const MatchDetailsModal = ({
 const TeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAdmin } = useAuth();
+  const { language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
   const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
@@ -503,16 +534,16 @@ const TeamDetailsPage = () => {
     }
   ];
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
-  const captainName = team.captain?.firstName || team.captain?.username || 'Unknown';
-  const createdDate = team.createdAt ? new Date(team.createdAt).toLocaleDateString() : 'Unknown';
+  const captainName = team.captain?.firstName || team.captain?.username || text('Unknown', 'មិនស្គាល់');
+  const createdDate = team.createdAt ? new Date(team.createdAt).toLocaleDateString(language === 'km' ? 'km-KH' : undefined) : text('Unknown', 'មិនស្គាល់');
   const teamJerseyColors = getTeamJerseyColors(team);
   const teamOverviewDetails = [
-    { label: 'Created', value: createdDate },
-    { label: 'Max Players', value: team.maxPlayers || 0 },
-    { label: 'Team Status', value: team.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active' },
+    { label: text('Created', 'ថ្ងៃបង្កើត'), value: createdDate },
+    { label: text('Max Players', 'ចំនួនអ្នកលេងអតិបរមា'), value: team.maxPlayers || 0 },
+    { label: text('Team Status', 'ស្ថានភាពក្រុម'), value: formatTeamStatus(team.status, text) },
     {
-      label: 'Jersey',
-      value: teamJerseyColors.length > 0 ? `${teamJerseyColors.length} color${teamJerseyColors.length === 1 ? '' : 's'}` : 'Not set',
+      label: text('Jersey', 'អាវក្រុម'),
+      value: teamJerseyColors.length > 0 ? text(`${teamJerseyColors.length} color${teamJerseyColors.length === 1 ? '' : 's'}`, `${teamJerseyColors.length} ពណ៌`) : text('Not set', 'មិនទាន់កំណត់'),
       renderValue:
         teamJerseyColors.length > 0 ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -531,12 +562,14 @@ const TeamDetailsPage = () => {
 
   const formatMatchDate = (match) => {
     const dateValue = match?.dateTime || match?.matchDate || match?.date;
-    return dateValue ? new Date(dateValue).toLocaleDateString() : 'Date unavailable';
+    return dateValue
+      ? new Date(dateValue).toLocaleDateString(language === 'km' ? 'km-KH' : 'en-US')
+      : text('Date unavailable', 'មិនមានកាលបរិច្ឆេទ');
   };
 
   const formatMatchResult = (match) => {
     if (match?.result) {
-      return match.result;
+      return formatMatchOutcome(match.result, text);
     }
 
     const ourScore = match?.teamScore ?? match?.homeScore ?? match?.scoreFor;
@@ -550,7 +583,7 @@ const TeamDetailsPage = () => {
       return match.score;
     }
 
-    return 'Pending';
+    return text('Pending', 'កំពុងរង់ចាំ');
   };
 
   const formatMatchSummary = (match) => {
@@ -566,11 +599,11 @@ const TeamDetailsPage = () => {
       return match.status;
     }
 
-    return 'Team match';
+    return text('Team match', 'ការប្រកួតក្រុម');
   };
 
   const formatMatchFieldName = (match) => {
-    return match?.fieldName || 'Field unavailable';
+    return match?.fieldName || text('Field unavailable', 'មិនមានទីលាន');
   };
 
   const getMatchTeamLogoUrl = (match) => {
@@ -581,7 +614,7 @@ const TeamDetailsPage = () => {
     return resolveTeamLogoUrl(match?.opponentTeamLogoUrl);
   };
 
-  const currentTeamCaptainName = formatCaptainName(team?.captain);
+  const currentTeamCaptainName = formatCaptainName(team?.captain, text);
 
   const openCaptainDetails = (captain) => {
     if (!captain) return;
@@ -611,16 +644,17 @@ const TeamDetailsPage = () => {
     <div className="space-y-6">
       {selectedMember && <MemberDetailsModal member={selectedMember} onClose={closeMemberDetails} />}
       {selectedMatch && (
-        <MatchDetailsModal
-          match={selectedMatch}
-          teamName={selectedMatch?.teamName || team?.name || 'This Team'}
-          teamCaptainName={currentTeamCaptainName || selectedMatch?.teamCaptainName || 'Unknown captain'}
-          opponentCaptainName={selectedMatch?.opponentCaptainName || 'Unknown captain'}
+          <MatchDetailsModal
+            match={selectedMatch}
+            teamName={selectedMatch?.teamName || team?.name || text('This Team', 'ក្រុមនេះ')}
+            teamCaptainName={currentTeamCaptainName || selectedMatch?.teamCaptainName || text('Unknown captain', 'មិនស្គាល់ប្រធានក្រុម')}
+            opponentCaptainName={selectedMatch?.opponentCaptainName || text('Unknown captain', 'មិនស្គាល់ប្រធានក្រុម')}
           teamLogoUrl={getMatchTeamLogoUrl(selectedMatch)}
           opponentLogoUrl={getMatchOpponentLogoUrl(selectedMatch)}
           fieldLabel={formatMatchFieldName(selectedMatch)}
           matchDate={formatMatchDate(selectedMatch)}
           matchSummary={formatMatchSummary(selectedMatch)}
+          language={language}
           onOpenCaptain={() => openCaptainDetails(selectedMatch?.teamCaptain || team?.captain)}
           onOpenOpponentCaptain={() => openCaptainDetails(selectedMatch?.opponentCaptain)}
           onClose={() => setSelectedMatch(null)}
@@ -635,8 +669,8 @@ const TeamDetailsPage = () => {
       <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.16),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.14),_transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-5 shadow-sm sm:p-6">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
           <div className="group rounded-[28px] bg-transparent px-2 pt-0 pb-2 transition duration-200 hover:-translate-y-1">
-            <div className="text-sm font-semibold text-slate-500">Team Identity</div>
-            <h2 className="mt-1 text-2xl font-bold text-slate-950">Team Logo</h2>
+            <div className="text-sm font-semibold text-slate-500">{text('Team Identity', 'អត្តសញ្ញាណក្រុម')}</div>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950">{text('Team Logo', 'រូបសញ្ញាក្រុម')}</h2>
 
             <div className="relative mx-auto mt-4 flex h-[220px] w-[220px] items-center justify-center overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),rgba(240,249,255,0.9)_55%,rgba(236,253,245,0.92))] shadow-inner transition duration-200 group-hover:scale-[1.02]">
               {teamLogoUrl ? (
@@ -653,7 +687,7 @@ const TeamDetailsPage = () => {
                   <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition duration-200 group-hover:scale-105 group-hover:ring-emerald-200">
                     <PhotoIcon className="h-9 w-9 text-slate-400 transition duration-200 group-hover:text-emerald-500" />
                   </div>
-                  <p className="text-sm font-medium text-slate-500">No logo</p>
+                  <p className="text-sm font-medium text-slate-500">{text('No logo', 'មិនមានរូបសញ្ញា')}</p>
                 </div>
               )}
 
@@ -681,11 +715,11 @@ const TeamDetailsPage = () => {
           <div className="space-y-5">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Team Name</div>
-                <h1 className="mt-1 break-words text-4xl font-black tracking-tight text-slate-950">{team.name || 'Unnamed team'}</h1>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{text('Team Name', 'ឈ្មោះក្រុម')}</div>
+                <h1 className="mt-1 break-words text-4xl font-black tracking-tight text-slate-950">{team.name || text('Unnamed team', 'ក្រុមមិនទាន់មានឈ្មោះ')}</h1>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Jersey Colors</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{text('Jersey Colors', 'ពណ៌អាវក្រុម')}</div>
                   <div className="inline-flex items-center gap-2">
                     {teamJerseyColors.length > 0 ? (
                       teamJerseyColors.map((color, index) => (
@@ -696,7 +730,7 @@ const TeamDetailsPage = () => {
                         />
                       ))
                     ) : (
-                      <span className="text-sm font-medium text-slate-500">No colors selected</span>
+                      <span className="text-sm font-medium text-slate-500">{text('No colors selected', 'មិនទាន់ជ្រើសពណ៌')}</span>
                     )}
                   </div>
                 </div>
@@ -717,22 +751,22 @@ const TeamDetailsPage = () => {
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Captain</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{text('Captain', 'កាពីតែន')}</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">{captainName}</div>
               </div>
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Active Members</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{text('Active Members', 'សមាជិកសកម្ម')}</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">{activeMembers.length}/{team.maxPlayers || 0}</div>
               </div>
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-violet-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Skill Level</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{text('Skill Level', 'កម្រិតជំនាញ')}</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">
-                  {team.skillLevel ? team.skillLevel.charAt(0).toUpperCase() + team.skillLevel.slice(1) : 'Not set'}
+                  {formatSkillLevel(team.skillLevel, text)}
                 </div>
               </div>
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-amber-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Home Field</div>
-                <div className="mt-2 text-base font-semibold text-slate-800">{team.homeField?.name || 'No home field'}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{text('Home Field', 'ទីលានម្ចាស់ផ្ទះ')}</div>
+                <div className="mt-2 text-base font-semibold text-slate-800">{team.homeField?.name || text('No home field', 'មិនមានទីលានម្ចាស់ផ្ទះ')}</div>
               </div>
             </div>
           </div>
@@ -751,7 +785,7 @@ const TeamDetailsPage = () => {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Overview
+              {text('Overview', 'ទិដ្ឋភាពទូទៅ')}
             </button>
             <button
               type="button"
@@ -762,7 +796,7 @@ const TeamDetailsPage = () => {
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Members
+              {text('Members', 'សមាជិក')}
             </button>
             {isCaptainOfTeam && (
               <button
@@ -770,7 +804,7 @@ const TeamDetailsPage = () => {
                 onClick={() => navigate(`/app/teams/${id}/manage`)}
                 className="border-b-2 border-transparent px-1 py-3 text-base font-semibold text-slate-500 transition hover:text-slate-700"
               >
-                Manage Team
+                {text('Manage Team', 'គ្រប់គ្រងក្រុម')}
               </button>
             )}
           </div>
@@ -780,8 +814,8 @@ const TeamDetailsPage = () => {
           <div className="space-y-6">
             <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-5">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">About This Team</h2>
-                <p className="mt-1 text-sm text-gray-500">Extra details and description that support the identity card above.</p>
+                <h2 className="text-lg font-semibold text-gray-900">{text('About This Team', 'អំពីក្រុមនេះ')}</h2>
+                <p className="mt-1 text-sm text-gray-500">{text('Extra details and description that support the identity card above.', 'ព័ត៌មានបន្ថែម និងការពិពណ៌នាដែលគាំទ្រកាតសម្គាល់ក្រុមខាងលើ។')}</p>
               </div>
 
               <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -792,8 +826,8 @@ const TeamDetailsPage = () => {
                   </div>
                 ))}
                 <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 md:col-span-2 xl:col-span-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Description</p>
-                  <p className="mt-2 text-sm leading-6 text-gray-700">{team.description || 'No team description yet.'}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{text('Description', 'ការពិពណ៌នា')}</p>
+                  <p className="mt-2 text-sm leading-6 text-gray-700">{team.description || text('No team description yet.', 'មិនទាន់មានការពិពណ៌នាក្រុមនៅឡើយទេ។')}</p>
                 </div>
               </div>
             </div>
@@ -802,11 +836,11 @@ const TeamDetailsPage = () => {
               <div className="rounded-2xl border border-gray-200 bg-white p-5 xl:col-span-2">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">Recent History</h3>
-                    <p className="mt-1 text-sm text-gray-500">Latest results, opponents, and match dates for this team.</p>
+                    <h3 className="text-base font-semibold text-gray-900">{text('Recent History', 'ប្រវត្តិថ្មីៗ')}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{text('Latest results, opponents, and match dates for this team.', 'លទ្ធផលចុងក្រោយ គូប្រកួត និងកាលបរិច្ឆេទប្រកួតរបស់ក្រុមនេះ។')}</p>
                   </div>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                    {recentMatches.length} shown
+                    {text(`${recentMatches.length} shown`, `បង្ហាញ ${recentMatches.length}`)}
                   </span>
                 </div>
 
@@ -836,28 +870,28 @@ const TeamDetailsPage = () => {
                                     logoUrl={getMatchTeamLogoUrl(match)}
                                   />
                                   <span className="truncate text-sm font-bold text-gray-900 sm:text-base">
-                                    {match?.teamName || team.name || 'This Team'}
+                                    {match?.teamName || team.name || text('This Team', 'ក្រុមនេះ')}
                                   </span>
                                 </div>
                                 <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 sm:text-sm">vs</span>
                                 <div className="flex min-w-0 flex-1 items-center gap-2">
                                   <TeamMatchLogo
-                                    teamName={match?.opponentTeamName || 'Opponent'}
+                                    teamName={match?.opponentTeamName || text('Opponent', 'គូប្រកួត')}
                                     logoUrl={getMatchOpponentLogoUrl(match)}
                                   />
                                   <span className="truncate text-sm font-bold text-gray-900 sm:text-base">
-                                    {match.opponentTeamName || 'Opponent'}
+                                    {match.opponentTeamName || text('Opponent', 'គូប្រកួត')}
                                   </span>
                                 </div>
                               </div>
                               <div className="mt-0.5 text-xs text-gray-500">{formatMatchSummary(match)}</div>
                               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
                                 <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Date</div>
+                                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">{text('Date', 'កាលបរិច្ឆេទ')}</div>
                                   <div className="mt-1 font-medium text-gray-700">{formatMatchDate(match)}</div>
                                 </div>
                                 <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Field</div>
+                                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">{text('Field', 'ទីលាន')}</div>
                                   <div className="mt-1">
                                     {match?.fieldId ? (
                                       <Link
@@ -877,15 +911,15 @@ const TeamDetailsPage = () => {
 
                             <div className="flex items-center gap-3 self-stretch">
                               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-center shadow-sm">
-                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Score</div>
+                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{text('Score', 'លទ្ធផល')}</div>
                                 <div className="mt-1.5 text-xl font-bold text-slate-900">
                                   {match.finalScore || formatMatchResult(match)}
                                 </div>
                               </div>
                               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-center shadow-sm">
-                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Result</div>
+                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{text('Result', 'ស្ថានភាព')}</div>
                                 <div className="mt-1.5 text-sm font-semibold text-slate-900">
-                                  {match.result || formatMatchResult(match)}
+                                  {formatMatchOutcome(match.result, text) || formatMatchResult(match)}
                                 </div>
                               </div>
                             </div>
@@ -895,27 +929,27 @@ const TeamDetailsPage = () => {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                      No match history recorded for this team yet.
+                      {text('No match history recorded for this team yet.', 'មិនទាន់មានប្រវត្តិការប្រកួតសម្រាប់ក្រុមនេះនៅឡើយទេ។')}
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h3 className="text-base font-semibold text-gray-900">Team Notes</h3>
-                <p className="mt-1 text-sm text-gray-500">Supporting details that are not already shown in the top summary card.</p>
+                <h3 className="text-base font-semibold text-gray-900">{text('Team Notes', 'កំណត់ចំណាំក្រុម')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{text('Supporting details that are not already shown in the top summary card.', 'ព័ត៌មានបន្ថែមដែលមិនទាន់បង្ហាញនៅក្នុងផ្ទាំងសង្ខេបខាងលើ។')}</p>
                 <div className="mt-5 space-y-4 text-sm text-gray-700">
                   <div className="flex items-center gap-3">
                     <UsersIcon className="h-5 w-5 text-gray-400" />
-                    <span>Squad capacity: {team.maxPlayers || 0} players</span>
+                    <span>{text(`Squad capacity: ${team.maxPlayers || 0} players`, `ចំនួនកីឡាករអតិបរមា: ${team.maxPlayers || 0} នាក់`)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
-                    <span>Team status: {team.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active'}</span>
+                    <span>{text('Team status', 'ស្ថានភាពក្រុម')}: {formatTeamStatus(team.status, text)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <MapPinIcon className="h-5 w-5 text-gray-400" />
-                    <span>Created on {createdDate}</span>
+                    <span>{text('Created on', 'បង្កើតនៅថ្ងៃទី')} {createdDate}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="inline-flex items-center gap-1.5">
@@ -923,10 +957,10 @@ const TeamDetailsPage = () => {
                         <span key={`${color}-${index}`} className="h-5 w-5 rounded-full border border-gray-300" style={{ backgroundColor: color }} />
                       ))}
                     </span>
-                    <span>{teamJerseyColors.length} jersey color{teamJerseyColors.length === 1 ? '' : 's'} selected</span>
+                    <span>{text(`${teamJerseyColors.length} jersey color${teamJerseyColors.length === 1 ? '' : 's'} selected`, `បានជ្រើសរើសពណ៌អាវ ${teamJerseyColors.length}`)}</span>
                   </div>
                   <div className="rounded-2xl bg-gray-50 px-4 py-4 text-sm leading-6 text-gray-600">
-                    The top summary card now holds the main identity details, and this section keeps only the extra context.
+                    {text('The top summary card now holds the main identity details, and this section keeps only the extra context.', 'ផ្ទាំងសង្ខេបខាងលើបង្ហាញព័ត៌មានសំខាន់ៗរបស់ក្រុម ហើយផ្នែកនេះរក្សាទុកតែព័ត៌មានបន្ថែមប៉ុណ្ណោះ។')}
                   </div>
                 </div>
               </div>
@@ -934,19 +968,19 @@ const TeamDetailsPage = () => {
 
             <div className="flex flex-wrap gap-3">
               {isAdminUser ? (
-                <div className="text-sm text-gray-700">Admin view of this team profile, members, and recent history.</div>
+                <div className="text-sm text-gray-700">{text('Admin view of this team profile, members, and recent history.', 'ទិដ្ឋភាពអ្នកគ្រប់គ្រងសម្រាប់ប្រវត្តិក្រុម សមាជិក និងប្រវត្តិថ្មីៗ។')}</div>
               ) : isCaptainOfTeam ? (
-                <div className="text-sm text-gray-700">You are the captain of this team.</div>
+                <div className="text-sm text-gray-700">{text('You are the captain of this team.', 'អ្នកគឺជាប្រធានក្រុមនេះ។')}</div>
               ) : isInvited ? (
                 <div className="flex flex-wrap gap-3">
-                  <div className="text-sm text-gray-700">You have been invited to join this team.</div>
+                  <div className="text-sm text-gray-700">{text('You have been invited to join this team.', 'អ្នកត្រូវបានអញ្ជើញឱ្យចូលរួមក្រុមនេះ។')}</div>
                   <button
                     onClick={handleAccept}
                     disabled={actionLoading}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow disabled:opacity-50"
                   >
                     <CheckIcon className="h-4 w-4" />
-                    {actionLoading ? '...' : 'Accept'}
+                    {actionLoading ? '...' : text('Accept', 'ទទួលយក')}
                   </button>
                   <button
                     onClick={handleDecline}
@@ -954,18 +988,18 @@ const TeamDetailsPage = () => {
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow disabled:opacity-50"
                   >
                     <XMarkIcon className="h-4 w-4" />
-                    {actionLoading ? '...' : 'Decline'}
+                    {actionLoading ? '...' : text('Decline', 'បដិសេធ')}
                   </button>
                 </div>
               ) : membership?.status === 'pending' ? (
-                <div className="text-sm text-gray-700">Join request pending approval.</div>
+                <div className="text-sm text-gray-700">{text('Join request pending approval.', 'សំណើចូលរួមកំពុងរង់ចាំការអនុម័ត។')}</div>
               ) : membership?.status === 'active' ? (
                 <button
                   onClick={handleLeave}
                   disabled={actionLoading}
                   className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                 >
-                  {actionLoading ? 'Leaving...' : 'Leave Team'}
+                  {actionLoading ? text('Leaving...', 'កំពុងចាកចេញ...') : text('Leave Team', 'ចាកចេញពីក្រុម')}
                 </button>
               ) : (
                 <button
@@ -973,7 +1007,7 @@ const TeamDetailsPage = () => {
                   disabled={actionLoading}
                   className="px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
                 >
-                  {actionLoading ? 'Requesting...' : 'Request to Join'}
+                  {actionLoading ? text('Requesting...', 'កំពុងស្នើសុំ...') : text('Request to Join', 'ស្នើសុំចូលរួម')}
                 </button>
               )}
             </div>
@@ -981,8 +1015,8 @@ const TeamDetailsPage = () => {
         ) : (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Members</h2>
-              <span className="text-xs text-gray-500">{activeMembers.length}/{team.maxPlayers} players</span>
+              <h2 className="text-sm font-semibold text-gray-900">{text('Members', 'សមាជិក')}</h2>
+              <span className="text-xs text-gray-500">{text(`${activeMembers.length}/${team.maxPlayers} players`, `${activeMembers.length}/${team.maxPlayers} អ្នកលេង`)}</span>
             </div>
             <div className="mt-3 divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
               {activeMembers.length > 0 ? (
@@ -1038,7 +1072,7 @@ const TeamDetailsPage = () => {
                   </div>
                 ))
               ) : (
-                <div className="px-4 py-6 text-sm text-gray-500 text-center">No active members yet.</div>
+                <div className="px-4 py-6 text-sm text-gray-500 text-center">{text('No active members yet.', 'មិនទាន់មានសមាជិកសកម្មនៅឡើយទេ។')}</div>
               )}
             </div>
           </div>

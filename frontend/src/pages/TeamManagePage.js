@@ -11,11 +11,12 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
-import { ImagePreviewModal, useDialog } from '../components/ui';
+import { ImagePreviewModal, useDialog, useToast } from '../components/ui';
 import { DEFAULT_JERSEY_COLOR, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -38,6 +39,9 @@ const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
+  const { showToast } = useToast();
   const { version } = useRealtime();
 
   const [team, setTeam] = useState(null);
@@ -60,6 +64,30 @@ const TeamManagePage = () => {
   const [jerseyColorsDraft, setJerseyColorsDraft] = useState([DEFAULT_JERSEY_COLOR]);
   const [activeColorIndex, setActiveColorIndex] = useState(0);
   const { confirm } = useDialog();
+
+  useEffect(() => {
+    if (!successMessage) return;
+    showToast(successMessage, { type: 'success', duration: 3200 });
+    setSuccessMessage(null);
+  }, [showToast, successMessage]);
+
+  useEffect(() => {
+    if (!error) return;
+    showToast(error, { type: 'error', duration: 3600 });
+    setError(null);
+  }, [error, showToast]);
+
+  useEffect(() => {
+    if (!inviteSuccess) return;
+    showToast(inviteSuccess, { type: 'success', duration: 3200 });
+    setInviteSuccess(null);
+  }, [inviteSuccess, showToast]);
+
+  useEffect(() => {
+    if (!inviteError) return;
+    showToast(inviteError, { type: 'error', duration: 3600 });
+    setInviteError(null);
+  }, [inviteError, showToast]);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -85,7 +113,7 @@ const TeamManagePage = () => {
         setError(null);
         await refresh();
       } catch (err) {
-        setError(err?.error || 'Failed to load team management data');
+        setError(err?.error || text('Failed to load team management data', 'មិនអាចផ្ទុកទិន្នន័យគ្រប់គ្រងក្រុមបានទេ'));
       } finally {
         setLoading(false);
       }
@@ -156,10 +184,10 @@ const TeamManagePage = () => {
       setError(null);
       setSuccessMessage(null);
       await teamService.updateMember(id, requestUserId, { status: nextStatus });
-      setSuccessMessage(nextStatus === 'active' ? 'Request approved.' : 'Request denied.');
+      setSuccessMessage(nextStatus === 'active' ? text('Request approved.', 'បានអនុម័តសំណើ។') : text('Request denied.', 'បានបដិសេធសំណើ។'));
       await refresh();
     } catch (err) {
-      setError(err?.error || 'Failed to update request');
+      setError(err?.error || text('Failed to update request', 'មិនអាចធ្វើបច្ចុប្បន្នភាពសំណើបានទេ'));
     } finally {
       setActionLoading(false);
     }
@@ -168,10 +196,10 @@ const TeamManagePage = () => {
   const handleRemoveMember = async (member) => {
     const memberName = `${member.user?.firstName || member.user?.username || 'This member'} ${member.user?.lastName || ''}`.trim();
     const confirmed = await confirm(`Are you sure you want to remove ${memberName} from this team?`, {
-      title: 'Remove Member',
-      confirmText: 'Remove',
-      cancelText: 'Cancel',
-      badgeLabel: 'Team Member',
+      title: text('Remove Member', 'ដកសមាជិកចេញ'),
+      confirmText: text('Remove', 'ដកចេញ'),
+      cancelText: text('Cancel', 'បោះបង់'),
+      badgeLabel: text('Team Member', 'សមាជិកក្រុម'),
       variant: 'danger'
     });
 
@@ -184,13 +212,13 @@ const TeamManagePage = () => {
       setError(null);
       setSuccessMessage(null);
       await teamService.removeMember(id, member.userId);
-      setSuccessMessage(`${memberName} was removed from the team.`);
+      setSuccessMessage(text(`${memberName} was removed from the team.`, `បានដក ${memberName} ចេញពីក្រុម។`));
       if (selectedMember?.userId === member.userId) {
         setSelectedMember(null);
       }
       await refresh();
     } catch (err) {
-      setError(err?.error || 'Failed to remove member');
+      setError(err?.error || text('Failed to remove member', 'មិនអាចដកសមាជិកចេញបានទេ'));
     } finally {
       setActionLoading(false);
     }
@@ -209,9 +237,9 @@ const TeamManagePage = () => {
   if (!team) {
     return (
       <div className="text-center py-12">
-        <h1 className="text-xl font-semibold text-gray-900">Team not found</h1>
+        <h1 className="text-xl font-semibold text-gray-900">{text('Team not found', 'រកមិនឃើញក្រុម')}</h1>
         <Link to="/app/teams" className="mt-4 inline-block text-green-700 hover:text-green-800">
-          Back to Teams
+          {text('Back to Teams', 'ត្រឡប់ទៅក្រុម')}
         </Link>
       </div>
     );
@@ -220,8 +248,8 @@ const TeamManagePage = () => {
   if (!isCaptainOfTeam && !isAdmin()) {
     return (
       <div className="bg-white shadow rounded-lg p-6">
-        <h1 className="text-lg font-semibold text-gray-900">Access Denied</h1>
-        <p className="mt-2 text-sm text-gray-600">Only the captain (or admin) can manage this team.</p>
+        <h1 className="text-lg font-semibold text-gray-900">{text('Access Denied', 'មិនអនុញ្ញាតឱ្យចូលប្រើ')}</h1>
+        <p className="mt-2 text-sm text-gray-600">{text('Only the captain (or admin) can manage this team.', 'មានតែកាពីតែន (ឬអ្នកគ្រប់គ្រង) ប៉ុណ្ណោះដែលអាចគ្រប់គ្រងក្រុមនេះបាន។')}</p>
       </div>
     );
   }
@@ -249,7 +277,7 @@ const TeamManagePage = () => {
   const handleInvite = async () => {
     const normalizedEmail = inviteEmail.trim().toLowerCase();
     if (!normalizedEmail) {
-      setInviteError('Player email is required');
+      setInviteError(text('Player email is required', 'ត្រូវការអ៊ីមែលអ្នកលេង'));
       return;
     }
     try {
@@ -261,14 +289,14 @@ const TeamManagePage = () => {
       };
       const response = await teamService.inviteMember(id, data);
       if (response.success) {
-        setInviteSuccess('Invitation sent');
+        setInviteSuccess(text('Invitation sent', 'បានផ្ញើការអញ្ជើញ'));
         setInviteEmail('');
         setSelectedInvite(null);
         setSuggestions([]);
         await refresh();
       }
     } catch (err) {
-      setInviteError(err?.error || 'Failed to send invitation');
+      setInviteError(err?.error || text('Failed to send invitation', 'មិនអាចផ្ញើការអញ្ជើញបានទេ'));
     } finally {
       setActionLoading(false);
     }
@@ -323,7 +351,7 @@ const TeamManagePage = () => {
       const normalizedColors = normalizeJerseyColors(jerseyColorsDraft);
       const response = await teamService.updateTeam(id, { jerseyColors: normalizedColors });
       if (response.success) {
-        setSuccessMessage('Team jersey colors updated successfully.');
+        setSuccessMessage(text('Team jersey colors updated successfully.', 'បានធ្វើបច្ចុប្បន្នភាពពណ៌អាវក្រុមដោយជោគជ័យ។'));
         setTeam((prev) =>
           prev
             ? { ...prev, jerseyColors: normalizedColors, shirtColor: normalizedColors[0] || DEFAULT_JERSEY_COLOR }
@@ -331,7 +359,7 @@ const TeamManagePage = () => {
         );
       }
     } catch (err) {
-      setError(err?.error || 'Failed to update team jersey colors');
+      setError(err?.error || text('Failed to update team jersey colors', 'មិនអាចធ្វើបច្ចុប្បន្នភាពពណ៌អាវក្រុមបានទេ'));
     } finally {
       setActionLoading(false);
     }
@@ -343,10 +371,10 @@ const TeamManagePage = () => {
 
   const handleDeleteTeam = async () => {
     const confirmed = await confirm(`Are you sure you want to delete ${team.name}? This action cannot be undone and all team data will be permanently deleted.`, {
-      title: 'Delete Team',
-      confirmText: 'Delete Team',
-      cancelText: 'Cancel',
-      badgeLabel: 'Danger Zone',
+      title: text('Delete Team', 'លុបក្រុម'),
+      confirmText: text('Delete Team', 'លុបក្រុម'),
+      cancelText: text('Cancel', 'បោះបង់'),
+      badgeLabel: text('Danger Zone', 'តំបន់គ្រោះថ្នាក់'),
       variant: 'danger'
     });
 
@@ -358,12 +386,12 @@ const TeamManagePage = () => {
       setActionLoading(true);
       setError(null);
       await teamService.deleteTeam(id);
-      setSuccessMessage('Team deleted successfully');
+      setSuccessMessage(text('Team deleted successfully', 'បានលុបក្រុមដោយជោគជ័យ'));
       setTimeout(() => {
         navigate('/app/teams');
       }, 1000);
     } catch (err) {
-      setError(err?.error || 'Failed to delete team');
+      setError(err?.error || text('Failed to delete team', 'មិនអាចលុបក្រុមបានទេ'));
     } finally {
       setActionLoading(false);
     }
@@ -377,16 +405,16 @@ const TeamManagePage = () => {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{text('Team Management', 'ការគ្រប់គ្រងក្រុម')}</h1>
             <p className="mt-1 text-sm text-gray-600">{team.name}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
                 <UsersIcon className="h-3.5 w-3.5" />
-                {activeMembers.length} Active
+                {text(`${activeMembers.length} Active`, `${activeMembers.length} សកម្ម`)}
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
                 <ClipboardDocumentListIcon className="h-3.5 w-3.5" />
-                {pendingCount} Pending
+                {text(`${pendingCount} Pending`, `${pendingCount} កំពុងរង់ចាំ`)}
               </span>
             </div>
           </div>
@@ -396,7 +424,7 @@ const TeamManagePage = () => {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Back
+              {text('Back', 'ត្រឡប់')}
             </Link>
             {isCaptainOfTeam && (
               <button
@@ -405,30 +433,19 @@ const TeamManagePage = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
               >
                 <TrashIcon className="h-4 w-4" />
-                Delete Team
+                {text('Delete Team', 'លុបក្រុម')}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-          {error}
-        </div>
-      )}
       <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/30 to-cyan-50/30 p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Team Jersey Colors</h2>
-            <p className="mt-1 text-sm text-slate-600">Set one or more colors to avoid kit clashes before a match.</p>
-            <p className="mt-1 text-xs text-slate-500">Up to 5 colors. First color is treated as primary.</p>
+            <h2 className="text-lg font-semibold text-slate-900">{text('Team Jersey Colors', 'ពណ៌អាវក្រុម')}</h2>
+            <p className="mt-1 text-sm text-slate-600">{text('Set one or more colors to avoid kit clashes before a match.', 'កំណត់ពណ៌មួយ ឬច្រើន ដើម្បីជៀសវាងពណ៌អាវដូចគ្នាមុនការប្រកួត។')}</p>
+            <p className="mt-1 text-xs text-slate-500">{text('Up to 5 colors. First color is treated as primary.', 'អាចមានរហូតដល់ ៥ ពណ៌។ ពណ៌ទីមួយត្រូវបានចាត់ទុកជាពណ៌ចម្បង។')}</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
             {currentJerseyColors.map((color, index) => (
@@ -452,7 +469,7 @@ const TeamManagePage = () => {
               onClick={() => setActiveColorIndex(index)}
             >
               <div className="inline-flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">#{index + 1}</span>
+                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">#{index + 1}</span>
                 <input
                   type="color"
                   value={color}
@@ -470,7 +487,7 @@ const TeamManagePage = () => {
                 disabled={jerseyColorsDraft.length <= 1}
                 className="inline-flex items-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
               >
-                Remove
+                 {text('Remove', 'ដកចេញ')}
               </button>
             </div>
           ))}
@@ -478,7 +495,7 @@ const TeamManagePage = () => {
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Quick Picks for Color #{activeColorIndex + 1}
+            {text(`Quick Picks for Color #${activeColorIndex + 1}`, `ជម្រើសរហ័សសម្រាប់ពណ៌ #${activeColorIndex + 1}`)}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {JERSEY_COLOR_PRESETS.map((presetColor) => (
@@ -504,7 +521,7 @@ const TeamManagePage = () => {
             disabled={jerseyColorsDraft.length >= 5}
             className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Add Color
+            {text('Add Color', 'បន្ថែមពណ៌')}
           </button>
           <button
             type="button"
@@ -512,7 +529,7 @@ const TeamManagePage = () => {
             disabled={actionLoading || !hasColorChanges}
             className="inline-flex items-center rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {actionLoading ? 'Saving...' : 'Save Colors'}
+            {actionLoading ? text('Saving...', 'កំពុងរក្សាទុក...') : text('Save Colors', 'រក្សាទុកពណ៌')}
           </button>
         </div>
       </div>
@@ -522,36 +539,24 @@ const TeamManagePage = () => {
         <div className="bg-white shadow-sm rounded-xl border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Invite Player</h2>
-              <p className="text-xs text-gray-500 mt-1">Only existing player accounts can be invited.</p>
+              <h2 className="text-sm font-semibold text-gray-900">{text('Invite Player', 'អញ្ជើញអ្នកលេង')}</h2>
+              <p className="text-xs text-gray-500 mt-1">{text('Only existing player accounts can be invited.', 'អាចអញ្ជើញបានតែគណនីអ្នកលេងដែលមានស្រាប់ប៉ុណ្ណោះ។')}</p>
             </div>
             <UserPlusIcon className="h-5 w-5 text-blue-500" />
           </div>
           <div className="p-6 space-y-4">
-            {inviteSuccess && (
-              <div className="text-sm text-green-700 inline-flex items-center gap-2">
-                <CheckCircleIcon className="h-4 w-4" />
-                {inviteSuccess}
-              </div>
-            )}
-            {inviteError && (
-              <div className="text-sm text-red-700 inline-flex items-center gap-2">
-                <XCircleIcon className="h-4 w-4" />
-                {inviteError}
-              </div>
-            )}
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
                   type="text"
                   value={inviteEmail}
                   onChange={(e) => handleInviteChange(e.target.value)}
-                  placeholder="Type player name, username, or email"
+                  placeholder={text('Type player name, username, or email', 'វាយឈ្មោះអ្នកលេង ឈ្មោះគណនី ឬអ៊ីមែល')}
                   className="w-full px-3 py-2.5 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
                 {searchingPlayers && (
                   <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded-md px-3 py-2 text-xs text-gray-500">
-                    Searching players...
+                    {text('Searching players...', 'កំពុងស្វែងរកអ្នកលេង...')}
                   </div>
                 )}
                 {suggestions.length > 0 && (
@@ -588,7 +593,7 @@ const TeamManagePage = () => {
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-50"
               >
                 <UserPlusIcon className="h-4 w-4" />
-                {actionLoading ? 'Sending...' : 'Invite'}
+                {actionLoading ? text('Sending...', 'កំពុងផ្ញើ...') : text('Invite', 'អញ្ជើញ')}
               </button>
             </div>
             {selectedInvite && (
@@ -606,7 +611,7 @@ const TeamManagePage = () => {
                 />
                 <div className="min-w-0">
                   <div className="truncate">
-                    Selected: <span className="font-medium">{selectedInvite.firstName || selectedInvite.username}</span>
+                    {text('Selected:', 'បានជ្រើសរើស:')} <span className="font-medium">{selectedInvite.firstName || selectedInvite.username}</span>
                   </div>
                   <div className="truncate">{selectedInvite.email}</div>
                 </div>
@@ -617,8 +622,8 @@ const TeamManagePage = () => {
 
         <div className="bg-white shadow-sm rounded-xl border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">Pending Requests</h2>
-            <span className="text-xs text-gray-500">{pendingCount} requests</span>
+            <h2 className="text-sm font-semibold text-gray-900">{text('Pending Requests', 'សំណើកំពុងរង់ចាំ')}</h2>
+            <span className="text-xs text-gray-500">{text(`${pendingCount} requests`, `${pendingCount} សំណើ`)}</span>
           </div>
           <div className="p-6">
             {requests.length > 0 ? (
@@ -636,7 +641,7 @@ const TeamManagePage = () => {
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
                       >
                         <CheckCircleIcon className="h-3.5 w-3.5" />
-                        Approve
+                         {text('Approve', 'អនុម័ត')}
                       </button>
                       <button
                         disabled={actionLoading}
@@ -644,24 +649,24 @@ const TeamManagePage = () => {
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                       >
                         <XCircleIcon className="h-3.5 w-3.5" />
-                        Deny
+                         {text('Deny', 'បដិសេធ')}
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-gray-500 text-center py-6">No pending requests.</div>
+               <div className="text-sm text-gray-500 text-center py-6">{text('No pending requests.', 'មិនមានសំណើកំពុងរង់ចាំទេ។')}</div>
             )}
           </div>
         </div>
 
         <div className="bg-white shadow-sm rounded-xl border border-gray-200 lg:col-span-2">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">Active Members</h2>
+             <h2 className="text-sm font-semibold text-gray-900">{text('Active Members', 'សមាជិកសកម្ម')}</h2>
             <span className="inline-flex items-center gap-1 text-xs text-gray-500">
               <UserGroupIcon className="h-4 w-4" />
-              {activeMembers.length} members
+               {text(`${activeMembers.length} members`, `${activeMembers.length} សមាជិក`)}
             </span>
           </div>
           <div className="p-6">
@@ -715,14 +720,14 @@ const TeamManagePage = () => {
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-50"
                       >
                         <TrashIcon className="h-3.5 w-3.5" />
-                        Remove
+                         {text('Remove', 'ដកចេញ')}
                       </button>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-sm text-gray-500 text-center py-6">No active members.</div>
+               <div className="text-sm text-gray-500 text-center py-6">{text('No active members.', 'មិនមានសមាជិកសកម្មទេ។')}</div>
             )}
           </div>
         </div>
@@ -730,7 +735,7 @@ const TeamManagePage = () => {
       <ImagePreviewModal
         open={Boolean(previewImage)}
         imageUrl={previewImage?.url}
-        title={previewImage?.title || 'Member photo'}
+        title={previewImage?.title || text('Member photo', 'រូបថតសមាជិក')}
         onClose={() => setPreviewImage(null)}
       />
     </div>

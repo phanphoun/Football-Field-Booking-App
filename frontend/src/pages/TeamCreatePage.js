@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '../context/LanguageContext';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import { DEFAULT_JERSEY_COLOR, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
@@ -10,6 +11,8 @@ const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 
 const TeamCreatePage = () => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
 
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,13 +93,13 @@ const TeamCreatePage = () => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Please choose an image file for the team picture.');
+      setError(text('Please choose an image file for the team picture.', 'សូមជ្រើសរើសឯកសាររូបភាពសម្រាប់រូបក្រុម។'));
       e.target.value = '';
       return;
     }
 
     if (file.size > MAX_TEAM_LOGO_SIZE_BYTES) {
-      setError(`Team picture must be smaller than ${MAX_TEAM_LOGO_SIZE_MB}MB.`);
+      setError(text(`Team picture must be smaller than ${MAX_TEAM_LOGO_SIZE_MB}MB.`, `រូបក្រុមត្រូវតូចជាង ${MAX_TEAM_LOGO_SIZE_MB}MB។`));
       e.target.value = '';
       return;
     }
@@ -141,17 +144,17 @@ const TeamCreatePage = () => {
           }
         }
 
-        let navigationState = { successMessage: 'Team created successfully!' };
+        let navigationState = { successMessage: text('Team created successfully!', 'បានបង្កើតក្រុមដោយជោគជ័យ!') };
 
         if (createdTeamId && selectedLogoFile) {
           try {
             const uploadFormData = new FormData();
             uploadFormData.append('logo', selectedLogoFile);
             await teamService.uploadTeamLogo(createdTeamId, uploadFormData);
-            navigationState = { successMessage: 'Team created successfully with team picture!' };
+            navigationState = { successMessage: text('Team created successfully with team picture!', 'បានបង្កើតក្រុមជាមួយរូបក្រុមដោយជោគជ័យ!') };
           } catch (uploadErr) {
             navigationState = {
-              errorMessage: uploadErr?.error || 'Team created, but the team picture upload failed.'
+              errorMessage: uploadErr?.error || text('Team created, but the team picture upload failed.', 'បានបង្កើតក្រុម ប៉ុន្តែការផ្ទុករូបក្រុមបរាជ័យ។')
             };
           }
         }
@@ -162,7 +165,7 @@ const TeamCreatePage = () => {
         });
       }
     } catch (err) {
-      setError(err?.error || 'Failed to create team');
+      setError(err?.error || text('Failed to create team', 'មិនអាចបង្កើតក្រុមបានទេ'));
     } finally {
       setSubmitting(false);
     }
@@ -179,9 +182,9 @@ const TeamCreatePage = () => {
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Create Team</h1>
-        <p className="mt-1 text-sm text-gray-600">Create a new team and start managing players.</p>
-      </div>
+          <h1 className="text-2xl font-bold text-gray-900">{text('Create Team', 'បង្កើតក្រុម')}</h1>
+          <p className="mt-1 text-sm text-gray-600">{text('Create a new team and start managing players.', 'បង្កើតក្រុមថ្មី ហើយចាប់ផ្តើមគ្រប់គ្រងកីឡាករ។')}</p>
+        </div>
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
@@ -191,33 +194,33 @@ const TeamCreatePage = () => {
 
       <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Team Name</label>
+          <label className="block text-sm font-medium text-gray-700">{text('Team Name', 'ឈ្មោះក្រុម')}</label>
           <input
             name="name"
             required
             value={formData.name}
             onChange={handleChange}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="Downtown FC"
+            placeholder={text('Downtown FC', 'Downtown FC')}
           />
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700">Team Picture</label>
-            <span className="text-xs text-gray-500">Optional, up to {MAX_TEAM_LOGO_SIZE_MB}MB</span>
+             <label className="block text-sm font-medium text-gray-700">{text('Team Picture', 'រូបក្រុម')}</label>
+             <span className="text-xs text-gray-500">{text(`Optional, up to ${MAX_TEAM_LOGO_SIZE_MB}MB`, `ស្រេចចិត្ត ដល់ ${MAX_TEAM_LOGO_SIZE_MB}MB`)}</span>
           </div>
           <div className="mt-2 flex items-center gap-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
             <div className="h-24 w-24 overflow-hidden rounded-xl border border-gray-200 bg-white flex items-center justify-center shrink-0">
               {logoPreview ? (
-                <img src={logoPreview} alt="Team logo preview" className="h-full w-full object-cover" />
+                 <img src={logoPreview} alt={text('Team logo preview', 'មើលរូបក្រុមជាមុន')} className="h-full w-full object-cover" />
               ) : (
                 <div className="text-center">
                   <PhotoIcon className="mx-auto h-8 w-8 text-gray-400" />
-                  <p className="mt-1 text-[11px] text-gray-500">No picture</p>
-                </div>
-              )}
-            </div>
+                   <p className="mt-1 text-[11px] text-gray-500">{text('No picture', 'គ្មានរូប')}</p>
+                 </div>
+               )}
+             </div>
             <div className="space-y-2">
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
                 <ArrowUpTrayIcon className="h-4 w-4" />
@@ -229,29 +232,29 @@ const TeamCreatePage = () => {
                   onChange={handleLogoChange}
                 />
               </label>
-              <p className="text-xs text-gray-500">PNG, JPG, GIF, or WEBP. Best result: square image.</p>
+              <p className="text-xs text-gray-500">{text('PNG, JPG, GIF, or WEBP. Best result: square image.', 'PNG, JPG, GIF ឬ WEBP។ លទ្ធផលល្អបំផុតគឺរូបភាពការ៉េ។')}</p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Skill Level</label>
+            <label className="block text-sm font-medium text-gray-700">{text('Skill Level', 'កម្រិតជំនាញ')}</label>
             <select
               name="skillLevel"
               value={formData.skillLevel}
               onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             >
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-              <option value="professional">Professional</option>
+              <option value="beginner">{text('Beginner', 'ដំបូង')}</option>
+              <option value="intermediate">{text('Intermediate', 'មធ្យម')}</option>
+              <option value="advanced">{text('Advanced', 'ខ្ពស់')}</option>
+              <option value="professional">{text('Professional', 'អាជីព')}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Max Players</label>
+            <label className="block text-sm font-medium text-gray-700">{text('Max Players', 'ចំនួនអ្នកលេងអតិបរមា')}</label>
             <input
               type="number"
               name="maxPlayers"
@@ -266,14 +269,14 @@ const TeamCreatePage = () => {
 
         <div>
           <div className="flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-gray-700">Team Jersey Colors</label>
+            <label className="block text-sm font-medium text-gray-700">{text('Team Jersey Colors', 'ពណ៌អាវក្រុម')}</label>
             <button
               type="button"
               onClick={handleAddJerseyColor}
               disabled={(formData.jerseyColors || []).length >= 5}
               className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
-              Add Color
+              {text('Add Color', 'បន្ថែមពណ៌')}
             </button>
           </div>
           <div className="mt-2 space-y-2">
@@ -295,23 +298,23 @@ const TeamCreatePage = () => {
                   disabled={(formData.jerseyColors || []).length <= 1}
                   className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                 >
-                  Remove
+                  {text('Remove', 'ដកចេញ')}
                 </button>
               </div>
             ))}
           </div>
-          <p className="mt-1 text-xs text-gray-500">Choose one or more colors (up to 5) to avoid match-day color clashes.</p>
+          <p className="mt-1 text-xs text-gray-500">{text('Choose one or more colors (up to 5) to avoid match-day color clashes.', 'ជ្រើសរើសពណ៌មួយ ឬច្រើន (រហូតដល់ ៥) ដើម្បីជៀសវាងពណ៌អាវដូចគ្នានៅថ្ងៃប្រកួត។')}</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Home Field (Optional)</label>
+          <label className="block text-sm font-medium text-gray-700">{text('Home Field (Optional)', 'ទីលានម្ចាស់ផ្ទះ (មិនចាំបាច់)')}</label>
           <select
             name="homeFieldId"
             value={formData.homeFieldId}
             onChange={handleChange}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
           >
-            <option value="">No home field</option>
+            <option value="">{text('No home field', 'មិនមានទីលានម្ចាស់ផ្ទះ')}</option>
             {fields.map((field) => (
               <option key={field.id} value={field.id}>
                 {field.name} ({field.city})
@@ -321,14 +324,14 @@ const TeamCreatePage = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Description</label>
+          <label className="block text-sm font-medium text-gray-700">{text('Description', 'ការពិពណ៌នា')}</label>
           <textarea
             name="description"
             rows={3}
             value={formData.description}
             onChange={handleChange}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-            placeholder="About your team..."
+            placeholder={text('About your team...', 'អំពីក្រុមរបស់អ្នក...')}
           />
         </div>
 
@@ -337,14 +340,14 @@ const TeamCreatePage = () => {
             to="/app/teams"
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
-            Cancel
+            {text('Cancel', 'បោះបង់')}
           </Link>
           <button
             type="submit"
             disabled={submitting}
             className="px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
           >
-            {submitting ? 'Creating...' : 'Create Team'}
+            {submitting ? text('Creating...', 'កំពុងបង្កើត...') : text('Create Team', 'បង្កើតក្រុម')}
           </button>
         </div>
       </form>

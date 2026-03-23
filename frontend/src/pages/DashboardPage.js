@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import apiService from '../services/api';
 import authService from '../services/authService';
 import bookingService from '../services/bookingService';
@@ -24,32 +25,11 @@ const statusTone = (status) => {
   return tones[status] || 'gray';
 };
 
-const roleTheme = {
-  captain: {
-    badge: 'Captain Overview',
-    description: 'Manage your teams, approve join requests, and keep bookings under control.',
-    accent: 'from-emerald-50 via-white to-blue-50'
-  },
-  player: {
-    badge: 'Player Overview',
-    description: 'Track invitations, team activity, and your next bookings in one place.',
-    accent: 'from-blue-50 via-white to-violet-50'
-  },
-  admin: {
-    badge: 'Platform Overview',
-    description: 'Review account activity, role requests, and the latest bookings across the app.',
-    accent: 'from-slate-50 via-white to-amber-50'
-  },
-  unknown: {
-    badge: 'Account Overview',
-    description: 'Review your latest activity and updates.',
-    accent: 'from-slate-50 via-white to-slate-100'
-  }
-};
-
 const DashboardPage = () => {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const navigate = useNavigate();
+  const text = (en, km) => (language === 'km' ? km : en);
 
   const role = user?.role;
   const canCreateBooking = role === 'captain';
@@ -129,7 +109,7 @@ const DashboardPage = () => {
           setJoinRequestsByTeam([]);
         }
       } catch (err) {
-        setError(err?.error || 'Failed to load dashboard');
+        setError(err?.error || text('Failed to load dashboard', 'មិនអាចផ្ទុកផ្ទាំងគ្រប់គ្រងបានទេ'));
       } finally {
         setLoading(false);
       }
@@ -154,7 +134,7 @@ const DashboardPage = () => {
 
       return [
         {
-          name: 'Captained Teams',
+            name: text('Captained Teams', 'ក្រុមដែលខ្ញុំជាកាពីតែន'),
           value: captainedTeams.length,
           icon: UsersIcon,
           iconWrap: 'bg-emerald-600',
@@ -162,7 +142,7 @@ const DashboardPage = () => {
           textClass: 'text-emerald-950'
         },
         {
-          name: 'Pending Requests',
+            name: text('Pending Requests', 'សំណើកំពុងរង់ចាំ'),
           value: pendingJoinRequests,
           icon: ClipboardDocumentCheckIcon,
           iconWrap: 'bg-amber-500',
@@ -170,7 +150,7 @@ const DashboardPage = () => {
           textClass: 'text-amber-950'
         },
         {
-          name: 'My Bookings',
+            name: text('My Bookings', 'ការកក់របស់ខ្ញុំ'),
           value: stats?.bookings ?? bookings.length,
           icon: CalendarIcon,
           iconWrap: 'bg-blue-600',
@@ -178,7 +158,7 @@ const DashboardPage = () => {
           textClass: 'text-blue-950'
         },
         {
-          name: 'Fields Available',
+            name: text('Fields Available', 'ទីលានដែលអាចកក់បាន'),
           value: stats?.fields ?? 0,
           icon: BuildingOfficeIcon,
           iconWrap: 'bg-cyan-600',
@@ -193,7 +173,7 @@ const DashboardPage = () => {
 
       return [
         {
-          name: 'My Teams',
+            name: text('My Teams', 'ក្រុមរបស់ខ្ញុំ'),
           value: stats?.teams ?? myTeams.length,
           icon: UsersIcon,
           iconWrap: 'bg-emerald-600',
@@ -201,7 +181,7 @@ const DashboardPage = () => {
           textClass: 'text-emerald-950'
         },
         {
-          name: 'Invitations',
+            name: text('Invitations', 'ការអញ្ជើញ'),
           value: pendingInvites,
           icon: BellAlertIcon,
           iconWrap: 'bg-amber-500',
@@ -209,7 +189,7 @@ const DashboardPage = () => {
           textClass: 'text-amber-950'
         },
         {
-          name: 'Team Bookings',
+            name: text('Team Bookings', 'ការកក់របស់ក្រុម'),
           value: stats?.bookings ?? bookings.length,
           icon: CalendarIcon,
           iconWrap: 'bg-blue-600',
@@ -217,7 +197,7 @@ const DashboardPage = () => {
           textClass: 'text-blue-950'
         },
         {
-          name: 'Upcoming',
+            name: text('Upcoming', 'ខាងមុខ'),
           value: upcomingBookings.length,
           icon: CalendarIcon,
           iconWrap: 'bg-violet-600',
@@ -231,7 +211,7 @@ const DashboardPage = () => {
 
     return [
       {
-        name: 'Users',
+        name: text('Users', 'អ្នកប្រើ'),
         value: stats?.users ?? 0,
         icon: UserCircleIcon,
         iconWrap: 'bg-indigo-600',
@@ -239,7 +219,7 @@ const DashboardPage = () => {
         textClass: 'text-indigo-950'
       },
       {
-        name: 'Fields',
+        name: text('Fields', 'ទីលាន'),
         value: stats?.fields ?? 0,
         icon: BuildingOfficeIcon,
         iconWrap: 'bg-blue-600',
@@ -247,7 +227,7 @@ const DashboardPage = () => {
         textClass: 'text-blue-950'
       },
       {
-        name: 'Teams',
+        name: text('Teams', 'ក្រុម'),
         value: stats?.teams ?? 0,
         icon: UsersIcon,
         iconWrap: 'bg-emerald-600',
@@ -255,7 +235,7 @@ const DashboardPage = () => {
         textClass: 'text-emerald-950'
       },
       {
-        name: 'Pending Requests',
+        name: text('Pending Requests', 'សំណើកំពុងរង់ចាំ'),
         value: pendingRoleRequests,
         icon: ClipboardDocumentCheckIcon,
         iconWrap: 'bg-amber-500',
@@ -356,7 +336,44 @@ const DashboardPage = () => {
     );
   }
 
-  const activeTheme = roleTheme[role] || roleTheme.unknown;
+  const activeTheme = {
+    captain: {
+      badge: text('Captain Overview', 'ទិដ្ឋភាពកាពីតែន'),
+      description: text(
+        'Manage your teams, approve join requests, and keep bookings under control.',
+        'គ្រប់គ្រងក្រុមរបស់អ្នក អនុម័តសំណើចូលរួម និងតាមដានការកក់បានយ៉ាងងាយស្រួល។'
+      ),
+      accent: 'from-emerald-50 via-white to-blue-50'
+    },
+    player: {
+      badge: text('Player Overview', 'ទិដ្ឋភាពអ្នកលេង'),
+      description: text(
+        'Track invitations, team activity, and your next bookings in one place.',
+        'តាមដានការអញ្ជើញ សកម្មភាពក្រុម និងការកក់បន្ទាប់របស់អ្នកនៅកន្លែងតែមួយ។'
+      ),
+      accent: 'from-blue-50 via-white to-violet-50'
+    },
+    admin: {
+      badge: text('Platform Overview', 'ទិដ្ឋភាពប្រព័ន្ធ'),
+      description: text(
+        'Review account activity, role requests, and the latest bookings across the app.',
+        'ពិនិត្យសកម្មភាពគណនី សំណើតួនាទី និងការកក់ចុងក្រោយទូទាំងប្រព័ន្ធ។'
+      ),
+      accent: 'from-slate-50 via-white to-amber-50'
+    },
+    unknown: {
+      badge: text('Account Overview', 'ទិដ្ឋភាពគណនី'),
+      description: text(
+        'Review your latest activity and updates.',
+        'ពិនិត្យសកម្មភាព និងព័ត៌មានថ្មីៗរបស់អ្នក។'
+      ),
+      accent: 'from-slate-50 via-white to-slate-100'
+    }
+  }[role] || {
+    badge: text('Account Overview', 'ទិដ្ឋភាពគណនី'),
+    description: text('Review your latest activity and updates.', 'ពិនិត្យសកម្មភាព និងព័ត៌មានថ្មីៗរបស់អ្នក។'),
+    accent: 'from-slate-50 via-white to-slate-100'
+  };
 
   return (
     <div className="space-y-8">
@@ -366,12 +383,18 @@ const DashboardPage = () => {
             <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
               {activeTheme.badge}
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Dashboard</h1>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{text('Dashboard', 'ផ្ទាំងគ្រប់គ្រង')}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{activeTheme.description}</p>
           </div>
           {role !== 'admin' && (
             <Badge tone="gray" className="capitalize">
-              {role || 'user'}
+              {role === 'player'
+                ? text('Player', 'អ្នកលេង')
+                : role === 'captain'
+                  ? text('Captain', 'កាពីតែន')
+                  : role === 'field_owner'
+                    ? text('Field Owner', 'ម្ចាស់ទីលាន')
+                    : role || text('user', 'អ្នកប្រើ')}
             </Badge>
           )}
         </div>
@@ -400,19 +423,23 @@ const DashboardPage = () => {
       <Card className="overflow-hidden">
         <CardHeader className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900">
-            {role === 'captain' ? 'Pending Join Requests' : role === 'admin' ? 'Pending Role Requests' : 'Upcoming Bookings'}
+            {role === 'captain'
+              ? text('Pending Join Requests', 'សំណើចូលរួមកំពុងរង់ចាំ')
+              : role === 'admin'
+                ? text('Pending Role Requests', 'សំណើតួនាទីកំពុងរង់ចាំ')
+                : text('Upcoming Bookings', 'ការកក់ខាងមុខ')}
           </h3>
           {role === 'captain' ? (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/teams')}>
-              Teams
+              {text('Teams', 'ក្រុម')}
             </Button>
           ) : role === 'admin' ? (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/role-requests')}>
-              Review All
+              {text('Review All', 'ពិនិត្យទាំងអស់')}
             </Button>
           ) : (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/bookings')}>
-              Bookings
+              {text('Bookings', 'ការកក់')}
             </Button>
           )}
         </CardHeader>
@@ -422,13 +449,13 @@ const DashboardPage = () => {
               <div className="divide-y divide-slate-200">
                 {joinRequestsByTeam.slice(0, 6).map((team) => (
                   <div key={team.teamId} className="flex items-center justify-between px-6 py-5 transition hover:bg-slate-50/80">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{team.teamName}</div>
-                      <div className="text-xs text-slate-500">{team.pendingCount} pending</div>
-                    </div>
-                    <Button as={Link} to={`/app/teams/${team.teamId}/manage`} size="sm">
-                      Review
-                    </Button>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{team.teamName}</div>
+                        <div className="text-xs text-slate-500">{text(`${team.pendingCount} pending`, `${team.pendingCount} កំពុងរង់ចាំ`)}</div>
+                      </div>
+                      <Button as={Link} to={`/app/teams/${team.teamId}/manage`} size="sm">
+                        {text('Review', 'ពិនិត្យ')}
+                      </Button>
                   </div>
                 ))}
               </div>
@@ -436,8 +463,8 @@ const DashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={ClipboardDocumentCheckIcon}
-                  title="No pending requests"
-                  description="When players request to join, they will appear here."
+                  title={text('No pending requests', 'មិនមានសំណើកំពុងរង់ចាំ')}
+                  description={text('When players request to join, they will appear here.', 'នៅពេលអ្នកលេងស្នើចូលរួម វានឹងបង្ហាញនៅទីនេះ។')}
                 />
               </div>
             )
@@ -447,19 +474,19 @@ const DashboardPage = () => {
                 {pendingAdminRoleRequests.map((request) => {
                   const requester = request.requester || {};
                   const requesterName =
-                    `${requester.firstName || ''} ${requester.lastName || ''}`.trim() || requester.username || 'Unknown user';
+                    `${requester.firstName || ''} ${requester.lastName || ''}`.trim() || requester.username || text('Unknown user', 'មិនស្គាល់អ្នកប្រើ');
 
                   return (
                     <div key={request.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium text-gray-900">{requesterName}</div>
                         <div className="truncate text-xs text-gray-500">
-                          Requested {String(request.requestedRole || '').replace('_', ' ')} access
+                          {text('Requested', 'បានស្នើ')} {String(request.requestedRole || '').replace('_', ' ')} {text('access', 'សិទ្ធិ')}
                         </div>
                         <div className="mt-1 text-xs text-gray-400">{new Date(request.createdAt).toLocaleString()}</div>
                       </div>
                       <Button as={Link} to="/app/admin/role-requests" size="sm">
-                        Review
+                        {text('Review', 'ពិនិត្យ')}
                       </Button>
                     </div>
                   );
@@ -469,8 +496,8 @@ const DashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={ClipboardDocumentCheckIcon}
-                  title="No pending role requests"
-                  description="New captain and field owner requests will appear here for admin review."
+                  title={text('No pending role requests', 'មិនមានសំណើតួនាទីកំពុងរង់ចាំ')}
+                  description={text('New captain and field owner requests will appear here for admin review.', 'សំណើថ្មីៗរបស់កាពីតែន និងម្ចាស់ទីលាន នឹងបង្ហាញនៅទីនេះសម្រាប់អ្នកគ្រប់គ្រងពិនិត្យ។')}
                 />
               </div>
             )
@@ -479,7 +506,7 @@ const DashboardPage = () => {
               {upcomingBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between px-6 py-5 transition hover:bg-slate-50/80">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{booking.field?.name || 'Field'}</div>
+                    <div className="text-sm font-medium text-gray-900">{booking.field?.name || text('Field', 'ទីលាន')}</div>
                     <div className="text-xs text-gray-500">{new Date(booking.startTime).toLocaleString()}</div>
                   </div>
                   <Badge tone={statusTone(booking.status)} className="capitalize">
@@ -490,14 +517,16 @@ const DashboardPage = () => {
             </div>
           ) : (
             <div className="p-6">
-              <EmptyState
-                icon={CalendarIcon}
-                title="No upcoming bookings"
-                description={
-                  canCreateBooking ? 'Browse fields and create your next booking.' : 'Please request to become captain in Settings.'
-                }
-                actionLabel={canCreateBooking ? 'Book a field' : 'Request Captain Access'}
-                onAction={() =>
+                <EmptyState
+                  icon={CalendarIcon}
+                  title={text('No upcoming bookings', 'មិនមានការកក់ខាងមុខ')}
+                  description={
+                    canCreateBooking
+                      ? text('Browse fields and create your next booking.', 'ស្វែងរកទីលាន ហើយបង្កើតការកក់បន្ទាប់របស់អ្នក។')
+                      : text('Please request to become captain in Settings.', 'សូមស្នើសុំក្លាយជាកាពីតែននៅក្នុងការកំណត់។')
+                  }
+                  actionLabel={canCreateBooking ? text('Book a field', 'កក់ទីលាន') : text('Request Captain Access', 'ស្នើសុំសិទ្ធិកាពីតែន')}
+                  onAction={() =>
                   navigate(
                     canCreateBooking ? '/app/bookings/new' : '/app/settings',
                     canCreateBooking ? undefined : { state: { focusRoleRequest: 'captain' } }
@@ -515,7 +544,7 @@ const DashboardPage = () => {
             <CardHeader className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">Newest Users</h3>
               <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/users')}>
-                Manage Users
+                {text('Manage Users', 'គ្រប់គ្រងអ្នកប្រើ')}
               </Button>
             </CardHeader>
             <div className="bg-white">
@@ -529,7 +558,7 @@ const DashboardPage = () => {
                       <div key={member.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-gray-900">{displayName}</div>
-                          <div className="truncate text-xs text-gray-500">@{member.username || 'user'}</div>
+                          <div className="truncate text-xs text-gray-500">@{member.username || text('user', 'user')}</div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge tone="gray" className="capitalize">
@@ -548,7 +577,7 @@ const DashboardPage = () => {
                 </div>
               ) : (
                 <div className="p-6">
-                  <EmptyState icon={UserCircleIcon} title="No users found" description="User accounts will appear here after registration." />
+                  <EmptyState icon={UserCircleIcon} title={text('No users found', 'រកមិនឃើញអ្នកប្រើ')} description={text('User accounts will appear here after registration.', 'គណនីអ្នកប្រើនឹងបង្ហាញនៅទីនេះបន្ទាប់ពីចុះឈ្មោះ។')} />
                 </div>
               )}
             </div>
@@ -556,9 +585,9 @@ const DashboardPage = () => {
 
           <Card className="overflow-hidden">
             <CardHeader className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Latest Bookings</h3>
+              <h3 className="text-lg font-medium text-gray-900">{text('Latest Bookings', 'ការកក់ចុងក្រោយ')}</h3>
               <Button variant="outline" size="sm" onClick={() => navigate('/owner/bookings')}>
-                View Bookings
+                {text('View Bookings', 'មើលការកក់')}
               </Button>
             </CardHeader>
             <div className="bg-white">
@@ -567,9 +596,9 @@ const DashboardPage = () => {
                   {recentBookings.map((booking) => (
                     <div key={booking.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || 'Field booking'}</div>
+                        <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || text('Field booking', 'ការកក់ទីលាន')}</div>
                         <div className="truncate text-xs text-gray-500">
-                          {booking.team?.name || 'No team'} | {new Date(booking.startTime).toLocaleString()}
+                          {booking.team?.name || text('No team', 'គ្មានក្រុម')} | {new Date(booking.startTime).toLocaleString()}
                         </div>
                       </div>
                       <Badge tone={statusTone(booking.status)} className="capitalize">
@@ -580,7 +609,7 @@ const DashboardPage = () => {
                 </div>
               ) : (
                 <div className="p-6">
-                  <EmptyState icon={CalendarIcon} title="No bookings yet" description="Recent bookings will appear here for quick admin review." />
+                  <EmptyState icon={CalendarIcon} title={text('No bookings yet', 'មិនទាន់មានការកក់ទេ')} description={text('Recent bookings will appear here for quick admin review.', 'ការកក់ថ្មីៗនឹងបង្ហាញនៅទីនេះសម្រាប់អ្នកគ្រប់គ្រងពិនិត្យបានរហ័ស។')} />
                 </div>
               )}
             </div>
@@ -591,11 +620,11 @@ const DashboardPage = () => {
       {role === 'player' && (
         <Card className="overflow-hidden">
           <CardHeader className="flex items-center justify-between">
-            <h3 className="inline-flex items-center gap-2 text-lg font-medium text-gray-900">
-              <BellAlertIcon className="h-5 w-5 text-amber-500" />
-              Team Invitation Notifications
-            </h3>
-            <Badge tone="yellow">{inviteNotifications.length} pending</Badge>
+              <h3 className="inline-flex items-center gap-2 text-lg font-medium text-gray-900">
+                <BellAlertIcon className="h-5 w-5 text-amber-500" />
+               {text('Team Invitation Notifications', 'ការជូនដំណឹងអញ្ជើញចូលក្រុម')}
+             </h3>
+            <Badge tone="yellow">{text(`${inviteNotifications.length} pending`, `${inviteNotifications.length} កំពុងរង់ចាំ`)}</Badge>
           </CardHeader>
           <div className="bg-white">
             {inviteNotifications.length > 0 ? (
@@ -617,7 +646,7 @@ const DashboardPage = () => {
                         className="inline-flex items-center gap-1"
                       >
                         <CheckIcon className="h-4 w-4" />
-                        Accept
+                        {text('Accept', 'ទទួលយក')}
                       </Button>
                       <Button
                         size="sm"
@@ -627,7 +656,7 @@ const DashboardPage = () => {
                         className="inline-flex items-center gap-1"
                       >
                         <XMarkIcon className="h-4 w-4" />
-                        Decline
+                        {text('Decline', 'បដិសេធ')}
                       </Button>
                     </div>
                   </div>
@@ -637,8 +666,8 @@ const DashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={BellAlertIcon}
-                  title="No invitation notifications"
-                  description="When captains invite you to teams, they will appear here."
+                  title={text('No invitation notifications', 'មិនមានការជូនដំណឹងអញ្ជើញ')}
+                  description={text('When captains invite you to teams, they will appear here.', 'នៅពេលកាពីតែនអញ្ជើញអ្នកចូលក្រុម វានឹងបង្ហាញនៅទីនេះ។')}
                 />
               </div>
             )}

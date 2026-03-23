@@ -1,11 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import LanguageSwitcher from '../common/LanguageSwitcher';
 import { Button, useDialog, useToast } from '../ui';
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -25,12 +28,12 @@ const PublicLayout = () => {
 
   const navItems = useMemo(
     () => [
-      { to: '/', label: 'Home' },
-      { to: '/fields', label: 'Fields' },
-      { to: '/league', label: 'League' },
-      { to: '/teams', label: 'Teams' }
+      { to: '/', label: t('nav_home', 'Home') },
+      { to: '/fields', label: t('nav_fields', 'Fields') },
+      { to: '/league', label: t('nav_league', 'League') },
+      { to: '/teams', label: t('nav_teams', 'Teams') }
     ],
-    []
+    [t]
   );
 
   const isActivePath = (path) =>
@@ -72,7 +75,9 @@ const PublicLayout = () => {
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 text-sm font-bold text-white">
                 FB
               </span>
-              <span className="khmer-brand-font text-base font-semibold text-gray-900 sm:text-xl">អាណាចក្រភ្នំស្វាយ</span>
+              <span className="khmer-brand-font text-base font-semibold text-gray-900 sm:text-xl">
+                {t('app_name', 'Football Field Booking')}
+              </span>
             </Link>
 
             <nav className="hidden md:flex items-center space-x-1 text-sm font-medium text-gray-700">
@@ -90,6 +95,7 @@ const PublicLayout = () => {
             </nav>
 
             <div className="flex items-center space-x-2">
+              <LanguageSwitcher className="hidden sm:inline-flex" />
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
@@ -102,19 +108,19 @@ const PublicLayout = () => {
               {showAuthenticatedActions ? (
                 <>
                   <Button as={Link} to={dashboardHref} variant="outline" size="sm" className="hidden sm:inline-flex">
-                    Go to Dashboard
+                    {t('action_go_dashboard', 'Go to Dashboard')}
                   </Button>
                   <Button onClick={handleLogout} size="sm" className="hidden sm:inline-flex">
-                    Logout
+                    {t('action_logout', 'Logout')}
                   </Button>
                 </>
               ) : (
                 <>
                   <Button as={Link} to="/login" state={authRouteState} variant="outline" size="sm" className="hidden sm:inline-flex">
-                    Login
+                    {t('nav_login', 'Login')}
                   </Button>
                   <Button as={Link} to="/register" state={authRouteState} size="sm" className="hidden sm:inline-flex">
-                    Register
+                    {t('nav_register', 'Register')}
                   </Button>
                 </>
               )}
@@ -138,23 +144,27 @@ const PublicLayout = () => {
                 ))}
               </div>
 
+              <div className="pt-3">
+                <LanguageSwitcher className="flex w-full items-center justify-between" />
+              </div>
+
               <div className="pt-3 flex gap-2">
                 {showAuthenticatedActions ? (
                   <>
                     <Button as={Link} to={dashboardHref} variant="outline" size="sm" className="flex-1">
-                      Dashboard
+                      {t('nav_dashboard', 'Dashboard')}
                     </Button>
                     <Button onClick={handleLogout} size="sm" className="flex-1">
-                      Logout
+                      {t('action_logout', 'Logout')}
                     </Button>
                   </>
                 ) : (
                   <>
                     <Button as={Link} to="/login" state={authRouteState} variant="outline" size="sm" className="flex-1">
-                      Login
+                      {t('nav_login', 'Login')}
                     </Button>
                     <Button as={Link} to="/register" state={authRouteState} size="sm" className="flex-1">
-                      Register
+                      {t('nav_register', 'Register')}
                     </Button>
                   </>
                 )}

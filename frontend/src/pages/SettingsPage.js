@@ -18,8 +18,10 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import authService from '../services/authService';
-import { useDialog } from '../components/ui';
+import LanguageSwitcher from '../components/common/LanguageSwitcher';
+import { useDialog, useToast } from '../components/ui';
 
 const SETTINGS_DEVICE_PREFS_KEY = 'app_settings_device_preferences';
 
@@ -131,9 +133,11 @@ const PreferenceToggle = ({ title, description, enabled, onChange }) => (
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm } = useDialog();
+  const { showToast } = useToast();
   const accessRequestsRef = useRef(null);
   const [roleRequests, setRoleRequests] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -158,6 +162,30 @@ const SettingsPage = () => {
     next: false,
     confirm: false
   });
+
+  useEffect(() => {
+    if (!successMessage) return;
+    showToast(successMessage, { type: 'success', duration: 3200 });
+    setSuccessMessage('');
+  }, [showToast, successMessage]);
+
+  useEffect(() => {
+    if (!error) return;
+    showToast(error, { type: 'error', duration: 3600 });
+    setError('');
+  }, [error, showToast]);
+  const roleOptions = {
+    captain: {
+      ...ROLE_OPTIONS.captain,
+      title: t('settings_captain_access', 'Captain Access'),
+      description: t('settings_captain_access_desc', 'Create field bookings, manage team members, approve join requests, and organize open matches.')
+    },
+    field_owner: {
+      ...ROLE_OPTIONS.field_owner,
+      title: t('settings_owner_access', 'Field Owner Access'),
+      description: t('settings_owner_access_desc', 'Create fields, manage booking requests, and control your venue schedule.')
+    }
+  };
 
   const loadRoleRequests = useCallback(async () => {
     try {
@@ -243,7 +271,7 @@ const SettingsPage = () => {
   };
 
   const handleRoleRequest = async (requestedRole) => {
-    const option = ROLE_OPTIONS[requestedRole];
+    const option = roleOptions[requestedRole];
     if (!option) return;
 
     const confirmed = await confirm(
@@ -365,21 +393,21 @@ const SettingsPage = () => {
   };
 
   const accountOverviewItems = [
-    { label: 'Current role', value: formatRoleLabel(user?.role) },
-    { label: 'Member since', value: formatDate(user?.createdAt) },
-    { label: 'Pending requests', value: requestSummary.pending },
-    { label: 'Available upgrades', value: availableRoles.length }
+    { label: t('settings_current_role', 'Current role'), value: formatRoleLabel(user?.role) },
+    { label: t('settings_member_since', 'Member since'), value: formatDate(user?.createdAt) },
+    { label: t('settings_pending_requests', 'Pending requests'), value: requestSummary.pending },
+    { label: t('settings_available_upgrades', 'Available upgrades'), value: availableRoles.length }
   ];
 
   const quickLinks = [
     {
-      title: 'Profile details',
-      description: 'Update your photo and personal information.',
+      title: t('settings_profile_details', 'Profile details'),
+      description: t('settings_profile_details_desc', 'Update your photo and personal information.'),
       onClick: () => navigate(user?.role === 'field_owner' ? '/owner/profile' : '/app/profile')
     },
     {
-      title: 'Notifications',
-      description: 'Review invites, alerts, and unread updates.',
+      title: t('nav_notifications', 'Notifications'),
+      description: t('settings_notifications_desc', 'Review invites, alerts, and unread updates.'),
       onClick: () => navigate('/app/notifications')
     }
   ];
@@ -392,12 +420,11 @@ const SettingsPage = () => {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
                 <SparklesIcon className="h-4 w-4" />
-                Account Center
+                {t('settings_account_center', 'Account Center')}
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">Settings</h1>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">{t('nav_settings', 'Settings')}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                This page now groups the things people usually expect in settings: account overview,
-                device preferences, security, and access requests.
+                {t('settings_intro', 'This page now groups the things people usually expect in settings: account overview, device preferences, security, and access requests.')}
               </p>
             </div>
 
@@ -415,67 +442,68 @@ const SettingsPage = () => {
         </div>
       </section>
 
-      {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
           <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-semibold text-slate-900">Preferences</h2>
+                <h2 className="text-2xl font-semibold text-slate-900">{t('settings_preferences', 'Preferences')}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Small quality-of-life options that make the app feel more personal. These are
-                  saved on this device.
+                  {t('settings_preferences_desc', 'Small quality-of-life options that make the app feel more personal. These are saved on this device.')}
                 </p>
               </div>
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                 <SwatchIcon className="h-4 w-4" />
-                Local only
+                {t('settings_local_only', 'Local only')}
               </span>
             </div>
 
             <div className="mt-6 space-y-4">
               <PreferenceToggle
-                title="Email updates"
-                description="Keep important account updates and approval decisions enabled."
+                title={t('settings_email_updates', 'Email updates')}
+                description={t('settings_email_updates_desc', 'Keep important account updates and approval decisions enabled.')}
                 enabled={preferences.emailUpdates}
                 onChange={() => updatePreference('emailUpdates', !preferences.emailUpdates)}
               />
               <PreferenceToggle
-                title="Booking reminders"
-                description="Show reminders for upcoming bookings and pending field confirmations."
+                title={t('settings_booking_reminders', 'Booking reminders')}
+                description={t('settings_booking_reminders_desc', 'Show reminders for upcoming bookings and pending field confirmations.')}
                 enabled={preferences.bookingReminders}
                 onChange={() => updatePreference('bookingReminders', !preferences.bookingReminders)}
               />
               <PreferenceToggle
-                title="Match and invite alerts"
-                description="Prioritize team invites, join requests, and open match activity."
+                title={t('settings_match_alerts', 'Match and invite alerts')}
+                description={t('settings_match_alerts_desc', 'Prioritize team invites, join requests, and open match activity.')}
                 enabled={preferences.matchAlerts}
                 onChange={() => updatePreference('matchAlerts', !preferences.matchAlerts)}
               />
               <PreferenceToggle
-                title="Compact layout"
-                description="Use tighter spacing for tables and content-heavy pages."
+                title={t('settings_compact_layout', 'Compact layout')}
+                description={t('settings_compact_layout_desc', 'Use tighter spacing for tables and content-heavy pages.')}
                 enabled={preferences.compactMode}
                 onChange={() => updatePreference('compactMode', !preferences.compactMode)}
               />
 
               <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-900">
+                      {t('label_language', 'Language')}
+                    </label>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {t('settings_language_desc', 'Change the interface language for this browser session.')}
+                    </p>
+                  </div>
+                  <LanguageSwitcher />
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 px-4 py-4">
                 <label htmlFor="startPage" className="text-sm font-semibold text-slate-900">
-                  Default start page
+                  {t('settings_start_page', 'Default start page')}
                 </label>
                 <p className="mt-1 text-sm text-slate-600">
-                  Choose the first area you want to land on when you open the app.
+                  {t('settings_start_page_desc', 'Choose the first area you want to land on when you open the app.')}
                 </p>
                 <select
                   id="startPage"
@@ -483,11 +511,11 @@ const SettingsPage = () => {
                   onChange={(event) => updatePreference('startPage', event.target.value)}
                   className="mt-4 block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 >
-                  <option value="dashboard">Dashboard</option>
-                  <option value="bookings">Bookings</option>
-                  <option value="teams">Teams</option>
-                  <option value="fields">Fields</option>
-                  <option value="notifications">Notifications</option>
+                  <option value="dashboard">{t('nav_dashboard', 'Dashboard')}</option>
+                  <option value="bookings">{t('nav_bookings', 'Bookings')}</option>
+                  <option value="teams">{t('nav_teams', 'Teams')}</option>
+                  <option value="fields">{t('nav_fields', 'Fields')}</option>
+                  <option value="notifications">{t('nav_notifications', 'Notifications')}</option>
                 </select>
               </div>
             </div>
@@ -497,10 +525,10 @@ const SettingsPage = () => {
             <div className="border-b border-slate-200 px-6 py-5">
               <h2 className="inline-flex items-center gap-2 text-2xl font-semibold text-slate-900">
                 <ShieldCheckIcon className="h-6 w-6 text-emerald-600" />
-                Access Requests
+                {t('settings_access_requests', 'Access Requests')}
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Upgrade your account when you need more control, like creating field bookings, team management, or field administration.
+                {t('settings_access_requests_desc', 'Upgrade your account when you need more control, like creating field bookings, team management, or field administration.')}
               </p>
             </div>
 
@@ -517,7 +545,7 @@ const SettingsPage = () => {
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {availableRoles.map((roleKey) => {
-                    const option = ROLE_OPTIONS[roleKey];
+                    const option = roleOptions[roleKey];
                     const latestRequest = latestRequestByRole[roleKey];
                     const Icon = option.icon;
                     const accentClasses =
@@ -527,10 +555,10 @@ const SettingsPage = () => {
                     const isPendingThisRole = latestRequest?.status === 'pending';
                     const isDisabled = Boolean(hasPendingRequest || submittingRole || cancellingRequestId);
                     const buttonLabel = isPendingThisRole
-                      ? 'Pending review'
+                      ? t('settings_pending_review', 'Pending review')
                       : latestRequest?.status === 'rejected'
-                        ? 'Request again'
-                        : `Request ${option.title}`;
+                        ? t('settings_request_again', 'Request again')
+                        : t('settings_request_role_button', `Request ${option.title}`, { role: option.title });
 
                     return (
                       <div
@@ -560,7 +588,7 @@ const SettingsPage = () => {
                           disabled={isDisabled}
                           className="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
-                          {submittingRole === roleKey ? 'Submitting...' : buttonLabel}
+                          {submittingRole === roleKey ? t('settings_submitting', 'Submitting...') : buttonLabel}
                         </button>
 
                         {isPendingThisRole && latestRequest && (
@@ -570,7 +598,7 @@ const SettingsPage = () => {
                             disabled={cancellingRequestId === latestRequest.id}
                             className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {cancellingRequestId === latestRequest.id ? 'Deleting...' : 'Delete Request'}
+                            {cancellingRequestId === latestRequest.id ? t('settings_deleting', 'Deleting...') : t('settings_delete_request', 'Delete Request')}
                           </button>
                         )}
 
@@ -589,9 +617,9 @@ const SettingsPage = () => {
 
           <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-200 px-6 py-5">
-              <h2 className="text-2xl font-semibold text-slate-900">Request History</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">{t('settings_request_history', 'Request History')}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                A quick timeline of your previous access requests and their review status.
+                {t('settings_request_history_desc', 'A quick timeline of your previous access requests and their review status.')}
               </p>
             </div>
 
@@ -635,7 +663,7 @@ const SettingsPage = () => {
                             disabled={cancellingRequestId === request.id}
                             className="mt-4 inline-flex items-center justify-center rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {cancellingRequestId === request.id ? 'Deleting...' : 'Delete Request'}
+                            {cancellingRequestId === request.id ? t('settings_deleting', 'Deleting...') : t('settings_delete_request', 'Delete Request')}
                           </button>
                         )}
 
@@ -659,19 +687,18 @@ const SettingsPage = () => {
                 <LockClosedIcon className="h-6 w-6" />
               </span>
               <div>
-                <h2 className="text-2xl font-semibold text-slate-900">Security</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Keep your account protected and review the actions that affect sign-in.
-                </p>
+                  <h2 className="text-2xl font-semibold text-slate-900">{t('settings_security', 'Security')}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t('settings_security_desc', 'Keep your account protected and review the actions that affect sign-in.')}
+                  </p>
               </div>
             </div>
 
             <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-4">
-              <p className="text-sm font-semibold text-slate-900">Password</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Change your password any time if you shared a device, reused an old password,
-                or just want a stronger one.
-              </p>
+                <p className="text-sm font-semibold text-slate-900">{t('settings_password', 'Password')}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {t('settings_password_desc', 'Change your password any time if you shared a device, reused an old password, or just want a stronger one.')}
+                </p>
               <button
                 type="button"
                 onClick={() => {
@@ -682,18 +709,18 @@ const SettingsPage = () => {
                 }}
                 className="mt-4 inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                Change Password
+                {t('settings_change_password', 'Change Password')}
               </button>
             </div>
 
             <div className="mt-4 space-y-3">
               <div className="rounded-2xl border border-slate-200 px-4 py-4">
-                <p className="text-sm font-semibold text-slate-900">Current account role</p>
+                <p className="text-sm font-semibold text-slate-900">{t('settings_current_account_role', 'Current account role')}</p>
                 <p className="mt-1 text-sm text-slate-600">{formatRoleLabel(user?.role)}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 px-4 py-4">
-                <p className="text-sm font-semibold text-slate-900">Last settings review</p>
-                <p className="mt-1 text-sm text-slate-600">{new Date().toLocaleDateString()}</p>
+                <p className="text-sm font-semibold text-slate-900">{t('settings_last_review', 'Last settings review')}</p>
+                <p className="mt-1 text-sm text-slate-600">{new Date().toLocaleDateString(language === 'km' ? 'km-KH' : undefined)}</p>
               </div>
             </div>
           </section>
@@ -704,10 +731,10 @@ const SettingsPage = () => {
                 <BellAlertIcon className="h-6 w-6" />
               </span>
               <div>
-                <h2 className="text-2xl font-semibold text-slate-900">Quick Links</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Shortcut actions people usually look for while managing their account.
-                </p>
+                  <h2 className="text-2xl font-semibold text-slate-900">{t('settings_quick_links', 'Quick Links')}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t('settings_quick_links_desc', 'Shortcut actions people usually look for while managing their account.')}
+                  </p>
               </div>
             </div>
 
@@ -735,11 +762,10 @@ const SettingsPage = () => {
                 <UserCircleIcon className="h-6 w-6" />
               </span>
               <div>
-                <h2 className="text-2xl font-semibold text-slate-900">What belongs here?</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Usually: security, notifications, app preferences, support, and role or permission requests.
-                  That structure is what this page now follows.
-                </p>
+                  <h2 className="text-2xl font-semibold text-slate-900">{t('settings_what_belongs', 'What belongs here?')}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {t('settings_what_belongs_desc', 'Usually: security, notifications, app preferences, support, and role or permission requests. That structure is what this page now follows.')}
+                  </p>
               </div>
             </div>
           </section>
@@ -751,16 +777,16 @@ const SettingsPage = () => {
           <div className="w-full max-w-lg rounded-[28px] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Change Password</h2>
+                <h2 className="text-xl font-semibold text-slate-900">{t('settings_change_password', 'Change Password')}</h2>
                 <p className="mt-1 text-sm text-slate-600">
-                  Enter your current password and choose a new one.
+                  {t('settings_change_password_desc', 'Enter your current password and choose a new one.')}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={closePasswordModal}
                 className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close change password form"
+                aria-label={t('settings_close_password_form', 'Close change password form')}
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -775,7 +801,7 @@ const SettingsPage = () => {
 
               <div>
                 <label htmlFor="currentPassword" className="block text-sm font-medium text-slate-700">
-                  Current Password
+                  {t('settings_current_password', 'Current Password')}
                 </label>
                 <div className="relative">
                   <input
@@ -791,7 +817,7 @@ const SettingsPage = () => {
                     type="button"
                     onClick={() => togglePasswordVisibility('current')}
                     className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
-                    aria-label={showPassword.current ? 'Hide current password' : 'Show current password'}
+                      aria-label={showPassword.current ? t('settings_hide_current_password', 'Hide current password') : t('settings_show_current_password', 'Show current password')}
                   >
                     {showPassword.current ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                   </button>
@@ -800,7 +826,7 @@ const SettingsPage = () => {
 
               <div>
                 <label htmlFor="newPassword" className="block text-sm font-medium text-slate-700">
-                  New Password
+                  {t('settings_new_password', 'New Password')}
                 </label>
                 <div className="relative">
                   <input
@@ -816,7 +842,7 @@ const SettingsPage = () => {
                     type="button"
                     onClick={() => togglePasswordVisibility('next')}
                     className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
-                    aria-label={showPassword.next ? 'Hide new password' : 'Show new password'}
+                      aria-label={showPassword.next ? t('settings_hide_new_password', 'Hide new password') : t('settings_show_new_password', 'Show new password')}
                   >
                     {showPassword.next ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                   </button>
@@ -825,7 +851,7 @@ const SettingsPage = () => {
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700">
-                  Confirm New Password
+                  {t('settings_confirm_new_password', 'Confirm New Password')}
                 </label>
                 <div className="relative">
                   <input
@@ -841,7 +867,7 @@ const SettingsPage = () => {
                     type="button"
                     onClick={() => togglePasswordVisibility('confirm')}
                     className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
-                    aria-label={showPassword.confirm ? 'Hide password confirmation' : 'Show password confirmation'}
+                      aria-label={showPassword.confirm ? t('settings_hide_password_confirmation', 'Hide password confirmation') : t('settings_show_password_confirmation', 'Show password confirmation')}
                   >
                     {showPassword.confirm ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                   </button>
@@ -855,14 +881,14 @@ const SettingsPage = () => {
                   disabled={changingPassword}
                   className="rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Cancel
+                  {t('action_cancel', 'Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={changingPassword}
                   className="rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                 >
-                  {changingPassword ? 'Changing...' : 'Save Password'}
+                  {changingPassword ? t('settings_changing_password', 'Changing...') : t('settings_save_password', 'Save Password')}
                 </button>
               </div>
             </form>

@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '../../context/LanguageContext';
 import { hasGoogleMapsApiKey, loadGoogleMaps } from './googleMapsLoader';
 import { loadLeaflet } from './leafletLoader';
 
 const MAP_THEME_OPTIONS = [
-  { id: 'roadmap', label: 'Map' },
-  { id: 'satellite', label: 'Satellite' },
-  { id: 'terrain', label: 'Terrain' },
-  { id: 'dark', label: 'Dark' }
+  { id: 'roadmap', en: 'Map', km: 'ផែនទី' },
+  { id: 'satellite', en: 'Satellite', km: 'ផ្កាយរណប' },
+  { id: 'terrain', en: 'Terrain', km: 'ភូមិសាស្ត្រ' },
+  { id: 'dark', en: 'Dark', km: 'ងងឹត' }
 ];
 const LEAFLET_THEME_CONFIG = {
   roadmap: {
@@ -42,6 +43,8 @@ const GOOGLE_MAP_STYLES = {
 };
 
 const FieldLocationMap = ({ latitude, longitude }) => {
+  const { language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -165,7 +168,10 @@ const FieldLocationMap = ({ latitude, longitude }) => {
               onClick={() => setMapThemeMenuOpen((current) => !current)}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-lg backdrop-blur transition hover:bg-white"
             >
-              {MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme)?.label || 'Map'}
+              {(() => {
+                const activeTheme = MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme);
+                return activeTheme ? text(activeTheme.en, activeTheme.km) : text('Map', 'ផែនទី');
+              })()}
               <ChevronDownIcon className={`h-3.5 w-3.5 transition ${mapThemeMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             {mapThemeMenuOpen && (
@@ -184,7 +190,7 @@ const FieldLocationMap = ({ latitude, longitude }) => {
                         isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      {theme.label}
+                      {text(theme.en, theme.km)}
                     </button>
                   );
                 })}

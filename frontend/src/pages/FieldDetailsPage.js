@@ -9,6 +9,7 @@ import {
   MapPinIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import FieldLocationMap from '../components/maps/FieldLocationMap';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
@@ -60,6 +61,7 @@ const getStatusTone = (status) => {
 const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
@@ -186,9 +188,9 @@ const FieldDetailsPage = () => {
   }, [scheduleDay, slotBookings]);
 
   const tabs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'live-booking', label: 'Live Booking' },
-    { key: 'comment-rate', label: 'Comment & Rate' }
+    { key: 'overview', label: t('field_overview', 'Overview') },
+    { key: 'live-booking', label: t('field_live_booking', 'Live Booking') },
+    { key: 'comment-rate', label: t('field_comment_rate', 'Comment & Rate') }
   ];
 
   if (loading) {
@@ -203,9 +205,9 @@ const FieldDetailsPage = () => {
     return (
       <EmptyState
         icon={BuildingOfficeIcon}
-        title="Field not found"
-        description="The field may have been removed or the link is incorrect."
-        actionLabel="Back to Fields"
+        title={t('field_not_found', 'Field not found')}
+        description={t('field_not_found_description', 'The field may have been removed or the link is incorrect.')}
+        actionLabel={t('action_back_to_fields', 'Back to Fields')}
         onAction={() => (window.location.href = '/fields')}
       />
     );
@@ -259,11 +261,15 @@ const FieldDetailsPage = () => {
             <div className="flex items-center gap-3">
               {!isAdmin && (
                 <Button onClick={handleBook} disabled={!canBookThisField}>
-                  {!canBookThisField ? 'Not Available' : isAuthenticated && !canCreateBooking ? 'Request Booking Access' : 'Book Now'}
+                  {!canBookThisField
+                    ? t('field_not_available', 'Not Available')
+                    : isAuthenticated && !canCreateBooking
+                      ? t('field_request_access', 'Request Booking Access')
+                      : t('action_book_now', 'Book Now')}
                 </Button>
               )}
               <Button as={Link} to="/fields" variant="outline">
-                Back
+                {t('action_back', 'Back')}
               </Button>
             </div>
           </div>
@@ -304,32 +310,32 @@ const FieldDetailsPage = () => {
               {activeTab === 'overview' && (
                 <div className="space-y-6">
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
-                    <h2 className="text-xl font-semibold text-slate-950">About This Field</h2>
+                    <h2 className="text-xl font-semibold text-slate-950">{t('field_about', 'About This Field')}</h2>
                     <p className="mt-3 text-sm leading-6 text-slate-600">
-                      {field.description || 'This field is ready for bookings, team play, and regular matches.'}
+                      {field.description || t('field_ready_description', 'This field is ready for bookings, team play, and regular matches.')}
                     </p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Field Name</div>
-                      <div className="mt-2 text-base font-semibold text-slate-950">{field.name || 'Not specified'}</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_name', 'Field Name')}</div>
+                      <div className="mt-2 text-base font-semibold text-slate-950">{field.name || t('not_specified', 'Not specified')}</div>
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Field Type</div>
-                      <div className="mt-2 text-base font-semibold capitalize text-slate-950">{field.fieldType || 'Not specified'}</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_type', 'Field Type')}</div>
+                      <div className="mt-2 text-base font-semibold capitalize text-slate-950">{field.fieldType || t('not_specified', 'Not specified')}</div>
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Surface Type</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_surface_type', 'Surface Type')}</div>
                       <div className="mt-2 text-base font-semibold capitalize text-slate-950">
-                        {String(field.surfaceType || 'Not specified').replace(/_/g, ' ')}
+                        {String(field.surfaceType || t('not_specified', 'Not specified')).replace(/_/g, ' ')}
                       </div>
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Price Per Hour</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_price_per_hour', 'Price Per Hour')}</div>
                       {discountPercent > 0 ? (
                         <div className="mt-2 space-y-1">
                           <div className="text-base font-semibold text-emerald-600">${discountedPrice}/hour</div>
@@ -341,43 +347,43 @@ const FieldDetailsPage = () => {
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Discount</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_discount', 'Discount')}</div>
                       <div className="mt-2 text-base font-semibold text-slate-950">{discountPercent}%</div>
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Capacity</div>
-                      <div className="mt-2 text-base font-semibold text-slate-950">{field.capacity || 'Not specified'} players</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_capacity', 'Capacity')}</div>
+                      <div className="mt-2 text-base font-semibold text-slate-950">{field.capacity || t('not_specified', 'Not specified')} {field.capacity ? t('players_suffix', '{{count}} players', { count: '' }).trim() : ''}</div>
                     </div>
 
                     <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Status</div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_status', 'Status')}</div>
                       <div className="mt-2">
                         <Badge tone={getStatusTone(field.status)} className="capitalize">
-                          {field.status || 'unknown'}
+                          {field.status || t('common_unknown', 'Unknown')}
                         </Badge>
                       </div>
                     </div>
                   </div>
 
                   <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Full Address</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">{t('field_full_address', 'Full Address')}</h3>
                     <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
                       <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                       <span>
-                        {[field.address, field.city, field.province, field.country].filter(Boolean).join(', ') || 'Address not specified'}
+                         {[field.address, field.city, field.province, field.country].filter(Boolean).join(', ') || t('field_address_not_specified', 'Address not specified')}
                       </span>
                     </div>
                     {(field.latitude || field.longitude) && (
                       <div className="mt-3 text-xs text-slate-500">
-                        Coordinates: {field.latitude || '-'}, {field.longitude || '-'}
+                        {t('field_coordinates', 'Coordinates: {{lat}}, {{lng}}', { lat: field.latitude || '-', lng: field.longitude || '-' })}
                       </div>
                     )}
                   </div>
 
                   {Number.isFinite(Number(field.latitude)) && Number.isFinite(Number(field.longitude)) && (
                     <div>
-                      <h2 className="text-sm font-semibold text-gray-900">Location Map</h2>
+                      <h2 className="text-sm font-semibold text-gray-900">{t('field_location_map', 'Location Map')}</h2>
                       <div className="mt-3">
                         <FieldLocationMap latitude={field.latitude} longitude={field.longitude} />
                       </div>
@@ -386,7 +392,7 @@ const FieldDetailsPage = () => {
 
                   {Array.isArray(field.amenities) && field.amenities.length > 0 && (
                     <div>
-                      <h2 className="text-sm font-semibold text-gray-900">Amenities</h2>
+                      <h2 className="text-sm font-semibold text-gray-900">{t('field_amenities', 'Amenities')}</h2>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {field.amenities.map((amenity) => (
                           <Badge key={amenity} tone="gray">
@@ -403,12 +409,12 @@ const FieldDetailsPage = () => {
                 <div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <h2 className="text-sm font-semibold text-gray-900">Live Booking Schedule</h2>
-                      <p className="mt-1 text-sm text-gray-600">Visual schedule for this field only. See who is playing when.</p>
+                      <h2 className="text-sm font-semibold text-gray-900">{t('field_live_schedule', 'Live Booking Schedule')}</h2>
+                      <p className="mt-1 text-sm text-gray-600">{t('field_live_schedule_subtitle', 'Visual schedule for this field only. See who is playing when.')}</p>
                     </div>
 
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Select Day</span>
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{t('field_select_day', 'Select Day')}</span>
                       <div className="relative">
                         <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <input
@@ -432,28 +438,28 @@ const FieldDetailsPage = () => {
                         <div className="border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-blue-50 px-4 py-4">
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
-                              <div className="text-sm font-semibold text-slate-900">Field schedule</div>
-                              <div className="mt-1 text-xs text-slate-500">Only this field is shown. Captains can book available slots.</div>
+                              <div className="text-sm font-semibold text-slate-900">{t('field_schedule', 'Field schedule')}</div>
+                              <div className="mt-1 text-xs text-slate-500">{t('field_schedule_subtitle', 'Only this field is shown. Captains can book available slots.')}</div>
                             </div>
                             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
                               <span className="inline-flex items-center gap-1">
-                                <span className="h-3 w-3 rounded-sm bg-emerald-600" /> Available
+                                <span className="h-3 w-3 rounded-sm bg-emerald-600" /> {t('field_available', 'Available')}
                               </span>
                               <span className="inline-flex items-center gap-1">
-                                <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending
+                                <span className="h-3 w-3 rounded-sm bg-amber-500" /> {t('common_pending', 'Pending')}
                               </span>
                               <span className="inline-flex items-center gap-1">
-                                <span className="h-3 w-3 rounded-sm bg-red-600" /> Booked
+                                <span className="h-3 w-3 rounded-sm bg-red-600" /> {t('field_booked', 'Booked')}
                               </span>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex border-b border-slate-200 bg-blue-600 text-white">
-                          <div className="w-24 px-4 py-3 text-sm font-semibold">Time</div>
+                           <div className="w-24 px-4 py-3 text-sm font-semibold">Time</div>
                           <div className="flex-1 border-l border-white/20 px-4 py-3 text-center">
                             <div className="font-semibold">{field.name}</div>
-                            <div className="text-xs opacity-90">{field.fieldType || 'Field'}</div>
+                             <div className="text-xs opacity-90">{field.fieldType || t('create_booking_field', 'Field')}</div>
                           </div>
                         </div>
 
@@ -478,15 +484,15 @@ const FieldDetailsPage = () => {
                                     className={`flex min-h-[62px] w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-slate-800 transition ${slotToneClass}`}
                                     title={
                                       !canBookThisField
-                                        ? 'Field is not available for booking'
-                                        : canCreateBooking
-                                        ? 'Available - click to book'
-                                        : 'Available slot'
-                                    }
+                                         ? t('field_not_available', 'Field is not available for booking')
+                                         : canCreateBooking
+                                         ? t('field_available_slot', 'Available - click to book')
+                                         : t('field_available', 'Available')
+                                     }
                                   >
                                     <div>
                                       <div className="text-sm font-semibold">{formatSlotRange(slot.hour)}</div>
-                                      <div className="mt-1 text-xs text-slate-500">Open for booking on this field.</div>
+                                       <div className="mt-1 text-xs text-slate-500">{t('field_available_open', 'Open for booking on this field.')}</div>
                                     </div>
                                     <div className="inline-flex items-center gap-1 text-xs text-slate-500">
                                       <ClockIcon className="h-3.5 w-3.5" />
@@ -495,10 +501,12 @@ const FieldDetailsPage = () => {
                                   </button>
                                 ) : (
                                   <div className={`min-h-[62px] rounded-lg px-3 py-2 transition ${slotToneClass}`}>
-                                    <div className="truncate text-sm font-bold">{slot.booking?.team?.name || 'Reserved slot'}</div>
+                                     <div className="truncate text-sm font-bold">{slot.booking?.team?.name || t('field_reserved_slot', 'Reserved slot')}</div>
                                     <div className="mt-1 text-xs opacity-90">{formatSlotRange(slot.hour)}</div>
                                     <div className="mt-1 text-xs opacity-90">
-                                      {isPending ? 'Pending request on this field.' : 'Confirmed booking on this field.'}
+                                       {isPending
+                                         ? t('field_pending_request', 'Pending request on this field.')
+                                         : t('field_confirmed_booking', 'Confirmed booking on this field.')}
                                     </div>
                                   </div>
                                 )}
@@ -515,17 +523,17 @@ const FieldDetailsPage = () => {
               {activeTab === 'comment-rate' && (
                 <div className="space-y-5">
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
-                    <h2 className="text-xl font-semibold text-slate-950">Comment & Rate</h2>
-                    <p className="mt-2 text-sm text-slate-600">See field feedback and rating summary for this venue.</p>
+                     <h2 className="text-xl font-semibold text-slate-950">{t('field_comment_rate', 'Comment & Rate')}</h2>
+                     <p className="mt-2 text-sm text-slate-600">{t('field_reviews_placeholder', 'Field comments and rating submissions can be shown in this section after review data is connected for this page.')}</p>
                   </div>
 
                   <div className="rounded-[24px] border border-dashed border-slate-200 bg-white p-6 text-center">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                       <ChatBubbleLeftRightIcon className="h-6 w-6" />
                     </div>
-                    <h3 className="mt-4 text-base font-semibold text-slate-950">Reviews will appear here</h3>
+                    <h3 className="mt-4 text-base font-semibold text-slate-950">{t('field_reviews_coming', 'Reviews will appear here')}</h3>
                     <p className="mt-2 text-sm text-slate-600">
-                      Field comments and rating submissions can be shown in this section after review data is connected for this page.
+                      {t('field_reviews_placeholder', 'Field comments and rating submissions can be shown in this section after review data is connected for this page.')}
                     </p>
                   </div>
                 </div>

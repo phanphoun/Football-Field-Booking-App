@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import userService from '../services/userService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -36,6 +37,8 @@ const resolveAvatarUrl = (user) => {
 };
 
 const AdminUsersPage = () => {
+  const { language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState(null);
@@ -57,7 +60,7 @@ const AdminUsersPage = () => {
       const response = await userService.getAllUsers();
       setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to load users.' });
+      setFlash({ type: 'error', message: error.error || text('Failed to load users.', 'មិនអាចផ្ទុកអ្នកប្រើបានទេ។') });
     } finally {
       setLoading(false);
     }
@@ -111,16 +114,16 @@ const AdminUsersPage = () => {
 
   const handleDelete = async (userId, username) => {
     setOpenMenuUserId(null);
-    const confirmed = await confirm(`Delete user @${username}? This cannot be undone.`, { title: 'Delete User' });
+    const confirmed = await confirm(text(`Delete user @${username}? This cannot be undone.`, `លុបអ្នកប្រើ @${username} មែនទេ? មិនអាចត្រឡប់វិញបានទេ។`), { title: text('Delete User', 'លុបអ្នកប្រើ') });
     if (!confirmed) return;
 
     try {
       setSavingUserId(userId);
       await userService.deleteUser(userId);
       setUsers((prev) => prev.filter((user) => user.id !== userId));
-      setFlash({ type: 'success', message: 'User deleted successfully.' });
+      setFlash({ type: 'success', message: text('User deleted successfully.', 'បានលុបអ្នកប្រើដោយជោគជ័យ។') });
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to delete user.' });
+      setFlash({ type: 'error', message: error.error || text('Failed to delete user.', 'មិនអាចលុបអ្នកប្រើបានទេ។') });
     } finally {
       setSavingUserId(null);
     }
@@ -172,10 +175,10 @@ const AdminUsersPage = () => {
             : user
         )
       );
-      setFlash({ type: 'success', message: 'User updated successfully.' });
+      setFlash({ type: 'success', message: text('User updated successfully.', 'បានកែប្រែអ្នកប្រើដោយជោគជ័យ។') });
       setEditUser(null);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to update user.' });
+      setFlash({ type: 'error', message: error.error || text('Failed to update user.', 'មិនអាចកែប្រែអ្នកប្រើបានទេ។') });
     } finally {
       setSavingUserId(null);
     }
@@ -187,10 +190,10 @@ const AdminUsersPage = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700 ring-1 ring-indigo-100">
-            Admin Users
+            {text('Admin Users', 'អ្នកប្រើសម្រាប់អ្នកគ្រប់គ្រង')}
           </div>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Manage Users</h1>
-          <p className="mt-2 text-sm text-slate-600">Update roles, account status, and remove users with a cleaner overview.</p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{text('Manage Users', 'គ្រប់គ្រងអ្នកប្រើ')}</h1>
+          <p className="mt-2 text-sm text-slate-600">{text('Update roles, account status, and remove users with a cleaner overview.', 'កែប្រែតួនាទី ស្ថានភាពគណនី និងលុបអ្នកប្រើដោយមានទិដ្ឋភាពច្បាស់ជាងមុន។')}</p>
         </div>
         </div>
       </div>
@@ -203,19 +206,19 @@ const AdminUsersPage = () => {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Total</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{text('Total', 'សរុប')}</p>
           <AnimatedStatValue value={stats.total} className="mt-1 text-2xl font-bold text-gray-900" />
         </div>
         <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Active</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{text('Active', 'សកម្ម')}</p>
           <AnimatedStatValue value={stats.active} className="mt-1 text-2xl font-bold text-green-700" />
         </div>
         <div className="rounded-[24px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Admins</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{text('Admins', 'អ្នកគ្រប់គ្រង')}</p>
           <AnimatedStatValue value={stats.admins} className="mt-1 text-2xl font-bold text-blue-700" />
         </div>
         <div className="rounded-[24px] border border-red-100 bg-gradient-to-br from-red-50 via-white to-red-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Suspended</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{text('Suspended', 'ផ្អាក')}</p>
           <AnimatedStatValue value={stats.suspended} className="mt-1 text-2xl font-bold text-red-700" />
         </div>
       </div>
