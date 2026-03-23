@@ -7,6 +7,18 @@ import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
+const TeamJerseyDots = ({ colors = [], teamKey }) => (
+  <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 align-middle">
+    {colors.map((color, index) => (
+      <span
+        key={`${teamKey}-${color}-${index}`}
+        className="h-3.5 w-3.5 rounded-full border border-black/10"
+        style={{ backgroundColor: color }}
+      />
+    ))}
+  </span>
+);
+
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
   const { version } = useRealtime();
@@ -425,17 +437,13 @@ const BookingsPage = () => {
                     )}
 
                     {booking.opponentTeam?.name && (
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
-                        Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
-                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700">
-                          {homeColors.map((color, index) => (
-                            <span key={`home-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
-                          ))}
-                          <span className="mx-0.5 text-gray-400">vs</span>
-                          {awayColors.map((color, index) => (
-                            <span key={`away-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
-                          ))}
-                        </span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-green-700">
+                        <span>Already matched:</span>
+                        <span className="font-medium text-green-800">{booking.team?.name || 'Team A'}</span>
+                        <TeamJerseyDots colors={homeColors} teamKey={`home-${booking.id}`} />
+                        <span className="text-gray-400">vs</span>
+                        <TeamJerseyDots colors={awayColors} teamKey={`away-${booking.id}`} />
+                        <span className="font-medium text-green-800">{booking.opponentTeam.name}</span>
                       </div>
                     )}
 

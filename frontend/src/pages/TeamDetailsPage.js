@@ -984,30 +984,23 @@ const TeamDetailsPage = () => {
                 <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Team Identity</div>
                 <h2 className="mt-2 text-2xl font-bold text-slate-950">Team Logo</h2>
               </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
-                Max 5MB
-              </span>
             </div>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Used across team pages and member views. A square image works best.
-            </p>
-
-            <div className="relative mx-auto mt-5 flex h-[200px] w-[200px] items-center justify-center overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),rgba(240,249,255,0.9)_55%,rgba(236,253,245,0.92))] shadow-inner transition duration-200 group-hover:scale-[1.02]">
+            <div className="relative mx-auto mt-5 flex h-[280px] w-[280px] max-w-full items-center justify-center overflow-hidden rounded-[34px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),rgba(240,249,255,0.9)_55%,rgba(236,253,245,0.92))] shadow-inner transition duration-200 group-hover:scale-[1.02]">
               {teamLogoUrl ? (
                 <img
                   src={teamLogoUrl}
                   alt={`${team.name} logo`}
-                  className="h-full w-full object-contain p-3 transition duration-300 group-hover:scale-105"
+                  className="h-full w-full object-contain p-4 transition duration-300 group-hover:scale-105"
                   onError={() => {
                     setLogoCandidateIndex((prev) => prev + 1);
                   }}
                 />
               ) : (
                 <div className="text-center">
-                  <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 transition duration-200 group-hover:scale-105 group-hover:ring-emerald-200">
-                    <PhotoIcon className="h-9 w-9 text-slate-400 transition duration-200 group-hover:text-emerald-500" />
+                  <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200 transition duration-200 group-hover:scale-105 group-hover:ring-emerald-200">
+                    <PhotoIcon className="h-12 w-12 text-slate-400 transition duration-200 group-hover:text-emerald-500" />
                   </div>
-                  <p className="text-sm font-medium text-slate-500">No logo</p>
+                  <p className="text-base font-medium text-slate-500">No logo</p>
                 </div>
               )}
 
@@ -1016,24 +1009,9 @@ const TeamDetailsPage = () => {
                   type="button"
                   onClick={() => document.getElementById('logo-upload').click()}
                   disabled={actionLoading}
-                  className="absolute bottom-3 right-3 inline-flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-emerald-500 text-white shadow-lg shadow-emerald-200 transition duration-200 hover:scale-110 hover:bg-emerald-600 hover:shadow-xl hover:shadow-emerald-200 disabled:opacity-50"
+                  className="absolute bottom-4 right-4 inline-flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-emerald-500 text-white shadow-lg shadow-emerald-200 transition duration-200 hover:scale-110 hover:bg-emerald-600 hover:shadow-xl hover:shadow-emerald-200 disabled:opacity-50"
                 >
-                  <ArrowUpTrayIcon className="h-6 w-6" />
-                </button>
-              )}
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-              <span>Recommended size: 512 x 512 px</span>
-              {isCaptainOfTeam && (
-                <button
-                  type="button"
-                  onClick={() => document.getElementById('logo-upload').click()}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
-                >
-                  <ArrowUpTrayIcon className="h-4 w-4" />
-                  Change Logo
+                  <ArrowUpTrayIcon className="h-7 w-7" />
                 </button>
               )}
             </div>
