@@ -23,12 +23,9 @@ const validateFileSignature = (buffer, mimetype) => {
 };
 const serverConfig = require('../config/serverConfig');
 const { createInAppNotification } = require('../utils/notify');
-<<<<<<< HEAD
 const { sendEmail } = require('../utils/emailService');
 const crypto = require('crypto');
-=======
 const { getRoleUpgradeConfig } = require('../config/roleUpgradeConfig');
->>>>>>> 1f1c37f3fe99ea6d035be8c0a1e36ce1d48d3ff3
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';

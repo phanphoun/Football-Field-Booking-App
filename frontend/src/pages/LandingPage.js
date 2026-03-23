@@ -193,6 +193,35 @@ const rateToStatus = (rate) => {
   return 'Open';
 };
 
+const GENERIC_FIELD_NAME_PATTERNS = [
+  /^field\s+\d+$/i,
+  /^premium outdoor field$/i,
+  /^stadium football pitch$/i,
+  /^indoor football arena$/i,
+  /^city center pitch$/i,
+  /^night lights field$/i,
+  /^champions ground$/i
+];
+
+const isGenericFieldName = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return true;
+  return GENERIC_FIELD_NAME_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+const buildAvailabilityCardTitle = (field, index) => {
+  const name = String(field?.name || '').trim();
+  if (!isGenericFieldName(name)) return name;
+
+  const locationLabel = String(field?.address || field?.city || '').trim();
+  const fieldTypeLabel = String(field?.fieldType || '').trim();
+
+  if (locationLabel && fieldTypeLabel) return `${locationLabel} ${fieldTypeLabel}`.trim();
+  if (locationLabel) return locationLabel;
+  if (fieldTypeLabel) return `${fieldTypeLabel} Field`;
+  return `Field ${index + 1}`;
+};
+
 const rateToTone = (rate) => {
   if (rate >= 80) return 'limited';
   if (rate >= 60) return 'moderate';
@@ -211,17 +240,71 @@ const buildPopularTimeSlotCard = (session, rate, extra = {}) => ({
   ...extra
 });
 
-const applyStarRatings = (slots) => {
-  const rankedRates = [...new Set(slots.map((slot) => Number(slot.rate || 0)))].sort((a, b) => b - a);
+const roundToSingleDecimal = (value) => Math.round(value * 10) / 10;
 
-  return slots.map((slot) => {
-    const rank = rankedRates.indexOf(Number(slot.rate || 0));
-    const stars = Math.max(3, 5 - Math.min(rank, 2));
+const applyStarRatings = (slots) => {
+  const maxBookedMinutes = Math.max(...slots.map((slot) => Number(slot.bookedMinutes || 0)), 0);
+  const maxBookingCount = Math.max(...slots.map((slot) => Number(slot.bookingCount || 0)), 0);
+  const scoredSlots = slots.map((slot) => {
+    const occupancyScore = Math.max(0, Math.min(1, Number(slot.rate || 0) / 100));
+    const bookedMinutesScore =
+      maxBookedMinutes > 0 ? Math.max(0, Math.min(1, Number(slot.bookedMinutes || 0) / maxBookedMinutes)) : 0;
+    const bookingCountScore =
+      maxBookingCount > 0 ? Math.max(0, Math.min(1, Number(slot.bookingCount || 0) / maxBookingCount)) : 0;
+
+    // Popularity score based on real booking activity:
+    // occupancy matters most, then total booked time, then number of bookings.
+    const popularityScore =
+      occupancyScore * 0.5 +
+      bookedMinutesScore * 0.3 +
+      bookingCountScore * 0.2;
 
     return {
       ...slot,
-      stars,
-      rating: `${stars}.0`
+      occupancyScore,
+      popularityScore,
+      hasRealBookings: Number(slot.bookedMinutes || 0) > 0 || Number(slot.bookingCount || 0) > 0
+    };
+  });
+
+  const realScores = scoredSlots
+    .filter((slot) => slot.hasRealBookings)
+    .map((slot) => slot.popularityScore);
+  const minRealScore = realScores.length > 0 ? Math.min(...realScores) : 0;
+  const maxRealScore = realScores.length > 0 ? Math.max(...realScores) : 0;
+  const rankedKeys = [...scoredSlots]
+    .sort((a, b) => {
+      if (b.popularityScore !== a.popularityScore) return b.popularityScore - a.popularityScore;
+      if (b.bookedMinutes !== a.bookedMinutes) return b.bookedMinutes - a.bookedMinutes;
+      if (b.bookingCount !== a.bookingCount) return b.bookingCount - a.bookingCount;
+      return a.label.localeCompare(b.label);
+    })
+    .map((slot) => slot.key);
+
+  return scoredSlots.map((slot) => {
+    let ratingValue = 4.0;
+
+    if (slot.hasRealBookings) {
+      const normalizedScore =
+        maxRealScore > minRealScore
+          ? (slot.popularityScore - minRealScore) / (maxRealScore - minRealScore)
+          : slot.occupancyScore;
+
+      // Keep ratings high because these cards represent already-popular sessions,
+      // while still preserving real differences from booking activity.
+      ratingValue = roundToSingleDecimal(4.2 + normalizedScore * 0.7);
+    } else {
+      ratingValue = roundToSingleDecimal(3.8 + slot.occupancyScore * 0.4);
+    }
+
+    const rankIndex = rankedKeys.indexOf(slot.key);
+    const rankAdjustment = rankIndex >= 0 ? (rankedKeys.length - 1 - rankIndex) * 0.1 : 0;
+    ratingValue = roundToSingleDecimal(Math.min(4.9, ratingValue + rankAdjustment));
+
+    return {
+      ...slot,
+      stars: Math.max(1, Math.round(ratingValue)),
+      rating: ratingValue.toFixed(1)
     };
   });
 };
@@ -312,8 +395,8 @@ const buildDiscountOfferDescription = (field) => {
   return `Save $${savedAmount}/hr on this field in ${field.city || field.province || 'your city'}.`;
 };
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-16';
-const SCHEDULE_COLUMN_MIN_WIDTH = 220;
-const SCHEDULE_TIME_COLUMN_WIDTH_CLASS = 'w-28';
+const SCHEDULE_COLUMN_MIN_WIDTH = 180;
+const SCHEDULE_TIME_COLUMN_WIDTH_CLASS = 'w-36';
 const toLocalDateKey = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -352,18 +435,34 @@ const formatSlotTo12h = (slot) => {
 };
 const getFieldClosureTitle = (field) => {
   const status = String(field?.status || '').toLowerCase();
-  if (status === 'maintenance') return 'Under maintenance';
-  if (status === 'unavailable') return 'Temporarily unavailable';
+  if (status === 'maintenance') return 'Maintenance';
+  if (status === 'unavailable') return 'Closed by owner';
   return 'Closed';
 };
 const getFieldClosureReason = (field) => {
   const reason = String(field?.closureMessage || '').trim();
-  if (reason) return reason;
+  const normalizedReason = reason.toLowerCase();
+  if (reason) {
+    if (normalizedReason === 'temporarily closed by field owner.') {
+      return 'The field owner temporarily closed bookings for this field.';
+    }
+    return reason;
+  }
 
   const status = String(field?.status || '').toLowerCase();
-  if (status === 'maintenance') return 'This field is being prepared and will reopen soon.';
-  if (status === 'unavailable') return 'This field is not accepting bookings right now.';
+  if (status === 'maintenance') return 'The field is under maintenance right now.';
+  if (status === 'unavailable') return 'The field owner marked this field as unavailable.';
   return 'Bookings are temporarily unavailable for this field.';
+};
+const getFieldClosureReopenLabel = (field) => {
+  if (!field?.closureEndAt) return '';
+  const reopenDate = new Date(field.closureEndAt);
+  if (Number.isNaN(reopenDate.getTime())) return '';
+
+  return `Opens ${reopenDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  })}`;
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
@@ -741,7 +840,7 @@ const LandingPage = () => {
 
       return {
         id: field.id,
-        name: field.name || `Field ${index + 1}`,
+        name: buildAvailabilityCardTitle(field, index),
         location: field.address || field.city || 'Sports Complex',
         fieldType: field.fieldType || '11v11',
         surfaceType: String(field.surfaceType || 'artificial_turf').replace('_', ' '),
@@ -1080,10 +1179,10 @@ const LandingPage = () => {
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
               <BoltIcon className="h-4 w-4" />
-              Live Updates
+              Live Field Listings
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Available Right Now</h2>
-            <p className="mt-2 text-base text-slate-600">Real-time availability - book instantly before slots fill up!</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">Fields You Can Book Today</h2>
+            <p className="mt-2 text-base text-slate-600">Browse live football field options with current prices, locations, and open booking windows.</p>
           </div>
 
             <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-5 lg:grid-cols-2">
@@ -1116,7 +1215,9 @@ const LandingPage = () => {
                           </span>
                         </div>
 
-                        <h3 className="mt-4 truncate text-[2rem] font-black tracking-tight text-slate-950">{field.name}</h3>
+                        <h3 className="mt-4 text-[2rem] font-black leading-[1.05] tracking-tight text-slate-950 break-words">
+                          {field.name}
+                        </h3>
                         <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-slate-500">
                           <MapPinIcon className="mt-0.5 h-4 w-4 flex-none" />
                           <span>{field.location}</span>
@@ -1280,9 +1381,9 @@ const LandingPage = () => {
               </div>
             </div>
               <div className="flex border-b border-slate-200 bg-blue-600 text-white">
-               <div className={`sticky left-0 z-10 ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} border-r border-white/20 bg-blue-700 p-4 font-semibold`}>
-                 Time
-               </div>
+               <div className={`sticky left-0 z-10 ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} whitespace-nowrap border-r border-white/20 bg-blue-700 p-4 font-semibold`}>
+                  Time / Field
+                </div>
                <div
                 className="grid flex-1"
                 style={{ gridTemplateColumns: `repeat(${scheduleFields.length}, minmax(${SCHEDULE_COLUMN_MIN_WIDTH}px, 1fr))` }}
@@ -1312,7 +1413,7 @@ const LandingPage = () => {
               return (
                 <div key={slot} className="flex border-b border-slate-200 last:border-b-0">
                   <div
-                    className={`sticky left-0 z-[1] ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} border-r border-slate-200 bg-white p-2.5 text-left font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
+                    className={`sticky left-0 z-[1] ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} flex items-center justify-center border-r border-slate-200 bg-white p-2.5 text-center font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
                   >
                     <div className="text-sm leading-tight">{slot}</div>
                   </div>
@@ -1373,18 +1474,26 @@ const LandingPage = () => {
                         if (isFieldClosed) {
                           const closureTitle = getFieldClosureTitle(field);
                           const closureReason = getFieldClosureReason(field);
+                          const closureReopenLabel = getFieldClosureReopenLabel(field);
                           return (
                             <div
                               key={`${field.id}-${slot}`}
                               className="m-1 flex h-[56px] min-w-0 flex-col justify-center rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100 px-3 py-2 text-left shadow-sm"
                               title={`${closureTitle}: ${closureReason}`}
                             >
-                              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                <span className="truncate">{closureTitle}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                  <span className="truncate">{closureTitle}</span>
+                                </div>
+                                {closureReopenLabel ? (
+                                  <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                                    {closureReopenLabel}
+                                  </span>
+                                ) : null}
                               </div>
-                              <div className="mt-1 line-clamp-2 text-xs font-medium leading-4 text-rose-900">
-                                {closureReason}
+                              <div className="mt-1 line-clamp-2 text-xs font-medium leading-4 text-slate-900">
+                                <span className="font-semibold text-rose-700">Reason:</span> {closureReason}
                               </div>
                             </div>
                           );
