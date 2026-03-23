@@ -80,10 +80,13 @@ api.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status || 500;
+    const validationErrors = error.response?.data?.errors;
 
     const isNetworkError = !error.response;
     const message = isNetworkError
       ? 'Cannot connect to server. Please make sure backend API is running.'
+      : Array.isArray(validationErrors) && validationErrors.length > 0
+        ? validationErrors.map((item) => item.message).filter(Boolean).join(' ')
       : error.response?.data?.error ||
         error.response?.data?.message ||
         error.message ||

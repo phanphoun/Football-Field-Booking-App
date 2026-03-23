@@ -193,6 +193,31 @@ const applyLegacySchemaFixes = async (sequelize) => {
     changes.push('notifications.metadata');
   }
 
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'requesterId', 'INT NOT NULL')) {
+    changes.push('role_requests.requesterId');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'requestedRole', "ENUM('captain','field_owner') NOT NULL DEFAULT 'captain'")) {
+    changes.push('role_requests.requestedRole');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'feeAmountUsd', 'DECIMAL(10,2) NOT NULL DEFAULT 0')) {
+    changes.push('role_requests.feeAmountUsd');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentStatus', "ENUM('paid','waived') NOT NULL DEFAULT 'paid'")) {
+    changes.push('role_requests.paymentStatus');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentReference', 'VARCHAR(255) NULL')) {
+    changes.push('role_requests.paymentReference');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentPaidAt', 'DATETIME NULL')) {
+    changes.push('role_requests.paymentPaidAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'reviewedBy', 'INT NULL')) {
+    changes.push('role_requests.reviewedBy');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'reviewedAt', 'DATETIME NULL')) {
+    changes.push('role_requests.reviewedAt');
+  }
+
   if (await addColumnIfMissing(sequelize, 'users', 'avatarUrl', 'VARCHAR(255) NULL')) {
     changes.push('users.avatarUrl');
   }
