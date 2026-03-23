@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import {
   CheckIcon,
   ChevronDownIcon,
-  MapPinIcon,
   PencilSquareIcon,
   PhotoIcon,
   TrashIcon,
@@ -166,7 +164,6 @@ const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -181,10 +178,6 @@ const OwnerFieldsPage = () => {
   const [imageVersionToken, setImageVersionToken] = useState(0);
   const [form, setForm] = useState(emptyForm);
 
-  const selectedField = useMemo(
-    () => fields.find((field) => Number(field.id) === Number(editingFieldId)) || null,
-    [editingFieldId, fields]
-  );
   const visibleFields = useMemo(() => fields, [fields]);
 
   const loadFields = useCallback(async () => {

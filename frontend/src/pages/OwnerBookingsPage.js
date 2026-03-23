@@ -23,8 +23,6 @@ const statusTone = (status) => {
   return tones[status] || 'gray';
 };
 
-const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
-
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
