@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  MapPinIcon,
+  PencilSquareIcon,
+  PhotoIcon,
+  PlusIcon,
+  TrashIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +18,26 @@ import { useDialog, useToast } from '../components/ui';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
+const FIELD_STATUS_OPTIONS = [
+  {
+    value: 'available',
+    label: 'Open',
+    description: 'Bookings are available and the field appears as ready to reserve.',
+    tone: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  },
+  {
+    value: 'unavailable',
+    label: 'Closed',
+    description: 'Hide booking availability until you reopen the field.',
+    tone: 'bg-rose-50 text-rose-700 border-rose-200'
+  },
+  {
+    value: 'maintenance',
+    label: 'Maintenance',
+    description: 'Show that the field is temporarily offline for repair or preparation.',
+    tone: 'bg-amber-50 text-amber-700 border-amber-200'
+  }
+];
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 
@@ -133,6 +162,7 @@ const OwnerFieldsPage = () => {
   const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [statusEditingField, setStatusEditingField] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
@@ -180,6 +210,7 @@ const OwnerFieldsPage = () => {
 
   const resetStatusForm = () => {
     setStatusEditingField(null);
+    setIsStatusMenuOpen(false);
     setForm((current) => ({
       ...current,
       status: 'available',
@@ -434,6 +465,7 @@ const OwnerFieldsPage = () => {
 
   const startStatusEdit = (field) => {
     setStatusEditingField(field);
+    setIsStatusMenuOpen(false);
     setForm((current) => ({
       ...current,
       status: normalizeEditableStatus(field?.status),
@@ -443,6 +475,9 @@ const OwnerFieldsPage = () => {
     }));
     setIsStatusOpen(true);
   };
+
+  const selectedStatusOption =
+    FIELD_STATUS_OPTIONS.find((option) => option.value === form.status) || FIELD_STATUS_OPTIONS[0];
 
   const handleStatusSubmit = async (event) => {
     event.preventDefault();
@@ -764,11 +799,69 @@ const OwnerFieldsPage = () => {
             <div className="mt-4 space-y-4">
               <label className="block space-y-2">
                 <span className="block text-sm font-medium text-slate-700">Field Status</span>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="available">Open</option>
-                  <option value="unavailable">Closed</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsStatusMenuOpen((current) => !current)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    aria-haspopup="listbox"
+                    aria-expanded={isStatusMenuOpen}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${selectedStatusOption.tone}`}>
+                          {selectedStatusOption.label}
+                        </span>
+                        <span className="text-base font-semibold text-slate-900">{selectedStatusOption.label}</span>
+                      </div>
+                      <p className="mt-1 truncate text-sm text-slate-500">{selectedStatusOption.description}</p>
+                    </div>
+                    <ChevronDownIcon
+                      className={`h-5 w-5 shrink-0 text-slate-400 transition ${isStatusMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {isStatusMenuOpen && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+10px)] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.18)]">
+                      <div className="p-2" role="listbox" aria-label="Field status options">
+                        {FIELD_STATUS_OPTIONS.map((option) => {
+                          const isSelected = option.value === form.status;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setForm((current) => ({ ...current, status: option.value }));
+                                setIsStatusMenuOpen(false);
+                              }}
+                              className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
+                                isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50'
+                              }`}
+                              role="option"
+                              aria-selected={isSelected}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${option.tone}`}>
+                                    {option.label}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm font-semibold text-slate-900">{option.label}</p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">{option.description}</p>
+                              </div>
+                              {isSelected && (
+                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                                  <CheckIcon className="h-4 w-4" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </label>
 
               {form.status !== 'available' && (

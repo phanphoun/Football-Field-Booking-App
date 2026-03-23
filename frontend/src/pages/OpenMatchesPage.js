@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 
 const OpenMatchesPage = () => {
   const { user } = useAuth();
-  const isCaptain = user?.role === 'captain';
+  const canUseOpenMatches = ['captain', 'field_owner'].includes(user?.role || '');
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
   const [selectedTeams, setSelectedTeams] = useState({});
@@ -24,10 +24,10 @@ const OpenMatchesPage = () => {
   }, [captainedTeams]);
 
   const loadData = useCallback(async () => {
-    if (!isCaptain) {
+    if (!canUseOpenMatches) {
       setOpenMatches([]);
       setCaptainedTeams([]);
-      setError('This feature is available for team captains only.');
+      setError('This feature is available for team captains and field owners only.');
       setLoading(false);
       return;
     }
@@ -50,7 +50,7 @@ const OpenMatchesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [isCaptain]);
+  }, [canUseOpenMatches]);
 
   useEffect(() => {
     loadData();

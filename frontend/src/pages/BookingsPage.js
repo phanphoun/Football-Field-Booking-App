@@ -12,7 +12,7 @@ const BookingsPage = () => {
   const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
-  const canCreateBooking = user?.role === 'captain';
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -617,9 +617,9 @@ const TeamDetailsPage = () => {
     {
       label: 'Home Field',
       value: team?.homeField?.name || 'No home field',
-      renderValue: team.homeField ? (
+      renderValue: team?.homeField ? (
         <div className="mt-2 space-y-2">
-          <p className="text-sm font-semibold text-gray-800">{team.homeField.name}</p>
+          <p className="text-sm font-semibold text-gray-800">{team.homeField?.name}</p>
           {teamHomeFieldAddress && <p className="text-xs leading-5 text-gray-500">{teamHomeFieldAddress}</p>}
           {teamHomeFieldLocationUrl && (
             <a

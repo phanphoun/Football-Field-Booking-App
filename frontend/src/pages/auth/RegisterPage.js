@@ -50,6 +50,11 @@ const RegisterPage = () => {
 
   const passwordsMatch =
     !formData.confirmPassword || formData.password === formData.confirmPassword;
+  const passwordMeetsServerRules =
+    formData.password.length >= 8 &&
+    /[a-z]/.test(formData.password) &&
+    /[A-Z]/.test(formData.password) &&
+    /\d/.test(formData.password);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,6 +77,11 @@ const RegisterPage = () => {
 
     if (formData.password !== formData.confirmPassword) {
       setClientError('Passwords do not match.');
+      return;
+    }
+
+    if (!passwordMeetsServerRules) {
+      setClientError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
       return;
     }
 
@@ -247,7 +257,7 @@ const RegisterPage = () => {
             {validationErrors.password && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
             )}
-            <p className="mt-2 text-xs text-slate-500">Use at least 8 characters.</p>
+            <p className="mt-2 text-xs text-slate-500">Use at least 8 characters with uppercase, lowercase, and a number.</p>
           </div>
 
           <div>

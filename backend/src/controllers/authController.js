@@ -23,8 +23,12 @@ const validateFileSignature = (buffer, mimetype) => {
 };
 const serverConfig = require('../config/serverConfig');
 const { createInAppNotification } = require('../utils/notify');
+<<<<<<< HEAD
 const { sendEmail } = require('../utils/emailService');
 const crypto = require('crypto');
+=======
+const { getRoleUpgradeConfig } = require('../config/roleUpgradeConfig');
+>>>>>>> 1f1c37f3fe99ea6d035be8c0a1e36ce1d48d3ff3
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
@@ -66,6 +70,10 @@ const serializeRoleRequest = (roleRequest) => ({
   id: roleRequest.id,
   requestedRole: roleRequest.requestedRole,
   status: roleRequest.status,
+  feeAmountUsd: Number(roleRequest.feeAmountUsd || 0),
+  paymentStatus: roleRequest.paymentStatus || 'paid',
+  paymentReference: roleRequest.paymentReference || '',
+  paymentPaidAt: roleRequest.paymentPaidAt,
   note: roleRequest.note || '',
   reviewedBy: roleRequest.reviewedBy,
   reviewedAt: roleRequest.reviewedAt,
@@ -862,6 +870,11 @@ const getRoleRequests = async (req, res) => {
     res.json({
       currentRole: user.role,
       availableRoles: getAllowedRequestedRoles(user.role),
+      upgradePlans: Object.fromEntries(
+        getAllowedRequestedRoles(user.role)
+          .map((roleKey) => [roleKey, getRoleUpgradeConfig(roleKey)])
+          .filter(([, value]) => Boolean(value))
+      ),
       hasPendingRequest: requests.some((request) => request.status === 'pending'),
       requests: requests.map(serializeRoleRequest)
     });
@@ -873,7 +886,7 @@ const getRoleRequests = async (req, res) => {
 
 const requestRoleUpgrade = async (req, res) => {
   try {
-    const { requestedRole, note } = req.body;
+    const { requestedRole, note, paymentAcknowledged, paymentReference } = req.body;
     const user = await User.findByPk(req.user.id, {
       attributes: ['id', 'email', 'username', 'firstName', 'lastName', 'role']
     });
@@ -886,6 +899,17 @@ const requestRoleUpgrade = async (req, res) => {
     if (!allowedRoles.includes(requestedRole)) {
       return res.status(400).json({
         error: 'Your current account cannot request that role.'
+      });
+    }
+
+    const upgradePlan = getRoleUpgradeConfig(requestedRole);
+    if (!upgradePlan) {
+      return res.status(400).json({ error: 'Upgrade plan is not available.' });
+    }
+
+    if (!paymentAcknowledged) {
+      return res.status(400).json({
+        error: `Payment confirmation is required before requesting ${ROLE_REQUEST_LABELS[requestedRole]} access.`
       });
     }
 
@@ -905,6 +929,10 @@ const requestRoleUpgrade = async (req, res) => {
     const roleRequest = await RoleRequest.create({
       requesterId: user.id,
       requestedRole,
+      feeAmountUsd: upgradePlan.feeUsd,
+      paymentStatus: 'paid',
+      paymentReference: paymentReference?.trim() || `ROLE-${requestedRole.toUpperCase()}-${Date.now()}`,
+      paymentPaidAt: new Date(),
       note: note?.trim() || null
     });
 
@@ -923,12 +951,14 @@ const requestRoleUpgrade = async (req, res) => {
             userId: admin.id,
             type: 'system',
             title: `${requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request`,
-            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access.`,
+            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access after paying $${upgradePlan.feeUsd}.`,
             metadata: {
               event: 'role_request',
               requestId: roleRequest.id,
               requesterId: user.id,
               requestedRole,
+              feeAmountUsd: upgradePlan.feeUsd,
+              paymentStatus: 'paid',
               status: 'pending'
             }
           })
@@ -937,7 +967,7 @@ const requestRoleUpgrade = async (req, res) => {
     }
 
     res.status(201).json({
-      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted.`,
+      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted with a $${upgradePlan.feeUsd} upgrade fee.`,
       roleRequest: serializeRoleRequest(roleRequest)
     });
   } catch (error) {
@@ -1080,6 +1110,10 @@ const reviewRoleRequest = async (req, res) => {
 
     if (roleRequest.status !== 'pending') {
       return res.status(400).json({ error: 'This role request has already been reviewed.' });
+    }
+
+    if (!['paid', 'waived'].includes(roleRequest.paymentStatus)) {
+      return res.status(400).json({ error: 'This role request cannot be approved until payment is completed.' });
     }
 
     const isApproved = action === 'approve';

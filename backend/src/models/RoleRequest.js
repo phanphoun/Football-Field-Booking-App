@@ -28,6 +28,24 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 'pending'
       },
+      feeAmountUsd: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+        defaultValue: 0
+      },
+      paymentStatus: {
+        type: DataTypes.ENUM('paid', 'waived'),
+        allowNull: false,
+        defaultValue: 'paid'
+      },
+      paymentReference: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+      paymentPaidAt: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
       note: {
         type: DataTypes.TEXT,
         allowNull: true
@@ -59,6 +77,9 @@ module.exports = (sequelize, DataTypes) => {
         },
         {
           fields: ['status']
+        },
+        {
+          fields: ['paymentStatus']
         }
       ],
       hooks: buildRealtimeHooks('role_request')

@@ -67,26 +67,8 @@ const FieldsPage = () => {
       } catch (err) {
         console.error('Failed to fetch fields:', err);
         setError('Failed to load fields');
-        
-        // Fallback to mock data if API fails
-        const mockFields = [
-          {
-            id: 1,
-            name: 'Downtown Arena',
-            address: '123 Main St, Phnom Penh',
-            city: 'Phnom Penh',
-            province: 'Phnom Penh',
-            pricePerHour: 50.00,
-            rating: null,
-            totalRatings: 0,
-            fieldType: '11v11',
-            surfaceType: 'artificial_turf',
-            images: ['https://example.com/field1.jpg'],
-            status: 'available'
-          }
-        ];
-        setFields(mockFields);
-        setFilteredFields(mockFields);
+        setFields([]);
+        setFilteredFields([]);
       } finally {
         setLoading(false);
       }
@@ -126,7 +108,10 @@ const FieldsPage = () => {
     }
 
     if (!canCreateBooking) {
-      await showAlert(bookingAccessMessage, { title: 'Booking Access' });
+      await showAlert(bookingAccessMessage, {
+        title: 'Booking Access',
+        onConfirm: () => navigate('/#account-upgrade')
+      });
       return;
     }
 

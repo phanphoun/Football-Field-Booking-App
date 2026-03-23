@@ -117,10 +117,12 @@ const authService = {
   },
 
   // Submit a role upgrade request
-  requestRoleUpgrade: async (requestedRole, note = '') => {
+  requestRoleUpgrade: async (requestedRole, note = '', paymentReference = '') => {
     return apiService.post('/auth/role-requests', {
       requestedRole,
-      note
+      note,
+      paymentAcknowledged: true,
+      paymentReference
     });
   },
 
@@ -157,6 +159,15 @@ const authService = {
     return response;
   },
 
+<<<<<<< HEAD
+=======
+  // Change password
+  changePassword: async (payload) => {
+    const response = await apiService.post('/auth/change-password', payload);
+    return response;
+  },
+
+>>>>>>> 1f1c37f3fe99ea6d035be8c0a1e36ce1d48d3ff3
   // Delete profile avatar
   deleteAvatar: async () => {
     const response = await apiService.delete('/auth/profile/avatar');
