@@ -1,4 +1,4 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, sequelize } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, BookingJoinRequest, Rating, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -303,25 +303,85 @@ const deleteTeam = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this team' });
     }
 
-    // Delete all team members (they auto-leave when team is deleted)
-    await TeamMember.destroy({
-      where: { teamId: team.id }
-    });
+    await sequelize.transaction(async (transaction) => {
+      const teamBookingRows = await Booking.findAll({
+        where: {
+          [Op.or]: [
+            { teamId: team.id },
+            { opponentTeamId: team.id }
+          ]
+        },
+        attributes: ['id'],
+        transaction
+      });
+      const bookingIds = teamBookingRows.map((booking) => Number(booking.id)).filter(Boolean);
 
-    // Delete all notifications related to this team
-    await Notification.destroy({
-      where: {
-        type: 'team_invite',
-        metadata: {
-          teamId: team.id
-        }
+      if (bookingIds.length > 0) {
+        await Rating.destroy({
+          where: { bookingId: { [Op.in]: bookingIds } },
+          transaction
+        });
+        await MatchResult.destroy({
+          where: { bookingId: { [Op.in]: bookingIds } },
+          transaction
+        });
+        await BookingJoinRequest.destroy({
+          where: { bookingId: { [Op.in]: bookingIds } },
+          transaction
+        });
       }
+
+      await BookingJoinRequest.destroy({
+        where: { requesterTeamId: team.id },
+        transaction
+      });
+
+      await Rating.destroy({
+        where: {
+          [Op.or]: [
+            { teamIdRater: team.id },
+            { teamIdRated: team.id }
+          ]
+        },
+        transaction
+      });
+
+      await MatchResult.destroy({
+        where: {
+          [Op.or]: [
+            { homeTeamId: team.id },
+            { awayTeamId: team.id }
+          ]
+        },
+        transaction
+      });
+
+      await TeamMember.destroy({
+        where: { teamId: team.id },
+        transaction
+      });
+
+      if (bookingIds.length > 0) {
+        await Booking.destroy({
+          where: { id: { [Op.in]: bookingIds } },
+          transaction
+        });
+      }
+
+      await Notification.destroy({
+        where: {
+          type: 'team_invite',
+          metadata: {
+            teamId: team.id
+          }
+        },
+        transaction
+      });
+
+      await team.destroy({ transaction });
     });
 
-    // Delete the team
-    await team.destroy();
-    
-    res.json({ success: true, data: { id: team.id }, message: 'Team deleted successfully. All members have been removed from the team.' });
+    res.json({ success: true, data: { id: team.id }, message: 'Team deleted successfully.' });
   } catch (error) {
     console.error('Delete team error:', error);
     res.status(400).json({ success: false, message: error.message });
@@ -950,6 +1010,48 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteTeamLogo = asyncHandler(async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'logoUrl'] });
+  if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+  const isCaptainOfTeam = team.captainId === req.user.id;
+  if (!isCaptainOfTeam) {
+    return res.status(403).json({ success: false, message: 'Not authorized to delete team logo' });
+  }
+
+  const currentLogo = team.logoUrl;
+  if (!currentLogo) {
+    return res.json({ success: true, data: { logoUrl: null }, message: 'Team logo already removed' });
+  }
+
+  const projectRoot = path.resolve(__dirname, '..', '..', '..');
+
+  try {
+    if (typeof currentLogo === 'string' && currentLogo.startsWith('/uploads')) {
+      let absolutePath = null;
+
+      if (currentLogo.startsWith('/uploads/team-logo/')) {
+        absolutePath = path.resolve(projectRoot, 'frontend', 'public', currentLogo.replace(/^\//, ''));
+      } else {
+        absolutePath = path.resolve(__dirname, '..', '..', currentLogo.replace(/^\//, ''));
+      }
+
+      if (absolutePath && fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+      }
+    }
+  } catch (_unlinkErr) {
+      // Ignore file cleanup issues and still clear the DB value.
+  }
+
+  await team.update({ logoUrl: null });
+
+  res.json({ success: true, data: { logoUrl: null }, message: 'Team logo deleted successfully' });
+});
+
 // captain/admin can invite a player by creating a pending membership and notifying them
 const invitePlayer = asyncHandler(async (req, res) => {
   const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
@@ -1092,7 +1194,7 @@ module.exports = {
   respondLeaveRequest,
   invitePlayer,
   acceptInvite,
-  declineInvite
-  ,
-  uploadTeamLogo
+  declineInvite,
+  uploadTeamLogo,
+  deleteTeamLogo
 };
