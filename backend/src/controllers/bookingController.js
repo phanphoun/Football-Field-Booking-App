@@ -660,7 +660,6 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-<<<<<<< HEAD
     const updatePayload = { status };
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       updatePayload.ownerRevenueLocked = true;
@@ -673,17 +672,6 @@ const updateBookingStatus = async (req, res) => {
       updatePayload.endTime = nextEndTime;
     }
     await booking.update(updatePayload, { transaction });
-=======
-    const bookingUpdate = { status };
-    if (status === 'confirmed' && previousStatus !== 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
-    }
-    if (status === 'cancelled' && previousStatus === 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
-    }
-
-    await booking.update(bookingUpdate, { transaction });
->>>>>>> 79bbec69eb8a21addf179f3304306e5218800cec
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';
