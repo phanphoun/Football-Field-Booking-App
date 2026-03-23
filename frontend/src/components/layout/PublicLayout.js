@@ -16,7 +16,7 @@ import { Button, useDialog, useToast } from '../ui';
 import { APP_CONFIG } from '../../config/appConfig';
 
 const PublicLayout = () => {
-  const { user, isAuthenticated, loading, logout } = useAuth();
+  const { user, isAuthenticated, loading, isLoggingOut, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,10 +28,11 @@ const PublicLayout = () => {
   const showAuthenticatedActions = !loading && isAuthenticated && hasResolvedUser;
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
     const confirmed = await confirm('Do you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
-    logout();
-    navigate('/');
+    await logout();
+    navigate('/', { replace: true });
   };
 
   const navItems = useMemo(
@@ -141,11 +142,12 @@ const PublicLayout = () => {
                   </Button>
                   <Button
                     onClick={handleLogout}
+                    disabled={isLoggingOut}
                     size="sm"
                     className="hidden rounded-full bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-white shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 sm:inline-flex"
                   >
                     <PowerIcon className="h-4 w-4" />
-                    Logout
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                   </Button>
                 </>
               ) : (
@@ -210,8 +212,8 @@ const PublicLayout = () => {
                       >
                         Dashboard
                       </Button>
-                      <Button onClick={handleLogout} size="sm" className="flex-1 rounded-full">
-                        Logout
+                      <Button onClick={handleLogout} disabled={isLoggingOut} size="sm" className="flex-1 rounded-full">
+                        {isLoggingOut ? 'Logging out...' : 'Logout'}
                       </Button>
                     </>
                   ) : (

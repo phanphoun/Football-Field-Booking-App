@@ -130,7 +130,6 @@ const getEffectiveHourlyRate = (field) => {
   return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
 
-<<<<<<< HEAD
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const serializedBookings = bookings.map(serializeBooking);
   const targetCount = Math.max(getScheduleShowcaseTarget(date), fields.length);
@@ -233,9 +232,6 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
 
   return [...serializedBookings, ...showcaseBookings];
 };
-=======
-const enrichScheduleWithShowcaseBookings = ({ bookings }) => bookings.map(serializeBooking);
->>>>>>> d443eb687c8436eb8f2a6c4e284c8bee6e652e7e
 
 const requireCaptainRole = (req, res) => {
   if (req.user.role !== 'captain') {
@@ -594,14 +590,10 @@ const getPublicBookingSchedule = async (req, res) => {
     }
 
     const fields = await Field.findAll({
-<<<<<<< HEAD
-      attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'fieldType', 'surfaceType', 'city', 'status'],
-=======
-      attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'status', 'closureMessage', 'closureStartAt', 'closureEndAt'],
+      attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'fieldType', 'surfaceType', 'city', 'status', 'closureMessage', 'closureStartAt', 'closureEndAt'],
       where: {
         isArchived: false
       },
->>>>>>> d443eb687c8436eb8f2a6c4e284c8bee6e652e7e
       order: [['name', 'ASC']],
       ...(limit ? { limit } : {})
     });

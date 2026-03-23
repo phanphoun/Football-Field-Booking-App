@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import userService from '../services/userService';
-import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog, useToast } from '../components/ui';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { buildAssetUrl } from '../config/appConfig';
 import { formatRoleLabel } from '../utils/formatters';
@@ -29,7 +29,6 @@ const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState(null);
-  const [flash, setFlash] = useState(null);
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -41,6 +40,7 @@ const AdminUsersPage = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [editForm, setEditForm] = useState({ role: 'player', status: 'active' });
   const { confirm } = useDialog();
+  const { showToast } = useToast();
   const actionMenuRef = useRef(null);
 
   const loadUsers = async () => {
@@ -49,7 +49,7 @@ const AdminUsersPage = () => {
       const response = await userService.getAllUsers();
       setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to load users.' });
+      showToast(error.error || 'Failed to load users.', { type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -110,9 +110,9 @@ const AdminUsersPage = () => {
       setSavingUserId(userId);
       await userService.deleteUser(userId);
       setUsers((prev) => prev.filter((user) => user.id !== userId));
-      setFlash({ type: 'success', message: 'User deleted successfully.' });
+      showToast('User deleted successfully.', { type: 'success' });
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to delete user.' });
+      showToast(error.error || 'Failed to delete user.', { type: 'error' });
     } finally {
       setSavingUserId(null);
     }
@@ -140,7 +140,7 @@ const AdminUsersPage = () => {
       const response = await userService.getUserById(user.id);
       setViewUser(response?.data || user);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to load user details.' });
+      showToast(error.error || 'Failed to load user details.', { type: 'error' });
     } finally {
       setViewUserLoading(false);
     }
@@ -191,10 +191,10 @@ const AdminUsersPage = () => {
             : user
         )
       );
-      setFlash({ type: 'success', message: 'User updated successfully.' });
+      showToast('User updated successfully.', { type: 'success' });
       setEditUser(null);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to update user.' });
+      showToast(error.error || 'Failed to update user.', { type: 'error' });
     } finally {
       setSavingUserId(null);
     }
@@ -213,12 +213,6 @@ const AdminUsersPage = () => {
         </div>
         </div>
       </div>
-
-      {flash && (
-        <div className={`rounded-md border px-4 py-3 text-sm ${flash.type === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'}`}>
-          {flash.message}
-        </div>
-      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
