@@ -1,12 +1,17 @@
 const { Team, User, Field, TeamMember, Rating, MatchResult, Booking } = require('../models');
 const { Op } = require('sequelize');
 
-const mapPublicTeam = (teamInstance, ratingSummary = null) => {
+const mapPublicTeam = (teamInstance, ratingSummary = null, currentUserId = null) => {
   const team = teamInstance?.toJSON ? teamInstance.toJSON() : teamInstance;
   const activeMembers =
     Array.isArray(team?.teamMembers)
       ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
       : [];
+  const viewerMembership =
+    currentUserId && Array.isArray(team?.teamMembers)
+      ? team.teamMembers.find((member) => Number(member.userId) === Number(currentUserId)) || null
+      : null;
+  const userMembershipStatus = viewerMembership?.status || (Number(team?.captainId) === Number(currentUserId) ? 'captain' : null);
 
   return {
     id: team.id,
@@ -45,6 +50,8 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
         }
       : null,
     memberCount: activeMembers.length,
+    userMembershipStatus,
+    joinRequestPending: userMembershipStatus === 'pending',
     rating: Number(ratingSummary?.avgRating || 0),
     totalRatings: Number(ratingSummary?.totalRatings || 0),
     latestReview: ratingSummary?.latestReview || null
@@ -95,6 +102,7 @@ const getRatingSummaries = async (teamIds = []) => {
 
 const getPublicTeams = async (req, res) => {
   try {
+    const currentUserId = req.user?.id || null;
     const teams = await Team.findAll({
       where: { isActive: true },
       attributes: [
@@ -135,7 +143,7 @@ const getPublicTeams = async (req, res) => {
     const summaries = await getRatingSummaries((teams || []).map((t) => Number(t.id)));
     res.json({
       success: true,
-      data: teams.map((t) => mapPublicTeam(t, summaries[Number(t.id)]))
+      data: teams.map((t) => mapPublicTeam(t, summaries[Number(t.id)], currentUserId))
     });
   } catch (error) {
     console.error('Get public teams error:', error);
@@ -149,6 +157,7 @@ const getPublicTeams = async (req, res) => {
 
 const getPublicTeamById = async (req, res) => {
   try {
+    const currentUserId = req.user?.id || null;
     const team = await Team.findByPk(req.params.id, {
       attributes: [
         'id',
@@ -192,7 +201,7 @@ const getPublicTeamById = async (req, res) => {
     }
 
     const summaries = await getRatingSummaries([Number(team.id)]);
-    res.json({ success: true, data: mapPublicTeam(team, summaries[Number(team.id)]) });
+    res.json({ success: true, data: mapPublicTeam(team, summaries[Number(team.id)], currentUserId) });
   } catch (error) {
     console.error('Get public team by id error:', error);
     res.status(500).json({
