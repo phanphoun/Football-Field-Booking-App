@@ -23,7 +23,7 @@ const statusClass = (status) => {
   if (status === 'rejected') return 'bg-red-100 text-red-700';
   return 'bg-yellow-100 text-yellow-700';
 };
-
+gi
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) {
