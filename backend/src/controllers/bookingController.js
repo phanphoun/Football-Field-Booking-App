@@ -113,9 +113,9 @@ const getEffectiveHourlyRate = (field) => {
 
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const serializedBookings = bookings.map(serializeBooking);
-  const targetCount = getScheduleShowcaseTarget(date);
+  const targetCount = Math.max(getScheduleShowcaseTarget(date), fields.length);
 
-  if (serializedBookings.length >= targetCount || fields.length === 0) {
+  if (fields.length === 0) {
     return serializedBookings;
   }
 
@@ -125,6 +125,11 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
       return `${booking.fieldId}-${start.getHours()}`;
     })
   );
+  const bookingCountsByField = serializedBookings.reduce((acc, booking) => {
+    const fieldId = Number(booking.fieldId);
+    acc[fieldId] = (acc[fieldId] || 0) + 1;
+    return acc;
+  }, {});
 
   const showcaseTeams = [
     'Sunrise FC',
@@ -137,6 +142,42 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
 
   const showcaseBookings = [];
   let showcaseIndex = 0;
+
+  // First ensure every field column has at least one booking visible.
+  for (const field of fields) {
+    const fieldId = Number(field.id);
+    if ((bookingCountsByField[fieldId] || 0) > 0) continue;
+
+    const hour = SCHEDULE_SHOWCASE_START_HOURS[showcaseIndex % SCHEDULE_SHOWCASE_START_HOURS.length];
+    const slotKey = `${field.id}-${hour}`;
+    if (occupiedSlots.has(slotKey)) continue;
+
+    const startTime = buildDateAtHour(date, hour);
+    const endTime = buildDateAtHour(date, hour + 2);
+    const teamName = showcaseTeams[showcaseIndex % showcaseTeams.length];
+
+    showcaseBookings.push({
+      id: `showcase-${date}-${field.id}-${hour}`,
+      fieldId: field.id,
+      teamId: null,
+      teamName,
+      startTime,
+      endTime,
+      status: showcaseIndex % 3 === 0 ? 'pending' : 'confirmed',
+      createdBy: null,
+      isMatchmaking: false,
+      openForOpponents: false,
+      team: null
+    });
+
+    occupiedSlots.add(slotKey);
+    bookingCountsByField[fieldId] = 1;
+    showcaseIndex += 1;
+  }
+
+  if (serializedBookings.length + showcaseBookings.length >= targetCount) {
+    return [...serializedBookings, ...showcaseBookings];
+  }
 
   for (const hour of SCHEDULE_SHOWCASE_START_HOURS) {
     for (const field of fields) {
@@ -475,7 +516,7 @@ const getPublicBookingSchedule = async (req, res) => {
   try {
     const { date } = req.query;
     const limitValue = Number.parseInt(req.query.limit, 10);
-    const limit = Number.isFinite(limitValue) && limitValue > 0 ? Math.min(limitValue, 24) : 6;
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null;
 
     if (!date) {
       return res.status(400).json({
@@ -494,9 +535,9 @@ const getPublicBookingSchedule = async (req, res) => {
     }
 
     const fields = await Field.findAll({
-      attributes: ['id', 'name', 'address', 'pricePerHour', 'images'],
+      attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'fieldType', 'surfaceType', 'city', 'status'],
       order: [['name', 'ASC']],
-      limit
+      ...(limit ? { limit } : {})
     });
 
     const fieldIds = fields.map((field) => field.id);

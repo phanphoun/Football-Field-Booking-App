@@ -1,10 +1,25 @@
 const { Op } = require('sequelize');
-const { User, Field, Booking, Team, Notification, TeamMember } = require('../models');
+const {
+  User,
+  Field,
+  Booking,
+  Team,
+  Notification,
+  TeamMember,
+  BookingJoinRequest,
+  MatchResult,
+  Rating,
+  RoleRequest,
+  sequelize
+} = require('../models');
 const bcrypt = require('bcryptjs');
 
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
+
+const uniqueIds = (values = []) =>
+  Array.from(new Set(values.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)));
 
 const getAllUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
@@ -103,10 +118,129 @@ const deleteUser = asyncHandler(async (req, res) => {
     if (user.id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this user' });
     }
-    
-    await user.destroy();
-    
-    res.json({ success: true, message: 'User deleted successfully' });
+
+    await sequelize.transaction(async (transaction) => {
+      const ownedFields = await Field.findAll({
+        where: { ownerId: user.id },
+        attributes: ['id'],
+        transaction
+      });
+      const captainedTeams = await Team.findAll({
+        where: { captainId: user.id },
+        attributes: ['id'],
+        transaction
+      });
+
+      const ownedFieldIds = uniqueIds(ownedFields.map((field) => field.id));
+      const captainedTeamIds = uniqueIds(captainedTeams.map((team) => team.id));
+
+      const relatedBookings = await Booking.findAll({
+        where: {
+          [Op.or]: [
+            { createdBy: user.id },
+            ...(ownedFieldIds.length > 0 ? [{ fieldId: { [Op.in]: ownedFieldIds } }] : []),
+            ...(captainedTeamIds.length > 0
+              ? [
+                  { teamId: { [Op.in]: captainedTeamIds } },
+                  { opponentTeamId: { [Op.in]: captainedTeamIds } }
+                ]
+              : [])
+          ]
+        },
+        attributes: ['id'],
+        transaction
+      });
+      const relatedBookingIds = uniqueIds(relatedBookings.map((booking) => booking.id));
+
+      if (relatedBookingIds.length > 0) {
+        await Rating.destroy({
+          where: { bookingId: { [Op.in]: relatedBookingIds } },
+          transaction
+        });
+        await MatchResult.destroy({
+          where: { bookingId: { [Op.in]: relatedBookingIds } },
+          transaction
+        });
+        await BookingJoinRequest.destroy({
+          where: { bookingId: { [Op.in]: relatedBookingIds } },
+          transaction
+        });
+      }
+
+      if (captainedTeamIds.length > 0) {
+        await BookingJoinRequest.destroy({
+          where: { requesterTeamId: { [Op.in]: captainedTeamIds } },
+          transaction
+        });
+        await Rating.destroy({
+          where: {
+            [Op.or]: [
+              { teamIdRater: { [Op.in]: captainedTeamIds } },
+              { teamIdRated: { [Op.in]: captainedTeamIds } }
+            ]
+          },
+          transaction
+        });
+        await MatchResult.destroy({
+          where: {
+            [Op.or]: [
+              { homeTeamId: { [Op.in]: captainedTeamIds } },
+              { awayTeamId: { [Op.in]: captainedTeamIds } }
+            ]
+          },
+          transaction
+        });
+        await TeamMember.destroy({
+          where: { teamId: { [Op.in]: captainedTeamIds } },
+          transaction
+        });
+      }
+
+      await TeamMember.destroy({
+        where: { userId: user.id },
+        transaction
+      });
+
+      if (relatedBookingIds.length > 0) {
+        await Booking.destroy({
+          where: { id: { [Op.in]: relatedBookingIds } },
+          transaction
+        });
+      }
+
+      if (captainedTeamIds.length > 0) {
+        await Team.destroy({
+          where: { id: { [Op.in]: captainedTeamIds } },
+          transaction
+        });
+      }
+
+      if (ownedFieldIds.length > 0) {
+        await Field.destroy({
+          where: { id: { [Op.in]: ownedFieldIds } },
+          transaction
+        });
+      }
+
+      await Notification.destroy({
+        where: { userId: user.id },
+        transaction
+      });
+
+      await BookingJoinRequest.destroy({
+        where: { requesterCaptainId: user.id },
+        transaction
+      });
+
+      await RoleRequest.destroy({
+        where: { requesterId: user.id },
+        transaction
+      });
+
+      await user.destroy({ transaction });
+    });
+
+    res.json({ success: true, message: 'User and related records deleted successfully' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
