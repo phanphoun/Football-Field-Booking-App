@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import notificationService from '../services/notificationService';
 
@@ -36,6 +37,7 @@ const FieldsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { version } = useRealtime();
   const { showAlert } = useDialog();
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
@@ -75,7 +77,7 @@ const FieldsPage = () => {
     };
 
     fetchFields();
-  }, []);
+  }, [version]);
 
   useEffect(() => {
     const filtered = fields.filter(field => {

@@ -21,8 +21,9 @@ import {
   HandThumbUpIcon,
   UserGroupIcon,
   StarIcon,
-  ArrowTopRightOnSquareIcon
-} from '@heroicons/react/24/outline';
+  ArrowTopRightOnSquareIcon,
+} 
+from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';

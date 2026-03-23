@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon, ShieldCheckIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
@@ -28,6 +29,7 @@ const getCaptainName = (team) => team.captain?.firstName || team.captain?.userna
 
 const TeamsPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
   const [teams, setTeams] = useState([]);
@@ -63,7 +65,7 @@ const TeamsPage = () => {
     };
 
     fetchTeamsAndInvitations();
-  }, [user?.id, isAdmin]);
+  }, [user?.id, isAdmin, version]);
 
   const handleCreateTeam = () => {
     navigate(`${basePath}/teams/create`);
@@ -387,15 +389,15 @@ const TeamsPage = () => {
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                     <UsersIcon className="h-12 w-12 text-gray-300" />
                   </div>
-                  {teamLogoUrl && (
-                    <img
-                      src={teamLogoUrl}
-                      alt={`${team.name} logo`}
-                      className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-cover object-center"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
-                      }}
+                {teamLogoUrl && (
+                  <img
+                    src={teamLogoUrl}
+                    alt={`${team.name} logo`}
+                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain object-center p-4"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
+                    }}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}

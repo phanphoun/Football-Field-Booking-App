@@ -87,11 +87,11 @@ const PublicLayout = () => {
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-green-600 to-lime-500 text-sm font-black tracking-wide text-white shadow-[0_10px_24px_rgba(22,163,74,0.3)]">
                 FB
               </span>
-              <span className="min-w-0">
+              <span className="min-w-0 py-0.5">
                 <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-600">
                   {APP_CONFIG.brand.englishName}
                 </span>
-                <span className="khmer-brand-font block truncate text-base font-semibold text-slate-900 sm:text-xl">
+                <span className="khmer-brand-font block text-base font-semibold leading-[1.2] text-slate-900 sm:text-xl">
                   {APP_CONFIG.brand.displayName}
                 </span>
               </span>

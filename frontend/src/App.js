@@ -170,12 +170,24 @@ const AppRoutes = () => {
           />
           <Route path="league" element={<LeaguePage />} />
           <Route path="matches" element={<OwnerMatchesPage />} />
-          <Route path="open-matches" element={<Navigate to="/owner/dashboard" replace />} />
-          <Route path="teams" element={<Navigate to="/owner/dashboard" replace />} />
-          <Route path="teams/create" element={<Navigate to="/owner/dashboard" replace />} />
-          <Route path="teams/:id" element={<Navigate to="/owner/dashboard" replace />} />
-          <Route path="teams/:id/matches" element={<Navigate to="/owner/dashboard" replace />} />
-          <Route path="teams/:id/manage" element={<Navigate to="/owner/dashboard" replace />} />
+          <Route path="teams" element={<TeamsPage />} />
+          <Route
+            path="teams/create"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="teams/:id" element={<TeamDetailsPage />} />
+          <Route
+            path="teams/:id/manage"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamManagePage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />

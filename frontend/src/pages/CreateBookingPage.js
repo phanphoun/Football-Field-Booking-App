@@ -5,11 +5,22 @@ import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { getTeamJerseyColors } from '../utils/teamColors';
+
+const openNativeDateTimePicker = (event) => {
+  event.currentTarget.focus();
+  if (typeof event.currentTarget.showPicker === 'function') {
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
+  }
+};
 
 const CreateBookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { version } = useRealtime();
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
@@ -80,7 +91,7 @@ const CreateBookingPage = () => {
       endTime: syncEndTimeFromStartAndDuration(prev.startTime, prev.durationHours)
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [version]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -380,6 +391,7 @@ const CreateBookingPage = () => {
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleChange}
+                    onClick={openNativeDateTimePicker}
                     min={new Date().toISOString().slice(0, 16)}
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
@@ -410,6 +422,7 @@ const CreateBookingPage = () => {
                     id="endTime"
                     name="endTime"
                     value={formData.endTime}
+                    onClick={openNativeDateTimePicker}
                     readOnly
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-700"

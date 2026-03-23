@@ -50,8 +50,19 @@ const bookingService = {
 
   // Captain: request booking cancellation
   requestCancellation: async (bookingId, reason = '') => {
-    const response = await apiService.post(`/bookings/${bookingId}/cancellation-requests`, { reason });
-    return response;
+    try {
+      const response = await apiService.post(`/bookings/${bookingId}/cancellation-requests`, { reason });
+      return response;
+    } catch (error) {
+      if (error?.status === 404) {
+        const fallbackResponse = await apiService.put(`/bookings/${bookingId}`, {
+          status: 'cancelled',
+          cancellationReason: reason
+        });
+        return fallbackResponse;
+      }
+      throw error;
+    }
   },
 
   // Field owner/admin: approve or reject cancellation

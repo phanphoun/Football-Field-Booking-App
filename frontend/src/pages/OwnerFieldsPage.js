@@ -41,6 +41,15 @@ const FIELD_STATUS_OPTIONS = [
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 
+const openNativeDatePicker = (event) => {
+  event.currentTarget.focus();
+  if (typeof event.currentTarget.showPicker === 'function') {
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
+  }
+};
+
 const emptyForm = {
   name: '',
   description: '',
@@ -874,6 +883,7 @@ const OwnerFieldsPage = () => {
                         type="date"
                         value={form.closureStartAt}
                         onChange={handleChange}
+                        onClick={openNativeDatePicker}
                         className="w-full rounded-xl border border-gray-300 px-4 py-3"
                       />
                     </label>
@@ -885,6 +895,7 @@ const OwnerFieldsPage = () => {
                         value={form.closureEndAt}
                         min={form.closureStartAt || undefined}
                         onChange={handleChange}
+                        onClick={openNativeDatePicker}
                         className="w-full rounded-xl border border-gray-300 px-4 py-3"
                       />
                     </label>

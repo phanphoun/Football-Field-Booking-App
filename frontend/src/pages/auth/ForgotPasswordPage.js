@@ -15,6 +15,8 @@ const ForgotPasswordPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
+    setResetLink('');
 
     if (!identifier.trim()) {
       setError('Please enter your email.');
@@ -32,6 +34,8 @@ const ForgotPasswordPage = () => {
       if (response.data?.resetLink) {
         setResetLink(response.data.resetLink);
       }
+    } catch (error) {
+      setError(error?.error || error?.message || 'Failed to send reset link.');
     } finally {
       setSubmitting(false);
     }

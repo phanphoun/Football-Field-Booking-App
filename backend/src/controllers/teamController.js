@@ -1,4 +1,5 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, BookingJoinRequest, Rating, sequelize } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
+const { sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
