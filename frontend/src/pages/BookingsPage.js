@@ -7,6 +7,18 @@ import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
+const TeamJerseyDots = ({ colors = [], teamKey }) => (
+  <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 align-middle">
+    {colors.map((color, index) => (
+      <span
+        key={`${teamKey}-${color}-${index}`}
+        className="h-3.5 w-3.5 rounded-full border border-black/10"
+        style={{ backgroundColor: color }}
+      />
+    ))}
+  </span>
+);
+
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
   const { version } = useRealtime();
@@ -23,6 +35,7 @@ const BookingsPage = () => {
   const [joinRequestsByBooking, setJoinRequestsByBooking] = useState({});
   const [joinRequestsLoadingMap, setJoinRequestsLoadingMap] = useState({});
   const [joinActionLoadingMap, setJoinActionLoadingMap] = useState({});
+  const [cancellationLoadingMap, setCancellationLoadingMap] = useState({});
 
   const loadBookings = useCallback(async () => {
     try {
@@ -39,7 +52,8 @@ const BookingsPage = () => {
             booking?.openForOpponents &&
             !booking?.opponentTeam?.name &&
             booking?.status !== 'cancelled' &&
-            booking?.status !== 'completed'
+            booking?.status !== 'completed' &&
+            booking?.status !== 'cancellation_pending'
         );
 
         if (targetBookings.length > 0) {
@@ -118,6 +132,23 @@ const BookingsPage = () => {
     }
   };
 
+  const handleRequestCancellation = async (booking) => {
+    const confirmed = window.confirm('Do you want to request cancellation for this booking?');
+    if (!confirmed) return;
+    const reason = window.prompt('Optional: provide a reason for cancellation') || '';
+
+    try {
+      setCancellationLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
+      await bookingService.requestCancellation(booking.id, reason.trim());
+      await loadBookings();
+    } catch (err) {
+      console.error('Failed to request cancellation:', err);
+      setError(err.error || 'Failed to request cancellation');
+    } finally {
+      setCancellationLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
+    }
+  };
+
   const isCaptainOwner = (booking) => user?.role === 'captain' && booking.team?.captainId === user?.id;
   const isCaptainInMatchedBooking = (booking) =>
     user?.role === 'captain' && (booking.team?.captainId === user?.id || booking.opponentTeam?.captainId === user?.id);
@@ -174,11 +205,14 @@ const BookingsPage = () => {
     const tones = {
       pending: 'yellow',
       confirmed: 'green',
+      cancellation_pending: 'orange',
       cancelled: 'red',
       completed: 'blue'
     };
     return tones[status] || 'gray';
   };
+
+  const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
   // const getStatusIcon = (status) => {
   //   const icons = {
@@ -192,11 +226,8 @@ const BookingsPage = () => {
 
   const getStatusActions = (booking) => {
     const actions = [];
-    const canUserCancelBooking =
-      booking.createdBy === user?.id ||
-      booking.team?.captainId === user?.id ||
-      booking.opponentTeam?.captainId === user?.id ||
-      isAdmin();
+    const canDirectCancel = isAdmin() || isFieldOwner();
+    const canRequestCancellation = isCaptainOwner(booking) && ['pending', 'confirmed'].includes(booking.status);
 
     if (booking.status === 'pending') {
       if (isAdmin() || isFieldOwner()) {
@@ -206,7 +237,7 @@ const BookingsPage = () => {
           </Button>
         );
       }
-      if (booking.creator?.id === user?.id || isAdmin()) {
+      if (canDirectCancel) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
             Cancel Booking
@@ -215,10 +246,24 @@ const BookingsPage = () => {
       }
     }
 
-    if (booking.status === 'confirmed' && canUserCancelBooking) {
+    if (booking.status === 'confirmed' && canDirectCancel) {
       actions.push(
         <Button key="cancel-confirmed" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
           Cancel Booking
+        </Button>
+      );
+    }
+
+    if (canRequestCancellation) {
+      actions.push(
+        <Button
+          key="request-cancel"
+          size="sm"
+          variant="danger"
+          onClick={() => handleRequestCancellation(booking)}
+          disabled={!!cancellationLoadingMap[booking.id]}
+        >
+          {cancellationLoadingMap[booking.id] ? 'Requesting...' : 'Request Cancellation'}
         </Button>
       );
     }
@@ -298,6 +343,7 @@ const BookingsPage = () => {
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
+              <option value="cancellation_pending">Cancellation Pending</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -343,7 +389,7 @@ const BookingsPage = () => {
                         <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
                       )}
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
-                        {booking.status}
+                        {formatStatusLabel(booking.status)}
                       </Badge>
                       {booking.opponentTeam?.name ? (
                         <Badge tone="green">Matched</Badge>
@@ -384,25 +430,28 @@ const BookingsPage = () => {
                       </div>
                     )}
 
+                    {booking.status === 'cancellation_pending' && (
+                      <div className="mt-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+                        Cancellation requested. Waiting for field owner review.
+                      </div>
+                    )}
+
                     {booking.opponentTeam?.name && (
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
-                        Already matched: {booking.team?.name || 'Team A'} vs {booking.opponentTeam.name}
-                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700">
-                          {homeColors.map((color, index) => (
-                            <span key={`home-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
-                          ))}
-                          <span className="mx-0.5 text-gray-400">vs</span>
-                          {awayColors.map((color, index) => (
-                            <span key={`away-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
-                          ))}
-                        </span>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-green-700">
+                        <span>Already matched:</span>
+                        <span className="font-medium text-green-800">{booking.team?.name || 'Team A'}</span>
+                        <TeamJerseyDots colors={homeColors} teamKey={`home-${booking.id}`} />
+                        <span className="text-gray-400">vs</span>
+                        <TeamJerseyDots colors={awayColors} teamKey={`away-${booking.id}`} />
+                        <span className="font-medium text-green-800">{booking.opponentTeam.name}</span>
                       </div>
                     )}
 
                     {booking.opponentTeam?.name &&
                       isCaptainInMatchedBooking(booking) &&
                       booking.status !== 'cancelled' &&
-                      booking.status !== 'completed' && (
+                      booking.status !== 'completed' &&
+                      booking.status !== 'cancellation_pending' && (
                         <div className="mt-3">
                           <Button
                             size="sm"
@@ -415,7 +464,10 @@ const BookingsPage = () => {
                         </div>
                       )}
 
-                    {isCaptainOwner(booking) && booking.status !== 'cancelled' && booking.status !== 'completed' && (
+                    {isCaptainOwner(booking) &&
+                      booking.status !== 'cancelled' &&
+                      booking.status !== 'completed' &&
+                      booking.status !== 'cancellation_pending' && (
                       <div className="mt-4">
                         <div className="flex items-center flex-wrap gap-2">
                           {!booking.opponentTeam?.name && (

@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import {
   CheckIcon,
   ChevronDownIcon,
   MapPinIcon,
   PencilSquareIcon,
   PhotoIcon,
+  PlusIcon,
   TrashIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
@@ -117,6 +117,22 @@ const addDaysToDateInput = (baseValue, days) => {
   return toDateInputValue(nextDate);
 };
 
+const isOwnedByCurrentUser = (field, user) => {
+  if (!field) return false;
+  const ownerId =
+    field.ownerId ||
+    field.owner_id ||
+    field.userId ||
+    field.user_id ||
+    field.fieldOwnerId ||
+    field.owner?.id ||
+    field.owner?._id ||
+    null;
+  const userId = user?.id || user?._id || null;
+  if (!ownerId || !userId) return true;
+  return String(ownerId) === String(userId);
+};
+
 const normalizeEditableStatus = (value) => {
   const normalized = String(value || 'available').toLowerCase();
   if (normalized === 'booked') return 'available';
@@ -140,12 +156,10 @@ const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [fields, setFields] = useState([]);
-  const [allFields, setAllFields] = useState([]);
-  const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
@@ -156,20 +170,19 @@ const OwnerFieldsPage = () => {
   const [imageVersionToken, setImageVersionToken] = useState(0);
   const [form, setForm] = useState(emptyForm);
 
-  const visibleFields = useMemo(() => (viewMode === 'all' ? allFields : fields), [viewMode, allFields, fields]);
-
-  const isOwnedByCurrentUser = useCallback(
-    (field) => {
-      const ownerId = field?.ownerId || field?.owner?.id;
-      return Number(ownerId) === Number(user?.id);
-    },
-    [user?.id]
-  );
+  const visibleFields = useMemo(() => fields, [fields]);
 
   const loadFields = useCallback(async () => {
-    const [myRes, allRes] = await Promise.all([fieldService.getMyFields(), fieldService.getAllFields({ limit: 200 })]);
-    setFields(Array.isArray(myRes.data) ? myRes.data : []);
-    setAllFields(Array.isArray(allRes.data) ? allRes.data : []);
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fieldService.getMyFields();
+      setFields(Array.isArray(response?.data) ? response.data : []);
+    } catch (err) {
+      setError(err?.error || 'Failed to load fields');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -511,32 +524,24 @@ const OwnerFieldsPage = () => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Create and manage your football fields, or view all fields.</p>
+          <p className="mt-1 text-sm text-gray-600">Create, edit, and manage your field listings.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="rounded-xl border border-gray-200 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('mine')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'mine' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
-            >
-              My Fields
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('all')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
-            >
-              All Fields
-            </button>
-          </div>
-          <button onClick={startCreate} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-            Add Field
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={startCreate}
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Add Field
+        </button>
       </div>
       {isOpen && renderPortal(
         <div
@@ -933,70 +938,31 @@ const OwnerFieldsPage = () => {
           visibleFields.map((field) => {
             const images = normalizeImages(field.images);
             const coverImage = resolveFieldImageUrl(images[0], field.updatedAt || field.id);
-            const isOwned = isOwnedByCurrentUser(field);
+            const isOwned = isOwnedByCurrentUser(field, user);
             const discountPercent = getDiscountPercent(field);
             const discountedPrice = getDiscountedHourlyPrice(field);
-            const fieldStatus = String(field.status || 'available').toLowerCase();
-            const statusClasses =
-              fieldStatus === 'available'
-                ? 'bg-blue-50 text-blue-700'
-                : fieldStatus === 'booked'
-                ? 'bg-red-100 text-red-700'
-                : fieldStatus === 'maintenance'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-200 text-slate-700';
 
             return (
-              <div
-                key={field.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/fields/${field.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    navigate(`/fields/${field.id}`);
-                  }
-                }}
-                className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              >
-                <div className="relative h-48 w-full overflow-hidden">
-                  <img
-                    src={coverImage}
-                    alt={field.name}
-                    className="h-48 w-full object-cover"
-                    onError={(event) => {
-                      if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                        event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                      }
-                    }}
-                  />
-                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                      {field.fieldType || 'Field'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {discountPercent > 0 && (
-                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                          {discountPercent}% OFF
-                        </span>
-                      )}
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${statusClasses} bg-opacity-95`}>
-                        {fieldStatus}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+              <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <img
+                  src={coverImage}
+                  alt={field.name}
+                  className="h-48 w-full object-cover"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                    }
+                  }}
+                />
                 <div className="space-y-4 p-5">
                   <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
                     <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
                       <MapPinIcon className="h-4 w-4" />
                       {field.address}, {field.city}
                     </p>
                   </div>
+
                   <div className="flex items-center justify-between text-sm text-gray-600">
                     <div className="flex flex-col">
                       {discountPercent > 0 ? (
@@ -1010,6 +976,7 @@ const OwnerFieldsPage = () => {
                     </div>
                     <span>{field.capacity} players</span>
                   </div>
+
                   <div className="flex items-center gap-2">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
@@ -1023,11 +990,13 @@ const OwnerFieldsPage = () => {
                       {field.status || 'available'}
                     </span>
                   </div>
+
                   {field.closureMessage && field.status !== 'available' && (
                     <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                       {field.closureMessage}
                     </p>
                   )}
+
                   {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
                     <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                       {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
@@ -1035,7 +1004,9 @@ const OwnerFieldsPage = () => {
                       {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
                     </p>
                   )}
+
                   {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
+
                   <div className="flex gap-3">
                     <button
                       type="button"

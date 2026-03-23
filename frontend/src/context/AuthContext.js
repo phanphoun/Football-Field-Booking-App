@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import authService from '../services/authService';
+import Spinner from '../components/ui/Spinner';
 
 // Initial state
 const initialState = {
   user: null,
   isAuthenticated: false,
   loading: true,
+  isLoggingOut: false,
   error: null,
   permissions: []
 };
@@ -15,6 +17,7 @@ const AUTH_ACTIONS = {
   LOGIN_START: 'LOGIN_START',
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGIN_FAILURE: 'LOGIN_FAILURE',
+  LOGOUT_START: 'LOGOUT_START',
   LOGOUT: 'LOGOUT',
   REGISTER_START: 'REGISTER_START',
   REGISTER_SUCCESS: 'REGISTER_SUCCESS',
@@ -66,6 +69,13 @@ const authReducer = (state, action) => {
         permissions: []
       };
 
+    case AUTH_ACTIONS.LOGOUT_START:
+      return {
+        ...state,
+        isLoggingOut: true,
+        error: null
+      };
+
     case AUTH_ACTIONS.UPDATE_PROFILE_FAILURE:
       return {
         ...state,
@@ -79,6 +89,7 @@ const authReducer = (state, action) => {
         user: null,
         isAuthenticated: false,
         loading: false,
+        isLoggingOut: false,
         error: null,
         permissions: []
       };
@@ -193,7 +204,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout function
-  const logout = () => {
+  const logout = async () => {
+    dispatch({ type: AUTH_ACTIONS.LOGOUT_START });
+    await new Promise((resolve) => window.setTimeout(resolve, 1200));
     authService.logout();
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   };
@@ -374,6 +387,17 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      {state.isLoggingOut ? (
+        <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-slate-950/35 backdrop-blur-sm">
+          <div className="rounded-[28px] border border-white/15 bg-white/95 px-8 py-7 text-center shadow-2xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+              <Spinner className="h-8 w-8 text-emerald-600" />
+            </div>
+            <p className="mt-4 text-base font-semibold text-slate-900">Logging out...</p>
+            <p className="mt-1 text-sm text-slate-500">Please wait a moment.</p>
+          </div>
+        </div>
+      ) : null}
     </AuthContext.Provider>
   );
 };

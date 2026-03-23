@@ -8,7 +8,8 @@ import {
   ClipboardDocumentListIcon,
   UserGroupIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
@@ -396,6 +397,13 @@ const TeamManagePage = () => {
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Back
+            </Link>
+            <Link
+              to={`${basePath}/teams/${team.id}?tab=history`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-green-300 text-green-700 hover:bg-green-50"
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Match History
             </Link>
             {isCaptainOfTeam && (
               <button

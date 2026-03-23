@@ -6,6 +6,9 @@ import './App.css';
 
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import VerifyOtpPage from './pages/auth/VerifyOtpPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import FieldsPage from './pages/FieldsPage';
 import TeamsPage from './pages/TeamsPage';
@@ -20,7 +23,6 @@ import FieldDetailsPage from './pages/FieldDetailsPage';
 import TeamCreatePage from './pages/TeamCreatePage';
 import TeamDetailsPage from './pages/TeamDetailsPage';
 import TeamManagePage from './pages/TeamManagePage';
-import TeamMatchHistoryPage from './pages/TeamMatchHistoryPage';
 import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
@@ -54,6 +56,9 @@ const AppRoutes = () => {
           <Route path="teams/:id" element={<PublicTeamDetailsPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="verify-otp" element={<VerifyOtpPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         <Route
@@ -79,7 +84,6 @@ const AppRoutes = () => {
             }
           />
           <Route path="teams/:id" element={<TeamDetailsPage />} />
-          <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
           <Route
             path="teams/:id/manage"
             element={
@@ -184,6 +188,9 @@ const AppRoutes = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
       )}
     </>

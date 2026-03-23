@@ -100,3 +100,6 @@ jspm_packages/
 # Lock files (optional - uncomment if you want to ignore them)
 # package-lock.json
 # yarn.lock
+
+.cursor/hooks.json
+.cursor/hooks/after-agent-response.js

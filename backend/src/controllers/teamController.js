@@ -1,4 +1,9 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, sequelize } = require('../models');
+<<<<<<< HEAD
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
+const { sequelize } = require('../models');
+=======
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, BookingJoinRequest, Rating, sequelize } = require('../models');
+>>>>>>> 8b41caf2b8a7c447b4365d897dad799714913c01
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -9,7 +14,7 @@ const getTeamBaseIncludes = () => [
   {
     model: User,
     as: 'captain',
-    attributes: ['id', 'username', 'firstName', 'lastName']
+    attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role']
   },
   {
     model: Field,
@@ -303,25 +308,85 @@ const deleteTeam = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this team' });
     }
 
-    // Delete all team members (they auto-leave when team is deleted)
-    await TeamMember.destroy({
-      where: { teamId: team.id }
-    });
+    await sequelize.transaction(async (transaction) => {
+      const teamBookingRows = await Booking.findAll({
+        where: {
+          [Op.or]: [
+            { teamId: team.id },
+            { opponentTeamId: team.id }
+          ]
+        },
+        attributes: ['id'],
+        transaction
+      });
+      const bookingIds = teamBookingRows.map((booking) => Number(booking.id)).filter(Boolean);
 
-    // Delete all notifications related to this team
-    await Notification.destroy({
-      where: {
-        type: 'team_invite',
-        metadata: {
-          teamId: team.id
-        }
+      if (bookingIds.length > 0) {
+        await Rating.destroy({
+          where: { bookingId: { [Op.in]: bookingIds } },
+          transaction
+        });
+        await MatchResult.destroy({
+          where: { bookingId: { [Op.in]: bookingIds } },
+          transaction
+        });
+        await BookingJoinRequest.destroy({
+          where: { bookingId: { [Op.in]: bookingIds } },
+          transaction
+        });
       }
+
+      await BookingJoinRequest.destroy({
+        where: { requesterTeamId: team.id },
+        transaction
+      });
+
+      await Rating.destroy({
+        where: {
+          [Op.or]: [
+            { teamIdRater: team.id },
+            { teamIdRated: team.id }
+          ]
+        },
+        transaction
+      });
+
+      await MatchResult.destroy({
+        where: {
+          [Op.or]: [
+            { homeTeamId: team.id },
+            { awayTeamId: team.id }
+          ]
+        },
+        transaction
+      });
+
+      await TeamMember.destroy({
+        where: { teamId: team.id },
+        transaction
+      });
+
+      if (bookingIds.length > 0) {
+        await Booking.destroy({
+          where: { id: { [Op.in]: bookingIds } },
+          transaction
+        });
+      }
+
+      await Notification.destroy({
+        where: {
+          type: 'team_invite',
+          metadata: {
+            teamId: team.id
+          }
+        },
+        transaction
+      });
+
+      await team.destroy({ transaction });
     });
 
-    // Delete the team
-    await team.destroy();
-    
-    res.json({ success: true, data: { id: team.id }, message: 'Team deleted successfully. All members have been removed from the team.' });
+    res.json({ success: true, data: { id: team.id }, message: 'Team deleted successfully.' });
   } catch (error) {
     console.error('Delete team error:', error);
     res.status(400).json({ success: false, message: error.message });
@@ -504,7 +569,7 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       {
         model: Team,
         as: 'homeTeam',
-        attributes: ['id', 'name', 'logoUrl'],
+        attributes: ['id', 'name', 'captainId', 'logoUrl'],
         include: [{
           model: User,
           as: 'captain',
@@ -515,7 +580,7 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       {
         model: Team,
         as: 'awayTeam',
-        attributes: ['id', 'name', 'logoUrl'],
+        attributes: ['id', 'name', 'captainId', 'logoUrl'],
         include: [{
           model: User,
           as: 'captain',
@@ -528,11 +593,51 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     order: [['recordedAt', 'DESC']]
   });
 
+  const bookingIds = completedMatches
+    .map((match) => Number(match.bookingId))
+    .filter((bookingId) => Number.isInteger(bookingId) && bookingId > 0);
+
+  const ratingRows = bookingIds.length
+    ? await Rating.findAll({
+        where: {
+          bookingId: { [Op.in]: bookingIds }
+        },
+        attributes: [
+          'id',
+          'bookingId',
+          'teamIdRater',
+          'teamIdRated',
+          'rating',
+          'review',
+          'sportsmanshipScore',
+          'skillLevelScore',
+          'punctualityScore',
+          'teamOrganizationScore',
+          'createdAt'
+        ]
+      })
+    : [];
+
+  const ratingMap = new Map();
+  ratingRows.forEach((row) => {
+    ratingMap.set(`${Number(row.bookingId)}:${Number(row.teamIdRater)}`, row);
+  });
+
   const matches = completedMatches.map((match) => {
     const isHome = Number(match.homeTeamId) === teamId;
     const myScore = isHome ? Number(match.homeScore) : Number(match.awayScore);
     const opponentScore = isHome ? Number(match.awayScore) : Number(match.homeScore);
     const opponentTeam = isHome ? match.awayTeam : match.homeTeam;
+    const currentUserTeamId =
+      Number(match.homeTeam?.captainId) === Number(req.user.id)
+        ? Number(match.homeTeamId)
+        : Number(match.awayTeam?.captainId) === Number(req.user.id)
+        ? Number(match.awayTeamId)
+        : req.user.role === 'admin'
+        ? teamId
+        : null;
+    const existingRating =
+      currentUserTeamId !== null ? ratingMap.get(`${Number(match.bookingId)}:${Number(currentUserTeamId)}`) : null;
 
     let result = 'Draw';
     if (myScore > opponentScore) result = 'Win';
@@ -565,7 +670,23 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       finalScore: `${myScore}-${opponentScore}`,
       myScore,
       opponentScore,
-      result
+      result,
+      status: 'completed',
+      opponentTeamId: opponentTeam?.id || null,
+      opponentTeamLogoUrl: opponentTeam?.logoUrl || null,
+      canRate: Boolean(match.bookingId && currentUserTeamId !== null && !existingRating),
+          rating: existingRating
+        ? {
+            id: existingRating.id,
+            value: existingRating.rating,
+            review: existingRating.review,
+            sportsmanshipScore: existingRating.sportsmanshipScore,
+            skillLevelScore: existingRating.skillLevelScore,
+            punctualityScore: existingRating.punctualityScore,
+            teamOrganizationScore: existingRating.teamOrganizationScore,
+            createdAt: existingRating.createdAt
+          }
+        : null
     };
   });
 
@@ -950,6 +1071,48 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteTeamLogo = asyncHandler(async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'logoUrl'] });
+  if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
+
+  const isCaptainOfTeam = team.captainId === req.user.id;
+  if (!isCaptainOfTeam) {
+    return res.status(403).json({ success: false, message: 'Not authorized to delete team logo' });
+  }
+
+  const currentLogo = team.logoUrl;
+  if (!currentLogo) {
+    return res.json({ success: true, data: { logoUrl: null }, message: 'Team logo already removed' });
+  }
+
+  const projectRoot = path.resolve(__dirname, '..', '..', '..');
+
+  try {
+    if (typeof currentLogo === 'string' && currentLogo.startsWith('/uploads')) {
+      let absolutePath = null;
+
+      if (currentLogo.startsWith('/uploads/team-logo/')) {
+        absolutePath = path.resolve(projectRoot, 'frontend', 'public', currentLogo.replace(/^\//, ''));
+      } else {
+        absolutePath = path.resolve(__dirname, '..', '..', currentLogo.replace(/^\//, ''));
+      }
+
+      if (absolutePath && fs.existsSync(absolutePath)) {
+        fs.unlinkSync(absolutePath);
+      }
+    }
+  } catch (_unlinkErr) {
+      // Ignore file cleanup issues and still clear the DB value.
+  }
+
+  await team.update({ logoUrl: null });
+
+  res.json({ success: true, data: { logoUrl: null }, message: 'Team logo deleted successfully' });
+});
+
 // captain/admin can invite a player by creating a pending membership and notifying them
 const invitePlayer = asyncHandler(async (req, res) => {
   const team = await Team.findByPk(req.params.id, { attributes: ['id', 'captainId', 'name'] });
@@ -1092,7 +1255,7 @@ module.exports = {
   respondLeaveRequest,
   invitePlayer,
   acceptInvite,
-  declineInvite
-  ,
-  uploadTeamLogo
+  declineInvite,
+  uploadTeamLogo,
+  deleteTeamLogo
 };

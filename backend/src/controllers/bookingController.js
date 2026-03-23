@@ -671,15 +671,18 @@ const updateBookingStatus = async (req, res) => {
       }
     }
 
-    const bookingUpdate = { status };
+    const updatePayload = { status };
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
+      updatePayload.ownerRevenueLocked = true;
     }
     if (status === 'cancelled' && previousStatus === 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
+      updatePayload.ownerRevenueLocked = true;
     }
-
-    await booking.update(bookingUpdate, { transaction });
+    if (hasScheduleUpdate) {
+      updatePayload.startTime = nextStartTime;
+      updatePayload.endTime = nextEndTime;
+    }
+    await booking.update(updatePayload, { transaction });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';

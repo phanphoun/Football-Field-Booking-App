@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
@@ -52,9 +52,8 @@ const resolveTeamLogoUrl = (rawLogo) => {
 };
 
 const ProfilePage = () => {
-  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
+  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading, isLoggingOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { confirm } = useDialog();
   const isAdminUser = user?.role === 'admin';
   const isFieldOwner = user?.role === 'field_owner';
@@ -236,11 +235,12 @@ const ProfilePage = () => {
   };
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
     const confirmed = await confirm('Are you sure you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
 
-    logout();
-    navigate('/login', { state: { backgroundLocation: location } });
+    await logout();
+    navigate('/', { replace: true });
   };
 
   return (
@@ -266,10 +266,19 @@ const ProfilePage = () => {
                   }
                 }}
               />
-              <label className="absolute bottom-0 right-0 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <label
+                htmlFor="avatar-upload"
+                className="absolute bottom-0 right-0 z-10 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+              >
                 <CameraIcon className="h-4 w-4" />
-                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleAvatarUpload}
+              />
             </div>
 
             <div>
@@ -304,10 +313,11 @@ const ProfilePage = () => {
             <button
               type="button"
               onClick={handleLogout}
+              disabled={isLoggingOut}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              Logout
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </button>
           </div>
         </div>

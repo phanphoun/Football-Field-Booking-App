@@ -15,9 +15,11 @@ import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyStat
 import { useRealtime } from '../context/RealtimeContext';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);

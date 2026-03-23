@@ -29,6 +29,7 @@ router.delete('/:id/members/:userId', auth, checkRole(['player', 'captain', 'fie
 
 // Upload team logo
 router.post('/:id/logo', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.uploadTeamLogo);
+router.delete('/:id/logo', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.deleteTeamLogo);
 
 // Invitation endpoints
 router.post('/:id/invite', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, ...require('../middleware/validation').teamValidation.invite, teamController.invitePlayer);
