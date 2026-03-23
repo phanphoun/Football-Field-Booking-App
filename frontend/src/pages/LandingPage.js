@@ -29,9 +29,9 @@ import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 
 const HERO_IMAGES = [
   '/hero-manu.jpg',
-  'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg',
+  '/Manchester_City_pitch_invasion.JPG',
   'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg',
-  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Wembley_Stadium_interior.jpg/1280px-Wembley_Stadium_interior.jpg'
+  '/Wembley_Stadium_interior.jpg'
 ];
 
 const FIELD_FALLBACK_IMAGE =
@@ -231,6 +231,21 @@ const formatSlotTo12h = (slot) => {
   const suffix = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 || 12;
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
+};
+const getFieldClosureTitle = (field) => {
+  const status = String(field?.status || '').toLowerCase();
+  if (status === 'maintenance') return 'Under maintenance';
+  if (status === 'unavailable') return 'Temporarily unavailable';
+  return 'Closed';
+};
+const getFieldClosureReason = (field) => {
+  const reason = String(field?.closureMessage || '').trim();
+  if (reason) return reason;
+
+  const status = String(field?.status || '').toLowerCase();
+  if (status === 'maintenance') return 'This field is being prepared and will reopen soon.';
+  if (status === 'unavailable') return 'This field is not accepting bookings right now.';
+  return 'Bookings are temporarily unavailable for this field.';
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
@@ -1246,13 +1261,21 @@ const LandingPage = () => {
 
                         // Closed fields should always show closed cells for empty slots.
                         if (isFieldClosed) {
+                          const closureTitle = getFieldClosureTitle(field);
+                          const closureReason = getFieldClosureReason(field);
                           return (
                             <div
                               key={`${field.id}-${slot}`}
-                              className="m-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-center text-xs font-semibold text-rose-700"
-                              title="Field is closed"
+                              className="m-1 flex h-[56px] min-w-0 flex-col justify-center rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100 px-3 py-2 text-left shadow-sm"
+                              title={`${closureTitle}: ${closureReason}`}
                             >
-                              Closed
+                              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+                                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                <span className="truncate">{closureTitle}</span>
+                              </div>
+                              <div className="mt-1 line-clamp-2 text-xs font-medium leading-4 text-rose-900">
+                                {closureReason}
+                              </div>
                             </div>
                           );
                         }
