@@ -17,6 +17,20 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+const hasPendingJoinRequest = (team, userId) => {
+  if (!team || !userId) return false;
+
+  if (team.joinRequestPending || team.hasPendingJoinRequest || team.membershipStatus === 'pending' || team.userMembershipStatus === 'pending') {
+    return true;
+  }
+
+  if (Array.isArray(team.teamMembers)) {
+    return team.teamMembers.some((member) => member.userId === userId && member.status === 'pending');
+  }
+
+  return false;
+};
+
 const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -71,9 +85,36 @@ const PublicTeamsPage = () => {
       setSuccessMessage(null);
       const response = await teamService.joinTeam(teamId);
       if (response.success) {
-        setSuccessMessage('Join request submitted!');
+        setTeams((prev) =>
+          prev.map((team) =>
+            team.id === teamId
+              ? {
+                  ...team,
+                  joinRequestPending: true,
+                  userMembershipStatus: 'pending'
+                }
+              : team
+          )
+        );
+        setSuccessMessage('Join request submitted. Waiting for captain approval.');
       }
     } catch (err) {
+      if ((err?.error || '').toLowerCase().includes('already pending')) {
+        setTeams((prev) =>
+          prev.map((team) =>
+            team.id === teamId
+              ? {
+                  ...team,
+                  joinRequestPending: true,
+                  userMembershipStatus: 'pending'
+                }
+              : team
+          )
+        );
+        setSuccessMessage('Your join request is still waiting for captain approval.');
+        setError(null);
+        return;
+      }
       setError(err?.error || 'Failed to submit join request');
     }
   };
@@ -169,6 +210,7 @@ const PublicTeamsPage = () => {
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
             const jerseyColors = getTeamJerseyColors(team);
+            const joinRequestPending = hasPendingJoinRequest(team, user?.id);
 
             return (
             <div
@@ -258,6 +300,13 @@ const PublicTeamsPage = () => {
                     disabled={deletingTeamId === team.id}
                   >
                     {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
+                  </Button>
+                ) : joinRequestPending ? (
+                  <Button
+                    disabled
+                    className="flex-1 bg-amber-100 text-amber-800 hover:bg-amber-100"
+                  >
+                    Request Pending
                   </Button>
                 ) : canRequestJoin(team) ? (
                   <Button

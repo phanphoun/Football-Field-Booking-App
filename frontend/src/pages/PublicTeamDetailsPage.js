@@ -39,6 +39,7 @@ const PublicTeamDetailsPage = () => {
     if (team?.captainId === user?.id) return false;
     return true;
   };
+  const joinRequestPending = team?.joinRequestPending || team?.userMembershipStatus === 'pending';
 
   useEffect(() => {
     const fetchTeamAndHistory = async () => {
@@ -84,9 +85,32 @@ const PublicTeamDetailsPage = () => {
       setSuccessMessage(null);
       const response = await teamService.joinTeam(id);
       if (response.success) {
-        setSuccessMessage('Join request submitted!');
+        setTeam((prev) => (
+          prev
+            ? {
+                ...prev,
+                joinRequestPending: true,
+                userMembershipStatus: 'pending'
+              }
+            : prev
+        ));
+        setSuccessMessage('Join request submitted. Waiting for captain approval.');
       }
     } catch (err) {
+      if ((err?.error || '').toLowerCase().includes('already pending')) {
+        setTeam((prev) => (
+          prev
+            ? {
+                ...prev,
+                joinRequestPending: true,
+                userMembershipStatus: 'pending'
+              }
+            : prev
+        ));
+        setSuccessMessage('Your join request is still waiting for captain approval.');
+        setError(null);
+        return;
+      }
       setError(err?.error || 'Failed to submit join request');
     }
   };
@@ -268,7 +292,14 @@ const PublicTeamDetailsPage = () => {
             Back to Teams
           </Link>
 
-          {canRequestJoin() ? (
+          {joinRequestPending ? (
+            <button
+              disabled
+              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-amber-800 bg-amber-100"
+            >
+              Request Pending
+            </button>
+          ) : canRequestJoin() ? (
             <button
               onClick={handleRequestJoin}
               className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
