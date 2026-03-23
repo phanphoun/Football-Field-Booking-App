@@ -1,3 +1,8 @@
+
+
+
+
+require('dotenv').config();
 require('dotenv').config({ override: true });
 
 module.exports = {
@@ -9,6 +14,7 @@ module.exports = {
     dialect: 'mysql',
     port: process.env.DB_PORT || 3306
   },
+
   test: {
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -17,6 +23,7 @@ module.exports = {
     dialect: 'mysql',
     port: process.env.DB_PORT || 3306
   },
+  
   production: {
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,

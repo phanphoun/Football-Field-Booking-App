@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import userService from '../services/userService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { buildAssetUrl } from '../config/appConfig';
+import { formatRoleLabel } from '../utils/formatters';
 
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
 const STATUSES = ['active', 'inactive', 'suspended'];
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusBadgeClass = (status) => {
   if (status === 'active') return 'bg-green-100 text-green-700';
@@ -22,17 +21,8 @@ const roleBadgeClass = (role) => {
   return 'bg-slate-100 text-slate-700';
 };
 
-const formatRoleLabel = (role) =>
-  String(role || 'unknown')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-
 const resolveAvatarUrl = (user) => {
-  const rawAvatar = user?.avatarUrl || user?.avatar_url;
-  if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-  if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-  const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-  return `${API_ORIGIN}${normalizedPath}`;
+  return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
 };
 
 const AdminUsersPage = () => {
@@ -325,7 +315,7 @@ const AdminUsersPage = () => {
                           alt={`${fullName} avatar`}
                           className="h-9 w-9 rounded-full border border-gray-200 bg-gray-100 object-cover"
                           onError={(event) => {
-                            const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                            const fallbackUrl = buildAssetUrl();
                             if (event.currentTarget.src !== fallbackUrl) {
                               event.currentTarget.src = fallbackUrl;
                             }
@@ -478,7 +468,7 @@ const AdminUsersPage = () => {
                   })
                 }
                 onError={(event) => {
-                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                  const fallbackUrl = buildAssetUrl();
                   if (event.currentTarget.src !== fallbackUrl) {
                     event.currentTarget.src = fallbackUrl;
                   }

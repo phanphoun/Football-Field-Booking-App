@@ -25,6 +25,7 @@ import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
 import { EmptyState, Spinner } from '../components/ui';
+import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 
 const HERO_IMAGES = [
   '/hero-manu.jpg',
@@ -46,89 +47,6 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
-];
-
-const FEATURED_FALLBACK_FIELDS = [
-  {
-    id: 'fallback-1',
-    name: 'Premium Outdoor Field',
-    address: 'Downtown Sports Complex',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 80,
-    status: 'available',
-    images: [
-      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
-    ]
-  },
-  {
-    id: 'fallback-2',
-    name: 'Stadium Football Pitch',
-    address: 'City Stadium Arena',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 120,
-    status: 'available',
-    images: [
-      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
-    ]
-  },
-  {
-    id: 'fallback-3',
-    name: 'Indoor Football Arena',
-    address: 'Sports Hub Indoor',
-    city: 'Phnom Penh',
-    capacity: 14,
-    sessionDuration: 60,
-    pricePerHour: 100,
-    status: 'booked',
-    images: [
-      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
-    ]
-  },
-  {
-    id: 'fallback-4',
-    name: 'City Center Pitch',
-    address: 'Central Sports Park',
-    city: 'Phnom Penh',
-    capacity: 18,
-    sessionDuration: 90,
-    pricePerHour: 95,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
-    ]
-  },
-  
-  {
-    id: 'fallback-5',
-    name: 'Night Lights Field',
-    address: 'North Arena',
-    city: 'Phnom Penh',
-    capacity: 20,
-    sessionDuration: 90,
-    pricePerHour: 110,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
-    ]
-  },
-  {
-    id: 'fallback-6',
-    name: 'Champions Ground',
-    address: 'West Stadium',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 130,
-    status: 'booked',
-    images: [
-      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
-    ]
-  }
-  
 ];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
@@ -330,7 +248,7 @@ const LandingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const canCreateBooking = user?.role === 'captain';
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [landingFields, setLandingFields] = useState([]);
@@ -437,12 +355,26 @@ const LandingPage = () => {
     []
   );
 
+  const upgradePrograms = useMemo(
+    () => [
+      {
+        roleKey: 'captain',
+        icon: UsersIcon,
+        audience: 'For players ready to lead',
+        accent: 'from-emerald-500 to-green-600'
+      },
+      {
+        roleKey: 'field_owner',
+        icon: BuildingOfficeIcon,
+        audience: 'For venue operators and entrepreneurs',
+        accent: 'from-sky-500 to-cyan-600'
+      }
+    ],
+    []
+  );
+
   const featuredFields = useMemo(() => {
-    const merged = [...popularFields];
-    for (let i = merged.length; i < 6; i += 1) {
-      merged.push(FEATURED_FALLBACK_FIELDS[i]);
-    }
-    return merged.slice(0, 6);
+    return popularFields.slice(0, 6);
   }, [popularFields]);
 
   const discountOffers = useMemo(() => {
@@ -467,6 +399,25 @@ const LandingPage = () => {
   }, [landingFields]);
 
   const featuredDiscountOffer = discountOffers[0] || null;
+
+  const handleUpgradeNow = (roleKey) => {
+    if (!isAuthenticated) {
+      navigate('/register', { state: { focusRoleRequest: roleKey, source: 'landing-upgrade' } });
+      return;
+    }
+
+    const settingsPath = user?.role === 'field_owner' ? '/owner/settings' : '/app/settings';
+    navigate(settingsPath, { state: { focusRoleRequest: roleKey, source: 'landing-upgrade' } });
+  };
+
+  const handleCallForDemo = (roleKey) => {
+    const plan = ROLE_UPGRADE_CONFIG[roleKey];
+    const subject = encodeURIComponent(`${plan?.title || 'Role upgrade'} demo request`);
+    const body = encodeURIComponent(
+      `Hello,\n\nI want a quick demo for ${plan?.title || 'this upgrade'}.\nPlease contact me with the next steps.\n`
+    );
+    window.location.href = `mailto:bookings@fieldbook.app?subject=${subject}&body=${body}`;
+  };
 
   const scheduleDays = useMemo(() => {
     const base = new Date();
@@ -683,7 +634,7 @@ const LandingPage = () => {
 
   const toFieldRoute = (field) => {
     if (!field) return '/fields';
-    return String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`;
+    return `/fields/${field.id}`;
   };
 
   const handlePrevDay = () => {
@@ -710,7 +661,7 @@ const LandingPage = () => {
   };
 
   const handleBookNow = (field, day = null, time = null) => {
-    if (!field || String(field.id).startsWith('fallback-')) {
+    if (!field) {
       navigate('/fields');
       return;
     }
@@ -754,7 +705,7 @@ const LandingPage = () => {
     const preferredField =
       scheduleFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
       landingFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
-      scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
+      scheduleFields[0];
 
     if (preferredField) {
       handleBookNow(preferredField, day, preferredTime);
@@ -1010,85 +961,101 @@ const LandingPage = () => {
             <p className="mt-2 text-base text-slate-600">Real-time availability - book instantly before slots fill up!</p>
           </div>
 
-          <div className="mx-auto mt-8 grid max-w-6xl grid-cols-1 gap-4">
+            <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-5 lg:grid-cols-2">
             {availableNowCards.length > 0 ? (
-              availableNowCards.map((field, index) => (
-                <div
-                  key={`live-${field.id}-${index}`}
-                  className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg md:p-5"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0">
-                      <h3 className="truncate text-2xl font-bold text-slate-900">{field.name}</h3>
-                      <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                        <MapPinIcon className="h-4 w-4" />
-                        {field.location}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-                          <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
-                          {field.fieldType}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-                          {field.surfaceType}
-                        </span>
-                        <span
-                          className={`rounded-full px-2.5 py-1 font-semibold ${
-                            field.isFullyBooked
-                              ? 'bg-red-100 text-red-700'
+                availableNowCards.map((field, index) => (
+                  <div
+                    key={`live-${field.id}-${index}`}
+                    className="overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.09)]"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_250px]">
+                      <div className="p-5 md:p-6">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                            Live availability
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              field.isFullyBooked
+                                ? 'bg-red-100 text-red-700'
+                                : field.isAvailableNow
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {field.isFullyBooked
+                              ? 'No slots left'
                               : field.isAvailableNow
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}
-                        >
-                          {field.isFullyBooked
-                            ? 'No slots left'
-                            : field.isAvailableNow
-                            ? 'Available now'
-                            : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
-                        </span>
+                                ? 'Available now'
+                                : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
+                          </span>
+                        </div>
+
+                        <h3 className="mt-4 truncate text-[2rem] font-black tracking-tight text-slate-950">{field.name}</h3>
+                        <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-slate-500">
+                          <MapPinIcon className="mt-0.5 h-4 w-4 flex-none" />
+                          <span>{field.location}</span>
+                        </p>
+
+                        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
+                            <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
+                            {field.fieldType}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
+                            {field.surfaceType}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
+                            {field.slotsLeft} open window{field.slotsLeft === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-200 bg-[linear-gradient(180deg,_#f8fafc_0%,_#ecfdf5_100%)] p-5 md:border-l md:border-t-0 md:p-6">
+                        <div className="flex h-full flex-col justify-between">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Starting price</p>
+                            <div className="mt-2 text-4xl font-black leading-none text-emerald-600">${field.pricePerHour}<span className="text-xl font-bold text-emerald-700">/hr</span></div>
+                            <p
+                              className={`mt-3 text-sm font-semibold ${
+                                field.isFullyBooked
+                                  ? 'text-red-700'
+                                  : field.isAvailableNow
+                                    ? 'text-emerald-700'
+                                    : 'text-amber-700'
+                              }`}
+                            >
+                              {field.nextLabel}
+                            </p>
+                            <span
+                              className={`mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
+                              }`}
+                            >
+                              {field.isFullyBooked ? 'Sold Out' : field.slotsLeft <= 1 ? 'Filling Fast' : 'Ready to Book'}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={!field.nextTime}
+                            onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                            className={`mt-6 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
+                              field.nextTime
+                                ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700'
+                                : 'cursor-not-allowed bg-slate-300'
+                            }`}
+                          >
+                            {field.nextTime
+                              ? isAuthenticated && !canCreateBooking
+                                ? 'Request Captain Access'
+                                : 'Quick Book'
+                              : 'Sold Out'}
+                          </button>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
-                      <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
-                      <p
-                        className={`text-sm font-semibold ${
-                          field.isFullyBooked
-                            ? 'text-red-700'
-                            : field.isAvailableNow
-                            ? 'text-emerald-700'
-                            : 'text-amber-700'
-                        }`}
-                      >
-                        {field.nextLabel}
-                      </p>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
-                        }`}
-                      >
-                        {field.isFullyBooked ? 'Sold Out' : 'Filling Fast'}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={!field.nextTime}
-                        onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                        className={`mt-1 rounded-lg px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition ${
-                          field.nextTime
-                            ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700'
-                            : 'cursor-not-allowed bg-slate-300'
-                        }`}
-                      >
-                        {field.nextTime
-                          ? isAuthenticated && !canCreateBooking
-                            ? 'Request Captain Access'
-                            : 'Quick Book'
-                          : 'Sold Out'}
-                      </button>
-                    </div>
                   </div>
-                </div>
               ))
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 text-center text-sm text-slate-600 shadow-sm">
@@ -1344,7 +1311,7 @@ const LandingPage = () => {
               return (
                 <Link
                   key={field.id}
-                  to={String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`}
+                  to={`/fields/${field.id}`}
                   className="group overflow-hidden rounded-[1.9rem] bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-2xl"
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
@@ -1495,6 +1462,95 @@ const LandingPage = () => {
               <p className="mt-2 text-base text-gray-600">{step.description}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section
+        id="account-upgrade"
+        className="order-10 scroll-mt-24 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_42%,#ecfdf5_100%)] p-6 shadow-sm sm:p-8"
+      >
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700">
+              <BoltIcon className="h-4 w-4" />
+              Upgrade Your Account
+            </span>
+            <h2 className="mt-4 text-3xl font-black text-slate-950">Grow From Player To Organizer Or Venue Owner</h2>
+            <p className="mt-3 text-base leading-7 text-slate-600">
+              Players can upgrade into business-ready roles with a one-time platform fee. Every upgrade includes admin review,
+              stronger account permissions, and a clearer path to operating teams or fields professionally.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            Upgrade fees are charged once per role request and reviewed by admins after payment.
+          </div>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {upgradePrograms.map((program) => {
+            const plan = ROLE_UPGRADE_CONFIG[program.roleKey];
+            const Icon = program.icon;
+
+            return (
+              <div key={program.roleKey} className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                <div className={`bg-gradient-to-r ${program.accent} px-6 py-5 text-white`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">{program.audience}</p>
+                      <h3 className="mt-2 text-2xl font-bold">{plan.title}</h3>
+                    </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">One-time upgrade fee</p>
+                      <p className="mt-1 text-4xl font-black text-slate-950">${plan.feeUsd}</p>
+                    </div>
+                    <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      Admin approval included
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-sm leading-6 text-slate-600">{plan.description}</p>
+
+                  <div className="mt-5 space-y-3">
+                    {plan.benefits.map((benefit) => (
+                      <div key={benefit} className="flex items-start gap-3 text-sm text-slate-700">
+                        <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-none text-emerald-600" />
+                        <span>{benefit}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    Best flow: pay the upgrade fee, submit your request in Settings, and wait for admin approval.
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeNow(program.roleKey)}
+                      className={`inline-flex items-center justify-center rounded-2xl bg-gradient-to-r ${program.accent} px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5`}
+                    >
+                      Upgrade Now
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCallForDemo(program.roleKey)}
+                      className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                    >
+                      Call for Demo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

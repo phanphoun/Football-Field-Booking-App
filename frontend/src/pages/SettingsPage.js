@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
 import { useDialog } from '../components/ui';
+import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 
 const SETTINGS_DEVICE_PREFS_KEY = 'app_settings_device_preferences';
 
@@ -244,13 +245,14 @@ const SettingsPage = () => {
 
   const handleRoleRequest = async (requestedRole) => {
     const option = ROLE_OPTIONS[requestedRole];
+    const upgradePlan = ROLE_UPGRADE_CONFIG[requestedRole];
     if (!option) return;
 
     const confirmed = await confirm(
-      `Send a request for ${option.title.toLowerCase()}? Only admins can approve or reject this role request.`,
+      `Upgrade to ${option.title.toLowerCase()} for $${upgradePlan?.feeUsd || 0}? This includes a one-time platform fee, then your request goes to admins for approval.`,
       {
-        title: 'Role Request',
-        confirmText: 'Send Request'
+        title: 'Upgrade & Request Access',
+        confirmText: `Pay $${upgradePlan?.feeUsd || 0} and Continue`
       }
     );
     if (!confirmed) return;
@@ -260,9 +262,10 @@ const SettingsPage = () => {
       setError('');
       setSuccessMessage('');
 
-      const response = await authService.requestRoleUpgrade(requestedRole);
+      const paymentReference = `UPG-${requestedRole.toUpperCase()}-${Date.now()}`;
+      const response = await authService.requestRoleUpgrade(requestedRole, '', paymentReference);
       setSuccessMessage(
-        response.message || `${option.title} request sent successfully. Only admins can approve or reject it.`
+        response.message || `${option.title} request sent successfully. Only admins can approve or reject it after payment.`
       );
       await loadRoleRequests();
     } catch (err) {
@@ -500,7 +503,7 @@ const SettingsPage = () => {
                 Access Requests
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Upgrade your account when you need more control, like creating field bookings, team management, or field administration.
+                Upgrade your account when you need more control. Each access upgrade includes a one-time platform fee and then an admin approval review.
               </p>
             </div>
 
@@ -546,12 +549,37 @@ const SettingsPage = () => {
                         </div>
                         <h3 className="mt-4 text-lg font-semibold text-slate-900">{option.title}</h3>
                         <p className="mt-2 text-sm leading-6 text-slate-600">{option.description}</p>
+                        <div className="mt-4 flex items-end justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Upgrade fee</p>
+                            <p className="mt-1 text-2xl font-bold text-slate-950">${ROLE_UPGRADE_CONFIG[roleKey]?.feeUsd || 0}</p>
+                          </div>
+                          <div className="text-right text-xs text-slate-500">
+                            <p>One-time platform fee</p>
+                            <p>Admin approval required</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 rounded-2xl bg-slate-50/70 p-4">
+                          {ROLE_UPGRADE_CONFIG[roleKey]?.benefits?.slice(0, 3).map((benefit) => (
+                            <div key={benefit} className="flex items-start gap-2 text-sm text-slate-600">
+                              <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-none text-emerald-600" />
+                              <span>{benefit}</span>
+                            </div>
+                          ))}
+                        </div>
 
                         {latestRequest && (
                           <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[latestRequest.status] || STATUS_STYLES.pending}`}>
                             {React.createElement(getStatusIcon(latestRequest.status), { className: 'h-4 w-4' })}
                             {formatRoleLabel(latestRequest.status)}
                           </div>
+                        )}
+
+                        {latestRequest?.paymentPaidAt && (
+                          <p className="mt-3 text-xs text-slate-500">
+                            Payment confirmed on {formatDateTime(latestRequest.paymentPaidAt)}
+                          </p>
                         )}
 
                         <button
@@ -611,13 +639,16 @@ const SettingsPage = () => {
                       <div key={request.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">
-                              {formatRoleLabel(request.requestedRole)}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Submitted {formatDateTime(request.createdAt)}
-                            </p>
-                          </div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {formatRoleLabel(request.requestedRole)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Submitted {formatDateTime(request.createdAt)}
+                          </p>
+                          <p className="mt-2 text-xs font-medium text-emerald-700">
+                            Paid ${Number(request.feeAmountUsd || 0).toFixed(0)} {request.paymentPaidAt ? `on ${formatDateTime(request.paymentPaidAt)}` : ''}
+                          </p>
+                        </div>
                           <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[request.status] || STATUS_STYLES.pending}`}>
                             <StatusIcon className="h-4 w-4" />
                             {formatRoleLabel(request.status)}

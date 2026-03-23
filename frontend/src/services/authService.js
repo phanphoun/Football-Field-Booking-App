@@ -64,10 +64,12 @@ const authService = {
   },
 
   // Submit a role upgrade request
-  requestRoleUpgrade: async (requestedRole, note = '') => {
+  requestRoleUpgrade: async (requestedRole, note = '', paymentReference = '') => {
     return apiService.post('/auth/role-requests', {
       requestedRole,
-      note
+      note,
+      paymentAcknowledged: true,
+      paymentReference
     });
   },
 
@@ -106,7 +108,7 @@ const authService = {
 
   // Change password
   changePassword: async (payload) => {
-    const response = await apiService.put('/auth/profile/password', payload);
+    const response = await apiService.post('/auth/change-password', payload);
     return response;
   },
 

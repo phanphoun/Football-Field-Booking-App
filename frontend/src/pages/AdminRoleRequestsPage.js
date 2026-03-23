@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
+import { buildAssetUrl } from '../config/appConfig';
+import { formatRoleLabel } from '../utils/formatters';
 
 const FILTER_OPTIONS = [
   { value: 'pending', label: 'Pending' },
@@ -14,8 +12,7 @@ const FILTER_OPTIONS = [
 ];
 
 const roleLabel = (role) => {
-  if (role === 'field_owner') return 'Field Owner';
-  return role === 'captain' ? 'Captain' : role;
+  return formatRoleLabel(role, 'Player');
 };
 
 const statusClass = (status) => {
@@ -25,14 +22,7 @@ const statusClass = (status) => {
 };
 
 const resolveAvatarUrl = (user) => {
-  const rawAvatar = user?.avatarUrl || user?.avatar_url;
-  if (!rawAvatar) {
-    return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-  }
-  if (/^https?:\/\//i.test(rawAvatar)) {
-    return rawAvatar;
-  }
-  return `${API_ORIGIN}${rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`}`;
+  return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
 };
 
 const AdminRoleRequestsPage = () => {
@@ -206,7 +196,7 @@ const AdminRoleRequestsPage = () => {
                           });
                         }}
                         onError={(event) => {
-                          const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                          const fallbackUrl = buildAssetUrl();
                           if (event.currentTarget.src !== fallbackUrl) {
                             event.currentTarget.src = fallbackUrl;
                           }
@@ -220,6 +210,10 @@ const AdminRoleRequestsPage = () => {
                         <p className="text-xs text-gray-500">{requester.email}</p>
                         <p className="text-sm text-gray-700">
                           Requested role: <span className="font-semibold">{roleLabel(request.requestedRole)}</span>
+                        </p>
+                        <p className="text-sm text-emerald-700">
+                          Upgrade fee: <span className="font-semibold">${Number(request.feeAmountUsd || 0).toFixed(0)}</span>
+                          {' '}| Payment: <span className="font-semibold capitalize">{request.paymentStatus || 'paid'}</span>
                         </p>
                         {request.note && <p className="text-sm text-gray-600">Note: {request.note}</p>}
                         <p className="text-xs text-gray-500">Submitted: {new Date(request.createdAt).toLocaleString()}</p>
@@ -288,7 +282,7 @@ const AdminRoleRequestsPage = () => {
                   })
                 }
                 onError={(event) => {
-                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                  const fallbackUrl = buildAssetUrl();
                   if (event.currentTarget.src !== fallbackUrl) {
                     event.currentTarget.src = fallbackUrl;
                   }
