@@ -266,10 +266,19 @@ const ProfilePage = () => {
                   }
                 }}
               />
-              <label className="absolute bottom-0 right-0 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <label
+                htmlFor="avatar-upload"
+                className="absolute bottom-0 right-0 z-10 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+              >
                 <CameraIcon className="h-4 w-4" />
-                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleAvatarUpload}
+              />
             </div>
 
             <div>

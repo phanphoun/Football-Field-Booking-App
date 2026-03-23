@@ -153,10 +153,14 @@ const getMatchHistoryForRating = asyncHandler(async (req, res) => {
 });
 
 const createOpponentRating = asyncHandler(async (req, res) => {
-  const { bookingId, rating, review, sportsmanshipScore } = req.body;
+  const { bookingId, rating, review, sportsmanshipScore, skillLevelScore, punctualityScore, teamOrganizationScore } = req.body;
   const parsedBookingId = Number(bookingId);
   const parsedRating = Number(rating);
   const parsedSportsmanship = sportsmanshipScore === undefined || sportsmanshipScore === null ? null : Number(sportsmanshipScore);
+  const parsedSkillLevel = skillLevelScore === undefined || skillLevelScore === null ? null : Number(skillLevelScore);
+  const parsedPunctuality = punctualityScore === undefined || punctualityScore === null ? null : Number(punctualityScore);
+  const parsedTeamOrganization =
+    teamOrganizationScore === undefined || teamOrganizationScore === null ? null : Number(teamOrganizationScore);
 
   if (!Number.isInteger(parsedBookingId) || parsedBookingId <= 0) {
     return res.status(400).json({ success: false, message: 'bookingId must be a positive integer' });
@@ -166,6 +170,18 @@ const createOpponentRating = asyncHandler(async (req, res) => {
   }
   if (parsedSportsmanship !== null && (!Number.isInteger(parsedSportsmanship) || parsedSportsmanship < 1 || parsedSportsmanship > 5)) {
     return res.status(400).json({ success: false, message: 'sportsmanshipScore must be between 1 and 5' });
+  }
+  if (parsedSkillLevel !== null && (!Number.isInteger(parsedSkillLevel) || parsedSkillLevel < 1 || parsedSkillLevel > 5)) {
+    return res.status(400).json({ success: false, message: 'skillLevelScore must be between 1 and 5' });
+  }
+  if (parsedPunctuality !== null && (!Number.isInteger(parsedPunctuality) || parsedPunctuality < 1 || parsedPunctuality > 5)) {
+    return res.status(400).json({ success: false, message: 'punctualityScore must be between 1 and 5' });
+  }
+  if (
+    parsedTeamOrganization !== null &&
+    (!Number.isInteger(parsedTeamOrganization) || parsedTeamOrganization < 1 || parsedTeamOrganization > 5)
+  ) {
+    return res.status(400).json({ success: false, message: 'teamOrganizationScore must be between 1 and 5' });
   }
 
   const booking = await Booking.findByPk(parsedBookingId, {
@@ -214,7 +230,7 @@ const createOpponentRating = asyncHandler(async (req, res) => {
     }
   });
   if (existing) {
-    return res.status(400).json({ success: false, message: 'You have already rated this opponent for this match' });
+    return res.status(400).json({ success: false, message: 'You have already rated this opponent.' });
   }
 
   const created = await Rating.create({
@@ -224,6 +240,9 @@ const createOpponentRating = asyncHandler(async (req, res) => {
     rating: parsedRating,
     review: review || null,
     sportsmanshipScore: parsedSportsmanship,
+    skillLevelScore: parsedSkillLevel,
+    punctualityScore: parsedPunctuality,
+    teamOrganizationScore: parsedTeamOrganization,
     ratingType: 'overall',
     isRecommended: parsedRating >= 4
   });

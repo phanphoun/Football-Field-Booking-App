@@ -18,7 +18,16 @@ import {
   PhoneIcon,
   SparklesIcon,
   TrophyIcon,
-  UsersIcon
+  UsersIcon,
+  WifiIcon,
+  CheckIcon,
+  ShieldCheckIcon,
+  LightBulbIcon,
+  CameraIcon,
+  CircleStackIcon,
+  CubeIcon,
+  WindowIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import fieldService from '../services/fieldService';
@@ -49,6 +58,103 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
 ];
 
+const WORLD_CLASS_FACILITIES = [
+  { icon: WifiIcon, title: 'Free WiFi', description: 'High-speed internet available', iconBgColor: 'bg-blue-100', iconColor: 'text-blue-600', accentColor: 'border-blue-100' },
+  { icon: CheckIcon, title: 'Free Parking', description: 'Ample parking space', iconBgColor: 'bg-emerald-100', iconColor: 'text-emerald-600', accentColor: 'border-emerald-100' },
+  { icon: HomeIcon, title: 'Shower Rooms', description: 'Clean changing facilities', iconBgColor: 'bg-violet-100', iconColor: 'text-violet-600', accentColor: 'border-violet-100' },
+  { icon: CameraIcon, title: 'CCTV Security', description: '24/7 surveillance', iconBgColor: 'bg-rose-100', iconColor: 'text-rose-600', accentColor: 'border-rose-100' },
+  { icon: LightBulbIcon, title: 'LED Floodlights', description: 'Professional lighting', iconBgColor: 'bg-amber-100', iconColor: 'text-amber-600', accentColor: 'border-amber-100' },
+  { icon: CubeIcon, title: 'Cafeteria', description: 'Snacks & beverages', iconBgColor: 'bg-orange-100', iconColor: 'text-orange-600', accentColor: 'border-orange-100' },
+  { icon: ShieldCheckIcon, title: 'First Aid', description: 'Medical assistance ready', iconBgColor: 'bg-teal-100', iconColor: 'text-teal-600', accentColor: 'border-teal-100' },
+  { icon: WindowIcon, title: 'Air Conditioned', description: 'Climate controlled rooms', iconBgColor: 'bg-cyan-100', iconColor: 'text-cyan-600', accentColor: 'border-cyan-100' },
+  { icon: CircleStackIcon, title: 'Water Stations', description: 'Free drinking water', iconBgColor: 'bg-sky-100', iconColor: 'text-sky-600', accentColor: 'border-sky-100' },
+  { icon: UsersIcon, title: 'Spectator Area', description: 'Seating for supporters', iconBgColor: 'bg-indigo-100', iconColor: 'text-indigo-600', accentColor: 'border-indigo-100' },
+  { icon: BuildingOfficeIcon, title: 'Equipment Rental', description: 'Balls, bibs & gear', iconBgColor: 'bg-pink-100', iconColor: 'text-pink-600', accentColor: 'border-pink-100' },
+  { icon: HomeIcon, title: 'Lounge Area', description: 'Comfortable waiting space', iconBgColor: 'bg-yellow-100', iconColor: 'text-yellow-600', accentColor: 'border-yellow-100' }
+];
+
+const FEATURED_FALLBACK_FIELDS = [
+  {
+    id: 'fallback-1',
+    name: 'Premium Outdoor Field',
+    address: 'Downtown Sports Complex',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 80,
+    status: 'available',
+    images: [
+      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
+    ]
+  },
+  {
+    id: 'fallback-2',
+    name: 'Stadium Football Pitch',
+    address: 'City Stadium Arena',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 120,
+    status: 'available',
+    images: [
+      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
+    ]
+  },
+  {
+    id: 'fallback-3',
+    name: 'Indoor Football Arena',
+    address: 'Sports Hub Indoor',
+    city: 'Phnom Penh',
+    capacity: 14,
+    sessionDuration: 60,
+    pricePerHour: 100,
+    status: 'booked',
+    images: [
+      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
+    ]
+  },
+  {
+    id: 'fallback-4',
+    name: 'City Center Pitch',
+    address: 'Central Sports Park',
+    city: 'Phnom Penh',
+    capacity: 18,
+    sessionDuration: 90,
+    pricePerHour: 95,
+    status: 'available',
+    images: [
+      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
+    ]
+  },
+  
+  {
+    id: 'fallback-5',
+    name: 'Night Lights Field',
+    address: 'North Arena',
+    city: 'Phnom Penh',
+    capacity: 20,
+    sessionDuration: 90,
+    pricePerHour: 110,
+    status: 'available',
+    images: [
+      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
+    ]
+  },
+  {
+    id: 'fallback-6',
+    name: 'Champions Ground',
+    address: 'West Stadium',
+    city: 'Phnom Penh',
+    capacity: 22,
+    sessionDuration: 90,
+    pricePerHour: 130,
+    status: 'booked',
+    images: [
+      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
+    ]
+  }
+  
+];
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 const POPULAR_TIME_SLOT_SESSIONS = [
   {
@@ -306,6 +412,18 @@ const parseSlotToMinutes = (slot) => {
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
 };
+const findEventsForSlot = (events, slot) => {
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (!Number.isFinite(slotMinutes)) return [];
+  const slotEndMinutes = slotMinutes + 60;
+  return events.filter(
+    (event) =>
+      Number.isFinite(event.startMinutes) &&
+      Number.isFinite(event.endMinutes) &&
+      event.startMinutes < slotEndMinutes &&
+      slotMinutes < event.endMinutes
+  );
+};
 const formatSlotTo12h = (slot) => {
   const [h, m] = String(slot || '')
     .split(':')
@@ -348,16 +466,6 @@ const getFieldClosureReopenLabel = (field) => {
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
-const findEventsForSlot = (events, slot) => {
-  if (!Array.isArray(events)) return [];
-  const slotMinutes = parseSlotToMinutes(slot);
-  if (slotMinutes === null) return [];
-  return events.filter(
-    (event) =>
-      event.startMinutes <= slotMinutes &&
-      slotMinutes < event.endMinutes
-  );
-};
 const LandingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -664,6 +772,8 @@ const LandingPage = () => {
           tone:
             booking.status === 'pending'
               ? 'bg-amber-500'
+              : booking.status === 'cancellation_pending'
+              ? 'bg-orange-500'
               : isOwnBooking
               ? 'bg-emerald-600'
               : 'bg-red-600'
@@ -1523,7 +1633,7 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                        className="w-full rounded-xl bg-[#1dbf5f] py-2 text-base font-semibold text-white shadow-sm transition hover:bg-[#18aa52]"
                       >
                         {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
                       </button>
@@ -1683,6 +1793,36 @@ const LandingPage = () => {
               </div>
             );
           })}
+        </div>
+
+      </section>
+
+      <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">World-Class Facilities</h2>
+            <p className="mt-4 text-lg leading-8 text-slate-600">
+              Every field comes equipped with premium amenities to enhance your playing experience
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {WORLD_CLASS_FACILITIES.map((facility) => {
+              const IconComponent = facility.icon;
+              return (
+                <div
+                  key={facility.title}
+                  className={`flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border bg-white px-6 py-8 text-center shadow-[0_10px_30px_rgba(148,163,184,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(148,163,184,0.16)] ${facility.accentColor}`}
+                >
+                  <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${facility.iconBgColor}`}>
+                    <IconComponent className={`h-8 w-8 ${facility.iconColor}`} />
+                  </div>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{facility.title}</h3>
+                  <p className="mt-3 max-w-[220px] text-base leading-7 text-slate-500">{facility.description}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

@@ -508,6 +508,8 @@ const AppLayout = () => {
       await teamService.respondLeaveRequest(teamId, requesterId, action);
       await markNotificationRead(notification.id);
       await loadNotifications();
+    } catch (err) {
+      showToast(err?.error || 'Failed to process leave request', { type: 'error' });
     } finally {
       setNotificationActionLoading(false);
     }

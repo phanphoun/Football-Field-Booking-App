@@ -57,6 +57,30 @@ module.exports = (sequelize, DataTypes) => {
         max: 5
       }
     },
+    skillLevelScore: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+        max: 5
+      }
+    },
+    punctualityScore: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+        max: 5
+      }
+    },
+    teamOrganizationScore: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: 1,
+        max: 5
+      }
+    },
     ratingType: {
       type: DataTypes.ENUM('sportsmanship', 'skill_level', 'punctuality', 'overall'),
       defaultValue: 'overall',

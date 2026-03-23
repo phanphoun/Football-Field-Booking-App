@@ -115,6 +115,20 @@ export const ToastProvider = ({ children }) => {
     [removeToast, showToast]
   );
 
+  useEffect(() => {
+    const handleToastEvent = (event) => {
+      const detail = event?.detail || {};
+      showToast(detail.message, {
+        type: detail.type || 'info',
+        title: detail.title || '',
+        duration: Number.isFinite(detail.duration) ? detail.duration : 3200
+      });
+    };
+
+    window.addEventListener('app:toast', handleToastEvent);
+    return () => window.removeEventListener('app:toast', handleToastEvent);
+  }, [showToast]);
+
   return (
     <ToastContext.Provider value={contextValue}>
       {children}

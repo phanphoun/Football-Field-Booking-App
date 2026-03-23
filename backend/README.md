@@ -108,6 +108,7 @@ npm run dev
 - `POST /api/auth/login` - User login
 - `GET /api/auth/profile` - Get user profile
 - `PUT /api/auth/profile` - Update profile
+- `POST /api/auth/request-field-owner` - Player submits data (fieldName, location, phone?, description?) to request field-owner role
 
 ### **👥 Users**
 - `GET /api/users` - List users (Admin only)
