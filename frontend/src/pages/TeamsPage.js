@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
@@ -27,6 +27,7 @@ const normalizeTeamsResponse = (payload) => {
 const TeamsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,7 @@ const TeamsPage = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const isAdmin = user?.role === 'admin';
   const canCreateTeam = !!user && !isAdmin && user?.role !== 'player';
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   useEffect(() => {
     const fetchTeamsAndInvitations = async () => {
@@ -62,7 +64,7 @@ const TeamsPage = () => {
   }, [user?.id, isAdmin]);
 
   const handleCreateTeam = () => {
-    navigate('/app/teams/create');
+    navigate(`${basePath}/teams/create`);
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -80,7 +82,7 @@ const TeamsPage = () => {
   };
 
   const handleViewTeam = (teamId) => {
-    navigate(`/app/teams/${teamId}`);
+    navigate(`${basePath}/teams/${teamId}`);
   };
 
   const openDeleteDialog = (team) => {
@@ -311,7 +313,7 @@ const TeamsPage = () => {
               }}
               className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
-              <div className="relative h-44">
+              <div className="relative h-52">
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                   <UsersIcon className="h-12 w-12 text-gray-300" />
                 </div>

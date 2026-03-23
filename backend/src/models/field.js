@@ -50,6 +50,13 @@ module.exports = (sequelize, DataTypes) => {
         notEmpty: true
       }
     },
+    country: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        len: [0, 100]
+      }
+    },
     latitude: {
       type: DataTypes.DECIMAL(10, 8),
       allowNull: true,
@@ -126,10 +133,17 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'available',
       allowNull: false
     },
-    isArchived: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false
+    closureMessage: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    closureStartAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    closureEndAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     },
     amenities: {
       type: DataTypes.JSON,

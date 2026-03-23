@@ -2,7 +2,21 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-  { model: Field, as: 'field', attributes: ['id', 'name', 'address', 'pricePerHour', 'discountPercent'] },
+  {
+    model: Field,
+    as: 'field',
+    attributes: [
+      'id',
+      'name',
+      'address',
+      'pricePerHour',
+      'discountPercent',
+      'status',
+      'closureMessage',
+      'closureStartAt',
+      'closureEndAt'
+    ]
+  },
   {
     model: Team,
     as: 'team',
@@ -30,7 +44,13 @@ const BOOKING_BASE_INCLUDE = [
     required: false
   },
   { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
-  { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
+  {
+    model: MatchResult,
+    as: 'matchResult',
+    attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy', 'mvpPlayerId', 'matchNotes'],
+    include: [{ model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'firstName', 'lastName'], required: false }],
+    required: false
+  },
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
@@ -104,13 +124,13 @@ const buildDateAtHour = (date, hour) => {
   bookingDate.setHours(hour, 0, 0, 0);
   return bookingDate;
 };
-
 const getEffectiveHourlyRate = (field) => {
   const basePrice = Number(field?.pricePerHour || 0);
   const discountPercent = Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
   return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
 
+<<<<<<< HEAD
 const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
   const serializedBookings = bookings.map(serializeBooking);
   const targetCount = Math.max(getScheduleShowcaseTarget(date), fields.length);
@@ -213,12 +233,26 @@ const enrichScheduleWithShowcaseBookings = ({ date, fields, bookings }) => {
 
   return [...serializedBookings, ...showcaseBookings];
 };
+=======
+const enrichScheduleWithShowcaseBookings = ({ bookings }) => bookings.map(serializeBooking);
+>>>>>>> d443eb687c8436eb8f2a6c4e284c8bee6e652e7e
 
 const requireCaptainRole = (req, res) => {
   if (req.user.role !== 'captain') {
     res.status(403).json({
       success: false,
       message: 'Only team captains can use this feature.'
+    });
+    return false;
+  }
+  return true;
+};
+
+const requireOpenMatchAccess = (req, res) => {
+  if (!['captain', 'field_owner'].includes(req.user.role)) {
+    res.status(403).json({
+      success: false,
+      message: 'Only team captains or field owners can use this feature.'
     });
     return false;
   }
@@ -246,46 +280,71 @@ const createBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Field not found' });
     }
 
-    if (String(field.status || 'available').toLowerCase() !== 'available') {
-      return res.status(400).json({
-        success: false,
-        message: `Field is currently ${field.status} and cannot be booked.`
-      });
-    }
+      const requestedStart = new Date(startTime);
+      const requestedEnd = new Date(endTime);
+      if (Number.isNaN(requestedStart.getTime()) || Number.isNaN(requestedEnd.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid start time or end time.'
+        });
+      }
+      if (requestedEnd <= requestedStart) {
+        return res.status(400).json({
+          success: false,
+          message: 'End time must be after start time.'
+        });
+      }
 
-    const activeFieldBooking = await Booking.findOne({
-      where: {
-        fieldId,
-        status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
-        endTime: { [Op.gt]: new Date() }
-      },
-      order: [['startTime', 'ASC']]
-    });
+      if (field.status !== 'available') {
+        const nowMs = Date.now();
+        const closureStart = field.closureStartAt ? new Date(field.closureStartAt) : null;
+        const closureEnd = field.closureEndAt ? new Date(field.closureEndAt) : null;
+        const closureStartMs = closureStart && !Number.isNaN(closureStart.getTime()) ? closureStart.getTime() : null;
+        const closureEndMs = closureEnd && !Number.isNaN(closureEnd.getTime()) ? closureEnd.getTime() : null;
+        const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
 
-    if (activeFieldBooking) {
-      return res.status(400).json({
-        success: false,
-        message: 'Field is already booked and unavailable for another booking.'
-      });
-    }
+        const overlapsClosureWindow = hasClosureWindow
+          ? requestedStart.getTime() < (closureEndMs ?? Number.POSITIVE_INFINITY) &&
+            requestedEnd.getTime() > (closureStartMs ?? Number.NEGATIVE_INFINITY)
+          : true;
+
+        const canAutoReopen =
+          closureEndMs !== null &&
+          nowMs >= closureEndMs &&
+          requestedStart.getTime() >= closureEndMs;
+
+        if (canAutoReopen) {
+          await field.update({
+            status: 'available',
+            closureMessage: null,
+            closureStartAt: null,
+            closureEndAt: null
+          });
+        } else if (overlapsClosureWindow) {
+          return res.status(400).json({
+            success: false,
+            message: field.closureMessage || `This field is currently ${field.status} for the selected time. Please choose another time or field.`
+          });
+        }
+      }
 
     const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60);
     const totalPrice = Number((duration * getEffectiveHourlyRate(field)).toFixed(2));
 
-    const existingBooking = await Booking.findOne({
-      where: {
-        fieldId,
-        status: 'confirmed',
-        [Op.and]: [{ startTime: { [Op.lt]: endTime } }, { endTime: { [Op.gt]: startTime } }]
-      }
-    });
-
-    if (existingBooking) {
-      return res.status(400).json({
-        success: false,
-        message: 'Field already has a confirmed booking for this time slot.'
+      const existingBooking = await Booking.findOne({
+        where: {
+          fieldId,
+          status: { [Op.in]: ACTIVE_BOOKING_STATUSES },
+          [Op.and]: [{ startTime: { [Op.lt]: requestedEnd } }, { endTime: { [Op.gt]: requestedStart } }]
+        }
       });
-    }
+
+      if (existingBooking) {
+        return res.status(400).json({
+          success: false,
+          message: 'Field already has a booking for this time slot.'
+        });
+      }
 
     const booking = await Booking.create({
       createdBy: req.user.id,
@@ -535,7 +594,14 @@ const getPublicBookingSchedule = async (req, res) => {
     }
 
     const fields = await Field.findAll({
+<<<<<<< HEAD
       attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'fieldType', 'surfaceType', 'city', 'status'],
+=======
+      attributes: ['id', 'name', 'address', 'pricePerHour', 'images', 'status', 'closureMessage', 'closureStartAt', 'closureEndAt'],
+      where: {
+        isArchived: false
+      },
+>>>>>>> d443eb687c8436eb8f2a6c4e284c8bee6e652e7e
       order: [['name', 'ASC']],
       ...(limit ? { limit } : {})
     });
@@ -558,7 +624,10 @@ const getPublicBookingSchedule = async (req, res) => {
         status: { [Op.notIn]: ['cancelled', 'completed'] },
         [Op.and]: [{ startTime: { [Op.lt]: dayEnd } }, { endTime: { [Op.gt]: dayStart } }]
       },
-      include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false }],
+      include: [
+        { model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
+        { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false }
+      ],
       order: [['startTime', 'ASC']]
     });
 
@@ -583,7 +652,7 @@ const updateBookingStatus = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { status } = req.body;
+    const { status, startTime, endTime } = req.body;
 
     const allowedStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
     if (!allowedStatuses.includes(status)) {
@@ -612,9 +681,10 @@ const updateBookingStatus = async (req, res) => {
     const isBooker = booking.createdBy === req.user.id;
     const isAdmin = req.user.role === 'admin';
     const isTeamCaptain = booking.team && booking.team.captainId === req.user.id;
+    const isOpponentCaptain = booking.opponentTeam && booking.opponentTeam.captainId === req.user.id;
     const isCaptain = req.user.role === 'captain';
 
-    if ((isBooker || (isCaptain && isTeamCaptain)) && status === 'cancelled') {
+    if ((isBooker || (isCaptain && (isTeamCaptain || isOpponentCaptain))) && status === 'cancelled') {
       const canCancelStatus = booking.status === 'pending' || booking.status === 'confirmed';
       if (!canCancelStatus) {
         return res.status(400).json({
@@ -646,6 +716,45 @@ const updateBookingStatus = async (req, res) => {
       });
     }
 
+    let nextStartTime = booking.startTime;
+    let nextEndTime = booking.endTime;
+    const hasScheduleUpdate = startTime !== undefined || endTime !== undefined;
+    const isConfirmingByOwnerOrAdmin = status === 'confirmed' && previousStatus === 'pending' && (isOwner || isAdmin);
+
+    if (hasScheduleUpdate && !isConfirmingByOwnerOrAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'startTime/endTime can only be updated when owner/admin confirms a pending booking.'
+      });
+    }
+
+    if (hasScheduleUpdate) {
+      if (!startTime || !endTime) {
+        return res.status(400).json({
+          success: false,
+          message: 'Both startTime and endTime are required when updating booking date/time.'
+        });
+      }
+
+      const parsedStart = new Date(startTime);
+      const parsedEnd = new Date(endTime);
+      if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid startTime or endTime.'
+        });
+      }
+      if (parsedEnd <= parsedStart) {
+        return res.status(400).json({
+          success: false,
+          message: 'endTime must be after startTime.'
+        });
+      }
+
+      nextStartTime = parsedStart;
+      nextEndTime = parsedEnd;
+    }
+
     // Completing a booking is restricted to field owner/admin approval.
     if (status === 'completed' && !(isOwner || isAdmin)) {
       return res.status(403).json({
@@ -660,7 +769,7 @@ const updateBookingStatus = async (req, res) => {
           id: { [Op.ne]: booking.id },
           fieldId: booking.fieldId,
           status: 'confirmed',
-          [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+          [Op.and]: [{ startTime: { [Op.lt]: nextEndTime } }, { endTime: { [Op.gt]: nextStartTime } }]
         }
       });
       if (overlappingConfirmed) {
@@ -743,7 +852,7 @@ const updateBookingStatus = async (req, res) => {
           id: { [Op.ne]: booking.id },
           fieldId: booking.fieldId,
           status: 'pending',
-          [Op.and]: [{ startTime: { [Op.lt]: booking.endTime } }, { endTime: { [Op.gt]: booking.startTime } }]
+          [Op.and]: [{ startTime: { [Op.lt]: nextEndTime } }, { endTime: { [Op.gt]: nextStartTime } }]
         },
         include: [{ model: Team, as: 'team', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'] }],
         transaction
@@ -1114,7 +1223,7 @@ const toggleOpenForOpponents = async (req, res) => {
 
 const getOpenMatches = async (req, res) => {
   try {
-    if (!requireCaptainRole(req, res)) return;
+    if (!requireOpenMatchAccess(req, res)) return;
 
     const where = {
       isMatchmaking: true,
@@ -1173,7 +1282,7 @@ const getOpenMatches = async (req, res) => {
 
 const requestJoinMatch = async (req, res) => {
   try {
-    if (!requireCaptainRole(req, res)) return;
+    if (!requireOpenMatchAccess(req, res)) return;
     const bookingId = Number(req.params.id);
     const requesterTeamId = Number(req.body.teamId);
     const message = req.body.message || null;

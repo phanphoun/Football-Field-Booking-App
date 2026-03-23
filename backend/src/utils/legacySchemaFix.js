@@ -218,6 +218,19 @@ const applyLegacySchemaFixes = async (sequelize) => {
     changes.push('role_requests.reviewedAt');
   }
 
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureMessage', 'TEXT NULL')) {
+    changes.push('fields.closureMessage');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureStartAt', 'DATETIME NULL')) {
+    changes.push('fields.closureStartAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureEndAt', 'DATETIME NULL')) {
+    changes.push('fields.closureEndAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'country', 'VARCHAR(100) NULL')) {
+    changes.push('fields.country');
+  }
+
   if (await addColumnIfMissing(sequelize, 'users', 'avatarUrl', 'VARCHAR(255) NULL')) {
     changes.push('users.avatarUrl');
   }

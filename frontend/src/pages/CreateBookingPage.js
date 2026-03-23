@@ -10,7 +10,7 @@ import { getTeamJerseyColors } from '../utils/teamColors';
 const CreateBookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canCreateBooking = ['captain', 'field_owner', 'admin'].includes(user?.role);
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -87,7 +87,7 @@ const CreateBookingPage = () => {
       try {
         setLoading(true);
         const [fieldsResponse, teamsResponse] = await Promise.all([
-          fieldService.getAllFields(),
+          fieldService.getAllFields({ status: 'available' }),
           teamService.getMyTeams()
         ]);
         
@@ -160,6 +160,11 @@ const CreateBookingPage = () => {
         return;
       }
 
+      if (isSelectedFieldClosedForChosenTime) {
+        setError('This field is closed for the selected date/time. Please choose another slot.');
+        return;
+      }
+
       const bookingData = {
         fieldId: parseInt(formData.fieldId),
         teamId: parseInt(formData.teamId),
@@ -192,6 +197,29 @@ const CreateBookingPage = () => {
   const selectedField = Array.isArray(fields) ? fields.find(f => f.id === parseInt(formData.fieldId)) : null;
   const selectedTeam = Array.isArray(teams) ? teams.find(t => t.id === parseInt(formData.teamId)) : null;
   const totalPrice = calculatePrice();
+  const selectedStartDate = formData.startTime ? new Date(formData.startTime) : null;
+  const selectedEndDate = formData.endTime ? new Date(formData.endTime) : null;
+  const closureStartDate = selectedField?.closureStartAt ? new Date(selectedField.closureStartAt) : null;
+  const closureEndDate = selectedField?.closureEndAt ? new Date(selectedField.closureEndAt) : null;
+  const closureStartMs =
+    closureStartDate && !Number.isNaN(closureStartDate.getTime()) ? closureStartDate.getTime() : null;
+  const closureEndMs =
+    closureEndDate && !Number.isNaN(closureEndDate.getTime()) ? closureEndDate.getTime() : null;
+  const selectedStartMs =
+    selectedStartDate && !Number.isNaN(selectedStartDate.getTime()) ? selectedStartDate.getTime() : null;
+  const selectedEndMs =
+    selectedEndDate && !Number.isNaN(selectedEndDate.getTime()) ? selectedEndDate.getTime() : null;
+  const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
+  const selectedSlotOverlapsClosure =
+    hasClosureWindow &&
+    selectedStartMs !== null &&
+    selectedEndMs !== null &&
+    selectedStartMs < (closureEndMs ?? Number.POSITIVE_INFINITY) &&
+    selectedEndMs > (closureStartMs ?? Number.NEGATIVE_INFINITY);
+  const isSelectedFieldClosedForChosenTime =
+    Boolean(selectedField) &&
+    String(selectedField?.status || 'available').toLowerCase() !== 'available' &&
+    (!hasClosureWindow || selectedSlotOverlapsClosure);
   const rawAmenities = selectedField?.amenities;
   const selectedFieldAmenities = Array.isArray(rawAmenities)
     ? rawAmenities
@@ -212,7 +240,7 @@ const CreateBookingPage = () => {
       <div className="bg-white shadow rounded-lg p-8 text-center">
         <h1 className="text-2xl font-bold text-gray-900">Access Required</h1>
         <p className="mt-3 text-sm text-gray-600">
-          You need captain, field owner, or admin access to book fields.
+          You need captain or field owner access to book fields.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <button
@@ -253,6 +281,20 @@ const CreateBookingPage = () => {
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
           {error}
+        </div>
+      )}
+      {isSelectedFieldClosedForChosenTime && (
+        <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3">
+          <p className="text-sm font-semibold text-rose-800">Field is closed for selected time</p>
+          <p className="mt-1 text-xs text-rose-700">
+            {selectedField?.closureMessage || 'Please choose a different date/time or another field.'}
+          </p>
+          {(closureStartMs || closureEndMs) && (
+            <p className="mt-1 text-xs text-rose-700">
+              Closure window: {closureStartMs ? new Date(closureStartMs).toLocaleString() : 'No start'} -{' '}
+              {closureEndMs ? new Date(closureEndMs).toLocaleString() : 'No end'}
+            </p>
+          )}
         </div>
       )}
 
@@ -402,7 +444,7 @@ const CreateBookingPage = () => {
         </button>
                 <button
                   type="submit"
-                  disabled={submitting || !hasTeams}
+                  disabled={submitting || !hasTeams || isSelectedFieldClosedForChosenTime}
                   className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                 >
                   {submitting ? 'Creating...' : 'Create Booking'}

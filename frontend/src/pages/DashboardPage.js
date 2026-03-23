@@ -31,6 +31,11 @@ const roleTheme = {
     description: 'Manage your teams, approve join requests, and keep bookings under control.',
     accent: 'from-emerald-50 via-white to-blue-50'
   },
+  field_owner: {
+    badge: 'Field Owner App View',
+    description: 'Use the app workspace to manage teams, review invitations, and create bookings as an owner.',
+    accent: 'from-sky-50 via-white to-emerald-50'
+  },
   player: {
     badge: 'Player Overview',
     description: 'Track invitations, team activity, and your next bookings in one place.',
@@ -53,7 +58,10 @@ const DashboardPage = () => {
   const navigate = useNavigate();
 
   const role = user?.role;
-  const canCreateBooking = role === 'captain';
+  const isCaptain = role === 'captain';
+  const isFieldOwner = role === 'field_owner';
+  const isPlayerWorkspace = role === 'player' || isFieldOwner;
+  const canCreateBooking = isCaptain || isFieldOwner;
 
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -88,9 +96,11 @@ const DashboardPage = () => {
           await Promise.all([
             apiService.get('/dashboard/stats'),
             bookingService.getAllBookings({ limit: 50 }),
-            role === 'player' || role === 'captain' ? teamService.getMyTeams() : Promise.resolve({ data: [] }),
-            role === 'captain' ? teamService.getCaptainedTeams() : Promise.resolve({ data: [] }),
-            fieldService.getAllFields({ limit: 50 }),
+            role === 'player' || role === 'captain' || role === 'field_owner'
+              ? teamService.getMyTeams()
+              : Promise.resolve({ data: [] }),
+            isCaptain ? teamService.getCaptainedTeams() : Promise.resolve({ data: [] }),
+            fieldService.getAllFields({ limit: 50, status: 'available' }),
             apiService.get('/notifications'),
             role === 'admin' ? userService.getAllUsers() : Promise.resolve({ data: [] }),
             role === 'admin' ? authService.getAdminRoleRequests('') : Promise.resolve({ data: { requests: [] } })
@@ -117,7 +127,7 @@ const DashboardPage = () => {
         setAdminRoleRequests(adminRequestsData);
         setCaptainedTeams(captainedData);
 
-        if (role === 'captain') {
+        if (isCaptain) {
           const requests = await Promise.all(
             captainedData.map(async (team) => {
               const response = await teamService.getJoinRequests(team.id);
@@ -137,7 +147,7 @@ const DashboardPage = () => {
     };
 
     load();
-  }, [role]);
+  }, [isCaptain, role]);
 
   const upcomingBookings = useMemo(() => {
     const now = Date.now();
@@ -149,7 +159,7 @@ const DashboardPage = () => {
   }, [bookings]);
 
   const statCards = useMemo(() => {
-    if (role === 'captain') {
+    if (isCaptain) {
       const pendingJoinRequests =
         stats?.pendingJoinRequests ?? joinRequestsByTeam.reduce((sum, item) => sum + item.pendingCount, 0);
 
@@ -189,7 +199,7 @@ const DashboardPage = () => {
       ];
     }
 
-    if (role === 'player') {
+    if (isPlayerWorkspace) {
       const pendingInvites = notifications.filter((notification) => notification.type === 'team_invite' && !notification.isRead).length;
 
       return [
@@ -265,7 +275,8 @@ const DashboardPage = () => {
       }
     ];
   }, [
-    role,
+    isCaptain,
+    isPlayerWorkspace,
     stats,
     joinRequestsByTeam,
     captainedTeams.length,
@@ -312,7 +323,7 @@ const DashboardPage = () => {
   }, [notifications]);
 
   const spotlightStats = useMemo(() => {
-    if (role === 'captain') {
+    if (isCaptain) {
       return [
         {
           label: 'Next booking',
@@ -332,7 +343,7 @@ const DashboardPage = () => {
       ];
     }
 
-    if (role === 'player') {
+    if (isPlayerWorkspace) {
       return [
         {
           label: 'Next match day',
@@ -373,7 +384,8 @@ const DashboardPage = () => {
       }
     ];
   }, [
-    role,
+    isCaptain,
+    isPlayerWorkspace,
     upcomingBookings,
     captainedTeams.length,
     joinRequestsByTeam,
@@ -385,11 +397,19 @@ const DashboardPage = () => {
   ]);
 
   const quickActions = useMemo(() => {
-    if (role === 'captain') {
+    if (isCaptain) {
       return [
         { label: 'Create booking', helper: 'Reserve a field for your team', to: canCreateBooking ? '/app/bookings/new' : '/app/bookings' },
         { label: 'Manage teams', helper: 'Review members and requests', to: '/app/teams' },
         { label: 'Find fields', helper: 'Browse available venues', to: '/app/fields' }
+      ];
+    }
+
+    if (isFieldOwner) {
+      return [
+        { label: 'Create booking', helper: 'Reserve a field while using the app workspace', to: '/app/bookings/new' },
+        { label: 'Explore teams', helper: 'Join or manage team activity', to: '/app/teams' },
+        { label: 'Browse fields', helper: 'Discover venues near you', to: '/app/fields' }
       ];
     }
 
@@ -406,7 +426,7 @@ const DashboardPage = () => {
       { label: 'Manage users', helper: 'Inspect platform members', to: '/app/admin/users' },
       { label: 'Check bookings', helper: 'Monitor booking activity', to: '/app/bookings' }
     ];
-  }, [role, canCreateBooking]);
+  }, [canCreateBooking, isCaptain, isFieldOwner, role]);
 
   const markNotificationRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {
@@ -528,7 +548,7 @@ const DashboardPage = () => {
                   : 'Your next confirmed or pending sessions in chronological order.'}
             </p>
           </div>
-          {role === 'captain' ? (
+          {isCaptain ? (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/teams')}>
               Teams
             </Button>
@@ -543,7 +563,7 @@ const DashboardPage = () => {
           )}
         </CardHeader>
         <div className="bg-white">
-          {role === 'captain' ? (
+          {isCaptain ? (
             joinRequestsByTeam.length > 0 ? (
               <div className="divide-y divide-slate-200">
                 {joinRequestsByTeam.slice(0, 6).map((team) => (
@@ -679,9 +699,9 @@ const DashboardPage = () => {
           <Card className="overflow-hidden">
             <CardHeader className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">{role === 'captain' ? 'Team Snapshot' : 'Team Activity'}</h3>
+                <h3 className="text-lg font-medium text-gray-900">{isCaptain ? 'Team Snapshot' : 'Team Activity'}</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  {role === 'captain'
+                  {isCaptain
                     ? 'Quick view of the teams you lead and their pending workload.'
                     : 'Your current team footprint and invitation activity.'}
                 </p>
@@ -694,31 +714,31 @@ const DashboardPage = () => {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {role === 'captain' ? 'Captained teams' : 'Joined teams'}
+                    {isCaptain ? 'Captained teams' : 'Joined teams'}
                   </div>
                   <div className="mt-2 text-3xl font-bold text-slate-950">
-                    {role === 'captain' ? captainedTeams.length : myTeams.length}
+                    {isCaptain ? captainedTeams.length : myTeams.length}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    {role === 'captain' ? 'Teams you actively manage' : 'Teams where you are currently a member'}
+                    {isCaptain ? 'Teams you actively manage' : 'Teams where you are currently a member'}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {role === 'captain' ? 'Pending join requests' : 'Pending invitations'}
+                    {isCaptain ? 'Pending join requests' : 'Pending invitations'}
                   </div>
                   <div className="mt-2 text-3xl font-bold text-slate-950">
-                    {role === 'captain'
+                    {isCaptain
                       ? joinRequestsByTeam.reduce((sum, item) => sum + item.pendingCount, 0)
                       : inviteNotifications.length}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    {role === 'captain' ? 'Players waiting for a decision' : 'Invites waiting for your response'}
+                    {isCaptain ? 'Players waiting for a decision' : 'Invites waiting for your response'}
                   </div>
                 </div>
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">
-                {role === 'captain'
+                {isCaptain
                   ? 'Tip: clear join requests quickly to keep your squad ready for bookings and open matches.'
                   : 'Tip: accepting invitations and tracking bookings here gives you a faster path into upcoming matches.'}
               </div>
@@ -806,7 +826,7 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {role === 'player' && (
+      {isPlayerWorkspace && (
         <Card className="overflow-hidden">
           <CardHeader className="flex items-center justify-between">
             <h3 className="inline-flex items-center gap-2 text-lg font-medium text-gray-900">

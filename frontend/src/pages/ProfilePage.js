@@ -18,6 +18,7 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { compressImageForUpload } from '../utils/imageCompression';
 import { buildAssetUrl } from '../config/appConfig';
 
 const MAX_AVATAR_SIZE_MB = 5;
@@ -183,13 +184,20 @@ const ProfilePage = () => {
     try {
       setError('');
       setSuccessMessage('');
+      const compressedFile = await compressImageForUpload(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        targetMaxBytes: 350 * 1024,
+        minCompressBytes: 120 * 1024
+      });
+
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview);
       }
-      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarPreview(URL.createObjectURL(compressedFile));
 
       const uploadData = new FormData();
-      uploadData.append('avatar', file);
+      uploadData.append('avatar', compressedFile);
       const result = await uploadAvatar(uploadData);
 
       if (!result.success) {

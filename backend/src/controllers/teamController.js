@@ -14,7 +14,7 @@ const getTeamBaseIncludes = () => [
   {
     model: Field,
     as: 'homeField',
-    attributes: ['id', 'name', 'address', 'city', 'province'],
+    attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
     required: false
   }
 ];
@@ -119,7 +119,6 @@ const attachMemberCounts = async (teams = []) => {
     };
   });
 };
-
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;

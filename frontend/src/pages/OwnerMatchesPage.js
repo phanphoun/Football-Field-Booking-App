@@ -68,6 +68,8 @@ const OwnerMatchesPage = () => {
   const [activeCardId, setActiveCardId] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [resultDrafts, setResultDrafts] = useState({});
+  const [eligiblePlayersByBooking, setEligiblePlayersByBooking] = useState({});
+  const [eligiblePlayersLoadingMap, setEligiblePlayersLoadingMap] = useState({});
   const [teamLogosById, setTeamLogosById] = useState({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -154,8 +156,59 @@ const OwnerMatchesPage = () => {
   const getInitialDraft = (booking) => ({
     homeScore: booking?.matchResult?.homeScore ?? '',
     awayScore: booking?.matchResult?.awayScore ?? '',
-    matchNotes: booking?.matchResult?.matchNotes || ''
+    matchNotes: booking?.matchResult?.matchNotes || '',
+    mvpPlayerId: booking?.matchResult?.mvpPlayerId ?? ''
   });
+
+  const loadEligiblePlayersForBooking = async (booking) => {
+    const bookingId = booking?.id;
+    const homeTeamId = booking?.team?.id;
+    const awayTeamId = booking?.opponentTeam?.id;
+    if (!bookingId || !homeTeamId || !awayTeamId) return;
+    if (eligiblePlayersByBooking[bookingId]) return;
+
+    try {
+      setEligiblePlayersLoadingMap((prev) => ({ ...prev, [bookingId]: true }));
+      const [homeMembersRes, awayMembersRes] = await Promise.all([
+        teamService.getTeamMembers(homeTeamId),
+        teamService.getTeamMembers(awayTeamId)
+      ]);
+
+      const normalizeMembers = (members, team) => {
+        const rows = Array.isArray(members) ? members : [];
+        return rows
+          .filter((member) => member?.status === 'active' && member?.isActive !== false && member?.user?.id)
+          .map((member) => ({
+            id: Number(member.user.id),
+            username: member.user.username || '',
+            firstName: member.user.firstName || '',
+            lastName: member.user.lastName || '',
+            teamName: team?.name || 'Team'
+          }));
+      };
+
+      const candidates = [
+        ...normalizeMembers(homeMembersRes?.data, booking?.team),
+        ...normalizeMembers(awayMembersRes?.data, booking?.opponentTeam)
+      ];
+
+      const deduped = Array.from(
+        new Map(candidates.map((item) => [item.id, item])).values()
+      );
+
+      setEligiblePlayersByBooking((prev) => ({
+        ...prev,
+        [bookingId]: deduped
+      }));
+    } catch {
+      setEligiblePlayersByBooking((prev) => ({
+        ...prev,
+        [bookingId]: []
+      }));
+    } finally {
+      setEligiblePlayersLoadingMap((prev) => ({ ...prev, [bookingId]: false }));
+    }
+  };
 
   const handleCardClick = (booking) => {
     setError(null);
@@ -164,6 +217,7 @@ const OwnerMatchesPage = () => {
       ...prev,
       [booking.id]: prev[booking.id] || getInitialDraft(booking)
     }));
+    loadEligiblePlayersForBooking(booking);
   };
 
   const updateDraft = (bookingId, key, value) => {
@@ -264,6 +318,7 @@ const OwnerMatchesPage = () => {
           bookingId: booking.id,
           homeScore,
           awayScore,
+          mvpPlayerId: draft?.mvpPlayerId ? Number(draft.mvpPlayerId) : null,
           matchNotes: draft.matchNotes || null
         });
       } else {
@@ -271,6 +326,7 @@ const OwnerMatchesPage = () => {
           bookingId: booking.id,
           homeScore,
           awayScore,
+          mvpPlayerId: draft?.mvpPlayerId ? Number(draft.mvpPlayerId) : null,
           matchNotes: draft.matchNotes || null
         });
       }
@@ -351,6 +407,18 @@ const OwnerMatchesPage = () => {
                 const homeTeamLogo = teamLogosById[m.team?.id] ?? resolveTeamLogoUrl(m.team);
                 const awayTeamLogo = teamLogosById[m.opponentTeam?.id] ?? resolveTeamLogoUrl(m.opponentTeam);
                 const isSaving = savingId === m.id;
+                const eligiblePlayers = eligiblePlayersByBooking[m.id] || [];
+                const mvpDisplayName =
+                  m?.matchResult?.mvpPlayer
+                    ? `${m.matchResult.mvpPlayer.firstName || ''} ${m.matchResult.mvpPlayer.lastName || ''}`.trim() ||
+                      m.matchResult.mvpPlayer.username ||
+                      'Unknown'
+                    : eligiblePlayers.find((player) => Number(player.id) === Number(m?.matchResult?.mvpPlayerId))
+                    ? (() => {
+                        const player = eligiblePlayers.find((p) => Number(p.id) === Number(m?.matchResult?.mvpPlayerId));
+                        return `${player.firstName || ''} ${player.lastName || ''}`.trim() || player.username || 'Unknown';
+                      })()
+                    : null;
 
                 return (
                   <div key={m.id} className="p-4">
@@ -395,6 +463,9 @@ const OwnerMatchesPage = () => {
                       </div>
 
                       <div className="mt-4 text-xs text-gray-500 truncate">{m.field?.name || 'Field'}</div>
+                      {hasResult && mvpDisplayName && (
+                        <div className="mt-1 text-xs font-medium text-amber-700">MVP: {mvpDisplayName}</div>
+                      )}
                       {!canInputResult && (
                         <div className="mt-2 text-xs text-amber-700">
                           {m.status !== 'completed'
@@ -453,6 +524,32 @@ const OwnerMatchesPage = () => {
                             onChange={(e) => updateDraft(m.id, 'matchNotes', e.target.value)}
                             className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700">MVP (optional)</label>
+                          <select
+                            value={draft.mvpPlayerId ?? ''}
+                            onChange={(e) => updateDraft(m.id, 'mvpPlayerId', e.target.value)}
+                            className="mt-1 block w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                            disabled={eligiblePlayersLoadingMap[m.id]}
+                          >
+                            <option value="">No MVP selected</option>
+                            {eligiblePlayers.map((player) => {
+                              const fullName = `${player.firstName || ''} ${player.lastName || ''}`.trim();
+                              const label = fullName || player.username || `Player #${player.id}`;
+                              return (
+                                <option key={player.id} value={player.id}>
+                                  {label} ({player.teamName})
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {eligiblePlayersLoadingMap[m.id] && (
+                            <div className="mt-1 text-xs text-gray-500">Loading eligible players...</div>
+                          )}
+                          {!eligiblePlayersLoadingMap[m.id] && eligiblePlayers.length === 0 && (
+                            <div className="mt-1 text-xs text-amber-700">No eligible players found for MVP selection.</div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Button size="sm" disabled={isSaving} onClick={() => saveResult(m)}>

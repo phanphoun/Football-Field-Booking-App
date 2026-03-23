@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import {
   UserPlusIcon,
   TrashIcon,
@@ -16,28 +16,18 @@ import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { ImagePreviewModal, useDialog } from '../components/ui';
-import { DEFAULT_JERSEY_COLOR, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
+import { DEFAULT_JERSEY_COLOR, getNextJerseyColor, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
+import JerseyColorEditor from '../components/teams/JerseyColorEditor';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
-const JERSEY_COLOR_PRESETS = [
-  '#FFFFFF',
-  '#111827',
-  '#DC2626',
-  '#2563EB',
-  '#16A34A',
-  '#F59E0B',
-  '#7C3AED',
-  '#EC4899',
-  '#0EA5E9',
-  '#6B7280'
-];
-
 const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin } = useAuth();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
   const { version } = useRealtime();
 
   const [team, setTeam] = useState(null);
@@ -95,6 +85,18 @@ const TeamManagePage = () => {
 
   useEffect(() => {
     setJerseyColorsDraft(getTeamJerseyColors(team));
+  }, [team]);
+
+  useEffect(() => {
+    setActiveColorIndex((prev) => {
+      if (jerseyColorsDraft.length === 0) return 0;
+      return Math.min(prev, jerseyColorsDraft.length - 1);
+    });
+  }, [jerseyColorsDraft]);
+
+  useEffect(() => {
+    const existing = getTeamJerseyColors(team);
+    setJerseyColorsDraft(existing.length > 0 ? existing : [DEFAULT_JERSEY_COLOR]);
   }, [team]);
 
   useEffect(() => {
@@ -210,7 +212,7 @@ const TeamManagePage = () => {
     return (
       <div className="text-center py-12">
         <h1 className="text-xl font-semibold text-gray-900">Team not found</h1>
-        <Link to="/app/teams" className="mt-4 inline-block text-green-700 hover:text-green-800">
+        <Link to={`${basePath}/teams`} className="mt-4 inline-block text-green-700 hover:text-green-800">
           Back to Teams
         </Link>
       </div>
@@ -293,10 +295,7 @@ const TeamManagePage = () => {
     setJerseyColorsDraft((prev) => {
       const current = Array.isArray(prev) ? [...prev] : [DEFAULT_JERSEY_COLOR];
       if (current.length >= 5) return current;
-      const normalizedCurrent = current.map((color) => normalizeHexColor(color) || DEFAULT_JERSEY_COLOR);
-      const nextColor =
-        JERSEY_COLOR_PRESETS.find((preset) => !normalizedCurrent.includes(preset)) || DEFAULT_JERSEY_COLOR;
-      const next = [...current, nextColor];
+      const next = [...current, getNextJerseyColor(current)];
       setActiveColorIndex(next.length - 1);
       return next;
     });
@@ -311,16 +310,16 @@ const TeamManagePage = () => {
     });
   };
 
-  const applyPresetColor = (presetColor) => {
-    setJerseyColorAt(activeColorIndex, presetColor);
-  };
-
   const handleSaveShirtColor = async () => {
     try {
       setActionLoading(true);
       setError(null);
       setSuccessMessage(null);
       const normalizedColors = normalizeJerseyColors(jerseyColorsDraft);
+      if (normalizedColors.length < 1) {
+        setError('Please choose at least 1 jersey color.');
+        return;
+      }
       const response = await teamService.updateTeam(id, { jerseyColors: normalizedColors });
       if (response.success) {
         setSuccessMessage('Team jersey colors updated successfully.');
@@ -360,7 +359,7 @@ const TeamManagePage = () => {
       await teamService.deleteTeam(id);
       setSuccessMessage('Team deleted successfully');
       setTimeout(() => {
-        navigate('/app/teams');
+        navigate(`${basePath}/teams`);
       }, 1000);
     } catch (err) {
       setError(err?.error || 'Failed to delete team');
@@ -392,7 +391,7 @@ const TeamManagePage = () => {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/app/teams/${team.id}`}
+              to={`${basePath}/teams/${team.id}`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <ArrowLeftIcon className="h-4 w-4" />
@@ -423,98 +422,28 @@ const TeamManagePage = () => {
           {error}
         </div>
       )}
-      <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/30 to-cyan-50/30 p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">Team Jersey Colors</h2>
-            <p className="mt-1 text-sm text-slate-600">Set one or more colors to avoid kit clashes before a match.</p>
-            <p className="mt-1 text-xs text-slate-500">Up to 5 colors. First color is treated as primary.</p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
-            {currentJerseyColors.map((color, index) => (
-              <span
-                key={`${color}-${index}`}
-                className="h-4 w-4 rounded-full shadow-[inset_0_0_0_1px_rgba(15,23,42,0.12)]"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-            <span className="ml-1 text-xs font-medium text-slate-500">{currentJerseyColors.length}</span>
-          </div>
-        </div>
+      <JerseyColorEditor
+        title="Team Jersey Colors"
+        description="Set one or more colors to avoid kit clashes before a match."
+        helperText="Click any color card to open the picker. The selected color updates live while you drag."
+        colors={jerseyColorsDraft}
+        currentColors={currentJerseyColors}
+        activeColorIndex={activeColorIndex}
+        onActiveColorChange={setActiveColorIndex}
+        onColorChange={setJerseyColorAt}
+        onAddColor={addJerseyColor}
+        onRemoveColor={removeJerseyColor}
+      />
 
-        <div className="mt-5 space-y-3">
-          {jerseyColorsDraft.map((color, index) => (
-            <div
-              key={`${color}-${index}`}
-              className={`group flex flex-wrap items-center gap-3 rounded-xl border bg-white px-3 py-2.5 shadow-sm transition-all hover:border-emerald-200 hover:shadow ${
-                activeColorIndex === index ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-slate-200'
-              }`}
-              onClick={() => setActiveColorIndex(index)}
-            >
-              <div className="inline-flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">#{index + 1}</span>
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setJerseyColorAt(index, e.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1 transition-transform group-hover:scale-[1.02]"
-                  aria-label={`Pick team jersey color ${index + 1}`}
-                />
-              </div>
-              <span className="inline-flex min-w-[108px] justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 uppercase">
-                {color}
-              </span>
-              <button
-                type="button"
-                onClick={() => removeJerseyColor(index)}
-                disabled={jerseyColorsDraft.length <= 1}
-                className="inline-flex items-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Quick Picks for Color #{activeColorIndex + 1}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {JERSEY_COLOR_PRESETS.map((presetColor) => (
-              <button
-                key={presetColor}
-                type="button"
-                onClick={() => applyPresetColor(presetColor)}
-                className={`h-7 w-7 rounded-full shadow-[inset_0_0_0_1px_rgba(15,23,42,0.12)] transition-transform hover:scale-110 ${
-                  normalizeHexColor(jerseyColorsDraft[activeColorIndex]) === presetColor ? 'ring-2 ring-emerald-400' : ''
-                }`}
-                style={{ backgroundColor: presetColor }}
-                aria-label={`Choose preset color ${presetColor}`}
-                title={presetColor}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={addJerseyColor}
-            disabled={jerseyColorsDraft.length >= 5}
-            className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:-translate-y-0.5 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Add Color
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveShirtColor}
-            disabled={actionLoading || !hasColorChanges}
-            className="inline-flex items-center rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {actionLoading ? 'Saving...' : 'Save Colors'}
-          </button>
-        </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSaveShirtColor}
+          disabled={actionLoading || !hasColorChanges}
+          className="inline-flex items-center rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {actionLoading ? 'Saving...' : 'Save Colors'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

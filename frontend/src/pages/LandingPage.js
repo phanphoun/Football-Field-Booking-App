@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BoltIcon,
@@ -47,89 +47,6 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
-];
-
-const FEATURED_FALLBACK_FIELDS = [
-  {
-    id: 'fallback-1',
-    name: 'Premium Outdoor Field',
-    address: 'Downtown Sports Complex',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 80,
-    status: 'available',
-    images: [
-      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
-    ]
-  },
-  {
-    id: 'fallback-2',
-    name: 'Stadium Football Pitch',
-    address: 'City Stadium Arena',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 120,
-    status: 'available',
-    images: [
-      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
-    ]
-  },
-  {
-    id: 'fallback-3',
-    name: 'Indoor Football Arena',
-    address: 'Sports Hub Indoor',
-    city: 'Phnom Penh',
-    capacity: 14,
-    sessionDuration: 60,
-    pricePerHour: 100,
-    status: 'booked',
-    images: [
-      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
-    ]
-  },
-  {
-    id: 'fallback-4',
-    name: 'City Center Pitch',
-    address: 'Central Sports Park',
-    city: 'Phnom Penh',
-    capacity: 18,
-    sessionDuration: 90,
-    pricePerHour: 95,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
-    ]
-  },
-  
-  {
-    id: 'fallback-5',
-    name: 'Night Lights Field',
-    address: 'North Arena',
-    city: 'Phnom Penh',
-    capacity: 20,
-    sessionDuration: 90,
-    pricePerHour: 110,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
-    ]
-  },
-  {
-    id: 'fallback-6',
-    name: 'Champions Ground',
-    address: 'West Stadium',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 130,
-    status: 'booked',
-    images: [
-      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
-    ]
-  }
-  
 ];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
@@ -414,7 +331,7 @@ const LandingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const canCreateBooking = user?.role === 'captain';
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [landingFields, setLandingFields] = useState([]);
@@ -435,7 +352,7 @@ const LandingPage = () => {
         setError(null);
 
         const [fieldsResult, bookingsResult] = await Promise.allSettled([
-          fieldService.getAllFields({ limit: 12 }),
+          fieldService.getAllFields({ limit: 12, status: 'available' }),
           bookingService.getPublicBookingStats({
             lookbackDays: 30,
             top: 7,
@@ -540,11 +457,7 @@ const LandingPage = () => {
   );
 
   const featuredFields = useMemo(() => {
-    const merged = [...popularFields];
-    for (let i = merged.length; i < 6; i += 1) {
-      merged.push(FEATURED_FALLBACK_FIELDS[i]);
-    }
-    return merged.slice(0, 6);
+    return popularFields.slice(0, 6);
   }, [popularFields]);
 
   const discountOffers = useMemo(() => {
@@ -655,6 +568,39 @@ const LandingPage = () => {
     return featuredFields;
   }, [scheduleFieldsData, featuredFields]);
   const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * SCHEDULE_COLUMN_MIN_WIDTH + 112}px`;
+  const getDayBoundsMs = useCallback((dayKey) => {
+    const day = new Date(`${dayKey}T00:00:00`);
+    if (Number.isNaN(day.getTime())) return null;
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(day);
+    end.setHours(23, 59, 59, 999);
+    return { startMs: start.getTime(), endMs: end.getTime() };
+  }, []);
+  const toMsOrNull = useCallback((value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+  }, []);
+  const isFieldClosedForDay = useCallback((field, dayKey) => {
+    const status = String(field?.status || 'available').toLowerCase();
+    if (status === 'available') return false;
+
+    const bounds = getDayBoundsMs(dayKey);
+    if (!bounds) return true;
+
+    const closureStartMs = toMsOrNull(field?.closureStartAt);
+    const closureEndMs = toMsOrNull(field?.closureEndAt);
+    const hasWindow = closureStartMs !== null || closureEndMs !== null;
+
+    if (!hasWindow) return true;
+
+    const startsBeforeOrOnDay = closureStartMs === null || bounds.endMs >= closureStartMs;
+    const endsAfterDayStart = closureEndMs === null || bounds.startMs < closureEndMs;
+    return startsBeforeOrOnDay && endsAfterDayStart;
+  }, [getDayBoundsMs, toMsOrNull]);
+  const isFieldAvailable = useCallback((field, dayKey) => !isFieldClosedForDay(field, dayKey), [isFieldClosedForDay]);
+  const activeScheduleFieldsCount = scheduleFields.filter((field) => isFieldAvailable(field, selectedDay)).length;
 
   const formatHHMM = (value) =>
     new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -665,6 +611,9 @@ const LandingPage = () => {
       .map((booking) => {
         const start = formatHHMM(booking.startTime);
         const end = formatHHMM(booking.endTime);
+        const homeTeamName = booking.teamName || booking?.team?.name || 'Booked Slot';
+        const opponentTeamName = booking?.opponentTeam?.name || null;
+        const teamDisplay = opponentTeamName ? `${homeTeamName} vs ${opponentTeamName}` : homeTeamName;
         const isOwnBooking =
           Number(booking?.createdBy) === Number(user?.id) ||
           Number(booking?.team?.captainId) === Number(user?.id);
@@ -674,7 +623,7 @@ const LandingPage = () => {
           bookingId: booking.id,
           status: booking.status,
           fieldKey: booking.fieldId,
-          team: booking.teamName || booking?.team?.name || 'Booked Slot',
+          team: teamDisplay,
           start,
           end,
           startMinutes: parseSlotToMinutes(start),
@@ -703,6 +652,7 @@ const LandingPage = () => {
     const thresholdMinutes = isTodaySchedule ? now.getHours() * 60 + now.getMinutes() : -1;
 
     return source.map((field, index) => {
+      const isFieldClosed = !isFieldAvailable(field, dayKey);
       const fieldId = Number(field.id);
       const fieldEvents = scheduleEvents.filter(
         (event) =>
@@ -723,14 +673,14 @@ const LandingPage = () => {
       const isBookedNow =
         isTodaySchedule &&
         fieldEvents.some((event) => event.startMinutes <= thresholdMinutes && thresholdMinutes < event.endMinutes);
-      const isAvailableNow = Boolean(currentSlot) && !isBookedNow;
+      const isAvailableNow = !isFieldClosed && Boolean(currentSlot) && !isBookedNow;
 
       const futureSlots = TIME_SLOTS.filter((slot) => {
         const slotMinutes = parseSlotToMinutes(slot);
         return Number.isFinite(slotMinutes) && slotMinutes > thresholdMinutes;
       });
 
-      const openSlots = futureSlots.filter((slot) => {
+      const openSlots = isFieldClosed ? [] : futureSlots.filter((slot) => {
         const slotMinutes = parseSlotToMinutes(slot);
         return !fieldEvents.some(
           (event) => event.startMinutes <= slotMinutes && slotMinutes < event.endMinutes
@@ -740,6 +690,8 @@ const LandingPage = () => {
       const nextAvailableTime = openSlots[0] || null;
       const nextLabel = isAvailableNow
         ? 'Available now'
+        : isFieldClosed
+        ? 'Closed'
         : nextAvailableTime
         ? `${isTodaySchedule ? 'Today' : dayLabel} ${formatSlotTo12h(nextAvailableTime)}`
         : `${isTodaySchedule ? 'Today' : dayLabel} Fully booked`;
@@ -756,16 +708,16 @@ const LandingPage = () => {
         nextLabel,
         slotsLeft: openSlotCount,
         isAvailableNow,
-        isFullyBooked: !isAvailableNow && !nextAvailableTime
+        isFullyBooked: !isFieldClosed && !isAvailableNow && !nextAvailableTime
       };
     });
-  }, [scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
+  }, [isFieldAvailable, scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
 
   const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
 
   const toFieldRoute = (field) => {
     if (!field) return '/fields';
-    return String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`;
+    return `/fields/${field.id}`;
   };
 
   const handlePrevDay = () => {
@@ -792,7 +744,7 @@ const LandingPage = () => {
   };
 
   const handleBookNow = (field, day = null, time = null) => {
-    if (!field || String(field.id).startsWith('fallback-')) {
+    if (!field) {
       navigate('/fields');
       return;
     }
@@ -808,6 +760,11 @@ const LandingPage = () => {
       navigate('/app/settings', {
         state: { focusRoleRequest: 'captain' }
       });
+      return;
+    }
+
+    if (!isFieldAvailable(field, day || selectedDay)) {
+      navigate(toFieldRoute(field));
       return;
     }
 
@@ -831,7 +788,7 @@ const LandingPage = () => {
     const preferredField =
       scheduleFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
       landingFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
-      scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
+      scheduleFields[0];
 
     if (preferredField) {
       handleBookNow(preferredField, day, preferredTime);
@@ -1257,7 +1214,7 @@ const LandingPage = () => {
                   onClick={() => navigate('/fields')}
                   className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
                 >
-                  <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : scheduleFields.length}</div>
+                  <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : activeScheduleFieldsCount}</div>
                   <div className="text-base text-slate-600">Active Fields</div>
                 </button>
               </div>
@@ -1277,6 +1234,9 @@ const LandingPage = () => {
                 <span className="inline-flex items-center gap-1">
                   <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending (still bookable)
                 </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 rounded-sm bg-rose-600" /> Field closed
+                </span>
               </div>
             </div>
               <div className="flex border-b border-slate-200 bg-blue-600 text-white">
@@ -1292,10 +1252,16 @@ const LandingPage = () => {
                     key={field.id}
                     type="button"
                     onClick={() => handleOpenFieldFromSchedule(field)}
-                    className="flex min-h-[86px] flex-col items-center justify-center border-l border-white/20 px-3 py-3 text-center text-sm font-semibold hover:bg-white/10"
+                    className={`flex min-h-[86px] flex-col items-center justify-center border-l px-3 py-3 text-center text-sm font-semibold ${
+                      isFieldAvailable(field, selectedDay)
+                        ? 'border-white/20 hover:bg-white/10'
+                        : 'border-rose-200/40 bg-rose-600/85'
+                    }`}
                   >
                     <div className="max-w-[180px] text-balance text-base font-semibold leading-tight">{field.name}</div>
-                    <div className="mt-1 text-xs font-medium opacity-90">{field.fieldType || 'Outdoor'}</div>
+                    <div className="mt-1 text-xs font-medium opacity-90">
+                      {isFieldAvailable(field, selectedDay) ? field.fieldType || 'Outdoor' : 'Closed'}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1327,6 +1293,7 @@ const LandingPage = () => {
                         const slotTakenByOther = Boolean(slotOtherConfirmedEvent);
                         const slotTakenByMe = Boolean(slotOwnEvent);
                         const slotHasOtherPending = Boolean(slotOtherPendingEvent);
+                        const isFieldClosed = !isFieldAvailable(field, selectedDay);
 
                         // If there's a booking, show a colored block
                         if (slotTakenByMe || slotTakenByOther || slotHasOtherPending) {
@@ -1358,6 +1325,19 @@ const LandingPage = () => {
                                  slotTakenByOther ? slotOtherConfirmedEvent.start + ' - ' + slotOtherConfirmedEvent.end : 
                                  slotOtherPendingEvent.start + ' - ' + slotOtherPendingEvent.end}
                               </div>
+                            </div>
+                          );
+                        }
+
+                        // Closed fields should always show closed cells for empty slots.
+                        if (isFieldClosed) {
+                          return (
+                            <div
+                              key={`${field.id}-${slot}`}
+                              className="m-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-center text-xs font-semibold text-rose-700"
+                              title="Field is closed"
+                            >
+                              Closed
                             </div>
                           );
                         }
@@ -1416,7 +1396,7 @@ const LandingPage = () => {
               return (
                 <Link
                   key={field.id}
-                  to={String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`}
+                  to={`/fields/${field.id}`}
                   className="group overflow-hidden rounded-[1.9rem] bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-2xl"
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
@@ -1570,7 +1550,10 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="order-10 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_42%,#ecfdf5_100%)] p-6 shadow-sm sm:p-8">
+      <section
+        id="account-upgrade"
+        className="order-10 scroll-mt-24 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_42%,#ecfdf5_100%)] p-6 shadow-sm sm:p-8"
+      >
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700">
