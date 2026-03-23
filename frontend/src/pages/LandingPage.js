@@ -234,18 +234,34 @@ const formatSlotTo12h = (slot) => {
 };
 const getFieldClosureTitle = (field) => {
   const status = String(field?.status || '').toLowerCase();
-  if (status === 'maintenance') return 'Under maintenance';
-  if (status === 'unavailable') return 'Temporarily unavailable';
+  if (status === 'maintenance') return 'Maintenance';
+  if (status === 'unavailable') return 'Closed by owner';
   return 'Closed';
 };
 const getFieldClosureReason = (field) => {
   const reason = String(field?.closureMessage || '').trim();
-  if (reason) return reason;
+  const normalizedReason = reason.toLowerCase();
+  if (reason) {
+    if (normalizedReason === 'temporarily closed by field owner.') {
+      return 'The field owner temporarily closed bookings for this field.';
+    }
+    return reason;
+  }
 
   const status = String(field?.status || '').toLowerCase();
-  if (status === 'maintenance') return 'This field is being prepared and will reopen soon.';
-  if (status === 'unavailable') return 'This field is not accepting bookings right now.';
+  if (status === 'maintenance') return 'The field is under maintenance right now.';
+  if (status === 'unavailable') return 'The field owner marked this field as unavailable.';
   return 'Bookings are temporarily unavailable for this field.';
+};
+const getFieldClosureReopenLabel = (field) => {
+  if (!field?.closureEndAt) return '';
+  const reopenDate = new Date(field.closureEndAt);
+  if (Number.isNaN(reopenDate.getTime())) return '';
+
+  return `Opens ${reopenDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  })}`;
 };
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
@@ -1263,18 +1279,26 @@ const LandingPage = () => {
                         if (isFieldClosed) {
                           const closureTitle = getFieldClosureTitle(field);
                           const closureReason = getFieldClosureReason(field);
+                          const closureReopenLabel = getFieldClosureReopenLabel(field);
                           return (
                             <div
                               key={`${field.id}-${slot}`}
                               className="m-1 flex h-[56px] min-w-0 flex-col justify-center rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100 px-3 py-2 text-left shadow-sm"
                               title={`${closureTitle}: ${closureReason}`}
                             >
-                              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
-                                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                                <span className="truncate">{closureTitle}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                  <span className="truncate">{closureTitle}</span>
+                                </div>
+                                {closureReopenLabel ? (
+                                  <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                                    {closureReopenLabel}
+                                  </span>
+                                ) : null}
                               </div>
-                              <div className="mt-1 line-clamp-2 text-xs font-medium leading-4 text-rose-900">
-                                {closureReason}
+                              <div className="mt-1 line-clamp-2 text-xs font-medium leading-4 text-slate-900">
+                                <span className="font-semibold text-rose-700">Reason:</span> {closureReason}
                               </div>
                             </div>
                           );
