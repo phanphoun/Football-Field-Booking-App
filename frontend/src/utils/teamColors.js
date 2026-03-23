@@ -1,4 +1,16 @@
 export const DEFAULT_JERSEY_COLOR = '#22C55E';
+export const JERSEY_COLOR_PRESETS = [
+  '#22C55E',
+  '#2563EB',
+  '#DC2626',
+  '#F59E0B',
+  '#7C3AED',
+  '#111827',
+  '#FFFFFF',
+  '#EC4899',
+  '#0EA5E9',
+  '#6B7280'
+];
 
 export const normalizeHexColor = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
@@ -13,6 +25,14 @@ export const normalizeJerseyColors = (colors) => {
     .map((color) => normalizeHexColor(color))
     .filter(Boolean);
   return Array.from(new Set(normalized)).slice(0, 5);
+};
+
+export const getNextJerseyColor = (colors = []) => {
+  const normalizedColors = normalizeJerseyColors(colors);
+  return (
+    JERSEY_COLOR_PRESETS.find((preset) => !normalizedColors.includes(preset)) ||
+    DEFAULT_JERSEY_COLOR
+  );
 };
 
 export const getTeamJerseyColors = (team) => {

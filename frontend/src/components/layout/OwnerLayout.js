@@ -5,7 +5,6 @@ import { useRealtime } from '../../context/RealtimeContext';
 import {
   HomeIcon,
   BuildingOfficeIcon,
-  UsersIcon,
   CalendarIcon,
   TrophyIcon,
   ArrowLeftIcon,
@@ -81,12 +80,6 @@ const OwnerLayout = () => {
       current: location.pathname.startsWith('/owner/league')
     },
     {
-      name: 'Teams',
-      href: '/owner/teams',
-      icon: UsersIcon,
-      current: location.pathname.startsWith('/owner/teams')
-    },
-    {
       name: 'Bookings',
       href: '/owner/bookings',
       icon: CalendarIcon,
@@ -98,7 +91,7 @@ const OwnerLayout = () => {
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/matches')
     }
-  ];
+  ].filter(Boolean);
 
   const formatRole = (role) => {
     return role ? role.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : 'Field Owner';

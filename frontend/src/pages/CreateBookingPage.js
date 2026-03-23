@@ -10,7 +10,7 @@ import { getTeamJerseyColors } from '../utils/teamColors';
 const CreateBookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canCreateBooking = ['captain', 'field_owner', 'admin'].includes(user?.role);
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -240,7 +240,7 @@ const CreateBookingPage = () => {
       <div className="bg-white shadow rounded-lg p-8 text-center">
         <h1 className="text-2xl font-bold text-gray-900">Access Required</h1>
         <p className="mt-3 text-sm text-gray-600">
-          You need captain, field owner, or admin access to book fields.
+          You need captain or field owner access to book fields.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <button

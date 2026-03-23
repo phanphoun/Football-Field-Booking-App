@@ -143,6 +143,17 @@ const requireCaptainRole = (req, res) => {
   return true;
 };
 
+const requireOpenMatchAccess = (req, res) => {
+  if (!['captain', 'field_owner'].includes(req.user.role)) {
+    res.status(403).json({
+      success: false,
+      message: 'Only team captains or field owners can use this feature.'
+    });
+    return false;
+  }
+  return true;
+};
+
 const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
 const isUnavailableForJoin = (booking) =>
   isClosedStatus(booking) || new Date(booking.startTime) <= new Date();
@@ -1103,7 +1114,7 @@ const toggleOpenForOpponents = async (req, res) => {
 
 const getOpenMatches = async (req, res) => {
   try {
-    if (!requireCaptainRole(req, res)) return;
+    if (!requireOpenMatchAccess(req, res)) return;
 
     const where = {
       isMatchmaking: true,
@@ -1162,7 +1173,7 @@ const getOpenMatches = async (req, res) => {
 
 const requestJoinMatch = async (req, res) => {
   try {
-    if (!requireCaptainRole(req, res)) return;
+    if (!requireOpenMatchAccess(req, res)) return;
     const bookingId = Number(req.params.id);
     const requesterTeamId = Number(req.body.teamId);
     const message = req.body.message || null;
