@@ -470,7 +470,7 @@ const getPublicBookingSchedule = async (req, res) => {
   try {
     const { date } = req.query;
     const limitValue = Number.parseInt(req.query.limit, 10);
-    const limit = Number.isFinite(limitValue) && limitValue > 0 ? Math.min(limitValue, 24) : 6;
+    const limit = Number.isFinite(limitValue) && limitValue > 0 ? limitValue : null;
 
     if (!date) {
       return res.status(400).json({
@@ -494,7 +494,7 @@ const getPublicBookingSchedule = async (req, res) => {
         isArchived: false
       },
       order: [['name', 'ASC']],
-      limit
+      ...(limit ? { limit } : {})
     });
 
     const fieldIds = fields.map((field) => field.id);
