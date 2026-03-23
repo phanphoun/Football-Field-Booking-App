@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon, ShieldCheckIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import teamService from '../services/teamService';
@@ -28,6 +29,7 @@ const getCaptainName = (team) => team.captain?.firstName || team.captain?.userna
 
 const TeamsPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
   const [teams, setTeams] = useState([]);
@@ -63,7 +65,7 @@ const TeamsPage = () => {
     };
 
     fetchTeamsAndInvitations();
-  }, [user?.id, isAdmin]);
+  }, [user?.id, isAdmin, version]);
 
   const handleCreateTeam = () => {
     navigate(`${basePath}/teams/create`);

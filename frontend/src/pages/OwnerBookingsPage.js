@@ -54,6 +54,15 @@ const toDateInputValue = (value) => {
   return `${year}-${month}-${day}`;
 };
 
+const openNativeDatePicker = (event) => {
+  event.currentTarget.focus();
+  if (typeof event.currentTarget.showPicker === 'function') {
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
+  }
+};
+
 const buildScheduleWithSelectedDate = (booking, dateValue) => {
   if (!booking?.startTime || !booking?.endTime || !dateValue) return null;
   const [year, month, day] = String(dateValue).split('-').map(Number);
@@ -349,7 +358,10 @@ const OwnerBookingsPage = () => {
                               type="date"
                               value={acceptDateByBooking[b.id] ?? toDateInputValue(b.startTime)}
                               min={toDateInputValue(new Date())}
-                              onClick={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openNativeDatePicker(event);
+                              }}
                               onKeyDown={(event) => event.stopPropagation()}
                               onChange={(event) =>
                                 setAcceptDateByBooking((prev) => ({
@@ -549,6 +561,7 @@ const OwnerBookingsPage = () => {
                     type="date"
                     value={acceptDateByBooking[selectedBooking.id] ?? toDateInputValue(selectedBooking.startTime)}
                     min={toDateInputValue(new Date())}
+                    onClick={openNativeDatePicker}
                     onChange={(event) =>
                       setAcceptDateByBooking((prev) => ({
                         ...prev,

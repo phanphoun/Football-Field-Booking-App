@@ -5,9 +5,11 @@ import teamService from '../services/teamService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 
 const OpenMatchesPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const canUseOpenMatches = ['captain', 'field_owner'].includes(user?.role || '');
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
@@ -54,7 +56,7 @@ const OpenMatchesPage = () => {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, version]);
 
   useEffect(() => {
     if (!defaultTeamId) return;

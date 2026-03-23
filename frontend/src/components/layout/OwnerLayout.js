@@ -18,7 +18,7 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon
 } from '@heroicons/react/24/outline';
-import apiService from '../../services/api';
+import notificationService from '../../services/notificationService';
 import { ImagePreviewModal, useToast } from '../ui';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
@@ -32,9 +32,9 @@ const SidebarBrand = ({ collapsed = false }) => (
       {APP_CONFIG.brand.shortName}
     </div>
     {!collapsed && (
-      <div className="min-w-0">
+      <div className="min-w-0 py-0.5">
         <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-600">Football Arena</div>
-        <div className="khmer-brand-font truncate text-[20px] font-extrabold leading-none text-slate-950">
+        <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
           {BRAND_NAME}
         </div>
       </div>
@@ -114,20 +114,6 @@ const OwnerLayout = () => {
     return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   };
 
-  const parseMetadata = (value) => {
-    if (!value) return {};
-    if (typeof value === 'object') return value;
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  };
-
   const resolveNotificationSenderName = (notification) => {
     return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
   };
@@ -145,14 +131,10 @@ const OwnerLayout = () => {
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
     try {
-      const response = await apiService.get('/notifications');
+      const response = await notificationService.getAll();
       const list = Array.isArray(response.data) ? response.data : [];
-      const normalized = list.map((item) => ({
-        ...item,
-        metadata: parseMetadata(item.metadata)
-      }));
-      setNotifications(normalized);
-      setUnreadNotifications(normalized.filter((item) => !item.isRead).length);
+      setNotifications(list);
+      setUnreadNotifications(list.filter((item) => !item.isRead).length);
     } catch {
       setNotifications([]);
       setUnreadNotifications(0);
@@ -162,17 +144,13 @@ const OwnerLayout = () => {
   }, []);
 
   const markNotificationRead = async (notificationId) => {
-    await apiService.put(`/notifications/${notificationId}`, {
-      isRead: true,
-      readAt: new Date().toISOString()
-    });
+    await notificationService.markRead(notificationId);
   };
 
   const handleMarkAsRead = async (notificationId) => {
     try {
       setNotificationActionLoading(true);
       await markNotificationRead(notificationId);
-      await loadNotifications();
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
     } finally {
@@ -185,8 +163,7 @@ const OwnerLayout = () => {
       setNotificationActionLoading(true);
       const unread = latestNotifications.filter((item) => !item.isRead);
       if (unread.length === 0) return;
-      await Promise.allSettled(unread.map((item) => markNotificationRead(item.id)));
-      await loadNotifications();
+      await notificationService.markManyRead(unread.map((item) => item.id));
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
     } finally {
@@ -219,10 +196,28 @@ const OwnerLayout = () => {
   };
 
   useEffect(() => {
+    const unsubscribe = notificationService.subscribe((list) => {
+      setNotifications(list);
+      setUnreadNotifications(list.filter((item) => !item.isRead).length);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
+  }, [location.pathname, loadNotifications]);
+
+  useEffect(() => {
+    notificationService.refresh().catch(() => {});
+  }, [version]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      notificationService.refresh().catch(() => {});
+    }, 30000);
     return () => clearInterval(interval);
-  }, [location.pathname, loadNotifications, version]);
+  }, []);
 
   useEffect(() => {
     if (!notificationsMenuOpen) return undefined;

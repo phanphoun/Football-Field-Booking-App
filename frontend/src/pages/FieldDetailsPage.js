@@ -10,6 +10,7 @@ import {
   MapPinIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import FieldLocationMap from '../components/maps/FieldLocationMap';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
@@ -32,6 +33,15 @@ const formatDayInput = (date) => {
 };
 
 const formatHourLabel = (hour) => `${String(hour).padStart(2, '0')}:00`;
+
+const openNativeDatePicker = (event) => {
+  event.currentTarget.focus();
+  if (typeof event.currentTarget.showPicker === 'function') {
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
+  }
+};
 
 const formatSlotRange = (hour) => {
   const start = new Date();
@@ -62,6 +72,7 @@ const getStatusTone = (status) => {
 const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
@@ -96,7 +107,7 @@ const FieldDetailsPage = () => {
     };
 
     fetchField();
-  }, [id]);
+  }, [id, version]);
 
   useEffect(() => {
     const fetchFieldSchedule = async () => {
@@ -116,7 +127,7 @@ const FieldDetailsPage = () => {
     };
 
     fetchFieldSchedule();
-  }, [field?.id, scheduleDay]);
+  }, [field?.id, scheduleDay, version]);
 
   const handleBook = () => {
     if (field?.status && field.status !== 'available') {
@@ -459,6 +470,7 @@ const FieldDetailsPage = () => {
                           value={scheduleDay}
                           min={formatDayInput(new Date())}
                           onChange={(event) => setScheduleDay(event.target.value)}
+                          onClick={openNativeDatePicker}
                           className="rounded-xl border border-gray-300 py-2 pl-10 pr-3 text-sm text-gray-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
                         />
                       </div>

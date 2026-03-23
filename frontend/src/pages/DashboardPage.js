@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import apiService from '../services/api';
 import authService from '../services/authService';
 import bookingService from '../services/bookingService';
@@ -15,10 +16,8 @@ import {
   CheckIcon,
   ClipboardDocumentCheckIcon,
   UserCircleIcon,
-  UsersIcon,
   XMarkIcon,
   TrophyIcon,
-  FlagIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
@@ -58,6 +57,7 @@ const roleTheme = {
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
 
   const role = user?.role;
@@ -150,7 +150,7 @@ const DashboardPage = () => {
     };
 
     load();
-  }, [isCaptain, role]);
+  }, [isCaptain, role, version]);
 
   const upcomingBookings = useMemo(() => {
     const now = Date.now();

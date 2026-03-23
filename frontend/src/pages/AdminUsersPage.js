@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRealtime } from '../context/RealtimeContext';
 import userService from '../services/userService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog, useToast } from '../components/ui';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -26,6 +27,7 @@ const resolveAvatarUrl = (user) => {
 };
 
 const AdminUsersPage = () => {
+  const { version } = useRealtime();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState(null);
@@ -43,7 +45,7 @@ const AdminUsersPage = () => {
   const { showToast } = useToast();
   const actionMenuRef = useRef(null);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await userService.getAllUsers();
@@ -53,11 +55,11 @@ const AdminUsersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers, version]);
 
   useEffect(() => {
     if (!openMenuUserId) return undefined;

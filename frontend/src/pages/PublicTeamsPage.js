@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { UsersIcon } from '@heroicons/react/24/outline';
-import { Badge, Button, EmptyState, ImagePreviewModal, Spinner } from '../components/ui';
+import { Badge, Button, EmptyState, ImagePreviewModal, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -38,12 +38,12 @@ const PublicTeamsPage = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [deletingTeamId, setDeletingTeamId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
+  const { showSuccess, showError } = useToast();
   const isAdmin = user?.role === 'admin';
 
   const canRequestJoin = (team) => {
@@ -82,7 +82,6 @@ const PublicTeamsPage = () => {
 
     try {
       setError(null);
-      setSuccessMessage(null);
       const response = await teamService.joinTeam(teamId);
       if (response.success) {
         setTeams((prev) =>
@@ -96,7 +95,7 @@ const PublicTeamsPage = () => {
               : team
           )
         );
-        setSuccessMessage('Join request submitted. Waiting for captain approval.');
+        showSuccess('Join request submitted. Waiting for captain approval.');
       }
     } catch (err) {
       if ((err?.error || '').toLowerCase().includes('already pending')) {
@@ -111,11 +110,11 @@ const PublicTeamsPage = () => {
               : team
           )
         );
-        setSuccessMessage('Your join request is still waiting for captain approval.');
+        showSuccess('Your join request is still waiting for captain approval.');
         setError(null);
         return;
       }
-      setError(err?.error || 'Failed to submit join request');
+      showError(err?.error || 'Failed to submit join request');
     }
   };
 
@@ -135,7 +134,7 @@ const PublicTeamsPage = () => {
     if (!teamToDelete?.id) return;
     const message = deleteMessage.trim();
     if (!message) {
-      setError('Please enter a message to captain before deleting.');
+      showError('Please enter a message to captain before deleting.');
       return;
     }
 
@@ -144,7 +143,6 @@ const PublicTeamsPage = () => {
     try {
       setDeletingTeamId(teamId);
       setError(null);
-      setSuccessMessage(null);
 
       const captainUserId = teamToDelete?.captainId || teamToDelete?.captain?.id;
       if (captainUserId) {
@@ -164,10 +162,10 @@ const PublicTeamsPage = () => {
 
       await teamService.deleteTeam(teamId);
       setTeams((prev) => prev.filter((team) => team.id !== teamId));
-      setSuccessMessage('Team deleted successfully.');
+      showSuccess('Team deleted successfully.');
       closeDeleteDialog();
     } catch (err) {
-      setError(err?.error || 'Failed to delete team');
+      showError(err?.error || 'Failed to delete team');
     } finally {
       setDeletingTeamId(null);
     }
@@ -192,12 +190,6 @@ const PublicTeamsPage = () => {
         </div>
         <Badge tone="gray">{teams.length} results</Badge>
       </div>
-
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">

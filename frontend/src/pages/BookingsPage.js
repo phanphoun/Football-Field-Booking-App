@@ -4,7 +4,7 @@ import { useRealtime } from '../context/RealtimeContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
 const TeamJerseyDots = ({ colors = [], teamKey }) => (
@@ -24,10 +24,10 @@ const BookingsPage = () => {
   const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
+  const { showToast } = useToast();
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [openForOpponentsFilter, setOpenForOpponentsFilter] = useState('all');
   const [toggleLoadingMap, setToggleLoadingMap] = useState({});
@@ -36,11 +36,15 @@ const BookingsPage = () => {
   const [joinRequestsLoadingMap, setJoinRequestsLoadingMap] = useState({});
   const [joinActionLoadingMap, setJoinActionLoadingMap] = useState({});
   const [cancellationLoadingMap, setCancellationLoadingMap] = useState({});
+  const [cancellationRequestModal, setCancellationRequestModal] = useState({
+    open: false,
+    booking: null,
+    reason: ''
+  });
 
   const loadBookings = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
       const response = await bookingService.getAllBookings();
       const bookingsData = Array.isArray(response.data) ? response.data : [];
       setBookings(bookingsData);
@@ -91,12 +95,12 @@ const BookingsPage = () => {
       }
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
-      setError('Failed to load bookings');
+      showToast(err?.error || 'Failed to load bookings', { type: 'error' });
       setBookings([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.role]);
+  }, [showToast, user?.id, user?.role]);
 
   useEffect(() => {
     loadBookings();
@@ -126,24 +130,42 @@ const BookingsPage = () => {
         await bookingService.updateBooking(bookingId, { status: newStatus });
       }
       await loadBookings();
+      showToast('Booking updated successfully.', { type: 'success' });
     } catch (err) {
       console.error('Failed to update booking status:', err);
-      setError('Failed to update booking status');
+      showToast(err?.error || 'Failed to update booking status', { type: 'error' });
     }
   };
 
-  const handleRequestCancellation = async (booking) => {
-    const confirmed = window.confirm('Do you want to request cancellation for this booking?');
-    if (!confirmed) return;
-    const reason = window.prompt('Optional: provide a reason for cancellation') || '';
+  const openCancellationRequestModal = (booking) => {
+    setCancellationRequestModal({
+      open: true,
+      booking,
+      reason: ''
+    });
+  };
+
+  const closeCancellationRequestModal = () => {
+    setCancellationRequestModal({
+      open: false,
+      booking: null,
+      reason: ''
+    });
+  };
+
+  const submitCancellationRequest = async () => {
+    const booking = cancellationRequestModal.booking;
+    if (!booking?.id) return;
 
     try {
       setCancellationLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
-      await bookingService.requestCancellation(booking.id, reason.trim());
+      await bookingService.requestCancellation(booking.id, cancellationRequestModal.reason.trim());
+      closeCancellationRequestModal();
       await loadBookings();
+      showToast('Booking cancellation sent successfully.', { type: 'success' });
     } catch (err) {
       console.error('Failed to request cancellation:', err);
-      setError(err.error || 'Failed to request cancellation');
+      showToast(err.error || 'Failed to request cancellation', { type: 'error' });
     } finally {
       setCancellationLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
     }
@@ -158,9 +180,10 @@ const BookingsPage = () => {
       setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
       await bookingService.setOpenForOpponents(booking.id, !booking.openForOpponents);
       await loadBookings();
+      showToast('Opponent match setting updated.', { type: 'success' });
     } catch (err) {
       console.error('Failed to toggle open for opponents:', err);
-      setError(err.error || 'Failed to update Open for Opponents');
+      showToast(err.error || 'Failed to update Open for Opponents', { type: 'error' });
     } finally {
       setToggleLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
     }
@@ -179,9 +202,10 @@ const BookingsPage = () => {
       setCancelMatchedLoadingMap((prev) => ({ ...prev, [booking.id]: true }));
       await bookingService.cancelMatchedOpponent(booking.id);
       await loadBookings();
+      showToast('Matched booking cancelled successfully.', { type: 'success' });
     } catch (err) {
       console.error('Failed to cancel matched opponent:', err);
-      setError(err.error || 'Failed to cancel matched match');
+      showToast(err.error || 'Failed to cancel matched match', { type: 'error' });
     } finally {
       setCancelMatchedLoadingMap((prev) => ({ ...prev, [booking.id]: false }));
     }
@@ -193,9 +217,12 @@ const BookingsPage = () => {
       setJoinActionLoadingMap((prev) => ({ ...prev, [key]: true }));
       await bookingService.respondToJoinRequest(bookingId, requestId, action);
       await loadBookings();
+      showToast(`Join request ${action === 'accept' ? 'approved' : 'rejected'} successfully.`, {
+        type: 'success'
+      });
     } catch (err) {
       console.error(`Failed to ${action} join request:`, err);
-      setError(err.error || `Failed to ${action} join request`);
+      showToast(err.error || `Failed to ${action} join request`, { type: 'error' });
     } finally {
       setJoinActionLoadingMap((prev) => ({ ...prev, [key]: false }));
     }
@@ -260,7 +287,7 @@ const BookingsPage = () => {
           key="request-cancel"
           size="sm"
           variant="danger"
-          onClick={() => handleRequestCancellation(booking)}
+          onClick={() => openCancellationRequestModal(booking)}
           disabled={!!cancellationLoadingMap[booking.id]}
         >
           {cancellationLoadingMap[booking.id] ? 'Requesting...' : 'Request Cancellation'}
@@ -328,8 +355,6 @@ const BookingsPage = () => {
           {canCreateBooking ? 'New Booking' : 'Request Captain Access'}
         </Button>
       </div>
-
-      {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
 
       <Card className="mb-6">
         <CardBody className="p-4">
@@ -571,6 +596,60 @@ const BookingsPage = () => {
           )}
         </div>
       </Card>
+
+      {cancellationRequestModal.open && cancellationRequestModal.booking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+            <div className="border-b border-gray-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-gray-900">Request Cancellation</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Send a cancellation request for{' '}
+                <span className="font-semibold">
+                  {cancellationRequestModal.booking.field?.name || 'this booking'}
+                </span>
+                .
+              </p>
+            </div>
+
+            <div className="px-5 py-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Reason for cancellation
+              </label>
+              <textarea
+                value={cancellationRequestModal.reason}
+                onChange={(event) =>
+                  setCancellationRequestModal((prev) => ({
+                    ...prev,
+                    reason: event.target.value
+                  }))
+                }
+                rows={4}
+                placeholder="Optional: explain why you want to cancel this booking..."
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-4">
+              <button
+                type="button"
+                onClick={closeCancellationRequestModal}
+                disabled={!!cancellationLoadingMap[cancellationRequestModal.booking.id]}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={submitCancellationRequest}
+                disabled={!!cancellationLoadingMap[cancellationRequestModal.booking.id]}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {cancellationLoadingMap[cancellationRequestModal.booking.id] ? 'Requesting...' : 'Send Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

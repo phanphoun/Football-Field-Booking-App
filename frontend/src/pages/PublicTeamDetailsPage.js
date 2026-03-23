@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import teamService from '../services/teamService';
 import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
-import { ImagePreviewModal } from '../components/ui';
+import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
@@ -26,10 +26,10 @@ const PublicTeamDetailsPage = () => {
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [history, setHistory] = useState({ stats: { total: 0, wins: 0, losses: 0, draws: 0 }, matches: [] });
   const [historyAvailable, setHistoryAvailable] = useState(true);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   const canRequestJoin = () => {
     if (!isAuthenticated) return false;
@@ -82,7 +82,6 @@ const PublicTeamDetailsPage = () => {
 
     try {
       setError(null);
-      setSuccessMessage(null);
       const response = await teamService.joinTeam(id);
       if (response.success) {
         setTeam((prev) => (
@@ -94,7 +93,7 @@ const PublicTeamDetailsPage = () => {
               }
             : prev
         ));
-        setSuccessMessage('Join request submitted. Waiting for captain approval.');
+        showSuccess('Join request submitted. Waiting for captain approval.');
       }
     } catch (err) {
       if ((err?.error || '').toLowerCase().includes('already pending')) {
@@ -107,11 +106,11 @@ const PublicTeamDetailsPage = () => {
               }
             : prev
         ));
-        setSuccessMessage('Your join request is still waiting for captain approval.');
+        showSuccess('Your join request is still waiting for captain approval.');
         setError(null);
         return;
       }
-      setError(err?.error || 'Failed to submit join request');
+      showError(err?.error || 'Failed to submit join request');
     }
   };
 
@@ -271,12 +270,6 @@ const PublicTeamDetailsPage = () => {
             )}
           </div>
         </div>
-
-        {successMessage && (
-          <div className="mt-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-            {successMessage}
-          </div>
-        )}
 
         {error && (
           <div className="mt-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">

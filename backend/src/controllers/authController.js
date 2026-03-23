@@ -22,6 +22,7 @@ const validateFileSignature = (buffer, mimetype) => {
   });
 };
 const serverConfig = require('../config/serverConfig');
+const { getRoleUpgradeConfig } = require('../config/roleUpgradeConfig');
 const { createInAppNotification } = require('../utils/notify');
 const { sendEmail } = require('../utils/emailService');
 const crypto = require('crypto');

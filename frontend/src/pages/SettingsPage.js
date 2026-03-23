@@ -18,8 +18,9 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import authService from '../services/authService';
-import { useDialog } from '../components/ui';
+import { useDialog, useToast } from '../components/ui';
 import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 
 const SETTINGS_DEVICE_PREFS_KEY = 'app_settings_device_preferences';
@@ -132,9 +133,11 @@ const PreferenceToggle = ({ title, description, enabled, onChange }) => (
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm } = useDialog();
+  const { showSuccess, showError } = useToast();
   const accessRequestsRef = useRef(null);
   const [roleRequests, setRoleRequests] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -142,8 +145,6 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [submittingRole, setSubmittingRole] = useState('');
   const [cancellingRequestId, setCancellingRequestId] = useState(null);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [preferences, setPreferences] = useState(getStoredPreferences);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -163,21 +164,20 @@ const SettingsPage = () => {
   const loadRoleRequests = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
       const response = await authService.getRoleRequests();
       setRoleRequests(Array.isArray(response.data?.requests) ? response.data.requests : []);
       setAvailableRoles(Array.isArray(response.data?.availableRoles) ? response.data.availableRoles : []);
       setHasPendingRequest(Boolean(response.data?.hasPendingRequest));
     } catch (err) {
-      setError(err.error || 'Failed to load settings');
+      showError(err.error || 'Failed to load settings');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadRoleRequests();
-  }, [loadRoleRequests]);
+  }, [loadRoleRequests, version]);
 
   useEffect(() => {
     const requestedRole = location.state?.focusRoleRequest;
@@ -232,8 +232,7 @@ const SettingsPage = () => {
   const savePreferences = (nextPreferences) => {
     setPreferences(nextPreferences);
     window.localStorage.setItem(SETTINGS_DEVICE_PREFS_KEY, JSON.stringify(nextPreferences));
-    setError('');
-    setSuccessMessage('Settings preferences saved on this device.');
+    showSuccess('Settings preferences saved on this device.');
   };
 
   const updatePreference = (key, value) => {
@@ -259,17 +258,15 @@ const SettingsPage = () => {
 
     try {
       setSubmittingRole(requestedRole);
-      setError('');
-      setSuccessMessage('');
 
       const paymentReference = `UPG-${requestedRole.toUpperCase()}-${Date.now()}`;
       const response = await authService.requestRoleUpgrade(requestedRole, '', paymentReference);
-      setSuccessMessage(
+      showSuccess(
         response.message || `${option.title} request sent successfully. Only admins can approve or reject it after payment.`
       );
       await loadRoleRequests();
     } catch (err) {
-      setError(err.error || 'Failed to submit role request');
+      showError(err.error || 'Failed to submit role request');
     } finally {
       setSubmittingRole('');
     }
@@ -287,17 +284,15 @@ const SettingsPage = () => {
 
     try {
       setCancellingRequestId(request.id);
-      setError('');
-      setSuccessMessage('');
 
       const response = await authService.cancelRoleRequest(request.id);
-      setSuccessMessage(
+      showSuccess(
         response.message ||
           `Your ${formatRoleLabel(request.requestedRole).toLowerCase()} request was deleted. Admins have been notified.`
       );
       await loadRoleRequests();
     } catch (err) {
-      setError(err.error || 'Failed to delete role request');
+      showError(err.error || 'Failed to delete role request');
     } finally {
       setCancellingRequestId(null);
     }
@@ -333,8 +328,6 @@ const SettingsPage = () => {
 
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
-    setError('');
-    setSuccessMessage('');
     setPasswordError('');
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -350,7 +343,7 @@ const SettingsPage = () => {
     try {
       setChangingPassword(true);
       const response = await authService.changePassword(passwordForm);
-      setSuccessMessage(response.message || 'Password changed successfully.');
+      showSuccess(response.message || 'Password changed successfully.');
       setIsPasswordModalOpen(false);
       resetPasswordForm();
     } catch (err) {
@@ -417,18 +410,6 @@ const SettingsPage = () => {
           </div>
         </div>
       </section>
-
-      {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
@@ -706,8 +687,6 @@ const SettingsPage = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setError('');
-                  setSuccessMessage('');
                   setPasswordError('');
                   setIsPasswordModalOpen(true);
                 }}

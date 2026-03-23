@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRealtime } from '../context/RealtimeContext';
 import authService from '../services/authService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { buildAssetUrl } from '../config/appConfig';
@@ -26,6 +27,7 @@ const resolveAvatarUrl = (user) => {
 };
 
 const AdminRoleRequestsPage = () => {
+  const { version } = useRealtime();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -50,7 +52,7 @@ const AdminRoleRequestsPage = () => {
 
   useEffect(() => {
     loadRequests();
-  }, [loadRequests]);
+  }, [loadRequests, version]);
 
   const stats = useMemo(() => {
     return {
