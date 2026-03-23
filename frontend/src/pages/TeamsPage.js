@@ -232,7 +232,7 @@ const TeamsPage = () => {
     }
   ];
   const teamsGridClassName = teams.length === 1
-    ? 'mx-auto grid max-w-md grid-cols-1 gap-6'
+    ? 'grid max-w-md grid-cols-1 gap-6'
     : 'grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3';
 
   if (loading) {
