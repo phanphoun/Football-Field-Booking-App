@@ -1,4 +1,4 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating, BookingJoinRequest } = require('../models');
 const { sequelize } = require('../models');
 const { Op } = require('sequelize');
 

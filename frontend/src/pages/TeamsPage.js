@@ -385,15 +385,15 @@ const TeamsPage = () => {
                 }}
                 className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
               >
-                <div className="relative h-52">
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <div className="relative h-52 bg-gradient-to-br from-slate-50 via-white to-emerald-50">
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100/60">
                     <UsersIcon className="h-12 w-12 text-gray-300" />
                   </div>
                   {teamLogoUrl && (
                     <img
                       src={teamLogoUrl}
                       alt={`${team.name} logo`}
-                      className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-cover object-center"
+                      className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain p-4"
                       onClick={(event) => {
                         event.stopPropagation();
                         setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });

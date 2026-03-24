@@ -5,6 +5,7 @@ import {
   ChevronDownIcon,
   PencilSquareIcon,
   PhotoIcon,
+  StarIcon,
   TrashIcon,
   PlusIcon,
   XMarkIcon
@@ -75,6 +76,7 @@ const getDiscountedHourlyPrice = (field) => {
   const discountPercent = getDiscountPercent(field);
   return Number((price * (1 - discountPercent / 100)).toFixed(2));
 };
+const getFieldRatingValue = (field) => Math.max(0, Math.min(5, Number(field?.rating || 0)));
 
 const normalizeImages = (imagesValue) => {
   if (Array.isArray(imagesValue)) return imagesValue;
@@ -160,6 +162,17 @@ const isOwnedByCurrentUser = (field, user) => {
   return String(ownerId) === String(userId);
 };
 
+const getFieldSortTimestamp = (field) => {
+  const candidates = [field?.createdAt, field?.created_at, field?.updatedAt, field?.updated_at];
+  for (const value of candidates) {
+    const timestamp = new Date(value).getTime();
+    if (!Number.isNaN(timestamp)) return timestamp;
+  }
+  const numericId = Number(field?.id ?? field?._id);
+  if (!Number.isNaN(numericId)) return numericId;
+  return 0;
+};
+
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
@@ -178,7 +191,10 @@ const OwnerFieldsPage = () => {
   const [imageVersionToken, setImageVersionToken] = useState(0);
   const [form, setForm] = useState(emptyForm);
 
-  const visibleFields = useMemo(() => fields, [fields]);
+  const visibleFields = useMemo(
+    () => [...fields].sort((a, b) => getFieldSortTimestamp(b) - getFieldSortTimestamp(a)),
+    [fields]
+  );
 
   const loadFields = useCallback(async () => {
     try {
@@ -951,99 +967,126 @@ const OwnerFieldsPage = () => {
             const isOwned = isOwnedByCurrentUser(field, user);
             const discountPercent = getDiscountPercent(field);
             const discountedPrice = getDiscountedHourlyPrice(field);
+            const ratingValue = getFieldRatingValue(field);
+            const totalRatings = Math.max(0, Number(field?.totalRatings || 0));
 
           return (
             <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <img
-                src={coverImage}
-                alt={field.name}
-                className="h-48 w-full object-cover"
-                onError={(event) => {
-                  if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                    event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                  }
-                }}
-              />
-              <div className="space-y-3 p-5">
-                <div className="space-y-4 p-5">
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex flex-col">
-                      {discountPercent > 0 ? (
-                        <>
-                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
-                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
-                        </>
-                      ) : (
-                        <span>${field.pricePerHour}/hr</span>
-                      )}
-                    </div>
-                    <span>{field.capacity} players</span>
-                  </div>
+              <div className="relative">
+                <img
+                  src={coverImage}
+                  alt={field.name}
+                  className="h-48 w-full object-cover"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                    }
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4">
+                  <span className="inline-flex rounded-full bg-white/95 px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
+                    {field.fieldType || '11v11'}
+                  </span>
                   <div className="flex items-center gap-2">
+                    {discountPercent > 0 && (
+                      <span className="inline-flex rounded-full bg-emerald-100/95 px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
+                        {discountPercent}% OFF
+                      </span>
+                    )}
                     <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                      className={`inline-flex rounded-full bg-white/95 px-4 py-1.5 text-sm font-semibold shadow-sm ${
                         field.status === 'available'
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'text-blue-600'
                           : field.status === 'maintenance'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-rose-100 text-rose-700'
+                          ? 'text-amber-700'
+                          : 'text-rose-600'
                       }`}
                     >
-                      {field.status || 'available'}
+                      {field.status === 'available'
+                        ? 'Available'
+                        : field.status === 'maintenance'
+                        ? 'Maintenance'
+                        : 'Unavailable'}
                     </span>
                   </div>
-                  {field.closureMessage && field.status !== 'available' && (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      {field.closureMessage}
-                    </p>
-                  )}
-                  {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
-                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
-                      <br />
-                      {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
-                    </p>
-                  )}
-                  {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        startStatusEdit(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
-                        field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                      }`}
-                    >
-                      {field.status === 'available' ? 'Close Field' : 'Open Field'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        startEdit(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      <PencilSquareIcon className="h-4 w-4" />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDelete(field);
-                      }}
-                      disabled={!isOwned || saving}
-                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                      Delete
-                    </button>
+                </div>
+              </div>
+              <div className="space-y-2.5 p-5">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">{field.name || 'Untitled field'}</h3>
+                  {field.address && <p className="mt-0 text-sm text-gray-500">{field.address}</p>}
+                  <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-600">
+                    <div className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-amber-600">
+                      <StarIcon className="h-4 w-4 fill-current" />
+                      <span className="font-semibold text-slate-900">{ratingValue > 0 ? ratingValue.toFixed(1) : '0.0'}</span>
+                    </div>
+                    <span>{totalRatings > 0 ? `${totalRatings} rating${totalRatings === 1 ? '' : 's'}` : 'No ratings yet'}</span>
                   </div>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <div className="flex flex-col">
+                    {discountPercent > 0 ? (
+                      <>
+                        <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
+                        <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
+                      </>
+                    ) : (
+                      <span>${field.pricePerHour}/hr</span>
+                    )}
+                  </div>
+                  <span>{field.capacity} players</span>
+                </div>
+                {field.closureMessage && field.status !== 'available' && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {field.closureMessage}
+                  </p>
+                )}
+                {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
+                    <br />
+                    {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
+                  </p>
+                )}
+                {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
+                <div className="flex gap-3 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      startStatusEdit(field);
+                    }}
+                    disabled={!isOwned || saving}
+                    className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                      field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
+                  >
+                    {field.status === 'available' ? 'Close Field' : 'Open Field'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      startEdit(field);
+                    }}
+                    disabled={!isOwned || saving}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <PencilSquareIcon className="h-4 w-4" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDelete(field);
+                    }}
+                    disabled={!isOwned || saving}
+                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>

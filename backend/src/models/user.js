@@ -39,6 +39,10 @@ module.exports = (sequelize, DataTypes) => {
 
       User.hasMany(models.Notification, { foreignKey: 'userId', as: 'notifications' });
 
+      // User can write public field reviews
+
+      User.hasMany(models.FieldReview, { foreignKey: 'userId', as: 'fieldReviews' });
+
       // User can submit role requests and review them as an admin.
 
       User.hasMany(models.RoleRequest, { foreignKey: 'requesterId', as: 'roleRequests' });
