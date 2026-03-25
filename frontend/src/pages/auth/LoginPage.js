@@ -6,8 +6,10 @@ import { Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const LoginPage = () => {
-  const { login, loading, error } = useAuth();
+  const { login, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +28,10 @@ const LoginPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) {
+      clearError();
+    }
     setValidationErrors((prev) => {
       if (!prev[name]) return prev;
       const next = { ...prev };
@@ -42,11 +47,17 @@ const LoginPage = () => {
     const nextErrors = {};
 
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
+    else if (!EMAIL_REGEX.test(formData.email.trim())) nextErrors.email = 'Please enter a valid email address.';
+
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
 
     if (Object.keys(nextErrors).length > 0) {
       setValidationErrors(nextErrors);
       return;
+    }
+
+    if (error) {
+      clearError();
     }
 
     const result = await login(formData);
@@ -57,12 +68,8 @@ const LoginPage = () => {
       return;
     }
 
-    if (result.error) {
-      setValidationErrors((prev) => ({
-        ...prev,
-        email: result.error || 'Invalid email or password.',
-        password: result.error || 'Invalid email or password.'
-      }));
+    if (result.field) {
+      setValidationErrors({ [result.field]: result.error });
     }
   };
 
@@ -81,29 +88,14 @@ const LoginPage = () => {
         </Link>
       </p>
 
-      {error && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <div className="flex items-center">
-            <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            {error}
-          </div>
-          {validationErrors.password && (
-            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
-          )}
-        </div>
-      )}
-
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
         <div>
           <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
             Email Address
           </label>
+          {validationErrors.email && (
+            <p className="mb-2 text-sm font-semibold text-red-500">{validationErrors.email}</p>
+          )}
           <input
             id="email"
             name="email"
@@ -118,15 +110,15 @@ const LoginPage = () => {
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
             }`}
           />
-          {validationErrors.email && (
-            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
-          )}
         </div>
 
         <div>
           <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
             Password
           </label>
+          {validationErrors.password && (
+            <p className="mb-2 text-sm font-semibold text-red-500">{validationErrors.password}</p>
+          )}
           <div className="relative">
             <input
               id="password"
@@ -139,7 +131,7 @@ const LoginPage = () => {
               className={`block w-full rounded-2xl bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
                 validationErrors.password
                   ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                  : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
+                : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
               }`}
             />
             <button
@@ -151,9 +143,6 @@ const LoginPage = () => {
               {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
             </button>
           </div>
-          {validationErrors.password && (
-            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
-          )}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -175,6 +164,19 @@ const LoginPage = () => {
             Forgot password?
           </button>
         </div>
+
+        {error && !validationErrors.email && !validationErrors.password && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
+            <svg className="h-4 w-4 flex-none" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.993.883L9 8v3a1 1 0 001.993.117L11 11V8a1 1 0 00-1-1zm.002 7a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <p>We couldn&apos;t sign you in with those details.</p>
+          </div>
+        )}
 
         <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700">
           {loading ? (
