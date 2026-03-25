@@ -2,7 +2,21 @@ const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult,
 const { Op } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
-  { model: Field, as: 'field', attributes: ['id', 'name', 'address', 'pricePerHour', 'discountPercent'] },
+  {
+    model: Field,
+    as: 'field',
+    attributes: [
+      'id',
+      'name',
+      'address',
+      'pricePerHour',
+      'discountPercent',
+      'status',
+      'closureMessage',
+      'closureStartAt',
+      'closureEndAt'
+    ]
+  },
   {
     model: Team,
     as: 'team',
@@ -30,7 +44,13 @@ const BOOKING_BASE_INCLUDE = [
     required: false
   },
   { model: Team, as: 'opponentTeam', attributes: ['id', 'name', 'captainId', 'shirtColor', 'jerseyColors'], required: false },
-  { model: MatchResult, as: 'matchResult', attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy'], required: false },
+  {
+    model: MatchResult,
+    as: 'matchResult',
+    attributes: ['id', 'homeScore', 'awayScore', 'matchStatus', 'recordedAt', 'recordedBy', 'mvpPlayerId', 'matchNotes'],
+    include: [{ model: User, as: 'mvpPlayer', attributes: ['id', 'username', 'firstName', 'lastName'], required: false }],
+    required: false
+  },
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
@@ -733,23 +753,17 @@ const updateBookingStatus = async (req, res) => {
     }
 
     const updatePayload = { status };
+    if (status === 'confirmed' && previousStatus !== 'confirmed') {
+      updatePayload.ownerRevenueLocked = true;
+    }
+    if (status === 'cancelled' && previousStatus === 'confirmed') {
+      updatePayload.ownerRevenueLocked = true;
+    }
     if (hasScheduleUpdate) {
       updatePayload.startTime = nextStartTime;
       updatePayload.endTime = nextEndTime;
     }
-    await booking.update(updatePayload);
-
-    await booking.update({ status }, { transaction });
-
-    const bookingUpdate = { status };
-    if (status === 'confirmed' && previousStatus !== 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
-    }
-    if (status === 'cancelled' && previousStatus === 'confirmed') {
-      bookingUpdate.ownerRevenueLocked = true;
-    }
-
-    await booking.update(bookingUpdate, { transaction });
+    await booking.update(updatePayload, { transaction });
 
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       const teamName = booking.team?.name || 'Team';

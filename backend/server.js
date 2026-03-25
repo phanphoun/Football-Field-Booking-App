@@ -26,6 +26,7 @@ const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const realtimeRoutes = require('./src/routes/realtimeRoutes');
+const ownerMvpRoutes = require('./src/routes/ownerMvpRoutes');
 
 const API_KEY = process.env.FOOTBALL_API_KEY;
 const BASE_URL = "https://api.football-data.org/v4";
@@ -233,6 +234,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/realtime', realtimeRoutes);
+app.use('/api/owner-mvp', ownerMvpRoutes);
 
 // League API Routes
 app.get("/api/matches", async (req, res) => {

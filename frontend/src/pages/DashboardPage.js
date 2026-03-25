@@ -15,7 +15,10 @@ import {
   ClipboardDocumentCheckIcon,
   UserCircleIcon,
   UsersIcon,
-  XMarkIcon
+  XMarkIcon,
+  TrophyIcon,
+  FlagIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
@@ -156,7 +159,7 @@ const DashboardPage = () => {
         {
           name: 'Captained Teams',
           value: captainedTeams.length,
-          icon: UsersIcon,
+          icon: TrophyIcon,
           iconWrap: 'bg-emerald-600',
           cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
           textClass: 'text-emerald-950'
@@ -195,7 +198,7 @@ const DashboardPage = () => {
         {
           name: 'My Teams',
           value: stats?.teams ?? myTeams.length,
-          icon: UsersIcon,
+          icon: UserGroupIcon,
           iconWrap: 'bg-emerald-600',
           cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
           textClass: 'text-emerald-950'
@@ -219,7 +222,7 @@ const DashboardPage = () => {
         {
           name: 'Upcoming',
           value: upcomingBookings.length,
-          icon: CalendarIcon,
+          icon: CheckIcon,
           iconWrap: 'bg-violet-600',
           cardClass: 'border-violet-100 bg-gradient-to-br from-violet-50 via-white to-violet-100/70',
           textClass: 'text-violet-950'
@@ -249,7 +252,7 @@ const DashboardPage = () => {
       {
         name: 'Teams',
         value: stats?.teams ?? 0,
-        icon: UsersIcon,
+        icon: UserGroupIcon,
         iconWrap: 'bg-emerald-600',
         cardClass: 'border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70',
         textClass: 'text-emerald-950'

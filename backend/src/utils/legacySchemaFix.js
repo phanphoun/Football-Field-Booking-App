@@ -253,6 +253,15 @@ const applyLegacySchemaFixes = async (sequelize) => {
   if (await addColumnIfMissing(sequelize, 'ratings', 'sportsmanshipScore', 'INT NULL')) {
     changes.push('ratings.sportsmanshipScore');
   }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'skillLevelScore', 'INT NULL')) {
+    changes.push('ratings.skillLevelScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'punctualityScore', 'INT NULL')) {
+    changes.push('ratings.punctualityScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamOrganizationScore', 'INT NULL')) {
+    changes.push('ratings.teamOrganizationScore');
+  }
   if (
     await addColumnIfMissing(
       sequelize,

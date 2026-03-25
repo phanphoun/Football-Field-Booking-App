@@ -79,12 +79,6 @@ const AppLayout = () => {
       current: location.pathname.startsWith('/app/fields')
     },
     {
-      name: 'Matches History',
-      href: '/app/match-history',
-      icon: CalendarIcon,
-      current: location.pathname.startsWith('/app/match-history') || location.pathname.includes('/matches')
-    },
-    {
       name: 'Leagues',
       href: '/app/league',
       icon: TrophyIcon,
@@ -139,7 +133,6 @@ const AppLayout = () => {
     const entries = [
       { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
       { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/match-history', title: 'Match History', subtitle: 'Review completed matches and rate opponents' },
       { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
       { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
       { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },

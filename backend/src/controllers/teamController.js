@@ -1,4 +1,5 @@
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, sequelize } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
+const { sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -9,7 +10,7 @@ const getTeamBaseIncludes = () => [
   {
     model: User,
     as: 'captain',
-    attributes: ['id', 'username', 'firstName', 'lastName']
+    attributes: ['id', 'username', 'email', 'firstName', 'lastName', 'phone', 'address', 'dateOfBirth', 'avatarUrl', 'status', 'role']
   },
   {
     model: Field,
@@ -119,7 +120,6 @@ const attachMemberCounts = async (teams = []) => {
     };
   });
 };
-
 const getAllTeams = asyncHandler(async (req, res) => {
   const limit = Number.isFinite(Number(req.query.limit)) ? Math.min(Number(req.query.limit), 100) : undefined;
   const offset = Number.isFinite(Number(req.query.offset)) ? Math.max(Number(req.query.offset), 0) : undefined;
@@ -505,7 +505,7 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       {
         model: Team,
         as: 'homeTeam',
-        attributes: ['id', 'name', 'logoUrl'],
+        attributes: ['id', 'name', 'captainId', 'logoUrl'],
         include: [{
           model: User,
           as: 'captain',
@@ -516,7 +516,7 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       {
         model: Team,
         as: 'awayTeam',
-        attributes: ['id', 'name', 'logoUrl'],
+        attributes: ['id', 'name', 'captainId', 'logoUrl'],
         include: [{
           model: User,
           as: 'captain',
@@ -529,11 +529,51 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
     order: [['recordedAt', 'DESC']]
   });
 
+  const bookingIds = completedMatches
+    .map((match) => Number(match.bookingId))
+    .filter((bookingId) => Number.isInteger(bookingId) && bookingId > 0);
+
+  const ratingRows = bookingIds.length
+    ? await Rating.findAll({
+        where: {
+          bookingId: { [Op.in]: bookingIds }
+        },
+        attributes: [
+          'id',
+          'bookingId',
+          'teamIdRater',
+          'teamIdRated',
+          'rating',
+          'review',
+          'sportsmanshipScore',
+          'skillLevelScore',
+          'punctualityScore',
+          'teamOrganizationScore',
+          'createdAt'
+        ]
+      })
+    : [];
+
+  const ratingMap = new Map();
+  ratingRows.forEach((row) => {
+    ratingMap.set(`${Number(row.bookingId)}:${Number(row.teamIdRater)}`, row);
+  });
+
   const matches = completedMatches.map((match) => {
     const isHome = Number(match.homeTeamId) === teamId;
     const myScore = isHome ? Number(match.homeScore) : Number(match.awayScore);
     const opponentScore = isHome ? Number(match.awayScore) : Number(match.homeScore);
     const opponentTeam = isHome ? match.awayTeam : match.homeTeam;
+    const currentUserTeamId =
+      Number(match.homeTeam?.captainId) === Number(req.user.id)
+        ? Number(match.homeTeamId)
+        : Number(match.awayTeam?.captainId) === Number(req.user.id)
+        ? Number(match.awayTeamId)
+        : req.user.role === 'admin'
+        ? teamId
+        : null;
+    const existingRating =
+      currentUserTeamId !== null ? ratingMap.get(`${Number(match.bookingId)}:${Number(currentUserTeamId)}`) : null;
 
     let result = 'Draw';
     if (myScore > opponentScore) result = 'Win';
@@ -566,7 +606,23 @@ const getTeamMatchHistory = asyncHandler(async (req, res) => {
       finalScore: `${myScore}-${opponentScore}`,
       myScore,
       opponentScore,
-      result
+      result,
+      status: 'completed',
+      opponentTeamId: opponentTeam?.id || null,
+      opponentTeamLogoUrl: opponentTeam?.logoUrl || null,
+      canRate: Boolean(match.bookingId && currentUserTeamId !== null && !existingRating),
+          rating: existingRating
+        ? {
+            id: existingRating.id,
+            value: existingRating.rating,
+            review: existingRating.review,
+            sportsmanshipScore: existingRating.sportsmanshipScore,
+            skillLevelScore: existingRating.skillLevelScore,
+            punctualityScore: existingRating.punctualityScore,
+            teamOrganizationScore: existingRating.teamOrganizationScore,
+            createdAt: existingRating.createdAt
+          }
+        : null
     };
   });
 

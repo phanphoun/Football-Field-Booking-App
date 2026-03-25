@@ -8,7 +8,8 @@ import {
   ClipboardDocumentListIcon,
   UserGroupIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
@@ -38,8 +39,8 @@ const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
   const { user, isAdmin } = useAuth();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
   const { version } = useRealtime();
 
   const [team, setTeam] = useState(null);
@@ -94,17 +95,6 @@ const TeamManagePage = () => {
     };
     fetchAll();
   }, [id, refresh, version]);
-
-  useEffect(() => {
-    setJerseyColorsDraft(getTeamJerseyColors(team));
-  }, [team]);
-
-  useEffect(() => {
-    setActiveColorIndex((prev) => {
-      if (jerseyColorsDraft.length === 0) return 0;
-      return Math.min(prev, jerseyColorsDraft.length - 1);
-    });
-  }, [jerseyColorsDraft]);
 
   useEffect(() => {
     setJerseyColorsDraft(getTeamJerseyColors(team));
@@ -306,7 +296,7 @@ const TeamManagePage = () => {
     setJerseyColorsDraft((prev) => {
       const current = Array.isArray(prev) ? [...prev] : [DEFAULT_JERSEY_COLOR];
       if (current.length >= 5) return current;
-const normalizedCurrent = current.map((color) => normalizeHexColor(color) || DEFAULT_JERSEY_COLOR);
+      const normalizedCurrent = current.map((color) => normalizeHexColor(color) || DEFAULT_JERSEY_COLOR);
       const nextColor =
         JERSEY_COLOR_PRESETS.find((preset) => !normalizedCurrent.includes(preset)) || DEFAULT_JERSEY_COLOR;
       const next = [...current, nextColor];
@@ -410,6 +400,13 @@ const normalizedCurrent = current.map((color) => normalizeHexColor(color) || DEF
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Back
+            </Link>
+            <Link
+              to={`${basePath}/teams/${team.id}?tab=history`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-green-300 text-green-700 hover:bg-green-50"
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Match History
             </Link>
             {isCaptainOfTeam && (
               <button

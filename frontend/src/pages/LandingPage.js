@@ -18,7 +18,16 @@ import {
   PhoneIcon,
   SparklesIcon,
   TrophyIcon,
-  UsersIcon
+  UsersIcon,
+  WifiIcon,
+  CheckIcon,
+  ShieldCheckIcon,
+  LightBulbIcon,
+  CameraIcon,
+  CircleStackIcon,
+  CubeIcon,
+  WindowIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import fieldService from '../services/fieldService';
@@ -46,6 +55,21 @@ const PREMIUM_GUARANTEE_ITEMS = [
   { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
   { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
   { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
+];
+
+const WORLD_CLASS_FACILITIES = [
+  { icon: WifiIcon, title: 'Free WiFi', description: 'High-speed internet available', iconBgColor: 'bg-blue-100', iconColor: 'text-blue-600', accentColor: 'border-blue-100' },
+  { icon: CheckIcon, title: 'Free Parking', description: 'Ample parking space', iconBgColor: 'bg-emerald-100', iconColor: 'text-emerald-600', accentColor: 'border-emerald-100' },
+  { icon: HomeIcon, title: 'Shower Rooms', description: 'Clean changing facilities', iconBgColor: 'bg-violet-100', iconColor: 'text-violet-600', accentColor: 'border-violet-100' },
+  { icon: CameraIcon, title: 'CCTV Security', description: '24/7 surveillance', iconBgColor: 'bg-rose-100', iconColor: 'text-rose-600', accentColor: 'border-rose-100' },
+  { icon: LightBulbIcon, title: 'LED Floodlights', description: 'Professional lighting', iconBgColor: 'bg-amber-100', iconColor: 'text-amber-600', accentColor: 'border-amber-100' },
+  { icon: CubeIcon, title: 'Cafeteria', description: 'Snacks & beverages', iconBgColor: 'bg-orange-100', iconColor: 'text-orange-600', accentColor: 'border-orange-100' },
+  { icon: ShieldCheckIcon, title: 'First Aid', description: 'Medical assistance ready', iconBgColor: 'bg-teal-100', iconColor: 'text-teal-600', accentColor: 'border-teal-100' },
+  { icon: WindowIcon, title: 'Air Conditioned', description: 'Climate controlled rooms', iconBgColor: 'bg-cyan-100', iconColor: 'text-cyan-600', accentColor: 'border-cyan-100' },
+  { icon: CircleStackIcon, title: 'Water Stations', description: 'Free drinking water', iconBgColor: 'bg-sky-100', iconColor: 'text-sky-600', accentColor: 'border-sky-100' },
+  { icon: UsersIcon, title: 'Spectator Area', description: 'Seating for supporters', iconBgColor: 'bg-indigo-100', iconColor: 'text-indigo-600', accentColor: 'border-indigo-100' },
+  { icon: BuildingOfficeIcon, title: 'Equipment Rental', description: 'Balls, bibs & gear', iconBgColor: 'bg-pink-100', iconColor: 'text-pink-600', accentColor: 'border-pink-100' },
+  { icon: HomeIcon, title: 'Lounge Area', description: 'Comfortable waiting space', iconBgColor: 'bg-yellow-100', iconColor: 'text-yellow-600', accentColor: 'border-yellow-100' }
 ];
 
 const FEATURED_FALLBACK_FIELDS = [
@@ -1425,7 +1449,7 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                        className="w-full rounded-xl bg-[#1dbf5f] py-2 text-base font-semibold text-white shadow-sm transition hover:bg-[#18aa52]"
                       >
                         {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
                       </button>
@@ -1496,6 +1520,35 @@ const LandingPage = () => {
               <p className="mt-2 text-base text-gray-600">{step.description}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">World-Class Facilities</h2>
+            <p className="mt-4 text-lg leading-8 text-slate-600">
+              Every field comes equipped with premium amenities to enhance your playing experience
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {WORLD_CLASS_FACILITIES.map((facility) => {
+              const IconComponent = facility.icon;
+              return (
+                <div
+                  key={facility.title}
+                  className={`flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border bg-white px-6 py-8 text-center shadow-[0_10px_30px_rgba(148,163,184,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(148,163,184,0.16)] ${facility.accentColor}`}
+                >
+                  <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${facility.iconBgColor}`}>
+                    <IconComponent className={`h-8 w-8 ${facility.iconColor}`} />
+                  </div>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{facility.title}</h3>
+                  <p className="mt-3 max-w-[220px] text-base leading-7 text-slate-500">{facility.description}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
