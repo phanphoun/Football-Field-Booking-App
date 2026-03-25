@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useRealtime } from '../../context/RealtimeContext';
 import {
   HomeIcon, 
@@ -24,6 +25,7 @@ import {
 import apiService from '../../services/api';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
+import LanguageSwitcher from '../common/LanguageSwitcher';
 import { ImagePreviewModal, useToast } from '../ui';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
@@ -49,6 +51,7 @@ const SidebarBrand = ({ collapsed = false }) => (
 
 const AppLayout = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { version } = useRealtime();
   const location = useLocation();
   const navigate = useNavigate();
@@ -67,9 +70,9 @@ const AppLayout = () => {
   const { showToast } = useToast();
 
   const userDisplayName =
-    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
+    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || t('role_user', 'User');
   const settingsItem = {
-    name: 'Settings',
+    name: t('nav_settings', 'Settings'),
     href: '/app/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/app/settings' || location.pathname === '/app/admin/settings'
@@ -78,25 +81,25 @@ const AppLayout = () => {
 
   const navigation = [
     {
-      name: 'Dashboard',
+      name: t('nav_dashboard', 'Dashboard'),
       href: '/app/dashboard',
       icon: HomeIcon,
       current: location.pathname === '/app/dashboard'
     },
     {
-      name: 'Fields',
+      name: t('nav_fields', 'Fields'),
       href: '/app/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/app/fields')
     },
     {
-      name: 'Leagues',
+      name: t('nav_leagues', 'Leagues'),
       href: '/app/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/app/league')
     },
     {
-      name: 'Teams',
+      name: t('nav_teams', 'Teams'),
       href: '/app/teams',
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
@@ -104,7 +107,7 @@ const AppLayout = () => {
     ...(['player', 'captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Bookings',
+            name: t('nav_bookings', 'Bookings'),
             href: '/app/bookings',
             icon: CalendarIcon,
             current: location.pathname.startsWith('/app/bookings')
@@ -114,13 +117,13 @@ const AppLayout = () => {
     ...(user?.role === 'admin'
       ? [
           {
-            name: 'Manage Users',
+            name: t('nav_manage_users', 'Manage Users'),
             href: '/app/admin/users',
             icon: UserCircleIcon,
             current: location.pathname.startsWith('/app/admin/users')
           },
           {
-            name: 'Role Requests',
+            name: t('nav_role_requests', 'Role Requests'),
             href: '/app/admin/role-requests',
             icon: ClipboardDocumentCheckIcon,
             current: location.pathname.startsWith('/app/admin/role-requests')
@@ -130,7 +133,7 @@ const AppLayout = () => {
     ...(['captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Open Matches',
+            name: t('nav_open_matches', 'Open Matches'),
             href: '/app/open-matches',
             icon: UsersIcon,
             current: location.pathname.startsWith('/app/open-matches')
@@ -142,21 +145,26 @@ const AppLayout = () => {
   const pageInfo = useMemo(() => {
     const path = location.pathname;
     const entries = [
-      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
-      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
-      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
-      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
-      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
-      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
-      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
-      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
-      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
-      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
+      { match: '/app/dashboard', title: t('nav_dashboard', 'Dashboard'), subtitle: t('page_dashboard_subtitle', 'Overview of your activity and updates') },
+      { match: '/app/fields', title: t('nav_fields', 'Fields'), subtitle: t('page_fields_subtitle', 'Browse and discover available football fields') },
+      { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
+      { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
+      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
+      { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
+      { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
+      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
+      { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
+      { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
+      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
+<<<<<<< HEAD
     return current || { title: APP_CONFIG.brand.displayName, subtitle: 'Welcome to your workspace' };
   }, [location.pathname]);
+=======
+    return current || { title: 'អាណាចក្រភ្នំស្វាយ', subtitle: 'Welcome to your workspace' };
+  }, [location.pathname, t]);
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
   const showBackHomeButton = location.pathname.startsWith('/app');
   const isAppFieldsRoute = location.pathname.startsWith('/app/fields');
   const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
@@ -853,13 +861,19 @@ const AppLayout = () => {
                       : 'gap-2.5 rounded-2xl border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950'
                   }`}
                 >
+<<<<<<< HEAD
                   <ArrowLeftIcon className={isAppFieldsRoute ? 'h-[18px] w-[18px]' : 'h-[18px] w-[18px]'} />
                   <span className="hidden sm:inline">Back</span>
+=======
+                  <ArrowLeftIcon className={isAppFieldsRoute ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
+                  <span className="hidden sm:inline">{t('action_back', 'Back')}</span>
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                 </button>
               )}
             </div>
 
-            <div className="ml-auto flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-3">
+              <LanguageSwitcher className="hidden sm:inline-flex" />
               {/* Notifications dropdown */}
               <div
                 className="relative"

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useRealtime } from '../../context/RealtimeContext';
 import {
   HomeIcon,
@@ -19,6 +20,7 @@ import {
   ChevronDoubleRightIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../services/api';
+import LanguageSwitcher from '../common/LanguageSwitcher';
 import { ImagePreviewModal, useToast } from '../ui';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
@@ -44,6 +46,7 @@ const SidebarBrand = ({ collapsed = false }) => (
 
 const OwnerLayout = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { version } = useRealtime();
   const location = useLocation();
   const navigate = useNavigate();
@@ -62,9 +65,9 @@ const OwnerLayout = () => {
   const { showToast } = useToast();
 
   const userDisplayName =
-    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
+    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || t('role_user', 'User');
   const settingsItem = {
-    name: 'Settings',
+    name: t('nav_settings', 'Settings'),
     href: '/owner/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/owner/settings'
@@ -73,31 +76,31 @@ const OwnerLayout = () => {
 
   const navigation = [
     {
-      name: 'Dashboard',
+      name: t('nav_dashboard', 'Dashboard'),
       href: '/owner/dashboard',
       icon: HomeIcon,
       current: location.pathname === '/owner/dashboard'
     },
     {
-      name: 'My Fields',
+      name: t('nav_my_fields', 'My Fields'),
       href: '/owner/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/owner/fields')
     },
     {
-      name: 'Leagues',
+      name: t('nav_leagues', 'Leagues'),
       href: '/owner/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/league')
     },
     {
-      name: 'Bookings',
+      name: t('nav_bookings', 'Bookings'),
       href: '/owner/bookings',
       icon: CalendarIcon,
       current: location.pathname.startsWith('/owner/bookings')
     },
     {
-      name: 'Matches',
+      name: t('nav_matches', 'Matches'),
       href: '/owner/matches',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/matches')
@@ -107,7 +110,11 @@ const OwnerLayout = () => {
   const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
 
   const formatRole = (role) => {
+<<<<<<< HEAD
     return formatRoleLabel(role, 'Field Owner');
+=======
+    return role ? role.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : t('role_field_owner', 'Field Owner');
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
   };
 
   const resolveAvatarUrl = () => {
@@ -482,7 +489,8 @@ const OwnerLayout = () => {
               </Link>
             </div>
 
-            <div className="ml-auto flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-3">
+              <LanguageSwitcher className="hidden sm:inline-flex" />
               <div className="relative" ref={notificationsMenuRef}>
                 <button
                   onClick={() => setNotificationsMenuOpen((prev) => !prev)}

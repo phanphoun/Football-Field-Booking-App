@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon, CurrencyDollarIcon, PlusIcon } from '@heroicons/react/24/outline';
@@ -21,6 +22,7 @@ const TeamJerseyDots = ({ colors = [], teamKey }) => (
 
 const BookingsPage = () => {
   const { user, isAdmin, isFieldOwner } = useAuth();
+  const { t, language } = useLanguage();
   const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
@@ -119,7 +121,9 @@ const BookingsPage = () => {
       } else if (newStatus === 'completed') {
         await bookingService.completeBooking(bookingId);
       } else if (newStatus === 'cancelled') {
-        const confirmed = await confirm('Do you want to cancel your booking?', { title: 'Cancel Booking' });
+        const confirmed = await confirm(t('booking_cancel_confirm', 'Do you want to cancel your booking?'), {
+          title: t('booking_cancel_title', 'Cancel Booking')
+        });
         if (!confirmed) return;
         await bookingService.cancelBooking(bookingId);
       } else {
@@ -212,7 +216,19 @@ const BookingsPage = () => {
     return tones[status] || 'gray';
   };
 
+<<<<<<< HEAD
   const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
+=======
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: t('common_pending', 'Pending'),
+      confirmed: t('common_confirmed', 'Confirmed'),
+      completed: t('common_completed', 'Completed'),
+      cancelled: t('common_cancelled', 'Cancelled')
+    };
+    return labels[status] || status;
+  };
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
   // const getStatusIcon = (status) => {
   //   const icons = {
@@ -233,14 +249,14 @@ const BookingsPage = () => {
       if (isAdmin() || isFieldOwner()) {
         actions.push(
           <Button key="confirm" size="sm" variant="outline" onClick={() => handleUpdateStatus(booking.id, 'confirmed')}>
-            Confirm
+            {t('action_confirm', 'Confirm')}
           </Button>
         );
       }
       if (canDirectCancel) {
         actions.push(
           <Button key="cancel" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
-            Cancel Booking
+            {t('booking_cancel_button', 'Cancel Booking')}
           </Button>
         );
       }
@@ -249,7 +265,7 @@ const BookingsPage = () => {
     if (booking.status === 'confirmed' && canDirectCancel) {
       actions.push(
         <Button key="cancel-confirmed" size="sm" variant="danger" onClick={() => handleUpdateStatus(booking.id, 'cancelled')}>
-          Cancel Booking
+          {t('booking_cancel_button', 'Cancel Booking')}
         </Button>
       );
     }
@@ -271,7 +287,7 @@ const BookingsPage = () => {
     if (booking.status === 'confirmed' && (isAdmin() || isFieldOwner())) {
       actions.push(
         <Button key="complete" size="sm" variant="outline" onClick={() => handleUpdateStatus(booking.id, 'completed')}>
-          Complete
+          {t('booking_complete', 'Complete')}
         </Button>
       );
     }
@@ -292,8 +308,10 @@ const BookingsPage = () => {
       })
     : [];
 
-  const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
-  const formatTime = (dateString) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatDate = (dateString) =>
+    new Date(dateString).toLocaleDateString(language === 'km' ? 'km-KH' : 'en-US');
+  const formatTime = (dateString) =>
+    new Date(dateString).toLocaleTimeString(language === 'km' ? 'km-KH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
 
   const calculateDuration = (startTime, endTime) => {
     const start = new Date(startTime);
@@ -315,9 +333,11 @@ const BookingsPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('booking_title', 'Bookings')}</h1>
           <p className="mt-1 text-sm text-gray-600">
-            {canCreateBooking ? 'Manage your football field bookings' : 'Track your bookings here.'}
+            {canCreateBooking
+              ? t('booking_subtitle_manage', 'Manage your football field bookings')
+              : t('booking_subtitle_track', 'Track your bookings here.')}
           </p>
         </div>
         <Button
@@ -325,7 +345,7 @@ const BookingsPage = () => {
           className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
-          {canCreateBooking ? 'New Booking' : 'Request Captain Access'}
+          {canCreateBooking ? t('booking_new', 'New Booking') : t('booking_request_captain', 'Request Captain Access')}
         </Button>
       </div>
 
@@ -334,31 +354,39 @@ const BookingsPage = () => {
       <Card className="mb-6">
         <CardBody className="p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Status</label>
+            <label className="text-sm font-medium text-gray-700">{t('booking_filter_status', 'Status')}</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
             >
+<<<<<<< HEAD
               <option value="all">All</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
               <option value="cancellation_pending">Cancellation Pending</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+=======
+              <option value="all">{t('common_all', 'All')}</option>
+              <option value="pending">{t('common_pending', 'Pending')}</option>
+              <option value="confirmed">{t('common_confirmed', 'Confirmed')}</option>
+              <option value="completed">{t('common_completed', 'Completed')}</option>
+              <option value="cancelled">{t('common_cancelled', 'Cancelled')}</option>
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             </select>
 
             {user?.role === 'captain' && (
               <>
-                <label className="text-sm font-medium text-gray-700">Opponent Match</label>
+                <label className="text-sm font-medium text-gray-700">{t('booking_filter_opponent', 'Opponent Match')}</label>
                 <select
                   value={openForOpponentsFilter}
                   onChange={(e) => setOpenForOpponentsFilter(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
                 >
-                  <option value="all">All</option>
-                  <option value="open">Open for Opponents</option>
-                  <option value="closed">Not Open</option>
+                  <option value="all">{t('common_all', 'All')}</option>
+                  <option value="open">{t('booking_open_for_opponents', 'Open for Opponents')}</option>
+                  <option value="closed">{t('booking_not_open', 'Not Open')}</option>
                 </select>
               </>
             )}
@@ -383,18 +411,22 @@ const BookingsPage = () => {
                           to={`/app/fields/${booking.field.id}`}
                           className="text-lg font-medium text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
                         >
-                          {booking.field?.name || 'Unknown Field'}
+                          {booking.field?.name || t('booking_unknown_field', 'Unknown Field')}
                         </Link>
                       ) : (
-                        <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || 'Unknown Field'}</h3>
+                        <h3 className="text-lg font-medium text-gray-900">{booking.field?.name || t('booking_unknown_field', 'Unknown Field')}</h3>
                       )}
                       <Badge tone={getStatusTone(booking.status)} className="capitalize">
+<<<<<<< HEAD
                         {formatStatusLabel(booking.status)}
+=======
+                        {getStatusLabel(booking.status)}
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                       </Badge>
                       {booking.opponentTeam?.name ? (
-                        <Badge tone="green">Matched</Badge>
+                        <Badge tone="green">{t('booking_matched', 'Matched')}</Badge>
                       ) : booking.openForOpponents ? (
-                        <Badge tone="blue">Open for Opponents</Badge>
+                        <Badge tone="blue">{t('booking_open_for_opponents', 'Open for Opponents')}</Badge>
                       ) : null}
                     </div>
 
@@ -409,7 +441,7 @@ const BookingsPage = () => {
                       </div>
                       <div className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
-                        {booking.team?.name || 'No team'}
+                        {booking.team?.name || t('booking_no_team', 'No team')}
                         {booking.opponentTeam?.name ? ` vs ${booking.opponentTeam.name}` : ''}
                       </div>
                       <div className="flex items-center">
@@ -420,13 +452,13 @@ const BookingsPage = () => {
                     </div>
 
                     <div className="mt-2 text-xs text-gray-500">
-                      Booked by: {booking.creator?.firstName || booking.creator?.username || 'Unknown'} | Created:{' '}
+                      {t('booking_booked_by', 'Booked by')}: {booking.creator?.firstName || booking.creator?.username || t('common_unknown', 'Unknown')} | {t('common_created', 'Created')}:{' '}
                       {formatDate(booking.createdAt)}
                     </div>
 
                     {booking.status === 'pending' && isCaptainOwner(booking) && (
                       <div className="mt-2 inline-flex rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        Waiting for owner approval. This slot is still open until confirmed.
+                        {t('booking_waiting_owner_approval', 'Waiting for owner approval. This slot is still open until confirmed.')}
                       </div>
                     )}
 
@@ -437,6 +469,7 @@ const BookingsPage = () => {
                     )}
 
                     {booking.opponentTeam?.name && (
+<<<<<<< HEAD
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-green-700">
                         <span>Already matched:</span>
                         <span className="font-medium text-green-800">{booking.team?.name || 'Team A'}</span>
@@ -444,6 +477,19 @@ const BookingsPage = () => {
                         <span className="text-gray-400">vs</span>
                         <TeamJerseyDots colors={awayColors} teamKey={`away-${booking.id}`} />
                         <span className="font-medium text-green-800">{booking.opponentTeam.name}</span>
+=======
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-green-700 whitespace-nowrap overflow-hidden text-ellipsis">
+                        {t('booking_already_matched', 'Already matched')}: {booking.team?.name || t('booking_team_a', 'Team A')} vs {booking.opponentTeam.name}
+                        <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700">
+                          {homeColors.map((color, index) => (
+                            <span key={`home-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                          <span className="mx-0.5 text-gray-400">vs</span>
+                          {awayColors.map((color, index) => (
+                            <span key={`away-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                        </span>
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                       </div>
                     )}
 
@@ -459,7 +505,7 @@ const BookingsPage = () => {
                             onClick={() => handleCancelMatchedOpponent(booking)}
                             disabled={!!cancelMatchedLoadingMap[booking.id]}
                           >
-                            {cancelMatchedLoadingMap[booking.id] ? 'Cancelling Match...' : 'Cancel Matched Opponent'}
+                            {cancelMatchedLoadingMap[booking.id] ? t('booking_cancelling_match', 'Cancelling Match...') : t('booking_cancel_matched_opponent', 'Cancel Matched Opponent')}
                           </Button>
                         </div>
                       )}
@@ -478,10 +524,10 @@ const BookingsPage = () => {
                               disabled={!!toggleLoadingMap[booking.id]}
                             >
                               {toggleLoadingMap[booking.id]
-                                ? 'Updating...'
+                                ? t('common_updating', 'Updating...')
                                 : booking.openForOpponents
-                                ? 'Close Match'
-                                : 'Open Match'}
+                                ? t('booking_close_match', 'Close Match')
+                                : t('booking_open_match', 'Open Match')}
                             </Button>
                           )}
 
@@ -489,9 +535,9 @@ const BookingsPage = () => {
 
                         {booking.openForOpponents && !booking.opponentTeam?.name && (
                           <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
-                            <p className="text-sm font-medium text-gray-800 mb-2">Join Requests</p>
+                            <p className="text-sm font-medium text-gray-800 mb-2">{t('booking_join_requests', 'Join Requests')}</p>
                             {joinRequestsLoadingMap[booking.id] ? (
-                              <p className="text-sm text-gray-500">Loading requests...</p>
+                              <p className="text-sm text-gray-500">{t('booking_loading_requests', 'Loading requests...')}</p>
                             ) : Array.isArray(joinRequestsByBooking[booking.id]) &&
                               joinRequestsByBooking[booking.id].length > 0 ? (
                               <div className="space-y-2">
@@ -501,7 +547,7 @@ const BookingsPage = () => {
                                       ? `${request.requesterTeam?.captain?.firstName || ''} ${
                                           request.requesterTeam?.captain?.lastName || ''
                                         }`.trim()
-                                      : request?.requesterTeam?.captain?.username || 'Unknown captain';
+                                      : request?.requesterTeam?.captain?.username || t('booking_unknown_captain', 'Unknown captain');
                                   return (
                                     <div
                                       key={request.id}
@@ -509,9 +555,9 @@ const BookingsPage = () => {
                                     >
                                       <div>
                                         <p className="text-sm text-gray-800">
-                                          {request.requesterTeam?.name || 'Unknown team'} ({request.status})
+                                          {request.requesterTeam?.name || t('booking_unknown_team', 'Unknown team')} ({getStatusLabel(request.status)})
                                         </p>
-                                        <p className="text-xs text-gray-600 mt-1">Captain: {captainName}</p>
+                                        <p className="text-xs text-gray-600 mt-1">{t('team_captain', 'Captain')}: {captainName}</p>
                                         {request.message && <p className="text-xs text-gray-500 mt-1">"{request.message}"</p>}
                                       </div>
 
@@ -523,7 +569,7 @@ const BookingsPage = () => {
                                             onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'accept')}
                                             disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-accept`]}
                                           >
-                                            Approve Join
+                                            {t('booking_approve_join', 'Approve Join')}
                                           </Button>
                                           <Button
                                             size="sm"
@@ -531,7 +577,7 @@ const BookingsPage = () => {
                                             onClick={() => handleRespondToJoinRequest(booking.id, request.id, 'reject')}
                                             disabled={!!joinActionLoadingMap[`${booking.id}-${request.id}-reject`]}
                                           >
-                                            Decline
+                                            {t('action_decline', 'Decline')}
                                           </Button>
                                         </div>
                                       )}
@@ -540,7 +586,7 @@ const BookingsPage = () => {
                                 })}
                               </div>
                             ) : (
-                              <p className="text-sm text-gray-500">No requests yet.</p>
+                              <p className="text-sm text-gray-500">{t('booking_no_requests', 'No requests yet.')}</p>
                             )}
                           </div>
                         )}
@@ -556,15 +602,15 @@ const BookingsPage = () => {
             <div className="p-12 text-center">
               <EmptyState
                 icon={CalendarIcon}
-                title="No bookings found"
+                title={t('booking_empty_title', 'No bookings found')}
                 description={
                   statusFilter === 'all' && openForOpponentsFilter === 'all'
                     ? canCreateBooking
-                      ? 'Create your first booking to get started.'
-                      : 'Please request to become captain in Settings.'
-                    : 'No bookings found for the selected filters.'
+                      ? t('booking_empty_create_first', 'Create your first booking to get started.')
+                      : t('booking_empty_request_captain', 'Please request to become captain in Settings.')
+                    : t('booking_empty_filtered', 'No bookings found for the selected filters.')
                 }
-                actionLabel={canCreateBooking ? 'New Booking' : 'Request Captain Access'}
+                actionLabel={canCreateBooking ? t('booking_new', 'New Booking') : t('booking_request_captain', 'Request Captain Access')}
                 onAction={handleCreateBooking}
               />
             </div>

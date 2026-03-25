@@ -12,6 +12,7 @@ import {
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
+import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
 
 const statusTone = (status) => {
@@ -28,6 +29,7 @@ const formatMoney = (value) => {
 
 const OwnerDashboardPage = () => {
   const { version } = useRealtime();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { confirm } = useDialog();
   const [fields, setFields] = useState([]);
@@ -93,7 +95,7 @@ const OwnerDashboardPage = () => {
   const kpiCards = useMemo(
     () => [
       {
-        name: 'My Fields',
+        name: t('stat_my_fields', 'My Fields'),
         value: fields.length,
         valueType: 'number',
         icon: BuildingOfficeIcon,
@@ -102,7 +104,7 @@ const OwnerDashboardPage = () => {
         textClass: 'text-blue-950'
       },
       {
-        name: 'Pending Requests',
+        name: t('stat_pending_requests', 'Pending Requests'),
         value: pendingBookings.length,
         valueType: 'number',
         icon: ClockIcon,
@@ -111,7 +113,7 @@ const OwnerDashboardPage = () => {
         textClass: 'text-amber-950'
       },
       {
-        name: 'Confirmed',
+        name: t('stat_confirmed', 'Confirmed'),
         value: confirmedBookings.length,
         valueType: 'number',
         icon: CalendarIcon,
@@ -120,7 +122,7 @@ const OwnerDashboardPage = () => {
         textClass: 'text-emerald-950'
       },
       {
-        name: 'Revenue (est.)',
+        name: t('stat_revenue_est', 'Revenue (est.)'),
         value: revenueEstimate,
         valueType: 'currency',
         icon: ArrowTrendingUpIcon,
@@ -129,7 +131,7 @@ const OwnerDashboardPage = () => {
         textClass: 'text-indigo-950'
       }
     ],
-    [fields.length, pendingBookings.length, confirmedBookings.length, revenueEstimate]
+    [fields.length, pendingBookings.length, confirmedBookings.length, revenueEstimate, t]
   );
 
   const handleStatus = async (bookingId, nextStatus) => {
@@ -190,25 +192,25 @@ const OwnerDashboardPage = () => {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-200">
-              Field Owner
+              {t('owner_badge', 'Field Owner')}
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Owner Dashboard</h1>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{t('owner_dashboard_title', 'Owner Dashboard')}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Track your fields, review booking requests, and keep your schedule under control.
+              {t('owner_dashboard_subtitle', 'Track your fields, review booking requests, and keep your schedule under control.')}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button as={Link} to="/owner/fields" variant="outline" size="sm" className="rounded-xl border-slate-300 bg-white px-4">
               <PlusIcon className="h-4 w-4" />
-              Add field
+              {t('action_add_field', 'Add field')}
             </Button>
             <Button as={Link} to="/owner/bookings" size="sm" className="rounded-xl px-4 shadow-sm shadow-emerald-600/20">
               <ClockIcon className="h-4 w-4" />
-              Review requests
+              {t('action_review_requests', 'Review requests')}
             </Button>
             <Button as={Link} to="/owner/matches" variant="outline" size="sm" className="rounded-xl border-slate-300 bg-white px-4">
               <CalendarIcon className="h-4 w-4" />
-              Matches
+              {t('nav_matches', 'Matches')}
             </Button>
           </div>
         </div>
@@ -238,10 +240,10 @@ const OwnerDashboardPage = () => {
         <Card className="overflow-hidden">
           <CardHeader className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-950">Pending booking requests</h2>
-              <p className="mt-1 text-sm text-slate-500">Approve or reject new requests from teams.</p>
+              <h2 className="text-base font-semibold text-slate-950">{t('owner_pending_title', 'Pending booking requests')}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t('owner_pending_subtitle', 'Approve or reject new requests from teams.')}</p>
             </div>
-            <Badge tone="yellow">{pendingBookings.length} pending</Badge>
+            <Badge tone="yellow">{t('owner_pending_count', '{{count}} pending', { count: pendingBookings.length })}</Badge>
           </CardHeader>
           <div className="bg-white">
             {pendingBookings.length > 0 ? (
@@ -265,7 +267,7 @@ const OwnerDashboardPage = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           <Button size="sm" className="rounded-xl px-4" disabled={isUpdating} onClick={() => handleStatus(booking.id, 'confirmed')}>
                             <CheckCircleIcon className="h-4 w-4" />
-                            Confirm
+                            {t('action_confirm', 'Confirm')}
                           </Button>
                           <Button
                             size="sm"
@@ -275,7 +277,7 @@ const OwnerDashboardPage = () => {
                             onClick={() => handleStatus(booking.id, 'cancelled')}
                           >
                             <XCircleIcon className="h-4 w-4" />
-                            Cancel
+                            {t('action_cancel', 'Cancel')}
                           </Button>
                         </div>
                       </div>
@@ -287,8 +289,8 @@ const OwnerDashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={ClockIcon}
-                  title="No pending requests"
-                  description="When players create bookings for your fields, they will show up here."
+                  title={t('owner_pending_empty_title', 'No pending requests')}
+                  description={t('owner_pending_empty_description', 'When players create bookings for your fields, they will show up here.')}
                 />
               </div>
             )}
@@ -298,10 +300,10 @@ const OwnerDashboardPage = () => {
         <Card className="overflow-hidden">
           <CardHeader className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-slate-950">Upcoming confirmed</h2>
-              <p className="mt-1 text-sm text-slate-500">Your next scheduled bookings after approval.</p>
+              <h2 className="text-base font-semibold text-slate-950">{t('owner_upcoming_title', 'Upcoming confirmed')}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t('owner_upcoming_subtitle', 'Your next scheduled bookings after approval.')}</p>
             </div>
-            <Badge tone="green">{upcomingConfirmed.length} upcoming</Badge>
+            <Badge tone="green">{t('owner_upcoming_count', '{{count}} upcoming', { count: upcomingConfirmed.length })}</Badge>
           </CardHeader>
           <div className="bg-white">
             {upcomingConfirmed.length > 0 ? (
@@ -311,7 +313,7 @@ const OwnerDashboardPage = () => {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <div className="truncate text-sm font-semibold text-slate-950">{booking.field?.name || 'Field'}</div>
-                        <Badge tone="green">confirmed</Badge>
+                        <Badge tone="green">{t('booking_status_confirmed', 'confirmed')}</Badge>
                       </div>
                       <div className="mt-1.5 truncate text-xs text-slate-600">
                         {new Date(booking.startTime).toLocaleString()} | {booking.team?.name || 'Team'}
@@ -327,9 +329,9 @@ const OwnerDashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={CalendarIcon}
-                  title="No upcoming bookings"
-                  description="Confirm pending requests to see your upcoming schedule."
-                  actionLabel="Go to requests"
+                  title={t('owner_upcoming_empty_title', 'No upcoming bookings')}
+                  description={t('owner_upcoming_empty_description', 'Confirm pending requests to see your upcoming schedule.')}
+                  actionLabel={t('action_go_to_requests', 'Go to requests')}
                   onAction={() => navigate('/owner/bookings')}
                 />
               </div>
@@ -341,11 +343,11 @@ const OwnerDashboardPage = () => {
       <Card className="overflow-hidden">
         <CardHeader className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-slate-950">My fields</h2>
-            <p className="mt-1 text-sm text-slate-500">Your venues, availability, and pricing at a glance.</p>
+            <h2 className="text-base font-semibold text-slate-950">{t('owner_my_fields_title', 'My fields')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('owner_my_fields_subtitle', 'Your venues, availability, and pricing at a glance.')}</p>
           </div>
           <Button as={Link} to="/owner/fields" variant="outline" size="sm" className="rounded-xl border-slate-300 bg-white px-4">
-            Manage fields
+            {t('action_manage_fields', 'Manage fields')}
           </Button>
         </CardHeader>
         <div className="bg-white">
@@ -368,7 +370,7 @@ const OwnerDashboardPage = () => {
                     </div>
                   </div>
                   <Button as={Link} to="/owner/fields" size="sm" variant="outline" className="rounded-xl border-slate-300 bg-white px-4">
-                    Edit
+                    {t('action_edit', 'Edit')}
                   </Button>
                 </div>
               ))}
@@ -377,9 +379,9 @@ const OwnerDashboardPage = () => {
             <div className="p-6">
               <EmptyState
                 icon={BuildingOfficeIcon}
-                title="No fields yet"
-                description="Create your first field to start receiving booking requests."
-                actionLabel="Add field"
+                title={t('owner_no_fields_title', 'No fields yet')}
+                description={t('owner_no_fields_description', 'Create your first field to start receiving booking requests.')}
+                actionLabel={t('action_add_field', 'Add field')}
                 onAction={() => navigate('/owner/fields')}
               />
             </div>
@@ -388,7 +390,9 @@ const OwnerDashboardPage = () => {
       </Card>
 
       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 shadow-sm">
-        Completed bookings: {completedBookings.length}. Revenue estimate includes confirmed and completed only.
+        {t('owner_completed_summary', 'Completed bookings: {{count}}. Revenue estimate includes owner-approved bookings, even if they are cancelled later.', {
+          count: completedBookings.length
+        })}
       </div>
     </div>
   );

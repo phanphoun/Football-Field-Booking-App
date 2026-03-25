@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import notificationService from '../services/notificationService';
 
@@ -36,12 +37,14 @@ const FieldsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { t, language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
   const { showAlert } = useDialog();
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
-  const bookingAccessMessage = 'Booking access is required.';
+  const bookingAccessMessage = t('fields_booking_access_required', 'Booking access is required.');
   const [fields, setFields] = useState([]);
   const [filteredFields, setFilteredFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,9 +69,33 @@ const FieldsPage = () => {
         setFilteredFields(fieldsData);
       } catch (err) {
         console.error('Failed to fetch fields:', err);
+<<<<<<< HEAD
         setError('Failed to load fields');
         setFields([]);
         setFilteredFields([]);
+=======
+        setError(text('Failed to load fields', 'មិនអាចផ្ទុកទីលានបានទេ'));
+        
+        // Fallback to mock data if API fails
+        const mockFields = [
+          {
+            id: 1,
+            name: 'Downtown Arena',
+            address: '123 Main St, Phnom Penh',
+            city: 'Phnom Penh',
+            province: 'Phnom Penh',
+            pricePerHour: 50.00,
+            rating: null,
+            totalRatings: 0,
+            fieldType: '11v11',
+            surfaceType: 'artificial_turf',
+            images: ['https://example.com/field1.jpg'],
+            status: 'available'
+          }
+        ];
+        setFields(mockFields);
+        setFilteredFields(mockFields);
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
       } finally {
         setLoading(false);
       }
@@ -108,10 +135,14 @@ const FieldsPage = () => {
     }
 
     if (!canCreateBooking) {
+<<<<<<< HEAD
       await showAlert(bookingAccessMessage, {
         title: 'Booking Access',
         onConfirm: () => navigate('/#account-upgrade')
       });
+=======
+      await showAlert(bookingAccessMessage, { title: t('fields_booking_access_title', 'Booking Access') });
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
       return;
     }
 
@@ -138,7 +169,7 @@ const FieldsPage = () => {
     if (!fieldToDelete?.id) return;
     const message = deleteMessage.trim();
     if (!message) {
-      setError('Please enter a message to owner before deleting.');
+      setError(text('Please enter a message to owner before deleting.', 'សូមបញ្ចូលសារទៅម្ចាស់ មុននឹងលុប។'));
       return;
     }
 
@@ -168,7 +199,7 @@ const FieldsPage = () => {
       setFields((prev) => prev.filter((field) => field.id !== fieldId));
       closeDeleteDialog();
     } catch (err) {
-      setError(err?.error || 'Failed to delete field');
+      setError(err?.error || text('Failed to delete field', 'មិនអាចលុបទីលានបានទេ'));
     } finally {
       setDeletingFieldId(null);
     }
@@ -179,10 +210,10 @@ const FieldsPage = () => {
     const numericTotalRatings = Number(totalRatings) || 0;
 
     if (!Number.isFinite(numericRating) || numericRating <= 0 || numericTotalRatings === 0) {
-      return 'No rating';
+      return t('fields_no_rating', 'No rating');
     }
 
-    return `${numericRating.toFixed(1)} (${numericTotalRatings} reviews)`;
+    return `${numericRating.toFixed(1)} (${t('fields_reviews', '{{count}} reviews', { count: numericTotalRatings })})`;
   };
 
   const resolveFieldImageUrl = (rawImage, versionToken = '') => {
@@ -209,6 +240,14 @@ const FieldsPage = () => {
     }
     return [];
   };
+  const formatSurfaceType = (surfaceType) => {
+    const normalized = String(surfaceType || '').toLowerCase();
+    if (normalized === 'artificial_turf') return text('artificial turf', 'ស្មៅសិប្បនិម្មិត');
+    if (normalized === 'natural_grass') return text('natural grass', 'ស្មៅធម្មជាតិ');
+    if (normalized === 'concrete') return text('concrete', 'បេតុង');
+    if (normalized === 'indoor') return text('indoor', 'ក្នុងសាល');
+    return String(surfaceType || '').replace('_', ' ');
+  };
 
   if (loading) {
     return (
@@ -222,10 +261,10 @@ const FieldsPage = () => {
     <div>
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Browse football fields near you.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('fields_title', 'Fields')}</h1>
+          <p className="mt-1 text-sm text-gray-600">{t('fields_subtitle', 'Browse football fields near you.')}</p>
         </div>
-        <Badge tone="gray">{filteredFields.length} results</Badge>
+        <Badge tone="gray">{t('fields_results', '{{count}} results', { count: filteredFields.length })}</Badge>
       </div>
 
       {error && (
@@ -239,24 +278,24 @@ const FieldsPage = () => {
         <CardBody className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('fields_search', 'Search')}</label>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search fields..."
+              placeholder={t('fields_search_placeholder', 'Search fields...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('fields_filter_type', 'Field Type')}</label>
             <select
               value={fieldTypeFilter}
               onChange={(e) => setFieldTypeFilter(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             >
-              <option value="">All Types</option>
+              <option value="">{t('fields_all_types', 'All Types')}</option>
               <option value="5v5">5v5</option>
               <option value="7v7">7v7</option>
               <option value="11v11">11v11</option>
@@ -264,13 +303,13 @@ const FieldsPage = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Surface Type</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('fields_filter_surface', 'Surface Type')}</label>
             <select
               value={surfaceTypeFilter}
               onChange={(e) => setSurfaceTypeFilter(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             >
-              <option value="">All Surfaces</option>
+              <option value="">{t('fields_all_surfaces', 'All Surfaces')}</option>
               <option value="natural_grass">Natural Grass</option>
               <option value="artificial_turf">Artificial Turf</option>
               <option value="concrete">Concrete</option>
@@ -278,7 +317,7 @@ const FieldsPage = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Max Price/Hour</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('fields_filter_price', 'Max Price/Hour')}</label>
             <input
               type="number"
               placeholder="50"
@@ -300,7 +339,7 @@ const FieldsPage = () => {
               setMaxPriceFilter('');
             }}
           >
-            Clear filters
+            {text('Clear filters', 'សម្អាតតម្រង')}
           </Button>
         </div>
         </CardBody>
@@ -343,6 +382,7 @@ const FieldsPage = () => {
                     }
                   }}
                 />
+<<<<<<< HEAD
                   <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
                     <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
                       {field.fieldType || 'Field'}
@@ -358,6 +398,27 @@ const FieldsPage = () => {
                         {fieldStatus}
                       </span>
                     )}
+=======
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                  <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                    {field.fieldType || text('Field', 'ទីលាន')}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {discountPercent > 0 && (
+                      <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
+                        {discountPercent}% {text('OFF', 'បញ្ចុះតម្លៃ')}
+                      </span>
+                    )}
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${getStatusToneClasses(fieldStatus)} bg-opacity-95`}>
+                      {fieldStatus === 'available'
+                        ? text('Available', 'អាចកក់បាន')
+                        : fieldStatus === 'booked'
+                          ? text('Booked', 'បានកក់')
+                          : fieldStatus === 'maintenance'
+                            ? text('Maintenance', 'កំពុងជួសជុល')
+                            : fieldStatus}
+                    </span>
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                   </div>
                 </div>
               </div>
@@ -381,16 +442,17 @@ const FieldsPage = () => {
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <BuildingOfficeIcon className="h-4 w-4 mr-1" />
-                    {field.fieldType} • {String(field.surfaceType || '').replace('_', ' ')}
+                    {field.fieldType} • {formatSurfaceType(field.surfaceType)}
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <CurrencyDollarIcon className="h-4 w-4 mr-1" />
                     {discountPercent > 0 ? (
                       <span className="flex items-center gap-2">
-                        <span className="font-semibold text-emerald-600">${discountedPrice}/hour</span>
-                        <span className="text-gray-400 line-through">${field.pricePerHour}/hour</span>
+                        <span className="font-semibold text-emerald-600">${discountedPrice}/{text('hour', 'ម៉ោង')}</span>
+                        <span className="text-gray-400 line-through">${field.pricePerHour}/{text('hour', 'ម៉ោង')}</span>
                       </span>
                     ) : (
+<<<<<<< HEAD
                       `$${field.pricePerHour}/hour`
                     )}
                   </div>
@@ -400,6 +462,12 @@ const FieldsPage = () => {
                     </div>
                   )}
                 </div>
+=======
+                        `$${field.pricePerHour}/${text('hour', 'ម៉ោង')}`
+                     )}
+                   </div>
+                 </div>
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
                 <div className="flex space-x-2">
                   {!isAdmin && (
@@ -418,7 +486,7 @@ const FieldsPage = () => {
                           : 'bg-green-600 text-white hover:bg-green-700'
                       }`}
                     >
-                      {canBookThisField ? 'Book Now' : 'Not Available'}
+                      {canBookThisField ? text('Book Now', 'កក់ឥឡូវ') : text('Not Available', 'មិនអាចកក់បាន')}
                     </button>
                   )}
                   <button
@@ -428,7 +496,7 @@ const FieldsPage = () => {
                     }}
                     className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
                   >
-                    View Details
+                    {text('View Details', 'មើលព័ត៌មានលម្អិត')}
                   </button>
                   {isAdmin && (
                     <button
@@ -439,7 +507,7 @@ const FieldsPage = () => {
                       disabled={deletingFieldId === field.id}
                       className="border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
-                      {deletingFieldId === field.id ? 'Deleting...' : 'Delete'}
+                      {deletingFieldId === field.id ? text('Deleting...', 'កំពុងលុប...') : text('Delete', 'លុប')}
                     </button>
                   )}
                 </div>
@@ -451,9 +519,9 @@ const FieldsPage = () => {
           <div className="col-span-full">
             <EmptyState
               icon={BuildingOfficeIcon}
-              title="No fields found"
-              description="Try adjusting your search or filters."
-              actionLabel="Clear filters"
+              title={text('No fields found', 'រកមិនឃើញទីលាន')}
+              description={text('Try adjusting your search or filters.', 'សូមកែតម្រូវការស្វែងរក ឬតម្រងរបស់អ្នក។')}
+              actionLabel={text('Clear filters', 'សម្អាតតម្រង')}
               onAction={() => {
                 setSearchTerm('');
                 setFieldTypeFilter('');
@@ -469,7 +537,7 @@ const FieldsPage = () => {
       {filteredFields.length > 0 && filteredFields.length < fields.length && (
         <div className="mt-8 text-center">
           <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-            Load More Fields
+            {text('Load More Fields', 'បង្ហាញទីលានបន្ថែម')}
           </button>
         </div>
       )}
@@ -478,18 +546,18 @@ const FieldsPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
             <div className="border-b border-gray-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Delete Field</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{text('Delete Field', 'លុបទីលាន')}</h2>
               <p className="mt-1 text-sm text-gray-600">
-                Send a message to owner before deleting <span className="font-semibold">{fieldToDelete.name}</span>.
+                {text('Send a message to owner before deleting', 'ផ្ញើសារទៅម្ចាស់ មុននឹងលុប')} <span className="font-semibold">{fieldToDelete.name}</span>.
               </p>
             </div>
             <div className="px-5 py-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">Message to owner</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">{text('Message to owner', 'សារទៅម្ចាស់')}</label>
               <textarea
                 value={deleteMessage}
                 onChange={(e) => setDeleteMessage(e.target.value)}
                 rows={4}
-                placeholder="Explain why this field is being deleted..."
+                placeholder={text('Explain why this field is being deleted...', 'ពន្យល់មូលហេតុដែលទីលាននេះត្រូវបានលុប...')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
               />
             </div>
@@ -500,7 +568,7 @@ const FieldsPage = () => {
                 disabled={deletingFieldId === fieldToDelete.id}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {text('Cancel', 'បោះបង់')}
               </button>
               <button
                 type="button"
@@ -508,7 +576,7 @@ const FieldsPage = () => {
                 disabled={deletingFieldId === fieldToDelete.id}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {deletingFieldId === fieldToDelete.id ? 'Deleting...' : 'Send & Delete'}
+                {deletingFieldId === fieldToDelete.id ? text('Deleting...', 'កំពុងលុប...') : text('Send & Delete', 'ផ្ញើ និងលុប')}
               </button>
             </div>
           </div>

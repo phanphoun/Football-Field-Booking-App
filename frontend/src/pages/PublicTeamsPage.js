@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { UsersIcon } from '@heroicons/react/24/outline';
-import { Badge, Button, EmptyState, ImagePreviewModal, Spinner } from '../components/ui';
+import { Badge, Button, EmptyState, ImagePreviewModal, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -17,6 +18,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+<<<<<<< HEAD
 const hasPendingJoinRequest = (team, userId) => {
   if (!team || !userId) return false;
 
@@ -29,22 +31,61 @@ const hasPendingJoinRequest = (team, userId) => {
   }
 
   return false;
+=======
+const formatSkillLevel = (skillLevel, text) => {
+  const normalized = String(skillLevel || '').toLowerCase();
+  if (normalized === 'beginner') return text('Beginner', 'ដំបូង');
+  if (normalized === 'intermediate') return text('Intermediate', 'មធ្យម');
+  if (normalized === 'advanced') return text('Advanced', 'ខ្ពស់');
+  if (normalized === 'professional') return text('Professional', 'អាជីព');
+  return skillLevel || text('Unknown', 'មិនស្គាល់');
+};
+
+const getActionErrorMessage = (error) => error?.error || error?.message || '';
+
+const isAlreadyMemberError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  return normalized.includes('already a member') || normalized.includes('already joined') || normalized.includes('already in this team');
+};
+
+const isPendingRequestError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  return normalized.includes('pending request') || normalized.includes('already requested') || normalized.includes('request already') || normalized.includes('already has a pending');
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 };
 
 const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
+  const { language } = useLanguage();
+  const text = (en, km) => (language === 'km' ? km : en);
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [requestedTeamIds, setRequestedTeamIds] = useState({});
+  const [memberTeamIds, setMemberTeamIds] = useState({});
+  const [requestingTeamId, setRequestingTeamId] = useState(null);
   const [deletingTeamId, setDeletingTeamId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
   const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    if (!successMessage) return;
+    showToast(successMessage, { type: 'success', duration: 3200 });
+    setSuccessMessage(null);
+  }, [showToast, successMessage]);
+
+  useEffect(() => {
+    if (!error) return;
+    showToast(error, { type: 'error', duration: 3600 });
+    setError(null);
+  }, [error, showToast]);
 
   const canRequestJoin = (team) => {
     if (!isAuthenticated) return false;
@@ -60,19 +101,31 @@ const PublicTeamsPage = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await teamService.getPublicTeams();
+        const [response, myTeamsResponse] = await Promise.all([
+          teamService.getPublicTeams(),
+          isAuthenticated ? teamService.getMyTeams().catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
+        ]);
         const teamsData = Array.isArray(response.data) ? response.data : [];
         setTeams(teamsData);
+        if (isAuthenticated) {
+          const myTeams = Array.isArray(myTeamsResponse.data) ? myTeamsResponse.data : [];
+          setMemberTeamIds(
+            myTeams.reduce((accumulator, team) => {
+              if (team?.id) accumulator[team.id] = true;
+              return accumulator;
+            }, {})
+          );
+        }
       } catch (err) {
         console.error('Failed to fetch public teams:', err);
-        setError('Failed to load teams');
+        setError(text('Failed to load teams', 'មិនអាចផ្ទុកក្រុមបានទេ'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchTeams();
-  }, []);
+  }, [isAuthenticated]);
 
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {
@@ -81,10 +134,11 @@ const PublicTeamsPage = () => {
     }
 
     try {
+      setRequestingTeamId(teamId);
       setError(null);
-      setSuccessMessage(null);
       const response = await teamService.joinTeam(teamId);
       if (response.success) {
+<<<<<<< HEAD
         setTeams((prev) =>
           prev.map((team) =>
             team.id === teamId
@@ -116,6 +170,24 @@ const PublicTeamsPage = () => {
         return;
       }
       setError(err?.error || 'Failed to submit join request');
+=======
+        setRequestedTeamIds((current) => ({ ...current, [teamId]: true }));
+        setSuccessMessage(text('Join request submitted!', 'បានផ្ញើសំណើចូលរួម!'));
+      }
+    } catch (err) {
+      const message = getActionErrorMessage(err);
+      if (isAlreadyMemberError(message)) {
+        setMemberTeamIds((current) => ({ ...current, [teamId]: true }));
+        setError(text('You are already a member of this team.', 'អ្នកជាសមាជិកក្រុមនេះរួចហើយ។'));
+      } else if (isPendingRequestError(message)) {
+        setRequestedTeamIds((current) => ({ ...current, [teamId]: true }));
+        setError(text('Your request is already pending for this team.', 'សំណើរបស់អ្នកសម្រាប់ក្រុមនេះកំពុងរង់ចាំរួចហើយ។'));
+      } else {
+        setError(message || text('Failed to submit join request', 'មិនអាចផ្ញើសំណើចូលរួមបានទេ'));
+      }
+    } finally {
+      setRequestingTeamId(null);
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     }
   };
 
@@ -135,7 +207,7 @@ const PublicTeamsPage = () => {
     if (!teamToDelete?.id) return;
     const message = deleteMessage.trim();
     if (!message) {
-      setError('Please enter a message to captain before deleting.');
+      setError(text('Please enter a message to captain before deleting.', 'សូមបញ្ចូលសារទៅកាពីតែន មុននឹងលុប។'));
       return;
     }
 
@@ -164,10 +236,10 @@ const PublicTeamsPage = () => {
 
       await teamService.deleteTeam(teamId);
       setTeams((prev) => prev.filter((team) => team.id !== teamId));
-      setSuccessMessage('Team deleted successfully.');
+      setSuccessMessage(text('Team deleted successfully.', 'បានលុបក្រុមដោយជោគជ័យ។'));
       closeDeleteDialog();
     } catch (err) {
-      setError(err?.error || 'Failed to delete team');
+      setError(err?.error || text('Failed to delete team', 'មិនអាចលុបក្រុមបានទេ'));
     } finally {
       setDeletingTeamId(null);
     }
@@ -185,32 +257,26 @@ const PublicTeamsPage = () => {
     <div>
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teams</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{text('Teams', 'ក្រុម')}</h1>
           <p className="mt-1 text-sm text-gray-600">
-            {isAdmin ? 'Admin view: view and delete teams.' : 'Discover football teams and request to join.'}
+            {isAdmin ? text('Admin view: view and delete teams.', 'ទិដ្ឋភាពអ្នកគ្រប់គ្រង: មើល និងលុបក្រុម។') : text('Discover football teams and request to join.', 'ស្វែងរកក្រុមបាល់ទាត់ ហើយស្នើចូលរួម។')}
           </p>
         </div>
-        <Badge tone="gray">{teams.length} results</Badge>
+        <Badge tone="gray">{text(`${teams.length} results`, `${teams.length} លទ្ធផល`)}</Badge>
       </div>
-
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-          {error}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teams.length > 0 ? (
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
             const jerseyColors = getTeamJerseyColors(team);
+<<<<<<< HEAD
             const joinRequestPending = hasPendingJoinRequest(team, user?.id);
+=======
+            const isRequested = Boolean(requestedTeamIds[team.id]);
+            const isMember = Boolean(memberTeamIds[team.id]) || team.captainId === user?.id;
+            const isRequesting = requestingTeamId === team.id;
+>>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
             return (
             <div
@@ -250,25 +316,25 @@ const PublicTeamsPage = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-lg font-semibold text-gray-900 truncate">{team.name}</h3>
-                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'No description available.'}</p>
+                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || text('No description available.', 'មិនមានការពិពណ៌នា។')}</p>
                   </div>
-                  <Badge tone="gray">{team.memberCount || 0} members</Badge>
+                  <Badge tone="gray">{text(`${team.memberCount || 0} members`, `${team.memberCount || 0} សមាជិក`)}</Badge>
                 </div>
               </div>
 
               <div className="px-6 text-sm text-gray-600 space-y-1">
-                <div>Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}</div>
-                {team.homeField?.name && <div>Home Field: {team.homeField.name}</div>}
+                <div>{text('Captain:', 'កាពីតែន:')} {team.captain?.firstName || team.captain?.username || text('Unknown', 'មិនស្គាល់')}</div>
+                {team.homeField?.name && <div>{text('Home Field:', 'ទីលានផ្ទះ:')} {team.homeField.name}</div>}
                 {team.skillLevel && (
                   <div className="flex items-center gap-2">
-                    <span>Skill:</span>
+                    <span>{text('Skill:', 'កម្រិត:')}</span>
                     <Badge tone="green" className="capitalize">
-                      {team.skillLevel}
+                      {formatSkillLevel(team.skillLevel, text)}
                     </Badge>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span>Jersey:</span>
+                  <span>{text('Jersey:', 'អាវក្រុម:')}</span>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1">
                       {jerseyColors.map((color, index) => (
@@ -287,7 +353,7 @@ const PublicTeamsPage = () => {
                   variant="outline"
                   className="flex-1"
                 >
-                  View Details
+                  {text('View Details', 'មើលព័ត៌មានលម្អិត')}
                 </Button>
 
                 {isAdmin ? (
@@ -299,7 +365,21 @@ const PublicTeamsPage = () => {
                     className="flex-1 bg-red-600 hover:bg-red-700"
                     disabled={deletingTeamId === team.id}
                   >
-                    {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
+                    {deletingTeamId === team.id ? text('Deleting...', 'កំពុងលុប...') : text('Delete', 'លុប')}
+                  </Button>
+                ) : isMember ? (
+                  <Button
+                    disabled
+                    className="flex-1"
+                  >
+                    {text('Your Team', 'ក្រុមរបស់អ្នក')}
+                  </Button>
+                ) : isRequested ? (
+                  <Button
+                    disabled
+                    className="flex-1 bg-amber-500 hover:bg-amber-500 text-white disabled:opacity-100"
+                  >
+                    {text('Requested', 'បានស្នើ')}
                   </Button>
                 ) : joinRequestPending ? (
                   <Button
@@ -314,16 +394,10 @@ const PublicTeamsPage = () => {
                       event.stopPropagation();
                       handleRequestJoin(team.id);
                     }}
+                    disabled={isRequesting}
                     className="flex-1"
                   >
-                    Request Join
-                  </Button>
-                ) : team.captainId === user?.id ? (
-                  <Button
-                    disabled
-                    className="flex-1"
-                  >
-                    Your Team
+                    {isRequesting ? text('Sending...', 'កំពុងផ្ញើ...') : text('Request Join', 'ស្នើចូលរួម')}
                   </Button>
                 ) : (
                   <Button
@@ -333,7 +407,7 @@ const PublicTeamsPage = () => {
                     }}
                     className="flex-1"
                   >
-                    Login to Join
+                    {text('Login to Join', 'ចូលគណនីដើម្បីចូលរួម')}
                   </Button>
                 )}
               </div>
@@ -341,7 +415,7 @@ const PublicTeamsPage = () => {
           )})
         ) : (
           <div className="col-span-full">
-            <EmptyState icon={UsersIcon} title="No teams found" description="Check back later, or register as a captain to create a team." />
+            <EmptyState icon={UsersIcon} title={text('No teams found', 'មិនមានក្រុម')} description={text('Check back later, or register as a captain to create a team.', 'សូមពិនិត្យម្តងទៀតពេលក្រោយ ឬចុះឈ្មោះជាកាពីតែនដើម្បីបង្កើតក្រុម។')} />
           </div>
         )}
       </div>
@@ -350,18 +424,18 @@ const PublicTeamsPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
             <div className="border-b border-gray-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Delete Team</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{text('Delete Team', 'លុបក្រុម')}</h2>
               <p className="mt-1 text-sm text-gray-600">
-                Send a message to captain before deleting <span className="font-semibold">{teamToDelete.name}</span>.
+                {text('Send a message to captain before deleting', 'ផ្ញើសារទៅកាពីតែន មុននឹងលុប')} <span className="font-semibold">{teamToDelete.name}</span>.
               </p>
             </div>
             <div className="px-5 py-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">Message to captain</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">{text('Message to captain', 'សារទៅកាពីតែន')}</label>
               <textarea
                 value={deleteMessage}
                 onChange={(e) => setDeleteMessage(e.target.value)}
                 rows={4}
-                placeholder="Explain why this team is being deleted..."
+                placeholder={text('Explain why this team is being deleted...', 'ពន្យល់មូលហេតុដែលក្រុមនេះត្រូវបានលុប...')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
               />
             </div>
@@ -372,7 +446,7 @@ const PublicTeamsPage = () => {
                 disabled={deletingTeamId === teamToDelete.id}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {text('Cancel', 'បោះបង់')}
               </button>
               <button
                 type="button"
@@ -380,7 +454,7 @@ const PublicTeamsPage = () => {
                 disabled={deletingTeamId === teamToDelete.id}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {deletingTeamId === teamToDelete.id ? 'Deleting...' : 'Send & Delete'}
+                {deletingTeamId === teamToDelete.id ? text('Deleting...', 'កំពុងលុប...') : text('Send & Delete', 'ផ្ញើ និងលុប')}
               </button>
             </div>
           </div>
@@ -389,7 +463,7 @@ const PublicTeamsPage = () => {
       <ImagePreviewModal
         open={Boolean(previewImage)}
         imageUrl={previewImage?.url}
-        title={previewImage?.title || 'Team image'}
+        title={previewImage?.title || text('Team image', 'រូបភាពក្រុម')}
         onClose={() => setPreviewImage(null)}
       />
     </div>
