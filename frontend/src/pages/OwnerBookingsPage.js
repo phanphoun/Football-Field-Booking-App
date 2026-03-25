@@ -20,11 +20,9 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
-
-const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -45,43 +43,6 @@ const formatTimeOnly = (value) => {
   return parsed.toLocaleTimeString();
 };
 
-const toDateInputValue = (value) => {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const day = String(parsed.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const buildScheduleWithSelectedDate = (booking, dateValue) => {
-  if (!booking?.startTime || !booking?.endTime || !dateValue) return null;
-  const [year, month, day] = String(dateValue).split('-').map(Number);
-  if (![year, month, day].every(Number.isFinite)) return null;
-
-  const currentStart = new Date(booking.startTime);
-  const currentEnd = new Date(booking.endTime);
-  if (Number.isNaN(currentStart.getTime()) || Number.isNaN(currentEnd.getTime())) return null;
-
-  const durationMs = currentEnd.getTime() - currentStart.getTime();
-  if (durationMs <= 0) return null;
-
-  const nextStart = new Date(currentStart);
-  nextStart.setFullYear(year, month - 1, day);
-
-  let nextEnd = new Date(currentEnd);
-  nextEnd.setFullYear(year, month - 1, day);
-  if (nextEnd <= nextStart) {
-    nextEnd = new Date(nextStart.getTime() + durationMs);
-  }
-
-  return {
-    startTime: nextStart.toISOString(),
-    endTime: nextEnd.toISOString()
-  };
-};
-
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -91,7 +52,7 @@ const resolveAvatarUrl = (user) => {
 
 const OwnerBookingsPage = () => {
   const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { version } = useRealtime();
   const [searchParams] = useSearchParams();
   const { confirm } = useDialog();
@@ -103,7 +64,6 @@ const OwnerBookingsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [captainDetailsOpen, setCaptainDetailsOpen] = useState(false);
-  const [acceptDateByBooking, setAcceptDateByBooking] = useState({});
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -125,10 +85,10 @@ const OwnerBookingsPage = () => {
       }
     };
     load();
-  }, [refresh, version]);
+  }, [refresh, text, version]);
 
   const counts = useMemo(() => {
-    const base = { all: bookings.length, pending: 0, confirmed: 0, cancellation_pending: 0, completed: 0, cancelled: 0 };
+    const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
     for (const b of bookings) {
       if (b?.status && Object.prototype.hasOwnProperty.call(base, b.status)) base[b.status] += 1;
     }
@@ -146,22 +106,11 @@ const OwnerBookingsPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') {
-        const selectedDate = acceptDateByBooking[booking.id] || toDateInputValue(booking.startTime);
-        if (!selectedDate) {
-          setError('Please select a date before accepting this booking.');
-          return;
-        }
-        const nextSchedule = buildScheduleWithSelectedDate(booking, selectedDate);
-        if (!nextSchedule) {
-          setError('Unable to update booking date. Please choose a valid date.');
-          return;
-        }
-
         const confirmed = await confirm('Do you want to accept this booking request?', {
           title: text('Accept Booking', 'ទទួលយកការកក់')
         });
         if (!confirmed) return;
-        await bookingService.confirmBooking(booking.id, nextSchedule);
+        await bookingService.confirmBooking(booking.id);
       }
       if (nextStatus === 'cancelled') {
         const confirmed = await confirm(text('Do you want to cancel booking?', 'តើអ្នកចង់បោះបង់ការកក់នេះមែនទេ?'), { title: text('Cancel Booking', 'បោះបង់ការកក់') });
@@ -193,20 +142,11 @@ const OwnerBookingsPage = () => {
   }
 
   const tabs = [
-<<<<<<< HEAD
-    { key: 'pending', label: 'Pending', count: counts.pending },
-    { key: 'cancellation_pending', label: 'Cancellation Pending', count: counts.cancellation_pending },
-    { key: 'confirmed', label: 'Confirmed', count: counts.confirmed },
-    { key: 'completed', label: 'Completed', count: counts.completed },
-    { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },
-    { key: 'all', label: 'All', count: counts.all }
-=======
     { key: 'pending', label: text('Pending', 'កំពុងរង់ចាំ'), count: counts.pending },
     { key: 'confirmed', label: text('Confirmed', 'បានបញ្ជាក់'), count: counts.confirmed },
     { key: 'completed', label: text('Completed', 'បានបញ្ចប់'), count: counts.completed },
     { key: 'cancelled', label: text('Cancelled', 'បានបោះបង់'), count: counts.cancelled },
     { key: 'all', label: text('All', 'ទាំងអស់'), count: counts.all }
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
   ];
 
   return (
@@ -353,25 +293,6 @@ const OwnerBookingsPage = () => {
 
                     <div className="flex justify-start lg:justify-end">
                       <div className="flex flex-col items-start gap-3 lg:items-end">
-                        {b.status === 'pending' && (
-                          <div className="w-full min-w-[220px] lg:w-[220px]">
-                            <label className="block text-[11px] font-medium text-gray-600">Match date</label>
-                            <input
-                              type="date"
-                              value={acceptDateByBooking[b.id] ?? toDateInputValue(b.startTime)}
-                              min={toDateInputValue(new Date())}
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                              onChange={(event) =>
-                                setAcceptDateByBooking((prev) => ({
-                                  ...prev,
-                                  [b.id]: event.target.value
-                                }))
-                              }
-                              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
-                            />
-                          </div>
-                        )}
                         <div className="flex flex-wrap items-center gap-2">
                       {b.status === 'pending' && (
                         <>
@@ -554,21 +475,6 @@ const OwnerBookingsPage = () => {
 
             {selectedBooking.status === 'pending' && (
               <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <div className="mr-auto min-w-[220px]">
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Match date</label>
-                  <input
-                    type="date"
-                    value={acceptDateByBooking[selectedBooking.id] ?? toDateInputValue(selectedBooking.startTime)}
-                    min={toDateInputValue(new Date())}
-                    onChange={(event) =>
-                      setAcceptDateByBooking((prev) => ({
-                        ...prev,
-                        [selectedBooking.id]: event.target.value
-                      }))
-                    }
-                    className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900"
-                  />
-                </div>
                 <Button
                   size="sm"
                   variant="danger"

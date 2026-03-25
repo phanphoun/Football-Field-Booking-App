@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { BuildingOfficeIcon, MapPinIcon, CurrencyDollarIcon, StarIcon as SparklesIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
@@ -26,19 +26,13 @@ const getStatusToneClasses = (status) => {
   return 'bg-slate-200 text-slate-700';
 };
 const isBookableField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
-const getOwnerDisplayName = (field) => {
-  const owner = field?.owner;
-  if (!owner) return field?.ownerId ? `Owner #${field.ownerId}` : 'Unknown owner';
-  const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
-  return fullName || owner.username || `Owner #${owner.id}`;
-};
 
 const FieldsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { t, language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { showAlert } = useDialog();
   const [searchParams] = useSearchParams();
   const searchInputRef = useRef(null);
@@ -69,11 +63,6 @@ const FieldsPage = () => {
         setFilteredFields(fieldsData);
       } catch (err) {
         console.error('Failed to fetch fields:', err);
-<<<<<<< HEAD
-        setError('Failed to load fields');
-        setFields([]);
-        setFilteredFields([]);
-=======
         setError(text('Failed to load fields', 'មិនអាចផ្ទុកទីលានបានទេ'));
         
         // Fallback to mock data if API fails
@@ -95,14 +84,13 @@ const FieldsPage = () => {
         ];
         setFields(mockFields);
         setFilteredFields(mockFields);
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
       } finally {
         setLoading(false);
       }
     };
 
     fetchFields();
-  }, []);
+  }, [text]);
 
   useEffect(() => {
     const filtered = fields.filter(field => {
@@ -135,14 +123,7 @@ const FieldsPage = () => {
     }
 
     if (!canCreateBooking) {
-<<<<<<< HEAD
-      await showAlert(bookingAccessMessage, {
-        title: 'Booking Access',
-        onConfirm: () => navigate('/#account-upgrade')
-      });
-=======
       await showAlert(bookingAccessMessage, { title: t('fields_booking_access_title', 'Booking Access') });
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
       return;
     }
 
@@ -216,15 +197,10 @@ const FieldsPage = () => {
     return `${numericRating.toFixed(1)} (${t('fields_reviews', '{{count}} reviews', { count: numericTotalRatings })})`;
   };
 
-  const resolveFieldImageUrl = (rawImage, versionToken = '') => {
+  const resolveFieldImageUrl = (rawImage) => {
     if (!rawImage || isPlaceholderImage(rawImage)) return DEFAULT_FIELD_IMAGE;
     if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-    if (String(rawImage).startsWith('/uploads/')) {
-      const baseUrl = `${API_ORIGIN}${rawImage}`;
-      if (!versionToken) return baseUrl;
-      const separator = baseUrl.includes('?') ? '&' : '?';
-      return `${baseUrl}${separator}v=${encodeURIComponent(String(versionToken))}`;
-    }
+    if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
     return rawImage;
   };
 
@@ -373,7 +349,7 @@ const FieldsPage = () => {
             >
               <div className="relative h-48 bg-gray-200 overflow-hidden">
                 <img
-                  src={resolveFieldImageUrl(normalizeImages(field.images)[0], field.updatedAt || field.id)}
+                  src={resolveFieldImageUrl(normalizeImages(field.images)[0])}
                   alt={field.name}
                   className="w-full h-full object-cover hover:scale-[1.02] transition-transform"
                   onError={(e) => {
@@ -382,23 +358,6 @@ const FieldsPage = () => {
                     }
                   }}
                 />
-<<<<<<< HEAD
-                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                      {field.fieldType || 'Field'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {discountPercent > 0 && (
-                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                          {discountPercent}% OFF
-                        </span>
-                      )}
-                    {!isAdmin && (
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${getStatusToneClasses(fieldStatus)} bg-opacity-95`}>
-                        {fieldStatus}
-                      </span>
-                    )}
-=======
                 <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
                   <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
                     {field.fieldType || text('Field', 'ទីលាន')}
@@ -418,7 +377,6 @@ const FieldsPage = () => {
                             ? text('Maintenance', 'កំពុងជួសជុល')
                             : fieldStatus}
                     </span>
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                   </div>
                 </div>
               </div>
@@ -452,22 +410,10 @@ const FieldsPage = () => {
                         <span className="text-gray-400 line-through">${field.pricePerHour}/{text('hour', 'ម៉ោង')}</span>
                       </span>
                     ) : (
-<<<<<<< HEAD
-                      `$${field.pricePerHour}/hour`
-                    )}
-                  </div>
-                  {isAdmin && (
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Owner:</span> {getOwnerDisplayName(field)}
-                    </div>
-                  )}
-                </div>
-=======
                         `$${field.pricePerHour}/${text('hour', 'ម៉ោង')}`
                      )}
                    </div>
                  </div>
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
                 <div className="flex space-x-2">
                   {!isAdmin && (

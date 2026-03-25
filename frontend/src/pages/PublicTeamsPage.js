@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -18,20 +18,6 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
-<<<<<<< HEAD
-const hasPendingJoinRequest = (team, userId) => {
-  if (!team || !userId) return false;
-
-  if (team.joinRequestPending || team.hasPendingJoinRequest || team.membershipStatus === 'pending' || team.userMembershipStatus === 'pending') {
-    return true;
-  }
-
-  if (Array.isArray(team.teamMembers)) {
-    return team.teamMembers.some((member) => member.userId === userId && member.status === 'pending');
-  }
-
-  return false;
-=======
 const formatSkillLevel = (skillLevel, text) => {
   const normalized = String(skillLevel || '').toLowerCase();
   if (normalized === 'beginner') return text('Beginner', 'ដំបូង');
@@ -51,13 +37,12 @@ const isAlreadyMemberError = (message) => {
 const isPendingRequestError = (message) => {
   const normalized = String(message || '').toLowerCase();
   return normalized.includes('pending request') || normalized.includes('already requested') || normalized.includes('request already') || normalized.includes('already has a pending');
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 };
 
 const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,7 +110,7 @@ const PublicTeamsPage = () => {
     };
 
     fetchTeams();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, text]);
 
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {
@@ -138,39 +123,6 @@ const PublicTeamsPage = () => {
       setError(null);
       const response = await teamService.joinTeam(teamId);
       if (response.success) {
-<<<<<<< HEAD
-        setTeams((prev) =>
-          prev.map((team) =>
-            team.id === teamId
-              ? {
-                  ...team,
-                  joinRequestPending: true,
-                  userMembershipStatus: 'pending'
-                }
-              : team
-          )
-        );
-        setSuccessMessage('Join request submitted. Waiting for captain approval.');
-      }
-    } catch (err) {
-      if ((err?.error || '').toLowerCase().includes('already pending')) {
-        setTeams((prev) =>
-          prev.map((team) =>
-            team.id === teamId
-              ? {
-                  ...team,
-                  joinRequestPending: true,
-                  userMembershipStatus: 'pending'
-                }
-              : team
-          )
-        );
-        setSuccessMessage('Your join request is still waiting for captain approval.');
-        setError(null);
-        return;
-      }
-      setError(err?.error || 'Failed to submit join request');
-=======
         setRequestedTeamIds((current) => ({ ...current, [teamId]: true }));
         setSuccessMessage(text('Join request submitted!', 'បានផ្ញើសំណើចូលរួម!'));
       }
@@ -187,7 +139,6 @@ const PublicTeamsPage = () => {
       }
     } finally {
       setRequestingTeamId(null);
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     }
   };
 
@@ -270,13 +221,9 @@ const PublicTeamsPage = () => {
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
             const jerseyColors = getTeamJerseyColors(team);
-<<<<<<< HEAD
-            const joinRequestPending = hasPendingJoinRequest(team, user?.id);
-=======
             const isRequested = Boolean(requestedTeamIds[team.id]);
             const isMember = Boolean(memberTeamIds[team.id]) || team.captainId === user?.id;
             const isRequesting = requestingTeamId === team.id;
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
             return (
             <div
@@ -292,7 +239,7 @@ const PublicTeamsPage = () => {
               }}
               className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
-              <div className="relative h-52">
+              <div className="relative h-44">
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                   <UsersIcon className="h-12 w-12 text-gray-300" />
                 </div>
@@ -380,13 +327,6 @@ const PublicTeamsPage = () => {
                     className="flex-1 bg-amber-500 hover:bg-amber-500 text-white disabled:opacity-100"
                   >
                     {text('Requested', 'បានស្នើ')}
-                  </Button>
-                ) : joinRequestPending ? (
-                  <Button
-                    disabled
-                    className="flex-1 bg-amber-100 text-amber-800 hover:bg-amber-100"
-                  >
-                    Request Pending
                   </Button>
                 ) : canRequestJoin(team) ? (
                   <Button

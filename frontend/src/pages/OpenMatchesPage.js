@@ -5,17 +5,11 @@ import teamService from '../services/teamService';
 import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
-import { useAuth } from '../context/AuthContext';
 
 const OpenMatchesPage = () => {
-<<<<<<< HEAD
-  const { user } = useAuth();
-  const canUseOpenMatches = ['captain', 'field_owner'].includes(user?.role || '');
-=======
   const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { showToast } = useToast();
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
   const [selectedTeams, setSelectedTeams] = useState({});
@@ -43,14 +37,6 @@ const OpenMatchesPage = () => {
   }, [captainedTeams]);
 
   const loadData = useCallback(async () => {
-    if (!canUseOpenMatches) {
-      setOpenMatches([]);
-      setCaptainedTeams([]);
-      setError('This feature is available for team captains and field owners only.');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
@@ -69,7 +55,7 @@ const OpenMatchesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [canUseOpenMatches]);
+  }, [text]);
 
   useEffect(() => {
     loadData();

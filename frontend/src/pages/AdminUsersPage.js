@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import userService from '../services/userService';
-import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog, useToast } from '../components/ui';
+import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { buildAssetUrl } from '../config/appConfig';
-import { formatRoleLabel } from '../utils/formatters';
 
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
 const STATUSES = ['active', 'inactive', 'suspended'];
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusBadgeClass = (status) => {
   if (status === 'active') return 'bg-green-100 text-green-700';
@@ -22,49 +23,52 @@ const roleBadgeClass = (role) => {
   return 'bg-slate-100 text-slate-700';
 };
 
+const formatRoleLabel = (role) =>
+  String(role || 'unknown')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
 const resolveAvatarUrl = (user) => {
-  return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
+  const rawAvatar = user?.avatarUrl || user?.avatar_url;
+  if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+  if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
+  const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
+  return `${API_ORIGIN}${normalizedPath}`;
 };
 
 const AdminUsersPage = () => {
   const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState(null);
+  const [flash, setFlash] = useState(null);
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
   const [editUser, setEditUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
-  const [viewUserLoading, setViewUserLoading] = useState(false);
-  const [fieldOwnerViewer, setFieldOwnerViewer] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [editForm, setEditForm] = useState({ role: 'player', status: 'active' });
   const { confirm } = useDialog();
-  const { showToast } = useToast();
   const actionMenuRef = useRef(null);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await userService.getAllUsers();
       setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-<<<<<<< HEAD
-      showToast(error.error || 'Failed to load users.', { type: 'error' });
-=======
       setFlash({ type: 'error', message: error.error || text('Failed to load users.', 'មិនអាចផ្ទុកអ្នកប្រើបានទេ។') });
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     } finally {
       setLoading(false);
     }
-  };
+  }, [text]);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   useEffect(() => {
     if (!openMenuUserId) return undefined;
@@ -117,15 +121,9 @@ const AdminUsersPage = () => {
       setSavingUserId(userId);
       await userService.deleteUser(userId);
       setUsers((prev) => prev.filter((user) => user.id !== userId));
-<<<<<<< HEAD
-      showToast('User deleted successfully.', { type: 'success' });
-    } catch (error) {
-      showToast(error.error || 'Failed to delete user.', { type: 'error' });
-=======
       setFlash({ type: 'success', message: text('User deleted successfully.', 'បានលុបអ្នកប្រើដោយជោគជ័យ។') });
     } catch (error) {
       setFlash({ type: 'error', message: error.error || text('Failed to delete user.', 'មិនអាចលុបអ្នកប្រើបានទេ។') });
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     } finally {
       setSavingUserId(null);
     }
@@ -145,40 +143,13 @@ const AdminUsersPage = () => {
     setEditUser(null);
   };
 
-  const openViewModal = async (user) => {
+  const openViewModal = (user) => {
     if (openMenuUserId === user.id) return;
     setViewUser(user);
-    setViewUserLoading(true);
-    try {
-      const response = await userService.getUserById(user.id);
-      setViewUser(response?.data || user);
-    } catch (error) {
-      showToast(error.error || 'Failed to load user details.', { type: 'error' });
-    } finally {
-      setViewUserLoading(false);
-    }
   };
 
   const closeViewModal = () => {
-    setViewUserLoading(false);
     setViewUser(null);
-  };
-
-  const closeFieldOwnerViewer = () => {
-    setFieldOwnerViewer(null);
-  };
-
-  const getOwnedFields = (user) => {
-    return Array.isArray(user?.fields) ? user.fields : [];
-  };
-
-  const getActivePlayerTeams = (user) => {
-    const teams = Array.isArray(user?.teams) ? user.teams : [];
-    return teams.filter((team) => {
-      const membership = team?.TeamMember;
-      if (!membership) return false;
-      return membership.status === 'active' && membership.isActive !== false;
-    });
   };
 
   const handleEditFormChange = (event) => {
@@ -204,17 +175,10 @@ const AdminUsersPage = () => {
             : user
         )
       );
-<<<<<<< HEAD
-      showToast('User updated successfully.', { type: 'success' });
-      setEditUser(null);
-    } catch (error) {
-      showToast(error.error || 'Failed to update user.', { type: 'error' });
-=======
       setFlash({ type: 'success', message: text('User updated successfully.', 'បានកែប្រែអ្នកប្រើដោយជោគជ័យ។') });
       setEditUser(null);
     } catch (error) {
       setFlash({ type: 'error', message: error.error || text('Failed to update user.', 'មិនអាចកែប្រែអ្នកប្រើបានទេ។') });
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     } finally {
       setSavingUserId(null);
     }
@@ -233,6 +197,12 @@ const AdminUsersPage = () => {
         </div>
         </div>
       </div>
+
+      {flash && (
+        <div className={`rounded-md border px-4 py-3 text-sm ${flash.type === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800'}`}>
+          {flash.message}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
@@ -317,6 +287,7 @@ const AdminUsersPage = () => {
                 const isSaving = savingUserId === user.id;
                 const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
                 const status = user.status || 'active';
+
                 return (
                   <tr
                     key={user.id}
@@ -337,7 +308,7 @@ const AdminUsersPage = () => {
                           alt={`${fullName} avatar`}
                           className="h-9 w-9 rounded-full border border-gray-200 bg-gray-100 object-cover"
                           onError={(event) => {
-                            const fallbackUrl = buildAssetUrl();
+                            const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                             if (event.currentTarget.src !== fallbackUrl) {
                               event.currentTarget.src = fallbackUrl;
                             }
@@ -466,65 +437,6 @@ const AdminUsersPage = () => {
       </ConfirmationModal>
 
       <ConfirmationModal
-        isOpen={Boolean(fieldOwnerViewer)}
-        title={fieldOwnerViewer ? (`${fieldOwnerViewer.firstName || ''} ${fieldOwnerViewer.lastName || ''}`.trim() || fieldOwnerViewer.username) : 'Field Owner'}
-        message={fieldOwnerViewer ? `All fields created by @${fieldOwnerViewer.username}.` : ''}
-        badgeLabel="Owned Fields"
-        confirmLabel="Close"
-        showCancel={false}
-        variant="default"
-        onConfirm={closeFieldOwnerViewer}
-        onClose={closeFieldOwnerViewer}
-      >
-        {fieldOwnerViewer && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Field Owner</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {`${fieldOwnerViewer.firstName || ''} ${fieldOwnerViewer.lastName || ''}`.trim() || fieldOwnerViewer.username}
-                </p>
-              </div>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
-                {getOwnedFields(fieldOwnerViewer).length} field{getOwnedFields(fieldOwnerViewer).length === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            {getOwnedFields(fieldOwnerViewer).length > 0 ? (
-              <div className="space-y-3">
-                {getOwnedFields(fieldOwnerViewer).map((field) => (
-                  <div key={`owner-field-${field.id}`} className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">{field.name}</p>
-                        <p className="mt-1 text-sm text-gray-600">
-                          {[field.address, field.city].filter(Boolean).join(', ') || 'No location'}
-                        </p>
-                      </div>
-                      <span className="whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                        {field.status || 'unknown'}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                      <span>{field.fieldType || 'Unknown type'}</span>
-                      <span>•</span>
-                      <span>{String(field.surfaceType || 'unknown').replace('_', ' ')}</span>
-                      <span>•</span>
-                      <span>${field.pricePerHour || 0}/hr</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                This field owner has not created any fields yet.
-              </div>
-            )}
-          </div>
-        )}
-      </ConfirmationModal>
-
-      <ConfirmationModal
         isOpen={Boolean(viewUser)}
         title={viewUser ? (`${viewUser.firstName || ''} ${viewUser.lastName || ''}`.trim() || viewUser.username) : 'User Details'}
         message={viewUser ? `View account information for @${viewUser.username}.` : ''}
@@ -549,7 +461,7 @@ const AdminUsersPage = () => {
                   })
                 }
                 onError={(event) => {
-                  const fallbackUrl = buildAssetUrl();
+                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
                   if (event.currentTarget.src !== fallbackUrl) {
                     event.currentTarget.src = fallbackUrl;
                   }
@@ -589,77 +501,6 @@ const AdminUsersPage = () => {
                 <p className="mt-2 text-sm text-gray-700">{viewUser.address || 'No address'}</p>
               </div>
             </div>
-
-            {viewUserLoading ? (
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                Loading more details...
-              </div>
-            ) : (
-              <>
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Owned Fields</p>
-                    <span className="text-xs font-semibold text-gray-500">{Array.isArray(viewUser.fields) ? viewUser.fields.length : 0}</span>
-                  </div>
-                  {Array.isArray(viewUser.fields) && viewUser.fields.length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {viewUser.fields.map((field) => (
-                        <div key={`field-${field.id}`} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                          <p className="font-semibold text-gray-900">{field.name}</p>
-                          <p className="text-gray-600">
-                            {field.city} · {field.fieldType} · {String(field.surfaceType || '').replace('_', ' ')}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-gray-600">No fields owned.</p>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Captain Teams</p>
-                    <span className="text-xs font-semibold text-gray-500">{Array.isArray(viewUser.captainedTeams) ? viewUser.captainedTeams.length : 0}</span>
-                  </div>
-                  {Array.isArray(viewUser.captainedTeams) && viewUser.captainedTeams.length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {viewUser.captainedTeams.map((team) => (
-                        <div key={`captain-team-${team.id}`} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                          <p className="font-semibold text-gray-900">{team.name}</p>
-                          <p className="text-gray-600">
-                            {team.skillLevel} · {team.isActive ? 'Active' : 'Inactive'}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-gray-600">No captain teams.</p>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Player Teams</p>
-                    <span className="text-xs font-semibold text-gray-500">{getActivePlayerTeams(viewUser).length}</span>
-                  </div>
-                  {getActivePlayerTeams(viewUser).length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {getActivePlayerTeams(viewUser).map((team) => (
-                        <div key={`player-team-${team.id}`} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
-                          <p className="font-semibold text-gray-900">{team.name}</p>
-                          <p className="text-gray-600">
-                            {team.skillLevel} · {team.isActive ? 'Active' : 'Inactive'} · {team?.TeamMember?.role || 'player'}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-gray-600">No active player teams.</p>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         )}
       </ConfirmationModal>

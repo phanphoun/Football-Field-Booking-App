@@ -1,10 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-<<<<<<< HEAD
-import { ArrowTopRightOnSquareIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-=======
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useLanguage } from '../../context/LanguageContext';
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 import { hasGoogleMapsApiKey, loadGoogleMaps } from './googleMapsLoader';
 import { loadLeaflet } from './leafletLoader';
 
@@ -46,13 +42,9 @@ const GOOGLE_MAP_STYLES = {
   ]
 };
 
-<<<<<<< HEAD
-const FieldLocationMap = ({ latitude, longitude, locationUrl = '' }) => {
-=======
 const FieldLocationMap = ({ latitude, longitude }) => {
   const { language } = useLanguage();
   const text = (en, km) => (language === 'km' ? km : en);
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -206,36 +198,10 @@ const FieldLocationMap = ({ latitude, longitude }) => {
             )}
           </div>
         </div>
-        {locationUrl && (
-          <div className="absolute right-3 top-3 z-[500]">
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-emerald-700 shadow-lg backdrop-blur transition hover:border-emerald-300 hover:bg-white"
-            >
-              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-              Open Location
-            </a>
-          </div>
-        )}
         <div ref={mapElementRef} className="h-[320px] w-full bg-slate-100" />
       </div>
-      <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          {Number(latitude).toFixed(6)}, {Number(longitude).toFixed(6)}
-        </span>
-        {locationUrl && (
-          <a
-            href={locationUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
-          >
-            <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-            Open location from map
-          </a>
-        )}
+      <div className="border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
+        {Number(latitude).toFixed(6)}, {Number(longitude).toFixed(6)}
       </div>
     </div>
   );

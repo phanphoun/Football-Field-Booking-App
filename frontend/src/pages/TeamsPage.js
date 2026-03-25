@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-<<<<<<< HEAD
-import { useLocation, useNavigate } from 'react-router-dom';
-import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon, ShieldCheckIcon, SparklesIcon } from '@heroicons/react/24/outline';
-=======
 import { useLanguage } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { UsersIcon, PlusIcon, CheckIcon, XMarkIcon, BellAlertIcon } from '@heroicons/react/24/outline';
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { ImagePreviewModal } from '../components/ui';
@@ -30,13 +25,10 @@ const normalizeTeamsResponse = (payload) => {
   return [];
 };
 
-const getCaptainName = (team) => team.captain?.firstName || team.captain?.username || 'Unknown';
-
 const TeamsPage = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const location = useLocation();
   const [teams, setTeams] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +41,6 @@ const TeamsPage = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const isAdmin = user?.role === 'admin';
   const canCreateTeam = !!user && !isAdmin && user?.role !== 'player';
-  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   useEffect(() => {
     const fetchTeamsAndInvitations = async () => {
@@ -73,7 +64,7 @@ const TeamsPage = () => {
   }, [user?.id, isAdmin]);
 
   const handleCreateTeam = () => {
-    navigate(`${basePath}/teams/create`);
+    navigate('/app/teams/create');
   };
 
   // eslint-disable-next-line no-unused-vars
@@ -91,7 +82,7 @@ const TeamsPage = () => {
   };
 
   const handleViewTeam = (teamId) => {
-    navigate(`${basePath}/teams/${teamId}`);
+    navigate(`/app/teams/${teamId}`);
   };
 
   const openDeleteDialog = (team) => {
@@ -206,42 +197,6 @@ const TeamsPage = () => {
     );
   };
 
-  const pageTitle = isAdmin ? 'All Teams' : 'My Teams';
-  const pageDescription = isAdmin
-    ? 'Monitor every club on the platform, review activity, and step in when a team needs admin support.'
-    : 'Track your squads, review pending invitations, and jump into team management without bouncing between pages.';
-  const summaryCards = [
-    {
-      label: 'Active teams',
-      value: teams.length,
-      description: teams.length === 1 ? 'Team in your workspace' : 'Teams in your workspace',
-      icon: UsersIcon,
-      accent: 'from-emerald-500/15 via-emerald-500/5 to-transparent',
-      iconClassName: 'text-emerald-600'
-    },
-    {
-      label: 'Pending invites',
-      value: invitations.length,
-      description: invitations.length > 0 ? 'Need your response' : 'Nothing waiting right now',
-      icon: BellAlertIcon,
-      accent: 'from-amber-500/15 via-amber-500/5 to-transparent',
-      iconClassName: 'text-amber-600'
-    },
-    {
-      label: isAdmin ? 'Admin access' : 'Team creation',
-      value: isAdmin ? 'Enabled' : (canCreateTeam ? 'Ready' : 'Locked'),
-      description: isAdmin
-        ? 'You can open or remove any team'
-        : (canCreateTeam ? 'You can create a new squad' : 'Captains and owners can create teams'),
-      icon: isAdmin ? ShieldCheckIcon : SparklesIcon,
-      accent: 'from-sky-500/15 via-sky-500/5 to-transparent',
-      iconClassName: 'text-sky-600'
-    }
-  ];
-  const teamsGridClassName = teams.length === 1
-    ? 'mx-auto grid max-w-md grid-cols-1 gap-6'
-    : 'grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3';
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -251,71 +206,6 @@ const TeamsPage = () => {
   }
 
   return (
-<<<<<<< HEAD
-    <div className="space-y-8">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-emerald-50/70 to-sky-50/80 shadow-sm">
-        <div className="flex flex-col gap-8 px-6 py-7 lg:px-8 lg:py-8">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
-                <ShieldCheckIcon className="h-4 w-4" />
-                Team Hub
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{pageTitle}</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                {pageDescription}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                {teams.length} {teams.length === 1 ? 'result' : 'results'}
-              </span>
-              <button
-                onClick={() => navigate('/teams')}
-                className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
-              >
-                Browse Teams
-              </button>
-              {canCreateTeam && (
-                <button
-                  onClick={handleCreateTeam}
-                  className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-                >
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Create Team
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {summaryCards.map((card) => {
-              const Icon = card.icon;
-
-              return (
-                <div
-                  key={card.label}
-                  className="relative overflow-hidden rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm backdrop-blur"
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br opacity-90 ${card.accent}`} />
-                  <div className="relative flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-500">{card.label}</div>
-                      <div className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{card.value}</div>
-                      <div className="mt-2 text-sm text-slate-600">{card.description}</div>
-                    </div>
-                    <div className="rounded-2xl bg-slate-900/5 p-3">
-                      <Icon className={`h-6 w-6 ${card.iconClassName}`} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-=======
     <div>
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
@@ -347,7 +237,6 @@ const TeamsPage = () => {
           )}
         </div>
       </div>
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
@@ -403,57 +292,14 @@ const TeamsPage = () => {
         </div>
       )}
 
-      <div className={teamsGridClassName}>
+      {/* Teams Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {teams.length > 0 ? (
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
             const jerseyColors = getTeamJerseyColors(team);
-            const captainName = getCaptainName(team);
 
             return (
-<<<<<<< HEAD
-              <div
-                key={team.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleViewTeam(team.id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    handleViewTeam(team.id);
-                  }
-                }}
-                className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                <div className="relative h-52">
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                    <UsersIcon className="h-12 w-12 text-gray-300" />
-                  </div>
-                  {teamLogoUrl && (
-                    <img
-                      src={teamLogoUrl}
-                      alt={`${team.name} logo`}
-                      className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-cover object-center"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
-                      }}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  )}
-                </div>
-
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">{team.name}</h3>
-                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'No description available.'}</p>
-                    </div>
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 shrink-0">
-                      {getMemberCount(team)} members
-=======
             <div
               key={team.id}
               role="button"
@@ -514,35 +360,10 @@ const TeamsPage = () => {
                       {jerseyColors.map((color, index) => (
                         <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
                       ))}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                     </span>
                   </div>
+                </div>
 
-<<<<<<< HEAD
-                  <div className="mt-5 text-sm text-gray-600 space-y-1">
-                    <div>Captain: {captainName}</div>
-                    {team.skillLevel && (
-                      <div className="flex items-center gap-2">
-                        <span>Skill:</span>
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 capitalize">
-                          {team.skillLevel}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <span>Jersey:</span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1">
-                          {jerseyColors.map((color, index) => (
-                            <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: color }} />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 flex gap-2">
-=======
                 <div className="mt-5 flex gap-2">
                   <button
                     onClick={(event) => {
@@ -554,71 +375,42 @@ const TeamsPage = () => {
                     {t('teams_view_details', 'View Details')}
                   </button>
                   {isAdmin && (
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
-                        handleViewTeam(team.id);
+                        openDeleteDialog(team);
                       }}
-                      className="flex-1 border border-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-semibold"
+                      disabled={deletingTeamId === team.id}
+                      className="flex-1 border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-semibold disabled:opacity-60"
                     >
-<<<<<<< HEAD
-                      View Details
-=======
                       {deletingTeamId === team.id ? t('settings_deleting', 'Deleting...') : t('teams_delete', 'Delete')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                     </button>
-                    {isAdmin && (
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openDeleteDialog(team);
-                        }}
-                        disabled={deletingTeamId === team.id}
-                        className="flex-1 border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-semibold disabled:opacity-60"
-                      >
-                        {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
-            );
-          })
+            </div>
+          )})
         ) : (
-<<<<<<< HEAD
-          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/80 px-6 py-14 text-center shadow-sm">
-            <UsersIcon className="mx-auto h-12 w-12 text-slate-400" />
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">No teams found</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              Browse teams to request to join, or create your own team if you are a captain.
-=======
           <div className="text-center py-12">
             <UsersIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">{t('teams_none_found', 'No teams found')}</h3>
             <p className="mt-1 text-sm text-gray-500">
               {t('teams_none_found_desc', 'Browse teams to request to join, or create your own team if you are a captain.')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <div className="mt-6 flex items-center justify-center gap-2">
               <button
                 onClick={() => navigate('/teams')}
-                className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
               >
                 {t('teams_browse', 'Browse Teams')}
               </button>
               {canCreateTeam && (
                 <button
                   onClick={handleCreateTeam}
-                  className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                 >
-<<<<<<< HEAD
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Create Team
-=======
                   <PlusIcon className="h-4 w-4 mr-2" />
                   {t('action_create_team', 'Create Team')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
                 </button>
               )}
             </div>

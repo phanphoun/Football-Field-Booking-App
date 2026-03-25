@@ -32,7 +32,7 @@ const RegisterPage = () => {
   const inputClassName = useMemo(
     () =>
       'block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 ' +
-      'placeholder-slate-500 shadow-sm transition focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20',
+      'placeholder-slate-400 shadow-sm transition focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20',
     []
   );
 
@@ -52,11 +52,15 @@ const RegisterPage = () => {
 
   const passwordsMatch =
     !formData.confirmPassword || formData.password === formData.confirmPassword;
-  const passwordMeetsServerRules =
-    formData.password.length >= 8 &&
-    /[a-z]/.test(formData.password) &&
-    /[A-Z]/.test(formData.password) &&
-    /\d/.test(formData.password);
+
+  const isFormValid =
+    formData.firstName &&
+    formData.lastName &&
+    formData.username &&
+    formData.email &&
+    formData.password &&
+    formData.confirmPassword &&
+    formData.password === formData.confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,11 +83,6 @@ const RegisterPage = () => {
 
     if (formData.password !== formData.confirmPassword) {
       setClientError(t('register_passwords_no_match', 'Passwords do not match.'));
-      return;
-    }
-
-    if (!passwordMeetsServerRules) {
-      setClientError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
       return;
     }
 
@@ -151,10 +150,7 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-<<<<<<< HEAD
-=======
               placeholder={t('register_first_name_placeholder', 'John')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             />
             {validationErrors.firstName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.firstName}</p>
@@ -174,10 +170,7 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-<<<<<<< HEAD
-=======
               placeholder={t('register_last_name_placeholder', 'Doe')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             />
             {validationErrors.lastName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.lastName}</p>
@@ -200,10 +193,7 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.username ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-<<<<<<< HEAD
-=======
               placeholder={t('register_username_placeholder', 'yourname')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             />
             {validationErrors.username && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.username}</p>
@@ -220,10 +210,7 @@ const RegisterPage = () => {
               value={formData.phone}
               onChange={handleChange}
               className={inputClassName}
-<<<<<<< HEAD
-=======
               placeholder={t('register_phone_placeholder', '+1234567890')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             />
           </div>
         </div>
@@ -243,10 +230,7 @@ const RegisterPage = () => {
             className={`${inputClassName} ${
               validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
             }`}
-<<<<<<< HEAD
-=======
             placeholder={t('register_email_placeholder', 'you@example.com')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -267,12 +251,9 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 aria-invalid={Boolean(validationErrors.password)}
                 className={`${inputClassName} pr-11 ${
-                  validationErrors.password || !passwordsMatch ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
+                  validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
                 }`}
-<<<<<<< HEAD
-=======
                 placeholder={t('register_password_placeholder', 'Password')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
               />
               <button
                 type="button"
@@ -286,11 +267,7 @@ const RegisterPage = () => {
             {validationErrors.password && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
             )}
-<<<<<<< HEAD
-            <p className="mt-2 text-xs text-slate-500">Use at least 8 characters with uppercase, lowercase, and a number.</p>
-=======
             <p className="mt-2 text-xs text-slate-500">{t('register_password_hint', 'Use at least 8 characters.')}</p>
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
           </div>
 
           <div>
@@ -310,10 +287,7 @@ const RegisterPage = () => {
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : ''
                 }`}
-<<<<<<< HEAD
-=======
                 placeholder={t('register_confirm_password_placeholder', 'Confirm password')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
               />
               <button
                 type="button"
@@ -339,7 +313,7 @@ const RegisterPage = () => {
           </Badge>
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !isFormValid}
             className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
           >
             {loading ? (

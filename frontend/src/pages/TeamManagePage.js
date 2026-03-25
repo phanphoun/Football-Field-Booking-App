@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   UserPlusIcon,
   TrashIcon,
@@ -8,8 +8,7 @@ import {
   ClipboardDocumentListIcon,
   UserGroupIcon,
   CheckCircleIcon,
-  XCircleIcon,
-  CalendarIcon
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -17,30 +16,32 @@ import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
-<<<<<<< HEAD
-import { ImagePreviewModal, useDialog } from '../components/ui';
-import { DEFAULT_JERSEY_COLOR, getNextJerseyColor, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
-import JerseyColorEditor from '../components/teams/JerseyColorEditor';
-=======
 import { ImagePreviewModal, useDialog, useToast } from '../components/ui';
 import { DEFAULT_JERSEY_COLOR, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
+const JERSEY_COLOR_PRESETS = [
+  '#FFFFFF',
+  '#111827',
+  '#DC2626',
+  '#2563EB',
+  '#16A34A',
+  '#F59E0B',
+  '#7C3AED',
+  '#EC4899',
+  '#0EA5E9',
+  '#6B7280'
+];
+
 const TeamManagePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, isAdmin } = useAuth();
-<<<<<<< HEAD
-  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
-=======
   const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { showToast } = useToast();
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
   const { version } = useRealtime();
 
   const [team, setTeam] = useState(null);
@@ -118,22 +119,10 @@ const TeamManagePage = () => {
       }
     };
     fetchAll();
-  }, [id, refresh, version]);
+  }, [id, refresh, text, version]);
 
   useEffect(() => {
     setJerseyColorsDraft(getTeamJerseyColors(team));
-  }, [team]);
-
-  useEffect(() => {
-    setActiveColorIndex((prev) => {
-      if (jerseyColorsDraft.length === 0) return 0;
-      return Math.min(prev, jerseyColorsDraft.length - 1);
-    });
-  }, [jerseyColorsDraft]);
-
-  useEffect(() => {
-    const existing = getTeamJerseyColors(team);
-    setJerseyColorsDraft(existing.length > 0 ? existing : [DEFAULT_JERSEY_COLOR]);
   }, [team]);
 
   useEffect(() => {
@@ -248,15 +237,9 @@ const TeamManagePage = () => {
   if (!team) {
     return (
       <div className="text-center py-12">
-<<<<<<< HEAD
-        <h1 className="text-xl font-semibold text-gray-900">Team not found</h1>
-        <Link to={`${basePath}/teams`} className="mt-4 inline-block text-green-700 hover:text-green-800">
-          Back to Teams
-=======
         <h1 className="text-xl font-semibold text-gray-900">{text('Team not found', 'រកមិនឃើញក្រុម')}</h1>
         <Link to="/app/teams" className="mt-4 inline-block text-green-700 hover:text-green-800">
           {text('Back to Teams', 'ត្រឡប់ទៅក្រុម')}
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
         </Link>
       </div>
     );
@@ -338,7 +321,10 @@ const TeamManagePage = () => {
     setJerseyColorsDraft((prev) => {
       const current = Array.isArray(prev) ? [...prev] : [DEFAULT_JERSEY_COLOR];
       if (current.length >= 5) return current;
-      const next = [...current, getNextJerseyColor(current)];
+      const normalizedCurrent = current.map((color) => normalizeHexColor(color) || DEFAULT_JERSEY_COLOR);
+      const nextColor =
+        JERSEY_COLOR_PRESETS.find((preset) => !normalizedCurrent.includes(preset)) || DEFAULT_JERSEY_COLOR;
+      const next = [...current, nextColor];
       setActiveColorIndex(next.length - 1);
       return next;
     });
@@ -353,16 +339,16 @@ const TeamManagePage = () => {
     });
   };
 
+  const applyPresetColor = (presetColor) => {
+    setJerseyColorAt(activeColorIndex, presetColor);
+  };
+
   const handleSaveShirtColor = async () => {
     try {
       setActionLoading(true);
       setError(null);
       setSuccessMessage(null);
       const normalizedColors = normalizeJerseyColors(jerseyColorsDraft);
-      if (normalizedColors.length < 1) {
-        setError('Please choose at least 1 jersey color.');
-        return;
-      }
       const response = await teamService.updateTeam(id, { jerseyColors: normalizedColors });
       if (response.success) {
         setSuccessMessage(text('Team jersey colors updated successfully.', 'បានធ្វើបច្ចុប្បន្នភាពពណ៌អាវក្រុមដោយជោគជ័យ។'));
@@ -402,7 +388,7 @@ const TeamManagePage = () => {
       await teamService.deleteTeam(id);
       setSuccessMessage(text('Team deleted successfully', 'បានលុបក្រុមដោយជោគជ័យ'));
       setTimeout(() => {
-        navigate(`${basePath}/teams`);
+        navigate('/app/teams');
       }, 1000);
     } catch (err) {
       setError(err?.error || text('Failed to delete team', 'មិនអាចលុបក្រុមបានទេ'));
@@ -434,18 +420,11 @@ const TeamManagePage = () => {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`${basePath}/teams/${team.id}`}
+              to={`/app/teams/${team.id}`}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               <ArrowLeftIcon className="h-4 w-4" />
               {text('Back', 'ត្រឡប់')}
-            </Link>
-            <Link
-              to={`${basePath}/teams/${team.id}?tab=history`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-green-300 text-green-700 hover:bg-green-50"
-            >
-              <CalendarIcon className="h-4 w-4" />
-              Match History
             </Link>
             {isCaptainOfTeam && (
               <button
@@ -461,41 +440,6 @@ const TeamManagePage = () => {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-          {error}
-        </div>
-      )}
-      <JerseyColorEditor
-        title="Team Jersey Colors"
-        description="Set one or more colors to avoid kit clashes before a match."
-        helperText="Click any color card to open the picker. The selected color updates live while you drag."
-        colors={jerseyColorsDraft}
-        currentColors={currentJerseyColors}
-        activeColorIndex={activeColorIndex}
-        onActiveColorChange={setActiveColorIndex}
-        onColorChange={setJerseyColorAt}
-        onAddColor={addJerseyColor}
-        onRemoveColor={removeJerseyColor}
-      />
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={handleSaveShirtColor}
-          disabled={actionLoading || !hasColorChanges}
-          className="inline-flex items-center rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {actionLoading ? 'Saving...' : 'Save Colors'}
-        </button>
-=======
       <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/30 to-cyan-50/30 p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -588,7 +532,6 @@ const TeamManagePage = () => {
             {actionLoading ? text('Saving...', 'កំពុងរក្សាទុក...') : text('Save Colors', 'រក្សាទុកពណ៌')}
           </button>
         </div>
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -800,4 +743,3 @@ const TeamManagePage = () => {
 };
 
 export default TeamManagePage;
-

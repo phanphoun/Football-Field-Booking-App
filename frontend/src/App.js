@@ -71,13 +71,8 @@ import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
 
 import { DialogProvider, ToastProvider } from './components/ui';
-<<<<<<< HEAD
-
-
-=======
 import { RealtimeProvider } from './context/RealtimeContext';
 import { LanguageProvider } from './context/LanguageContext';
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 
 import AppLayout from './components/layout/AppLayout';
 
@@ -428,27 +423,6 @@ function App() {
   return (
 
     <AuthProvider>
-<<<<<<< HEAD
-
-      <ToastProvider>
-
-        <DialogProvider>
-
-          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-
-            <div className="App">
-
-              <AppRoutes />
-
-            </div>
-
-          </Router>
-
-        </DialogProvider>
-
-      </ToastProvider>
-
-=======
       <LanguageProvider>
         <ToastProvider>
           <DialogProvider>
@@ -462,7 +436,6 @@ function App() {
           </DialogProvider>
         </ToastProvider>
       </LanguageProvider>
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     </AuthProvider>
 
   );

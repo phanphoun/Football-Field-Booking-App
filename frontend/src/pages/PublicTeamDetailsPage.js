@@ -1,17 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import teamService from '../services/teamService';
-<<<<<<< HEAD
-import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
-import { ImagePreviewModal } from '../components/ui';
-=======
 import { UsersIcon, MapPinIcon, TrophyIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { ImagePreviewModal, useToast } from '../components/ui';
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
 import { getTeamJerseyColors } from '../utils/teamColors';
-import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -39,7 +33,7 @@ const PublicTeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -100,7 +94,6 @@ const PublicTeamDetailsPage = () => {
     if (team?.captainId === user?.id) return false;
     return true;
   };
-  const joinRequestPending = team?.joinRequestPending || team?.userMembershipStatus === 'pending';
 
   useEffect(() => {
     const fetchTeamAndHistory = async () => {
@@ -133,7 +126,7 @@ const PublicTeamDetailsPage = () => {
     };
 
     fetchTeamAndHistory();
-  }, [id]);
+  }, [id, text]);
 
   const handleRequestJoin = async () => {
     if (!isAuthenticated) {
@@ -147,35 +140,6 @@ const PublicTeamDetailsPage = () => {
       setSuccessMessage(null);
       const response = await teamService.joinTeam(id);
       if (response.success) {
-<<<<<<< HEAD
-        setTeam((prev) => (
-          prev
-            ? {
-                ...prev,
-                joinRequestPending: true,
-                userMembershipStatus: 'pending'
-              }
-            : prev
-        ));
-        setSuccessMessage('Join request submitted. Waiting for captain approval.');
-      }
-    } catch (err) {
-      if ((err?.error || '').toLowerCase().includes('already pending')) {
-        setTeam((prev) => (
-          prev
-            ? {
-                ...prev,
-                joinRequestPending: true,
-                userMembershipStatus: 'pending'
-              }
-            : prev
-        ));
-        setSuccessMessage('Your join request is still waiting for captain approval.');
-        setError(null);
-        return;
-      }
-      setError(err?.error || 'Failed to submit join request');
-=======
         setJoinRequested(true);
         setSuccessMessage(text('Join request submitted!', 'បានផ្ញើសំណើចូលក្រុម!'));
       }
@@ -192,7 +156,6 @@ const PublicTeamDetailsPage = () => {
       }
     } finally {
       setRequestingJoin(false);
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
     }
   };
 
@@ -218,8 +181,6 @@ const PublicTeamDetailsPage = () => {
   const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
   const jerseyColors = getTeamJerseyColors(team);
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
-  const homeFieldAddress = buildLocationLabel(team.homeField || {});
-  const homeFieldLocationUrl = buildGoogleMapsLocationUrl(team.homeField || {});
 
   return (
     <div className="space-y-6">
@@ -263,18 +224,9 @@ const PublicTeamDetailsPage = () => {
               <div>
                 <div className="font-medium text-gray-900">{text('Home Field', 'ទីលានម្ចាស់ផ្ទះ')}</div>
                 <div>{team.homeField.name}</div>
-                {homeFieldAddress && <div className="text-xs text-gray-500">{homeFieldAddress}</div>}
-                {homeFieldLocationUrl && (
-                  <a
-                    href={homeFieldLocationUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
-                  >
-                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                    Location
-                  </a>
-                )}
+                <div className="text-xs text-gray-500">
+                  {team.homeField.address}, {team.homeField.city}
+                </div>
               </div>
             </div>
           )}
@@ -361,25 +313,7 @@ const PublicTeamDetailsPage = () => {
             {text('Back to Teams', 'ត្រឡប់ទៅក្រុម')}
           </Link>
 
-<<<<<<< HEAD
-          {joinRequestPending ? (
-            <button
-              disabled
-              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-amber-800 bg-amber-100"
-            >
-              Request Pending
-            </button>
-          ) : canRequestJoin() ? (
-            <button
-              onClick={handleRequestJoin}
-              className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-            >
-              Request to Join
-            </button>
-          ) : team?.captainId === user?.id ? (
-=======
           {isCurrentMember || team?.captainId === user?.id ? (
->>>>>>> 295927653451b883e4b5e944422c9129dd512ccc
             <button
               disabled
               className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-gray-500 bg-gray-300"
@@ -423,4 +357,3 @@ const PublicTeamDetailsPage = () => {
 };
 
 export default PublicTeamDetailsPage;
-
