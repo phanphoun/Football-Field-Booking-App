@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
 const { sequelize } = require('../models');
-=======
-const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, BookingJoinRequest, Rating, sequelize } = require('../models');
->>>>>>> 8b41caf2b8a7c447b4365d897dad799714913c01
+const { BookingJoinRequest } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
