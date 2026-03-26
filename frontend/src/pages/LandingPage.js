@@ -1683,6 +1683,35 @@ const LandingPage = () => {
         </div>
       </section>
 
+      <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">World-Class Facilities</h2>
+            <p className="mt-4 text-lg leading-8 text-slate-600">
+              Every field comes equipped with premium amenities to enhance your playing experience
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {WORLD_CLASS_FACILITIES.map((facility) => {
+              const IconComponent = facility.icon;
+              return (
+                <div
+                  key={facility.title}
+                  className={`flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border bg-white px-6 py-8 text-center shadow-[0_10px_30px_rgba(148,163,184,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(148,163,184,0.16)] ${facility.accentColor}`}
+                >
+                  <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${facility.iconBgColor}`}>
+                    <IconComponent className={`h-8 w-8 ${facility.iconColor}`} />
+                  </div>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{facility.title}</h3>
+                  <p className="mt-3 max-w-[220px] text-base leading-7 text-slate-500">{facility.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <section
         id="account-upgrade"
         className="order-10 scroll-mt-24 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_42%,#ecfdf5_100%)] p-6 shadow-sm sm:p-8"
@@ -1769,36 +1798,6 @@ const LandingPage = () => {
               </div>
             );
           })}
-        </div>
-
-      </section>
-
-      <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="mx-auto mb-14 max-w-3xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">World-Class Facilities</h2>
-            <p className="mt-4 text-lg leading-8 text-slate-600">
-              Every field comes equipped with premium amenities to enhance your playing experience
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-            {WORLD_CLASS_FACILITIES.map((facility) => {
-              const IconComponent = facility.icon;
-              return (
-                <div
-                  key={facility.title}
-                  className={`flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border bg-white px-6 py-8 text-center shadow-[0_10px_30px_rgba(148,163,184,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(148,163,184,0.16)] ${facility.accentColor}`}
-                >
-                  <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${facility.iconBgColor}`}>
-                    <IconComponent className={`h-8 w-8 ${facility.iconColor}`} />
-                  </div>
-                  <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{facility.title}</h3>
-                  <p className="mt-3 max-w-[220px] text-base leading-7 text-slate-500">{facility.description}</p>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   CheckIcon,
   ChevronDownIcon,
+  MapPinIcon,
   PencilSquareIcon,
   PhotoIcon,
   StarIcon,
@@ -134,6 +135,22 @@ const addDaysToDateInput = (baseValue, days) => {
   return toDateInputValue(nextDate);
 };
 
+const isOwnedByCurrentUser = (field, user) => {
+  if (!field) return false;
+  const ownerId =
+    field.ownerId ||
+    field.owner_id ||
+    field.userId ||
+    field.user_id ||
+    field.fieldOwnerId ||
+    field.owner?.id ||
+    field.owner?._id ||
+    null;
+  const userId = user?.id || user?._id || null;
+  if (!ownerId || !userId) return true;
+  return String(ownerId) === String(userId);
+};
+
 const normalizeEditableStatus = (value) => {
   const normalized = String(value || 'available').toLowerCase();
   if (normalized === 'booked') return 'available';
@@ -151,22 +168,6 @@ const getApiErrorMessage = (err, fallbackMessage) => {
     return `${field}${first?.message || 'Invalid value'}`;
   }
   return err?.error || fallbackMessage;
-};
-
-const isOwnedByCurrentUser = (field, user) => {
-  if (!field) return false;
-  const ownerId =
-    field.ownerId ||
-    field.owner_id ||
-    field.userId ||
-    field.user_id ||
-    field.fieldOwnerId ||
-    field.owner?.id ||
-    field.owner?._id ||
-    null;
-  const userId = user?.id || user?._id || null;
-  if (!ownerId || !userId) return true;
-  return String(ownerId) === String(userId);
 };
 
 const getFieldSortTimestamp = (field) => {

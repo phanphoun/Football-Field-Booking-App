@@ -21,8 +21,9 @@ import {
   HandThumbUpIcon,
   UserGroupIcon,
   StarIcon,
-  ArrowTopRightOnSquareIcon
-} from '@heroicons/react/24/outline';
+  ArrowTopRightOnSquareIcon,
+} 
+from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
@@ -56,7 +57,7 @@ const TeamMatchLogo = ({ teamName, logoUrl }) => {
         <img
           src={logoUrl}
           alt={`${teamName} logo`}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain p-1"
           onError={() => setImageFailed(true)}
         />
       ) : (
@@ -560,6 +561,8 @@ const TeamDetailsPage = () => {
   const captainName = team?.captain?.firstName || team?.captain?.username || 'Unknown';
   const createdDate = team?.createdAt ? new Date(team.createdAt).toLocaleDateString() : 'Unknown';
   const teamJerseyColors = getTeamJerseyColors(team);
+  const teamHomeFieldAddress = buildLocationLabel(team?.homeField || {});
+  const teamHomeFieldLocationUrl = buildGoogleMapsLocationUrl(team?.homeField || {});
   const history = matchHistory;
   const teamRecordCards = [
     {
@@ -592,9 +595,7 @@ const TeamDetailsPage = () => {
     }
   ];
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
-  const teamHomeFieldAddress = buildLocationLabel(team?.homeField || {});
-  const teamHomeFieldLocationUrl = buildGoogleMapsLocationUrl(team?.homeField || {});
-  const teamDetails = [
+  const teamOverviewDetails = [
     { label: 'Team Name', value: team?.name || 'Unnamed team' },
     { label: 'Captain', value: captainName },
     { label: 'Active Members', value: `${activeMembers.length}/${team?.maxPlayers || 0}` },
@@ -604,7 +605,7 @@ const TeamDetailsPage = () => {
       value: team?.homeField?.name || 'No home field',
       renderValue: team?.homeField ? (
         <div className="mt-2 space-y-2">
-          <p className="text-sm font-semibold text-gray-800">{team.homeField.name}</p>
+          <p className="text-sm font-semibold text-gray-800">{team.homeField?.name}</p>
           {teamHomeFieldAddress && <p className="text-xs leading-5 text-gray-500">{teamHomeFieldAddress}</p>}
           {teamHomeFieldLocationUrl && (
             <a
@@ -642,7 +643,6 @@ const TeamDetailsPage = () => {
         ) : null
       }
   ];
-  const teamOverviewDetails = teamDetails;
 
   const formatMatchDate = (match) => {
     const dateValue = match?.dateTime || match?.matchDate || match?.date;
@@ -1593,7 +1593,7 @@ const TeamDetailsPage = () => {
                     <img
                       src={resolveTeamLogoUrl(ratingModalMatch.opponentTeamLogoUrl)}
                       alt={`${ratingModalMatch.opponentTeamName} logo`}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain p-2"
                     />
                   ) : (
                     <span className="text-3xl font-bold text-slate-400">

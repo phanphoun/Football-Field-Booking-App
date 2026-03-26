@@ -234,7 +234,7 @@ const TeamsPage = () => {
     }
   ];
   const teamsGridClassName = teams.length === 1
-    ? 'mx-auto grid max-w-md grid-cols-1 gap-6'
+    ? 'grid max-w-md grid-cols-1 gap-6'
     : 'grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3';
 
   if (loading) {
@@ -389,15 +389,15 @@ const TeamsPage = () => {
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-100/60">
                     <UsersIcon className="h-12 w-12 text-gray-300" />
                   </div>
-                  {teamLogoUrl && (
-                    <img
-                      src={teamLogoUrl}
-                      alt={`${team.name} logo`}
-                      className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain p-4"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
-                      }}
+                {teamLogoUrl && (
+                  <img
+                    src={teamLogoUrl}
+                    alt={`${team.name} logo`}
+                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain object-center p-4"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
+                    }}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}

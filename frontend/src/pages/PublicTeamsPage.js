@@ -236,7 +236,7 @@ const PublicTeamsPage = () => {
                   <img
                     src={teamLogoUrl}
                     alt={`${team.name} ${t('teams_image', 'Team image').toLowerCase()}`}
-                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-cover object-center"
+                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain object-center p-4"
                     onClick={(event) => {
                       event.stopPropagation();
                       setPreviewImage({ url: teamLogoUrl, title: `${team.name} ${t('teams_image', 'Team image')}` });

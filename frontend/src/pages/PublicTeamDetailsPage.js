@@ -150,7 +150,7 @@ const PublicTeamDetailsPage = () => {
             <img
               src={teamLogoUrl}
               alt={`${team.name} logo`}
-              className="relative z-10 h-full w-full cursor-zoom-in object-cover"
+              className="relative z-10 h-full w-full cursor-zoom-in object-contain p-4"
               onClick={() => setImagePreviewOpen(true)}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
