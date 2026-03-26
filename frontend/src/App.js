@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import './App.css';
 
@@ -212,17 +213,19 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <ToastProvider>
-        <DialogProvider>
-          <RealtimeProvider>
-            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <div className="App">
-                <AppRoutes />
-              </div>
-            </Router>
-          </RealtimeProvider>
-        </DialogProvider>
-      </ToastProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <DialogProvider>
+            <RealtimeProvider>
+              <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <div className="App">
+                  <AppRoutes />
+                </div>
+              </Router>
+            </RealtimeProvider>
+          </DialogProvider>
+        </ToastProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 }

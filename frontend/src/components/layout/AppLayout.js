@@ -25,6 +25,8 @@ import notificationService from '../../services/notificationService';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
 import { ImagePreviewModal, useToast } from '../ui';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
 
@@ -69,11 +71,12 @@ const AppLayout = () => {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const notificationsMenuRef = useRef(null);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
   const settingsItem = {
-    name: 'Settings',
+    name: t('nav_settings', 'Settings'),
     href: '/app/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/app/settings' || location.pathname === '/app/admin/settings'
@@ -82,25 +85,25 @@ const AppLayout = () => {
 
   const navigation = [
     {
-      name: 'Dashboard',
+      name: t('nav_dashboard', 'Dashboard'),
       href: '/app/dashboard',
       icon: HomeIcon,
       current: location.pathname === '/app/dashboard'
     },
     {
-      name: 'Fields',
+      name: t('nav_fields', 'Fields'),
       href: '/app/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/app/fields')
     },
     {
-      name: 'Leagues',
+      name: t('nav_leagues', 'Leagues'),
       href: '/app/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/app/league')
     },
     {
-      name: 'Teams',
+      name: t('nav_teams', 'Teams'),
       href: '/app/teams',
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
@@ -108,7 +111,7 @@ const AppLayout = () => {
     ...(['player', 'captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Bookings',
+            name: t('nav_bookings', 'Bookings'),
             href: '/app/bookings',
             icon: CalendarIcon,
             current: location.pathname.startsWith('/app/bookings')
@@ -118,13 +121,13 @@ const AppLayout = () => {
     ...(user?.role === 'admin'
       ? [
           {
-            name: 'Manage Users',
+            name: t('nav_manage_users', 'Manage Users'),
             href: '/app/admin/users',
             icon: UserCircleIcon,
             current: location.pathname.startsWith('/app/admin/users')
           },
           {
-            name: 'Role Requests',
+            name: t('nav_role_requests', 'Role Requests'),
             href: '/app/admin/role-requests',
             icon: ClipboardDocumentCheckIcon,
             current: location.pathname.startsWith('/app/admin/role-requests')
@@ -134,7 +137,7 @@ const AppLayout = () => {
     ...(['captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Open Matches',
+            name: t('nav_open_matches', 'Open Matches'),
             href: '/app/open-matches',
             icon: UsersIcon,
             current: location.pathname.startsWith('/app/open-matches')
@@ -146,21 +149,21 @@ const AppLayout = () => {
   const pageInfo = useMemo(() => {
     const path = location.pathname;
     const entries = [
-      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
-      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
-      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
-      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
-      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
-      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
-      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
-      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
-      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
-      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
+      { match: '/app/dashboard', title: t('nav_dashboard', 'Dashboard'), subtitle: t('page_dashboard_subtitle', 'Overview of your activity and updates') },
+      { match: '/app/fields', title: t('nav_fields', 'Fields'), subtitle: t('page_fields_subtitle', 'Browse and discover available football fields') },
+      { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
+      { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
+      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
+      { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
+      { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
+      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
+      { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
+      { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
+      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: APP_CONFIG.brand.displayName, subtitle: 'Welcome to your workspace' };
-  }, [location.pathname]);
+    return current || { title: APP_CONFIG.brand.displayName, subtitle: t('workspace_player', 'Player & Captain Panel') };
+  }, [location.pathname, t]);
   const showBackHomeButton = location.pathname.startsWith('/app');
   const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
   const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
@@ -862,7 +865,8 @@ const AppLayout = () => {
               )}
             </div>
 
-            <div className="ml-auto flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-3">
+              <LanguageSwitcher className="hidden lg:inline-flex" />
               {/* Notifications dropdown */}
               <div
                 className="relative"

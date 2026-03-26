@@ -22,6 +22,28 @@ code {
   font-family: 'Noto Sans Khmer', 'Khmer OS Battambang', 'Khmer OS System', 'Noto Sans', sans-serif;
 }
 
+html[lang='km'] body,
+html[lang='km'] button,
+html[lang='km'] input,
+html[lang='km'] select,
+html[lang='km'] textarea,
+html[lang='km'] label,
+html[lang='km'] a,
+html[lang='km'] p,
+html[lang='km'] h1,
+html[lang='km'] h2,
+html[lang='km'] h3,
+html[lang='km'] h4,
+html[lang='km'] h5,
+html[lang='km'] h6,
+html[lang='km'] span,
+html[lang='km'] li,
+html[lang='km'] td,
+html[lang='km'] th,
+html[lang='km'] div {
+  font-family: 'Noto Sans Khmer', 'Khmer OS Battambang', 'Khmer OS System', 'Noto Sans', sans-serif;
+}
+
 /* Slide-in animation for hero images */
 @keyframes slideIn {
   from {

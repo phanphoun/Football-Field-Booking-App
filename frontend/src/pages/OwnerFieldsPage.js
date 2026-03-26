@@ -13,6 +13,7 @@ import {
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -77,6 +78,12 @@ const getDiscountedHourlyPrice = (field) => {
   return Number((price * (1 - discountPercent / 100)).toFixed(2));
 };
 const getFieldRatingValue = (field) => Math.max(0, Math.min(5, Number(field?.rating || 0)));
+
+const getFieldStatusLabel = (status, t) => {
+  if (status === 'available') return t('field_available', 'Available');
+  if (status === 'maintenance') return t('field_status_maintenance', 'Maintenance');
+  return t('field_status_unavailable', 'Unavailable');
+};
 
 const normalizeImages = (imagesValue) => {
   if (Array.isArray(imagesValue)) return imagesValue;
@@ -177,6 +184,7 @@ const OwnerFieldsPage = () => {
   const { user } = useAuth();
   const { confirm } = useDialog();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -555,8 +563,8 @@ const OwnerFieldsPage = () => {
       )}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
-          <p className="mt-1 text-sm text-gray-600">Create, edit, and manage your field listings.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('owner_my_fields_title', 'ទីលានរបស់ខ្ញុំ')}</h1>
+          <p className="mt-1 text-sm text-gray-600">{t('owner_fields_subtitle', 'បង្កើត កែប្រែ និងគ្រប់គ្រងបញ្ជីទីលានរបស់អ្នក។')}</p>
         </div>
         <button
           type="button"
@@ -564,7 +572,7 @@ const OwnerFieldsPage = () => {
           className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
         >
           <PlusIcon className="h-4 w-4" />
-          Add Field
+          {t('action_add_field', 'បន្ថែមទីលាន')}
         </button>
       </div>
       {isOpen && renderPortal(
@@ -990,7 +998,7 @@ const OwnerFieldsPage = () => {
                   <div className="flex items-center gap-2">
                     {discountPercent > 0 && (
                       <span className="inline-flex rounded-full bg-emerald-100/95 px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
-                        {discountPercent}% OFF
+                        {t('field_discount_badge', '{{percent}}% OFF', { percent: discountPercent })}
                       </span>
                     )}
                     <span
@@ -1002,11 +1010,7 @@ const OwnerFieldsPage = () => {
                           : 'text-rose-600'
                       }`}
                     >
-                      {field.status === 'available'
-                        ? 'Available'
-                        : field.status === 'maintenance'
-                        ? 'Maintenance'
-                        : 'Unavailable'}
+                      {getFieldStatusLabel(field.status, t)}
                     </span>
                   </div>
                 </div>
@@ -1020,21 +1024,25 @@ const OwnerFieldsPage = () => {
                       <StarIcon className="h-4 w-4 fill-current" />
                       <span className="font-semibold text-slate-900">{ratingValue > 0 ? ratingValue.toFixed(1) : '0.0'}</span>
                     </div>
-                    <span>{totalRatings > 0 ? `${totalRatings} rating${totalRatings === 1 ? '' : 's'}` : 'No ratings yet'}</span>
+                    <span>
+                      {totalRatings > 0
+                        ? t('field_ratings_count', '{{count}} ការវាយតម្លៃ', { count: totalRatings })
+                        : t('fields_no_rating_yet', 'មិនទាន់មានការវាយតម្លៃ')}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm text-gray-600">
                   <div className="flex flex-col">
                     {discountPercent > 0 ? (
                       <>
-                        <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
-                        <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
+                        <span className="text-base font-semibold text-emerald-600">${discountedPrice}/{t('field_per_hour_short', 'ម៉ោង')}</span>
+                        <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/{t('field_per_hour_short', 'ម៉ោង')}</span>
                       </>
                     ) : (
-                      <span>${field.pricePerHour}/hr</span>
+                      <span>${field.pricePerHour}/{t('field_per_hour_short', 'ម៉ោង')}</span>
                     )}
                   </div>
-                  <span>{field.capacity} players</span>
+                  <span>{t('players_suffix', '{{count}} នាក់', { count: field.capacity })}</span>
                 </div>
                 {field.closureMessage && field.status !== 'available' && (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -1061,7 +1069,9 @@ const OwnerFieldsPage = () => {
                       field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
                     }`}
                   >
-                    {field.status === 'available' ? 'Close Field' : 'Open Field'}
+                    {field.status === 'available'
+                      ? t('action_close_field', 'បិទទីលាន')
+                      : t('action_open_field', 'បើកទីលាន')}
                   </button>
                   <button
                     type="button"
@@ -1073,7 +1083,7 @@ const OwnerFieldsPage = () => {
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     <PencilSquareIcon className="h-4 w-4" />
-                    Edit
+                    {t('action_edit', 'កែប្រែ')}
                   </button>
                   <button
                     type="button"
@@ -1085,7 +1095,7 @@ const OwnerFieldsPage = () => {
                     className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     <TrashIcon className="h-4 w-4" />
-                    Delete
+                    {t('action_delete', 'លុប')}
                   </button>
                 </div>
               </div>
@@ -1095,8 +1105,8 @@ const OwnerFieldsPage = () => {
         ) : (
           <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center">
             <PhotoIcon className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-4 text-lg font-semibold text-gray-900">No fields yet</h3>
-            <p className="mt-2 text-sm text-gray-500">Create your first field to start receiving bookings.</p>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">{t('owner_no_fields_title', 'មិនទាន់មានទីលាន')}</h3>
+            <p className="mt-2 text-sm text-gray-500">{t('owner_fields_empty_description', 'បង្កើតទីលានដំបូងរបស់អ្នកដើម្បីចាប់ផ្តើមទទួលការកក់។')}</p>
           </div>
         )}
       </div>

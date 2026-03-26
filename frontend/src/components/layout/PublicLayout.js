@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   ArrowRightIcon,
   Bars3Icon,
@@ -14,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, useDialog, useToast } from '../ui';
 import { APP_CONFIG } from '../../config/appConfig';
+import LanguageSwitcher from '../common/LanguageSwitcher';
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, isLoggingOut, logout } = useAuth();
@@ -22,6 +24,7 @@ const PublicLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { confirm } = useDialog();
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const dashboardHref = user?.role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
@@ -29,7 +32,12 @@ const PublicLayout = () => {
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
-    const confirmed = await confirm('Do you want to logout?', { title: 'Logout' });
+    const confirmed = await confirm(t('public_logout_message', 'តើអ្នកចង់ចាកចេញមែនទេ?'), {
+      title: t('action_logout', 'ចាកចេញ'),
+      confirmText: t('action_logout', 'ចាកចេញ'),
+      cancelText: t('action_cancel', 'បោះបង់'),
+      badgeLabel: t('dialog_confirmation', 'ការបញ្ជាក់')
+    });
     if (!confirmed) return;
     await logout();
     navigate('/', { replace: true });
@@ -37,12 +45,12 @@ const PublicLayout = () => {
 
   const navItems = useMemo(
     () => [
-      { to: '/', label: 'Home', icon: HomeIcon },
-      { to: '/fields', label: 'Fields', icon: BuildingOffice2Icon },
-      { to: '/league', label: 'League', icon: TrophyIcon },
-      { to: '/teams', label: 'Teams', icon: UserGroupIcon }
+      { to: '/', label: t('nav_home', 'ទំព័រដើម'), icon: HomeIcon },
+      { to: '/fields', label: t('nav_fields', 'ទីលាន'), icon: BuildingOffice2Icon },
+      { to: '/league', label: t('nav_league', 'លីគ'), icon: TrophyIcon },
+      { to: '/teams', label: t('nav_teams', 'ក្រុម'), icon: UserGroupIcon }
     ],
-    []
+    [t]
   );
 
   const isActivePath = (path) =>
@@ -119,6 +127,7 @@ const PublicLayout = () => {
             </nav>
 
             <div className="flex items-center gap-2">
+              <LanguageSwitcher className="hidden md:inline-flex" />
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
@@ -138,7 +147,7 @@ const PublicLayout = () => {
                     className="hidden rounded-full border-slate-300 bg-white px-5 text-slate-800 shadow-[0_8px_20px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 sm:inline-flex"
                   >
                     <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                    Go to Dashboard
+                    {t('action_go_dashboard', 'ទៅកាន់ផ្ទាំងគ្រប់គ្រង')}
                   </Button>
                   <Button
                     onClick={handleLogout}
@@ -147,7 +156,7 @@ const PublicLayout = () => {
                     className="hidden rounded-full bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-white shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 sm:inline-flex"
                   >
                     <PowerIcon className="h-4 w-4" />
-                    {isLoggingOut ? 'Logging out...' : 'Logout'}
+                    {isLoggingOut ? t('public_logging_out', 'កំពុងចាកចេញ...') : t('action_logout', 'ចាកចេញ')}
                   </Button>
                 </>
               ) : (
@@ -160,7 +169,7 @@ const PublicLayout = () => {
                     size="sm"
                     className="hidden rounded-full border-slate-300 bg-white/90 px-4 sm:inline-flex"
                   >
-                    Login
+                    {t('nav_login', 'ចូលគណនី')}
                   </Button>
                   <Button
                     as={Link}
@@ -169,7 +178,7 @@ const PublicLayout = () => {
                     size="sm"
                     className="hidden rounded-full px-4 shadow-[0_12px_24px_rgba(22,163,74,0.22)] sm:inline-flex"
                   >
-                    Register
+                    {t('nav_register', 'ចុះឈ្មោះ')}
                     <ArrowRightIcon className="h-4 w-4" />
                   </Button>
                 </>
@@ -181,6 +190,9 @@ const PublicLayout = () => {
             <div className="pb-5 md:hidden">
               <div className="overflow-hidden rounded-3xl border border-emerald-100 bg-white/95 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.09)]">
                 <div className="space-y-1">
+                  <div className="px-1 pb-2">
+                    <LanguageSwitcher className="w-full justify-between" />
+                  </div>
                   {navItems.map((item) => (
                     <NavLink
                       key={item.to}
@@ -210,10 +222,10 @@ const PublicLayout = () => {
                         size="sm"
                         className="flex-1 rounded-full border-slate-300 bg-white"
                       >
-                        Dashboard
+                        {t('nav_dashboard', 'ផ្ទាំងគ្រប់គ្រង')}
                       </Button>
                       <Button onClick={handleLogout} disabled={isLoggingOut} size="sm" className="flex-1 rounded-full">
-                        {isLoggingOut ? 'Logging out...' : 'Logout'}
+                        {isLoggingOut ? t('public_logging_out', 'កំពុងចាកចេញ...') : t('action_logout', 'ចាកចេញ')}
                       </Button>
                     </>
                   ) : (
@@ -226,7 +238,7 @@ const PublicLayout = () => {
                         size="sm"
                         className="flex-1 rounded-full border-slate-300 bg-white"
                       >
-                        Login
+                        {t('nav_login', 'ចូលគណនី')}
                       </Button>
                       <Button
                         as={Link}
@@ -235,7 +247,7 @@ const PublicLayout = () => {
                         size="sm"
                         className="flex-1 rounded-full"
                       >
-                        Register
+                        {t('nav_register', 'ចុះឈ្មោះ')}
                       </Button>
                     </>
                   )}
