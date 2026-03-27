@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDownIcon, MagnifyingGlassIcon, MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { useLanguage } from '../../context/LanguageContext';
 import { hasGoogleMapsApiKey, loadGoogleMaps } from './googleMapsLoader';
 import { loadLeaflet } from './leafletLoader';
 
 const DEFAULT_CENTER = { lat: 11.5564, lng: 104.9282 };
 const DEFAULT_ZOOM = 12;
 const MAP_THEME_OPTIONS = [
-  { id: 'roadmap', en: 'Map', km: 'ផែនទី' },
-  { id: 'satellite', en: 'Satellite', km: 'ផ្កាយរណប' },
-  { id: 'terrain', en: 'Terrain', km: 'ភូមិសាស្ត្រ' },
-  { id: 'dark', en: 'Dark', km: 'ងងឹត' }
+  { id: 'roadmap', label: 'Map' },
+  { id: 'satellite', label: 'Satellite' },
+  { id: 'terrain', label: 'Terrain' },
+  { id: 'dark', label: 'Dark' }
 ];
 const LEAFLET_THEME_CONFIG = {
   roadmap: {
@@ -159,8 +158,6 @@ const geocodeAddressWithOsm = async (query) => {
 };
 
 const FieldLocationPicker = ({ value, onChange }) => {
-  const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -597,10 +594,10 @@ const FieldLocationPicker = ({ value, onChange }) => {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">{text('Location', 'ទីតាំង')}</h3>
+          <h3 className="text-base font-semibold text-slate-900">Location</h3>
           <p className="mt-1 text-sm text-slate-500">
-            {text('Search, click, or drag the pin to set the field location.', 'ស្វែងរក ចុច ឬអូសម្ជុលដើម្បីកំណត់ទីតាំងទីលាន។')}
-            {!hasGoogleMapsApiKey ? text(' Using the basic map view.', ' កំពុងប្រើផែនទីមូលដ្ឋាន។') : ''}
+            Search, click, or drag the pin to set the field location.
+            {!hasGoogleMapsApiKey ? ' Using the basic map view.' : ''}
           </p>
         </div>
       </div>
@@ -620,7 +617,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
                 }
               }}
               className="block w-full rounded-xl border border-gray-300 py-2.5 pl-10 pr-4 text-sm text-slate-900"
-              placeholder={text('Search address, district, or landmark', 'ស្វែងរកអាសយដ្ឋាន ស្រុក/ខណ្ឌ ឬទីតាំងសម្គាល់')}
+              placeholder="Search address, district, or landmark"
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -630,7 +627,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
               disabled={locationLoading}
               className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
             >
-              {locationLoading ? text('Searching...', 'កំពុងស្វែងរក...') : text('Search', 'ស្វែងរក')}
+              {locationLoading ? 'Searching...' : 'Search'}
             </button>
             <button
               type="button"
@@ -638,7 +635,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
               disabled={locationLoading}
               className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              {text('Use My Location', 'ប្រើទីតាំងរបស់ខ្ញុំ')}
+              Use My Location
             </button>
             <button
               type="button"
@@ -646,7 +643,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               <XMarkIcon className="h-4 w-4" />
-              {text('Clear', 'សម្អាត')}
+              Clear
             </button>
           </div>
         </div>
@@ -659,10 +656,10 @@ const FieldLocationPicker = ({ value, onChange }) => {
       ) : (
         <div className="overflow-hidden rounded-[24px] border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-            <span>{text('Tip: click anywhere to place the pin, then drag it for exact positioning.', 'គន្លឹះ: ចុចកន្លែងណាក៏បានដើម្បីដាក់ម្ជុល បន្ទាប់មកអូសវាសម្រាប់ទីតាំងជាក់លាក់។')}</span>
+            <span>Tip: click anywhere to place the pin, then drag it for exact positioning.</span>
             {Number.isFinite(Number(value?.latitude)) && Number.isFinite(Number(value?.longitude)) && (
               <span className="rounded-full bg-white px-2.5 py-1 font-semibold text-slate-700 shadow-sm">
-                {text('Location selected', 'បានជ្រើសទីតាំង')}
+                Location selected
               </span>
             )}
           </div>
@@ -674,10 +671,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
                   onClick={() => setMapThemeMenuOpen((current) => !current)}
                   className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-lg backdrop-blur transition hover:bg-white"
                 >
-                  {(() => {
-                    const activeTheme = MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme);
-                    return activeTheme ? text(activeTheme.en, activeTheme.km) : text('Map', 'ផែនទី');
-                  })()}
+                  {MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme)?.label || 'Map'}
                   <ChevronDownIcon className={`h-3.5 w-3.5 transition ${mapThemeMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {mapThemeMenuOpen && (
@@ -696,7 +690,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
                             isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
                           }`}
                         >
-                          {text(theme.en, theme.km)}
+                          {theme.label}
                         </button>
                       );
                     })}
@@ -716,10 +710,10 @@ const FieldLocationPicker = ({ value, onChange }) => {
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900">
-              {locationLoading ? text('Reading map location...', 'កំពុងអានទីតាំងពីផែនទី...') : value?.address || text('No location selected yet', 'មិនទាន់បានជ្រើសទីតាំង')}
+              {locationLoading ? 'Reading map location...' : value?.address || 'No location selected yet'}
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              {value?.city || text('City unknown', 'មិនស្គាល់ទីក្រុង')}
+              {value?.city || 'City unknown'}
               {value?.province ? `, ${value.province}` : ''}
             </p>
             {Number.isFinite(Number(value?.latitude)) && Number.isFinite(Number(value?.longitude)) && (

@@ -2,14 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarIcon, ClockIcon, UsersIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
-import { useLanguage } from '../context/LanguageContext';
-import { Badge, Button, Card, CardBody, EmptyState, Spinner, useToast } from '../components/ui';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { useAuth } from '../context/AuthContext';
 
 const OpenMatchesPage = () => {
-  const { language } = useLanguage();
-  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
-  const { showToast } = useToast();
+  const { user } = useAuth();
+  const canUseOpenMatches = ['captain', 'field_owner'].includes(user?.role || '');
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
   const [selectedTeams, setSelectedTeams] = useState({});
@@ -19,24 +18,20 @@ const OpenMatchesPage = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
-    if (!successMessage) return;
-    showToast(successMessage, { type: 'success', duration: 3200 });
-    setSuccessMessage('');
-  }, [showToast, successMessage]);
-
-  useEffect(() => {
-    if (!error) return;
-    showToast(error, { type: 'error', duration: 3600 });
-    setError(null);
-  }, [error, showToast]);
-
   const defaultTeamId = useMemo(() => {
     if (captainedTeams.length === 0) return '';
     return String(captainedTeams[0].id);
   }, [captainedTeams]);
 
   const loadData = useCallback(async () => {
+    if (!canUseOpenMatches) {
+      setOpenMatches([]);
+      setCaptainedTeams([]);
+      setError('This feature is available for team captains and field owners only.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -51,11 +46,11 @@ const OpenMatchesPage = () => {
       setCaptainedTeams(teams);
     } catch (err) {
       console.error('Failed to load open matches:', err);
-      setError(err.error || text('Failed to load open matches', 'មិនអាចផ្ទុកការប្រកួតបើកចំហបានទេ'));
+      setError(err.error || 'Failed to load open matches');
     } finally {
       setLoading(false);
     }
-  }, [text]);
+  }, [canUseOpenMatches]);
 
   useEffect(() => {
     loadData();
@@ -83,18 +78,18 @@ const OpenMatchesPage = () => {
     try {
       const selectedTeamId = Number(selectedTeams[bookingId]);
       if (!selectedTeamId) {
-          setError(text('Please choose a team before sending the request.', 'សូមជ្រើសក្រុមមួយមុននឹងផ្ញើសំណើ។'));
+        setError('Please choose a team before sending the request.');
         return;
       }
 
       setSubmittingMap((prev) => ({ ...prev, [bookingId]: true }));
       setSuccessMessage('');
       await bookingService.requestJoinMatch(bookingId, selectedTeamId, messages[bookingId] || '');
-      setSuccessMessage(text('Join request submitted successfully.', 'បានផ្ញើសំណើចូលរួមដោយជោគជ័យ។'));
+      setSuccessMessage('Join request submitted successfully.');
       await loadData();
     } catch (err) {
       console.error('Failed to submit join request:', err);
-      setError(err.error || text('Failed to submit join request', 'មិនអាចផ្ញើសំណើចូលរួមបានទេ'));
+      setError(err.error || 'Failed to submit join request');
     } finally {
       setSubmittingMap((prev) => ({ ...prev, [bookingId]: false }));
     }
@@ -112,17 +107,22 @@ const OpenMatchesPage = () => {
     <div>
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{text('Open Matches', 'ការប្រកួតបើកចំហ')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Open Matches</h1>
           <p className="mt-1 text-sm text-gray-600">
-            {text('Find bookings that are open for opponents and send join requests.', 'ស្វែងរកការកក់ដែលបើកសម្រាប់គូប្រកួត ហើយផ្ញើសំណើចូលរួម។')}
+            Find bookings that are open for opponents and send join requests.
           </p>
         </div>
-        <Badge tone="gray">{text(`${openMatches.length} available`, `${openMatches.length} អាចចូលរួមបាន`)}</Badge>
+        <Badge tone="gray">{openMatches.length} available</Badge>
       </div>
+
+      {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
+      {successMessage && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">{successMessage}</div>
+      )}
 
       {captainedTeams.length === 0 && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-3 rounded-md text-sm">
-          {text('You need at least one team where you are captain to request an open match.', 'អ្នកត្រូវការយ៉ាងហោចណាស់មួយក្រុមដែលអ្នកជាកាពីតែន ដើម្បីស្នើចូលរួមការប្រកួតបើកចំហ។')}
+          You need at least one team where you are captain to request an open match.
         </div>
       )}
 
@@ -139,8 +139,8 @@ const OpenMatchesPage = () => {
                 <div className="flex items-start justify-between gap-6">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-medium text-gray-900">{match.field?.name || text('Unknown Field', 'មិនស្គាល់ទីលាន')}</h3>
-                        <Badge tone="blue">{text('Open for Opponents', 'បើកសម្រាប់គូប្រកួត')}</Badge>
+                      <h3 className="text-lg font-medium text-gray-900">{match.field?.name || 'Unknown Field'}</h3>
+                      <Badge tone="blue">Open for Opponents</Badge>
                     </div>
 
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
@@ -154,7 +154,7 @@ const OpenMatchesPage = () => {
                       </div>
                       <div className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
-                        {text('Owner Team:', 'ក្រុមម្ចាស់:')} {match.team?.name || text('Unknown Team', 'មិនស្គាល់ក្រុម')}
+                        Owner Team: {match.team?.name || 'Unknown Team'}
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
                           {ownerColors.map((color, index) => (
                             <span key={`owner-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
@@ -164,7 +164,7 @@ const OpenMatchesPage = () => {
                     </div>
 
                     {hasPendingRequest(match) && (
-                       <p className="mt-2 text-sm text-yellow-700">{text('You already have a pending request for this match.', 'អ្នកមានសំណើកំពុងរង់ចាំសម្រាប់ការប្រកួតនេះរួចហើយ។')}</p>
+                      <p className="mt-2 text-sm text-yellow-700">You already have a pending request for this match.</p>
                     )}
                   </div>
 
@@ -175,7 +175,7 @@ const OpenMatchesPage = () => {
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
                     >
-                        <option value="">{text('Select your team', 'ជ្រើសក្រុមរបស់អ្នក')}</option>
+                      <option value="">Select your team</option>
                       {captainedTeams.map((team) => (
                         <option key={team.id} value={team.id}>
                           {team.name}
@@ -184,7 +184,7 @@ const OpenMatchesPage = () => {
                     </select>
                     <textarea
                       rows={2}
-                       placeholder={text('Optional message', 'សារបន្ថែម')}
+                      placeholder="Optional message"
                       value={messages[match.id] || ''}
                       onChange={(e) => setMessages((prev) => ({ ...prev, [match.id]: e.target.value }))}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match)}
@@ -195,7 +195,7 @@ const OpenMatchesPage = () => {
                       onClick={() => handleSubmitRequest(match.id)}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match) || submittingMap[match.id]}
                     >
-                      {submittingMap[match.id] ? text('Sending...', 'កំពុងផ្ញើ...') : text('Request to Join', 'ស្នើចូលរួម')}
+                      {submittingMap[match.id] ? 'Sending...' : 'Request to Join'}
                     </Button>
                     {selectedTeam && (
                       <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
@@ -212,8 +212,8 @@ const OpenMatchesPage = () => {
             <div className="p-6">
               <EmptyState
                 icon={CalendarIcon}
-                title={text('No open matches right now', 'ពេលនេះមិនមានការប្រកួតបើកចំហទេ')}
-                description={text('Check again later for new matches opened by other captains.', 'សូមពិនិត្យម្តងទៀតពេលក្រោយ សម្រាប់ការប្រកួតថ្មីៗដែលបើកដោយកាពីតែនផ្សេងទៀត។')}
+                title="No open matches right now"
+                description="Check again later for new matches opened by other captains."
               />
             </div>
           )}

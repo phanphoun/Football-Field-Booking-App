@@ -5,14 +5,12 @@ import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
 const CreateBookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useLanguage();
-  const canCreateBooking = ['captain', 'field_owner', 'admin'].includes(user?.role);
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -89,7 +87,7 @@ const CreateBookingPage = () => {
       try {
         setLoading(true);
         const [fieldsResponse, teamsResponse] = await Promise.all([
-          fieldService.getAllFields(),
+          fieldService.getAllFields({ status: 'available' }),
           teamService.getMyTeams()
         ]);
         
@@ -158,7 +156,12 @@ const CreateBookingPage = () => {
       const endDate = new Date(formData.endTime);
 
       if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-        setError(t('create_booking_valid_datetime', 'Please provide a valid date and time'));
+        setError('Please provide a valid date and time');
+        return;
+      }
+
+      if (isSelectedFieldClosedForChosenTime) {
+        setError('This field is closed for the selected date/time. Please choose another slot.');
         return;
       }
 
@@ -174,7 +177,7 @@ const CreateBookingPage = () => {
       
       if (response.success) {
         navigate('/app/bookings', { 
-          state: { successMessage: t('create_booking_success', 'Booking created successfully!') }
+          state: { successMessage: 'Booking created successfully!' }
         });
       } else {
         setError(response.error || 'Failed to create booking');
@@ -194,6 +197,29 @@ const CreateBookingPage = () => {
   const selectedField = Array.isArray(fields) ? fields.find(f => f.id === parseInt(formData.fieldId)) : null;
   const selectedTeam = Array.isArray(teams) ? teams.find(t => t.id === parseInt(formData.teamId)) : null;
   const totalPrice = calculatePrice();
+  const selectedStartDate = formData.startTime ? new Date(formData.startTime) : null;
+  const selectedEndDate = formData.endTime ? new Date(formData.endTime) : null;
+  const closureStartDate = selectedField?.closureStartAt ? new Date(selectedField.closureStartAt) : null;
+  const closureEndDate = selectedField?.closureEndAt ? new Date(selectedField.closureEndAt) : null;
+  const closureStartMs =
+    closureStartDate && !Number.isNaN(closureStartDate.getTime()) ? closureStartDate.getTime() : null;
+  const closureEndMs =
+    closureEndDate && !Number.isNaN(closureEndDate.getTime()) ? closureEndDate.getTime() : null;
+  const selectedStartMs =
+    selectedStartDate && !Number.isNaN(selectedStartDate.getTime()) ? selectedStartDate.getTime() : null;
+  const selectedEndMs =
+    selectedEndDate && !Number.isNaN(selectedEndDate.getTime()) ? selectedEndDate.getTime() : null;
+  const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
+  const selectedSlotOverlapsClosure =
+    hasClosureWindow &&
+    selectedStartMs !== null &&
+    selectedEndMs !== null &&
+    selectedStartMs < (closureEndMs ?? Number.POSITIVE_INFINITY) &&
+    selectedEndMs > (closureStartMs ?? Number.NEGATIVE_INFINITY);
+  const isSelectedFieldClosedForChosenTime =
+    Boolean(selectedField) &&
+    String(selectedField?.status || 'available').toLowerCase() !== 'available' &&
+    (!hasClosureWindow || selectedSlotOverlapsClosure);
   const rawAmenities = selectedField?.amenities;
   const selectedFieldAmenities = Array.isArray(rawAmenities)
     ? rawAmenities
@@ -212,9 +238,9 @@ const CreateBookingPage = () => {
   if (!canCreateBooking) {
     return (
       <div className="bg-white shadow rounded-lg p-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">{t('create_booking_access_required', 'Access Required')}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Access Required</h1>
         <p className="mt-3 text-sm text-gray-600">
-          {t('create_booking_access_description', 'You need captain, field owner, or admin access to book fields.')}
+          You need captain or field owner access to book fields.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <button
@@ -222,14 +248,14 @@ const CreateBookingPage = () => {
             onClick={() => navigate('/app/settings')}
             className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
           >
-            {t('action_open_settings', 'Open Settings')}
+            Open Settings
           </button>
           <button
             type="button"
             onClick={() => navigate('/app/bookings')}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
-            {t('action_back_to_bookings', 'Back to Bookings')}
+            Back to Bookings
           </button>
         </div>
       </div>
@@ -244,17 +270,31 @@ const CreateBookingPage = () => {
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeftIcon className="h-4 w-4 mr-2" />
-          {t('action_back_to_bookings', 'Back to Bookings')}
+          Back to Bookings
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">{t('create_booking_title', 'Create New Booking')}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Create New Booking</h1>
         <p className="mt-1 text-sm text-gray-600">
-          {t('create_booking_subtitle', 'Book a football field for your team')}
+          Book a football field for your team
         </p>
       </div>
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
           {error}
+        </div>
+      )}
+      {isSelectedFieldClosedForChosenTime && (
+        <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3">
+          <p className="text-sm font-semibold text-rose-800">Field is closed for selected time</p>
+          <p className="mt-1 text-xs text-rose-700">
+            {selectedField?.closureMessage || 'Please choose a different date/time or another field.'}
+          </p>
+          {(closureStartMs || closureEndMs) && (
+            <p className="mt-1 text-xs text-rose-700">
+              Closure window: {closureStartMs ? new Date(closureStartMs).toLocaleString() : 'No start'} -{' '}
+              {closureEndMs ? new Date(closureEndMs).toLocaleString() : 'No end'}
+            </p>
+          )}
         </div>
       )}
 
@@ -266,7 +306,7 @@ const CreateBookingPage = () => {
               {/* Field Selection */}
               <div>
                 <label htmlFor="fieldId" className="block text-sm font-medium text-gray-700">
-                  {t('create_booking_select_field', 'Select Field *')}
+                  Select Field *
                 </label>
                 <select
                   id="fieldId"
@@ -276,20 +316,20 @@ const CreateBookingPage = () => {
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
                 >
-                  <option value="">{t('create_booking_choose_field', 'Choose a field...')}</option>
+                  <option value="">Choose a field...</option>
                   {Array.isArray(fields) ? fields.map(field => (
                     <option key={field.id} value={field.id} disabled={!canBookField(field)}>
                       {field.name} - ${getDiscountedPrice(field)}/hour{getDiscountPercent(field) > 0 ? ` (${getDiscountPercent(field)}% off)` : ''}{!canBookField(field) ? ` (${field.status})` : ''}
                     </option>
                   )) : null}
                 </select>
-                 <p className="mt-2 text-xs text-gray-500">{t('fields_only_available', 'Only fields with status "available" can be booked.')}</p>
+                <p className="mt-2 text-xs text-gray-500">Only fields with status "available" can be booked.</p>
               </div>
 
               {/* Team Selection */}
               <div>
                 <label htmlFor="teamId" className="block text-sm font-medium text-gray-700">
-                  {t('create_booking_select_team', 'Select Team *')}
+                  Select Team *
                 </label>
                 <select
                   id="teamId"
@@ -299,7 +339,7 @@ const CreateBookingPage = () => {
                   required
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
                 >
-                  <option value="">{t('create_booking_choose_team', 'Choose a team...')}</option>
+                  <option value="">Choose a team...</option>
                   {Array.isArray(teams) ? teams.map(team => (
                     <option key={team.id} value={team.id}>
                       {team.name}
@@ -308,7 +348,7 @@ const CreateBookingPage = () => {
                 </select>
                 {selectedTeam && (
                   <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
-                    <span>{t('create_booking_jersey_colors', 'Jersey Colors')}</span>
+                    <span>Jersey Colors</span>
                     {getTeamJerseyColors(selectedTeam).map((color, index) => (
                       <span key={`${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
                     ))}
@@ -316,13 +356,13 @@ const CreateBookingPage = () => {
                 )}
                 {!hasTeams && (
                   <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    {t('create_booking_need_team', 'You need a team before booking.')}
+                    You need a team before booking.
                     <button
                       type="button"
                       onClick={() => navigate('/app/teams/create')}
                       className="ml-2 font-semibold underline hover:text-amber-900"
                     >
-                      {t('action_create_team', 'Create Team')}
+                      Create Team
                     </button>
                   </div>
                 )}
@@ -332,7 +372,7 @@ const CreateBookingPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
-                    {t('create_booking_start_time', 'Start Time *')}
+                    Start Time *
                   </label>
                   <input
                     type="datetime-local"
@@ -347,7 +387,7 @@ const CreateBookingPage = () => {
                 </div>
                 <div>
                   <label htmlFor="durationHours" className="block text-sm font-medium text-gray-700">
-                    {t('create_booking_duration', 'Duration *')}
+                    Duration *
                   </label>
                   <select
                     id="durationHours"
@@ -356,9 +396,9 @@ const CreateBookingPage = () => {
                     onChange={handleChange}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
                   >
-                    <option value="1">{t('hour_suffix', '{{value}} hour', { value: 1 })}</option>
-                    <option value="2">{t('hours_suffix', '{{value}} hours', { value: 2 })}</option>
-                    <option value="3">{t('hours_suffix', '{{value}} hours', { value: 3 })}</option>
+                    <option value="1">1 hour</option>
+                    <option value="2">2 hours</option>
+                    <option value="3">3 hours</option>
                   </select>
                 </div>
                 <div>
@@ -380,7 +420,7 @@ const CreateBookingPage = () => {
               {/* Notes */}
               <div>
                 <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                  {t('create_booking_notes', 'Notes')} (Optional)
+                  Notes (Optional)
                 </label>
                 <textarea
                   id="notes"
@@ -388,7 +428,7 @@ const CreateBookingPage = () => {
                   rows={3}
                   value={formData.notes}
                   onChange={handleChange}
-                  placeholder={t('create_booking_notes_placeholder', 'Add any booking notes...')}
+                  placeholder="Any special requirements or notes..."
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
                 />
               </div>
@@ -400,14 +440,14 @@ const CreateBookingPage = () => {
           onClick={() => navigate('/app/bookings')}
           className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
         >
-          {t('action_cancel', 'Cancel')}
+          Cancel
         </button>
                 <button
                   type="submit"
-                  disabled={submitting || !hasTeams}
+                  disabled={submitting || !hasTeams || isSelectedFieldClosedForChosenTime}
                   className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                 >
-                  {submitting ? t('create_booking_submitting', 'Creating Booking...') : t('create_booking_submit', 'Create Booking')}
+                  {submitting ? 'Creating...' : 'Create Booking'}
                 </button>
               </div>
             </form>
@@ -417,17 +457,17 @@ const CreateBookingPage = () => {
         {/* Booking Summary */}
         <div className="lg:col-span-1">
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">{t('create_booking_summary', 'Booking Summary')}</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Booking Summary</h3>
             
             {selectedField && (
               <div className="space-y-4">
                 <div className="flex items-start">
                   <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
                   <div>
-                      <h4 className="text-sm font-medium text-gray-900">{t('create_booking_field', 'Field')}</h4>
+                      <h4 className="text-sm font-medium text-gray-900">Field</h4>
                       <p className="text-sm text-gray-600">{selectedField.name}</p>
                       <p className="text-xs text-gray-500">{selectedField.address}</p>
-                      <p className="mt-1 text-xs font-semibold capitalize text-gray-600">{t('field_status', 'Status')}: {selectedField.status || 'available'}</p>
+                      <p className="mt-1 text-xs font-semibold capitalize text-gray-600">Status: {selectedField.status || 'available'}</p>
                       {getDiscountPercent(selectedField) > 0 && (
                         <p className="mt-1 text-xs font-semibold text-emerald-600">{getDiscountPercent(selectedField)}% off available</p>
                       )}
@@ -438,7 +478,7 @@ const CreateBookingPage = () => {
                   <div className="flex items-start">
                     <UsersIcon className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900">{t('create_booking_team', 'Team')}</h4>
+                      <h4 className="text-sm font-medium text-gray-900">Team</h4>
                       <p className="text-sm text-gray-600">{selectedTeam.name}</p>
                       <div className="mt-1 inline-flex items-center gap-1.5">
                         {getTeamJerseyColors(selectedTeam).map((color, index) => (
@@ -451,23 +491,23 @@ const CreateBookingPage = () => {
 
                 {canCreateBooking && (
                   <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold text-gray-900">{t('create_booking_field_details', 'Field Details for Captain')}</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Field Details for Captain</h4>
                     <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-gray-600">
                       <div className="flex items-center justify-between">
-                        <span>{t('create_booking_field_type', 'Field Type')}</span>
+                        <span>Field Type</span>
                         <span className="font-medium text-gray-800">{selectedField.fieldType || 'N/A'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>{t('create_booking_surface', 'Surface')}</span>
+                        <span>Surface</span>
                         <span className="font-medium text-gray-800">{selectedField.surfaceType?.replace('_', ' ') || 'N/A'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span>{t('create_booking_capacity', 'Capacity')}</span>
-                        <span className="font-medium text-gray-800">{selectedField.capacity || 'N/A'} {t('players_suffix', '{{count}} players', { count: '' }).trim()}</span>
+                        <span>Capacity</span>
+                        <span className="font-medium text-gray-800">{selectedField.capacity || 'N/A'} players</span>
                       </div>
                     </div>
                     <div className="mt-3">
-                      <h5 className="text-xs font-semibold text-gray-900">{t('create_booking_amenities', 'Amenities')}</h5>
+                      <h5 className="text-xs font-semibold text-gray-900">Amenities</h5>
                       {selectedFieldAmenities.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {selectedFieldAmenities.map((amenity, index) => (
@@ -480,7 +520,7 @@ const CreateBookingPage = () => {
                           ))}
                         </div>
                       ) : (
-                        <p className="mt-1 text-xs text-gray-500">{t('create_booking_no_amenities', 'No amenities listed for this field.')}</p>
+                        <p className="mt-1 text-xs text-gray-500">No amenities listed for this field.</p>
                       )}
                     </div>
                   </div>
@@ -490,7 +530,7 @@ const CreateBookingPage = () => {
                   <div className="flex items-start">
                     <CalendarIcon className="h-5 w-5 text-gray-400 mt-0.5 mr-3" />
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900">{t('create_booking_date_time', 'Date & Time')}</h4>
+                      <h4 className="text-sm font-medium text-gray-900">Date & Time</h4>
                       <p className="text-sm text-gray-600">
                         {new Date(formData.startTime).toLocaleDateString()}
                       </p>
@@ -507,7 +547,7 @@ const CreateBookingPage = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <CurrencyDollarIcon className="h-5 w-5 text-green-600 mr-2" />
-                        <h4 className="text-sm font-medium text-gray-900">{t('create_booking_total_price', 'Total Price')}</h4>
+                        <h4 className="text-sm font-medium text-gray-900">Total Price</h4>
                       </div>
                       <span className="text-lg font-bold text-green-600">
                         ${totalPrice.toFixed(2)}
@@ -525,7 +565,7 @@ const CreateBookingPage = () => {
               <div className="text-center py-8">
                 <BuildingOfficeIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <p className="mt-2 text-sm text-gray-500">
-                  {t('create_booking_choose_field', 'Choose a field...')}
+                  Select a field to see booking details
                 </p>
               </div>
             )}

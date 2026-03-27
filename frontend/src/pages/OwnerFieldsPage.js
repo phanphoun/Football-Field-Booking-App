@@ -1,14 +1,43 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapPinIcon, PencilSquareIcon, PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { createPortal } from 'react-dom';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  MapPinIcon,
+  PencilSquareIcon,
+  PhotoIcon,
+  PlusIcon,
+  TrashIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 import FieldLocationPicker from '../components/maps/FieldLocationPicker';
 import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
+const FIELD_STATUS_OPTIONS = [
+  {
+    value: 'available',
+    label: 'Open',
+    description: 'Bookings are available and the field appears as ready to reserve.',
+    tone: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  },
+  {
+    value: 'unavailable',
+    label: 'Closed',
+    description: 'Hide booking availability until you reopen the field.',
+    tone: 'bg-rose-50 text-rose-700 border-rose-200'
+  },
+  {
+    value: 'maintenance',
+    label: 'Maintenance',
+    description: 'Show that the field is temporarily offline for repair or preparation.',
+    tone: 'bg-amber-50 text-amber-700 border-amber-200'
+  }
+];
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 
@@ -26,7 +55,10 @@ const emptyForm = {
   status: 'available',
   fieldType: '11v11',
   surfaceType: 'artificial_turf',
-  amenities: ''
+  amenities: '',
+  closureMessage: '',
+  closureStartAt: '',
+  closureEndAt: ''
 };
 
 const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
@@ -49,45 +81,108 @@ const normalizeImages = (imagesValue) => {
   return [];
 };
 
-const resolveFieldImageUrl = (rawImage) => {
+const resolveFieldImageUrl = (rawImage, versionToken = '') => {
   if (!rawImage) return DEFAULT_FIELD_IMAGE;
   if (/^https?:\/\//i.test(rawImage) || /^data:image\//i.test(rawImage)) return rawImage;
-  if (String(rawImage).startsWith('/uploads/')) return `${API_ORIGIN}${rawImage}`;
+  if (String(rawImage).startsWith('/uploads/')) {
+    const baseUrl = `${API_ORIGIN}${rawImage}`;
+    if (!versionToken) return baseUrl;
+    const separator = baseUrl.includes('?') ? '&' : '?';
+    return `${baseUrl}${separator}v=${encodeURIComponent(String(versionToken))}`;
+  }
   return rawImage;
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toIsoOrNull = (value) => {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const addDaysToDateInput = (baseValue, days) => {
+  const baseDate = baseValue ? new Date(baseValue) : new Date();
+  if (Number.isNaN(baseDate.getTime())) return '';
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + Number(days || 0));
+  return toDateInputValue(nextDate);
+};
+
+const isOwnedByCurrentUser = (field, user) => {
+  if (!field) return false;
+  const ownerId =
+    field.ownerId ||
+    field.owner_id ||
+    field.userId ||
+    field.user_id ||
+    field.fieldOwnerId ||
+    field.owner?.id ||
+    field.owner?._id ||
+    null;
+  const userId = user?.id || user?._id || null;
+  if (!ownerId || !userId) return true;
+  return String(ownerId) === String(userId);
+};
+
+const normalizeEditableStatus = (value) => {
+  const normalized = String(value || 'available').toLowerCase();
+  if (normalized === 'booked') return 'available';
+  if (normalized === 'maintenance' || normalized === 'unavailable' || normalized === 'available') {
+    return normalized;
+  }
+  return 'available';
+};
+
+const getApiErrorMessage = (err, fallbackMessage) => {
+  const validationErrors = Array.isArray(err?.data?.errors) ? err.data.errors : [];
+  if (validationErrors.length > 0) {
+    const first = validationErrors[0];
+    const field = first?.field ? `${first.field}: ` : '';
+    return `${field}${first?.message || 'Invalid value'}`;
+  }
+  return err?.error || fallbackMessage;
 };
 
 const OwnerFieldsPage = () => {
   const { user } = useAuth();
-  const { language } = useLanguage();
-  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { confirm } = useDialog();
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const [fields, setFields] = useState([]);
-  const [allFields, setAllFields] = useState([]);
-  const [viewMode, setViewMode] = useState('mine');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState(null);
+  const [statusEditingField, setStatusEditingField] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
+  const [imageVersionToken, setImageVersionToken] = useState(0);
   const [form, setForm] = useState(emptyForm);
 
-  const visibleFields = useMemo(() => (viewMode === 'all' ? allFields : fields), [viewMode, allFields, fields]);
-
-  const isOwnedByCurrentUser = useCallback(
-    (field) => {
-      const ownerId = field?.ownerId || field?.owner?.id;
-      return Number(ownerId) === Number(user?.id);
-    },
-    [user?.id]
-  );
+  const visibleFields = useMemo(() => fields, [fields]);
 
   const loadFields = useCallback(async () => {
-    const [myRes, allRes] = await Promise.all([fieldService.getMyFields(), fieldService.getAllFields({ limit: 200 })]);
-    setFields(Array.isArray(myRes.data) ? myRes.data : []);
-    setAllFields(Array.isArray(allRes.data) ? allRes.data : []);
+    try {
+      setLoading(true);
+      setError('');
+      const response = await fieldService.getMyFields();
+      setFields(Array.isArray(response?.data) ? response.data : []);
+    } catch (err) {
+      setError(err?.error || 'Failed to load fields');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -96,26 +191,41 @@ const OwnerFieldsPage = () => {
         setLoading(true);
         await loadFields();
       } catch (err) {
-        showToast(err?.error || text('Failed to load fields', 'មិនអាចផ្ទុកទីលានបានទេ'), { type: 'error' });
+        showToast(err?.error || 'Failed to load fields', { type: 'error' });
       } finally {
         setLoading(false);
       }
     };
     run();
-  }, [loadFields, showToast, text]);
+  }, [loadFields, showToast]);
 
   const resetForm = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
+    setImageVersionToken(0);
     setEditingFieldId(null);
     setIsOpen(false);
+  };
+
+  const resetStatusForm = () => {
+    setStatusEditingField(null);
+    setIsStatusMenuOpen(false);
+    setForm((current) => ({
+      ...current,
+      status: 'available',
+      closureMessage: '',
+      closureStartAt: '',
+      closureEndAt: ''
+    }));
+    setIsStatusOpen(false);
   };
 
   const startCreate = () => {
     setForm(emptyForm);
     setImageFiles([]);
     setExistingImages([]);
+    setImageVersionToken(0);
     setEditingFieldId(null);
     setIsOpen(true);
   };
@@ -123,7 +233,8 @@ const OwnerFieldsPage = () => {
   const startEdit = (field) => {
     setEditingFieldId(field.id);
     setImageFiles([]);
-    setExistingImages(normalizeImages(field.images).map((image) => resolveFieldImageUrl(image)));
+    setExistingImages(normalizeImages(field.images));
+    setImageVersionToken(new Date(field.updatedAt || Date.now()).getTime());
     setForm({
       name: field.name || '',
       description: field.description || '',
@@ -135,10 +246,13 @@ const OwnerFieldsPage = () => {
       pricePerHour: field.pricePerHour ?? '',
       discountPercent: field.discountPercent ?? '',
       capacity: field.capacity ?? '',
-      status: field.status || 'available',
+      status: normalizeEditableStatus(field.status),
       fieldType: field.fieldType || '11v11',
       surfaceType: field.surfaceType || 'artificial_turf',
-      amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : ''
+      amenities: Array.isArray(field.amenities) ? field.amenities.join(', ') : '',
+      closureMessage: field.closureMessage || '',
+      closureStartAt: toDateInputValue(field.closureStartAt),
+      closureEndAt: toDateInputValue(field.closureEndAt)
     });
     setIsOpen(true);
   };
@@ -158,18 +272,41 @@ const OwnerFieldsPage = () => {
     };
   }, [selectedImagePreviews]);
 
+  useEffect(() => {
+    if (!isOpen && !isStatusOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, isStatusOpen]);
+
   const visibleImagePreviews = selectedImagePreviews.length > 0
     ? selectedImagePreviews
-    : existingImages.map((url, index) => ({ name: `Current image ${index + 1}`, url }));
+    : existingImages.map((path, index) => ({
+        name: `Current image ${index + 1}`,
+        url: resolveFieldImageUrl(path, imageVersionToken || editingFieldId || Date.now()),
+        isCurrent: true,
+        index
+      }));
 
-  const formatFieldStatus = (status) => {
-    const normalized = String(status || '').toLowerCase();
-    if (normalized === 'available') return text('Available', 'ទំនេរ');
-    if (normalized === 'booked') return text('Booked', 'បានកក់');
-    if (normalized === 'maintenance') return text('Maintenance', 'កំពុងជួសជុល');
-    if (normalized === 'unavailable') return text('Unavailable', 'មិនអាចប្រើបាន');
-    return status || text('Available', 'ទំនេរ');
-  };
+  const amenitiesPreview = useMemo(
+    () => (form.amenities || '').split(',').map((item) => item.trim()).filter(Boolean).slice(0, 5),
+    [form.amenities]
+  );
+
+  const liveDiscountPercent = Math.min(100, Math.max(0, Number(form.discountPercent || 0)));
+  const liveBasePrice = Number(form.pricePerHour || 0);
+  const liveDiscountedPrice = liveBasePrice > 0
+    ? Number((liveBasePrice * (1 - liveDiscountPercent / 100)).toFixed(2))
+    : 0;
+  const modalFieldName = form.name.trim() || 'Untitled field';
+  const renderPortal = (content) => (typeof document !== 'undefined' ? createPortal(content, document.body) : null);
+  const isFormReady =
+    form.name.trim().length > 0 &&
+    Number(form.pricePerHour) > 0 &&
+    Number(form.capacity) > 0 &&
+    form.address.trim().length > 0;
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -188,12 +325,53 @@ const OwnerFieldsPage = () => {
   };
 
   const handleImageChange = (event) => {
-    const nextFiles = Array.from(event.target.files || []).filter((file) => String(file.type || '').startsWith('image/'));
-    setImageFiles(nextFiles.slice(0, 5));
+    const selectedFiles = Array.from(event.target.files || []);
+    const nextFiles = selectedFiles.filter((file) => String(file.type || '').startsWith('image/'));
+    const limitedFiles = nextFiles.slice(0, 5);
+
+    if (selectedFiles.length !== nextFiles.length) {
+      showToast('Only image files can be uploaded for field photos.', { type: 'error' });
+    }
+    if (nextFiles.length > 5) {
+      showToast('You can upload up to 5 field photos at a time.', { type: 'error' });
+    }
+
+    setImageFiles(limitedFiles);
+    // Allow selecting the same file again (browser otherwise may not trigger onChange).
+    event.target.value = '';
+  };
+
+  const applyClosureDaysPreset = (days) => {
+    setForm((current) => {
+      const baseStart = current.closureStartAt || toDateInputValue(new Date());
+      const nextEnd = addDaysToDateInput(baseStart, days);
+      return {
+        ...current,
+        closureStartAt: baseStart,
+        closureEndAt: nextEnd
+      };
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!form.name?.trim()) {
+      showToast('name: Field name is required', { type: 'error' });
+      return;
+    }
+    if (!form.address?.trim()) {
+      showToast('address: Address is required. Please pick a location.', { type: 'error' });
+      return;
+    }
+    if (!Number.isFinite(Number(form.pricePerHour)) || Number(form.pricePerHour) < 0) {
+      showToast('pricePerHour: Price per hour must be a positive number', { type: 'error' });
+      return;
+    }
+    if (!Number.isInteger(Number(form.capacity)) || Number(form.capacity) < 1) {
+      showToast('capacity: Capacity must be a positive integer', { type: 'error' });
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -208,47 +386,129 @@ const OwnerFieldsPage = () => {
         pricePerHour: Number(form.pricePerHour),
         discountPercent: form.discountPercent === '' ? 0 : Number(form.discountPercent),
         capacity: Number(form.capacity),
-        status: form.status,
+        status: normalizeEditableStatus(form.status),
         fieldType: form.fieldType,
         surfaceType: form.surfaceType,
-        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : []
+        amenities: form.amenities ? form.amenities.split(',').map((item) => item.trim()).filter(Boolean) : [],
+        closureMessage:
+          form.status === 'available'
+            ? null
+            : form.closureMessage?.trim()
+            ? form.closureMessage.trim()
+            : null,
+        closureStartAt: form.status === 'available' ? null : toIsoOrNull(form.closureStartAt),
+        closureEndAt: form.status === 'available' ? null : toIsoOrNull(form.closureEndAt)
       };
 
       if (editingFieldId) {
         await fieldService.updateField(editingFieldId, payload);
+        let uploadedCount = 0;
         if (imageFiles.length > 0) {
-          await fieldService.uploadFieldImages(editingFieldId, imageFiles, { replaceExisting: true });
+          await fieldService.uploadFieldImages(editingFieldId, imageFiles, {
+            replaceExisting: true
+          });
+          uploadedCount = imageFiles.length;
         }
-        showToast(text('Field updated.', 'បានកែប្រែទីលាន។'), { type: 'success' });
+        showToast(uploadedCount > 0 ? `Field updated with ${uploadedCount} photo(s).` : 'Field updated. No new photo selected.', { type: 'success' });
       } else {
         const created = await fieldService.createField(payload);
         const createdId = created?.data?.id;
+        let uploadedCount = 0;
         if (createdId && imageFiles.length > 0) {
           await fieldService.uploadFieldImages(createdId, imageFiles);
+          uploadedCount = imageFiles.length;
         }
-        showToast(text('Field created.', 'បានបង្កើតទីលាន។'), { type: 'success' });
+        showToast(uploadedCount > 0 ? `Field created with ${uploadedCount} photo(s).` : 'Field created. Add photos any time by editing.', { type: 'success' });
       }
 
       await loadFields();
       resetForm();
     } catch (err) {
-      showToast(err?.error || text('Failed to save field', 'មិនអាចរក្សាទុកទីលានបានទេ'), { type: 'error' });
+      showToast(getApiErrorMessage(err, 'Failed to save field'), { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCurrentImage = async (imageIndex) => {
+    if (!editingFieldId && editingFieldId !== 0) return;
+    try {
+      setSaving(true);
+      const response = await fieldService.deleteFieldImage(editingFieldId, imageIndex);
+      const nextImages = Array.isArray(response?.data?.images) ? response.data.images : [];
+      setExistingImages(nextImages);
+      setImageVersionToken(Date.now());
+      await loadFields();
+      showToast('Photo deleted.', { type: 'success' });
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to delete photo'), { type: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (field) => {
-    const confirmed = await confirm(text(`Delete "${field.name}"?`, `លុប "${field.name}" មែនទេ?`), { title: text('Delete Field', 'លុបទីលាន') });
+    const confirmed = await confirm(`Delete "${field.name}"?`, { title: 'Delete Field' });
     if (!confirmed) return;
 
     try {
       setSaving(true);
       await fieldService.deleteField(field.id);
-      showToast(text('Field deleted.', 'បានលុបទីលាន។'), { type: 'success' });
+      showToast('Field deleted.', { type: 'success' });
       await loadFields();
     } catch (err) {
-      showToast(err?.error || text('Failed to delete field', 'មិនអាចលុបទីលានបានទេ'), { type: 'error' });
+      showToast(err?.error || 'Failed to delete field', { type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startStatusEdit = (field) => {
+    setStatusEditingField(field);
+    setIsStatusMenuOpen(false);
+    setForm((current) => ({
+      ...current,
+      status: normalizeEditableStatus(field?.status),
+      closureMessage: field?.closureMessage || '',
+      closureStartAt: toDateInputValue(field?.closureStartAt),
+      closureEndAt: toDateInputValue(field?.closureEndAt)
+    }));
+    setIsStatusOpen(true);
+  };
+
+  const selectedStatusOption =
+    FIELD_STATUS_OPTIONS.find((option) => option.value === form.status) || FIELD_STATUS_OPTIONS[0];
+
+  const handleStatusSubmit = async (event) => {
+    event.preventDefault();
+    if (!statusEditingField?.id) return;
+
+    try {
+      setSaving(true);
+      const nextStatus = normalizeEditableStatus(form.status);
+
+      await fieldService.updateField(statusEditingField.id, {
+        name: statusEditingField.name,
+        address: statusEditingField.address,
+        pricePerHour: Number(statusEditingField.pricePerHour),
+        capacity: Number(statusEditingField.capacity),
+        discountPercent: Number(statusEditingField.discountPercent || 0),
+        status: nextStatus,
+        closureMessage:
+          nextStatus === 'available'
+            ? null
+            : form.closureMessage?.trim()
+            ? form.closureMessage.trim()
+            : 'Temporarily closed by field owner.',
+        closureStartAt: nextStatus === 'available' ? null : toIsoOrNull(form.closureStartAt) || new Date().toISOString(),
+        closureEndAt: nextStatus === 'available' ? null : toIsoOrNull(form.closureEndAt)
+      });
+
+      showToast('Field status updated.', { type: 'success' });
+      await loadFields();
+      resetStatusForm();
+    } catch (err) {
+      showToast(getApiErrorMessage(err, 'Failed to update field status'), { type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -264,107 +524,139 @@ const OwnerFieldsPage = () => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
-           <h1 className="text-2xl font-bold text-gray-900">{text('My Fields', 'ទីលានរបស់ខ្ញុំ')}</h1>
-           <p className="mt-1 text-sm text-gray-600">{text('Create and manage your football fields, or view all fields.', 'បង្កើត និងគ្រប់គ្រងទីលានបាល់ទាត់របស់អ្នក ឬមើលទីលានទាំងអស់។')}</p>
-         </div>
-        <div className="flex items-center gap-2">
-          <div className="rounded-xl border border-gray-200 p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('mine')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'mine' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
-            >
-              {text('My Fields', 'ទីលានរបស់ខ្ញុំ')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('all')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === 'all' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}
-            >
-              {text('All Fields', 'ទីលានទាំងអស់')}
-            </button>
-          </div>
-          <button onClick={startCreate} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-            {text('Add Field', 'បន្ថែមទីលាន')}
-          </button>
+          <h1 className="text-2xl font-bold text-gray-900">My Fields</h1>
+          <p className="mt-1 text-sm text-gray-600">Create, edit, and manage your field listings.</p>
         </div>
+        <button
+          type="button"
+          onClick={startCreate}
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Add Field
+        </button>
       </div>
-      {isOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-900/65 p-4 backdrop-blur-sm">
+      {isOpen && renderPortal(
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-5"
+          onClick={resetForm}
+        >
           <form
             onSubmit={handleSubmit}
-            className="max-h-[calc(100vh-32px)] w-full max-w-5xl overflow-y-auto rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_28px_70px_rgba(15,23,42,0.24)] md:p-8"
+            className="flex h-[min(820px,calc(100vh-24px))] w-full max-w-[1120px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_32px_90px_rgba(15,23,42,0.24)] sm:h-[min(820px,calc(100vh-40px))]"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-                  {editingFieldId ? text('Edit Field', 'កែទីលាន') : text('Create Field', 'បង្កើតទីលាន')}
-                  </span>
-                  <h2 className="mt-3 text-2xl font-bold text-gray-900">
-                  {editingFieldId ? text('Update Field Information', 'កែព័ត៌មានទីលាន') : text('Add a New Field', 'បន្ថែមទីលានថ្មី')}
-                  </h2>
-                </div>
+            <div className="shrink-0 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 md:px-6">
+              <div>
+                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  {editingFieldId ? 'Edit Field' : 'Create Field'}
+                </span>
+                <h2 className="mt-2 text-[1.9rem] font-bold leading-tight text-slate-950">
+                  {editingFieldId ? 'Update Field Information' : 'Add a New Field'}
+                </h2>
+                <p className="mt-1.5 text-sm text-slate-500">
+                  Update pricing, location, amenities, and photos in one place.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                aria-label="Close field form"
               >
-                ✕
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white px-5 py-3 md:px-6">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700 shadow-sm">Live Preview</span>
+                <span className="font-medium text-slate-700">{modalFieldName}</span>
+                <span className="text-slate-400">|</span>
+                <span className="font-semibold text-slate-900">{liveBasePrice > 0 ? `$${liveDiscountedPrice}/hr` : 'Set price'}</span>
+                {liveDiscountPercent > 0 && (
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {liveDiscountPercent}% OFF
+                  </span>
+                )}
+                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {form.fieldType || 'Field type'}
+                </span>
+                <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {Number(form.capacity) > 0 ? `${form.capacity} players` : 'Set capacity'}
+                </span>
+              </div>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto bg-slate-50/50 px-5 py-4 md:px-6 md:py-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+            <div className="mb-3">
+              <h3 className="text-lg font-semibold text-slate-900">Field Details</h3>
+              <p className="mt-1 text-sm text-slate-500">Set the essential details players see before booking.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Field Name', 'ឈ្មោះទីលាន')}</span>
-                <input name="name" value={form.name} onChange={handleChange} placeholder={text('Field name', 'ឈ្មោះទីលាន')} className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
+                <span className="block text-sm font-medium text-slate-700">Field Name</span>
+                <input name="name" value={form.name} onChange={handleChange} placeholder="Field name" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Price Per Hour', 'តម្លៃក្នុងមួយម៉ោង')}</span>
-                <input name="pricePerHour" type="number" value={form.pricePerHour} onChange={handleChange} placeholder={text('Price per hour', 'តម្លៃក្នុងមួយម៉ោង')} className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
+                <span className="block text-sm font-medium text-slate-700">Price Per Hour</span>
+                <input name="pricePerHour" type="number" value={form.pricePerHour} onChange={handleChange} placeholder="Price per hour" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Capacity', 'ចំណុះ')}</span>
-                <input name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder={text('Capacity', 'ចំណុះ')} className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
+                <span className="block text-sm font-medium text-slate-700">Capacity</span>
+                <input name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder="Capacity" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Discount Percent', 'ភាគរយបញ្ចុះតម្លៃ')}</span>
+                <span className="block text-sm font-medium text-slate-700">Discount Percent</span>
                 <input name="discountPercent" type="number" min="0" max="100" value={form.discountPercent} onChange={handleChange} placeholder="0" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Field Type', 'ប្រភេទទីលាន')}</span>
+                <span className="block text-sm font-medium text-slate-700">Field Type</span>
                 <select name="fieldType" value={form.fieldType} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
                   <option value="5v5">5v5</option>
                   <option value="7v7">7v7</option>
                   <option value="11v11">11v11</option>
-                  <option value="futsal">{text('Futsal', 'ហ្វូតសាល')}</option>
+                  <option value="futsal">Futsal</option>
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Surface Type', 'ប្រភេទផ្ទៃ')}</span>
+                <span className="block text-sm font-medium text-slate-700">Surface Type</span>
                 <select name="surfaceType" value={form.surfaceType} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="artificial_turf">{text('Artificial Turf', 'ស្មៅសិប្បនិម្មិត')}</option>
-                  <option value="natural_grass">{text('Natural Grass', 'ស្មៅធម្មជាតិ')}</option>
-                  <option value="concrete">{text('Concrete', 'បេតុង')}</option>
-                  <option value="indoor">{text('Indoor', 'ក្នុងសាល')}</option>
+                  <option value="artificial_turf">Artificial Turf</option>
+                  <option value="natural_grass">Natural Grass</option>
+                  <option value="concrete">Concrete</option>
+                  <option value="indoor">Indoor</option>
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Status', 'ស្ថានភាព')}</span>
-                <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="available">{text('Available', 'ទំនេរ')}</option>
-                  <option value="maintenance">{text('Maintenance', 'កំពុងជួសជុល')}</option>
-                  <option value="unavailable">{text('Unavailable', 'មិនអាចប្រើបាន')}</option>
-                </select>
+                <span className="block text-sm font-medium text-slate-700">Amenities</span>
+                <input name="amenities" value={form.amenities} onChange={handleChange} placeholder="parking, showers, lights" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
-              <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">{text('Amenities', 'សេវាកម្មបន្ថែម')}</span>
-                <input name="amenities" value={form.amenities} onChange={handleChange} placeholder={text('parking, showers, lights', 'ចំណតឡាន កន្លែងងូតទឹក ភ្លើង')} className="w-full rounded-xl border border-gray-300 px-4 py-3" />
-              </label>
+              {amenitiesPreview.length > 0 && (
+                <div className="md:col-span-2 -mt-1 flex flex-wrap gap-2">
+                  {amenitiesPreview.map((item) => (
+                    <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             </div>
 
-            <div className="mt-5">
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <div className="mb-3">
+                <h3 className="text-lg font-semibold text-slate-900">Location</h3>
+                <p className="mt-1 text-sm text-slate-500">Search, click, or drag the pin to set the field location.</p>
+              </div>
               <FieldLocationPicker
                 value={{
                   address: form.address,
@@ -377,21 +669,21 @@ const OwnerFieldsPage = () => {
               />
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <label htmlFor="field-images" className="block text-sm font-semibold text-slate-900">
-                    {text('Photos', 'រូបភាព')}
+                  <label htmlFor="field-images" className="block text-lg font-semibold text-slate-900">
+                    Photos
                   </label>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {text('Upload up to 5 images. New uploads replace the current saved photos.', 'អាប់ឡូដបានរហូតដល់ 5 រូប។ រូបថ្មីនឹងជំនួសរូបដែលបានរក្សាទុកបច្ចុប្បន្ន។')}
+                  <p className="mt-1 text-sm text-slate-500">
+                    Upload up to 5 images. Images are compressed before upload to keep pages fast.
                   </p>
                 </div>
                 <label
                   htmlFor="field-images"
                   className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                 >
-                  {existingImages.length > 0 ? text('Change Photos', 'ប្ដូររូបភាព') : text('Upload Photos', 'អាប់ឡូដរូបភាព')}
+                  {existingImages.length > 0 ? 'Change Photos' : 'Upload Photos'}
                 </label>
               </div>
 
@@ -404,14 +696,19 @@ const OwnerFieldsPage = () => {
                 className="sr-only"
               />
 
-              {imageFiles.length > 0 && (
+              {imageFiles.length > 0 && !editingFieldId && (
                 <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                  {text(`${imageFiles.length} new image(s) selected`, `បានជ្រើសរើសរូបថ្មី ${imageFiles.length}`)}
+                  {imageFiles.length} new image(s) selected
+                </div>
+              )}
+              {editingFieldId && imageFiles.length > 0 && (
+                <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+                  New photos are ready and will replace current photos when you click Save
                 </div>
               )}
               {imageFiles.length === 0 && existingImages.length > 0 && (
                 <div className="mt-3 inline-flex rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                  {text('Showing current image(s)', 'កំពុងបង្ហាញរូបបច្ចុប្បន្ន')}
+                  Showing current image(s)
                 </div>
               )}
 
@@ -425,35 +722,211 @@ const OwnerFieldsPage = () => {
                       <img src={image.url} alt={image.name} className="h-36 w-full object-cover" />
                       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                         <p className="truncate text-xs font-medium text-slate-600">{image.name}</p>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
-                          {imageFiles.length > 0 ? text('New', 'ថ្មី') : text('Current', 'បច្ចុប្បន្ន')}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
+                            {imageFiles.length > 0 ? 'New' : 'Current'}
+                          </span>
+                          {image.isCurrent && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCurrentImage(image.index)}
+                              disabled={saving}
+                              className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/80 px-4 py-6 text-center text-sm text-slate-500">
-                  {text('No photos selected yet.', 'មិនទាន់បានជ្រើសរើសរូបភាពនៅឡើយទេ។')}
+                  No photos selected yet.
                 </div>
               )}
             </div>
 
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              rows={4}
-              placeholder={text('Field description', 'ការពិពណ៌នាអំពីទីលាន')}
-              className="mt-5 w-full rounded-xl border border-gray-300 px-4 py-3"
-            />
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+              <label className="space-y-2">
+                <span className="block text-lg font-semibold text-slate-900">Field Description</span>
+                <span className="block text-sm text-slate-500">Share what makes this field special for players and captains.</span>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Field description"
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3"
+                />
+              </label>
+            </div>
+            </div>
 
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700">
-                {text('Cancel', 'បោះបង់')}
+            <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3.5 md:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-slate-500">
+                {isFormReady ? 'Ready to save' : 'Fill required details: name, price, capacity, and location'}
+              </p>
+              <div className="flex gap-3">
+                <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving || !isFormReady} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+      {isStatusOpen && renderPortal(
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleStatusSubmit}
+            className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.28)]"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">Update Field Status</h3>
+              <button type="button" onClick={resetStatusForm} className="rounded-full bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
+                Close
               </button>
-              <button type="submit" disabled={saving} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-                {saving ? text('Saving...', 'កំពុងរក្សាទុក...') : text('Save', 'រក្សាទុក')}
+            </div>
+            <p className="mt-2 text-sm text-slate-600">{statusEditingField?.name || 'Field'}</p>
+
+            <div className="mt-4 space-y-4">
+              <label className="block space-y-2">
+                <span className="block text-sm font-medium text-slate-700">Field Status</span>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsStatusMenuOpen((current) => !current)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    aria-haspopup="listbox"
+                    aria-expanded={isStatusMenuOpen}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${selectedStatusOption.tone}`}>
+                          {selectedStatusOption.label}
+                        </span>
+                        <span className="text-base font-semibold text-slate-900">{selectedStatusOption.label}</span>
+                      </div>
+                      <p className="mt-1 truncate text-sm text-slate-500">{selectedStatusOption.description}</p>
+                    </div>
+                    <ChevronDownIcon
+                      className={`h-5 w-5 shrink-0 text-slate-400 transition ${isStatusMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {isStatusMenuOpen && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+10px)] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.18)]">
+                      <div className="p-2" role="listbox" aria-label="Field status options">
+                        {FIELD_STATUS_OPTIONS.map((option) => {
+                          const isSelected = option.value === form.status;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setForm((current) => ({ ...current, status: option.value }));
+                                setIsStatusMenuOpen(false);
+                              }}
+                              className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
+                                isSelected ? 'bg-emerald-50' : 'hover:bg-slate-50'
+                              }`}
+                              role="option"
+                              aria-selected={isSelected}
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${option.tone}`}>
+                                    {option.label}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm font-semibold text-slate-900">{option.label}</p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">{option.description}</p>
+                              </div>
+                              {isSelected && (
+                                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                                  <CheckIcon className="h-4 w-4" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </label>
+
+              {form.status !== 'available' && (
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700">Close Date</span>
+                      <input
+                        name="closureStartAt"
+                        type="date"
+                        value={form.closureStartAt}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="block text-sm font-medium text-slate-700">Open Back Date</span>
+                      <input
+                        name="closureEndAt"
+                        type="date"
+                        value={form.closureEndAt}
+                        min={form.closureStartAt || undefined}
+                        onChange={handleChange}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Quick Reopen Presets</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {CLOSURE_DAY_PRESETS.map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          onClick={() => applyClosureDaysPreset(days)}
+                          className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          +{days} {days === 1 ? 'day' : 'days'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="block space-y-2">
+                    <span className="block text-sm font-medium text-slate-700">Closure Reason</span>
+                    <textarea
+                      name="closureMessage"
+                      value={form.closureMessage}
+                      onChange={handleChange}
+                      rows={3}
+                      maxLength={500}
+                      placeholder="Example: Field maintenance until 6 PM."
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                    />
+                    <span className="block text-xs text-slate-500">This reason is shown to captains when booking is unavailable.</span>
+                  </label>
+                </>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={resetStatusForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Status'}
               </button>
             </div>
           </form>
@@ -464,86 +937,90 @@ const OwnerFieldsPage = () => {
         {visibleFields.length > 0 ? (
           visibleFields.map((field) => {
             const images = normalizeImages(field.images);
-            const coverImage = resolveFieldImageUrl(images[0]);
-            const isOwned = isOwnedByCurrentUser(field);
+            const coverImage = resolveFieldImageUrl(images[0], field.updatedAt || field.id);
+            const isOwned = isOwnedByCurrentUser(field, user);
             const discountPercent = getDiscountPercent(field);
             const discountedPrice = getDiscountedHourlyPrice(field);
-            const fieldStatus = String(field.status || 'available').toLowerCase();
-            const statusClasses =
-              fieldStatus === 'available'
-                ? 'bg-blue-50 text-blue-700'
-                : fieldStatus === 'booked'
-                ? 'bg-red-100 text-red-700'
-                : fieldStatus === 'maintenance'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-200 text-slate-700';
 
             return (
-              <div
-                key={field.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/fields/${field.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    navigate(`/fields/${field.id}`);
-                  }
-                }}
-                className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-              >
-                <div className="relative h-48 w-full overflow-hidden">
-                  <img
-                    src={coverImage}
-                    alt={field.name}
-                    className="h-48 w-full object-cover"
-                    onError={(event) => {
-                      if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
-                        event.currentTarget.src = DEFAULT_FIELD_IMAGE;
-                      }
-                    }}
-                  />
-                  <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4">
-                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                      {field.fieldType || 'Field'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {discountPercent > 0 && (
-                        <span className="rounded-full bg-emerald-100/95 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm backdrop-blur">
-                          {discountPercent}% OFF
-                        </span>
-                      )}
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize shadow-sm backdrop-blur ${statusClasses} bg-opacity-95`}>
-                        {formatFieldStatus(fieldStatus)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+              <div key={field.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <img
+                  src={coverImage}
+                  alt={field.name}
+                  className="h-48 w-full object-cover"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== DEFAULT_FIELD_IMAGE) {
+                      event.currentTarget.src = DEFAULT_FIELD_IMAGE;
+                    }
+                  }}
+                />
                 <div className="space-y-4 p-5">
                   <div>
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">{field.name}</h3>
                     <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
                       <MapPinIcon className="h-4 w-4" />
                       {field.address}, {field.city}
                     </p>
                   </div>
+
                   <div className="flex items-center justify-between text-sm text-gray-600">
                     <div className="flex flex-col">
                       {discountPercent > 0 ? (
                         <>
-                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/{text('hr', 'ម៉ោង')}</span>
-                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/{text('hr', 'ម៉ោង')}</span>
+                          <span className="text-base font-semibold text-emerald-600">${discountedPrice}/hr</span>
+                          <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/hr</span>
                         </>
                       ) : (
-                        <span>${field.pricePerHour}/{text('hr', 'ម៉ោង')}</span>
+                        <span>${field.pricePerHour}/hr</span>
                       )}
                     </div>
-                    <span>{text(`${field.capacity} players`, `${field.capacity} នាក់`)}</span>
+                    <span>{field.capacity} players</span>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                        field.status === 'available'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : field.status === 'maintenance'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}
+                    >
+                      {field.status || 'available'}
+                    </span>
+                  </div>
+
+                  {field.closureMessage && field.status !== 'available' && (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      {field.closureMessage}
+                    </p>
+                  )}
+
+                  {(field.closureStartAt || field.closureEndAt) && field.status !== 'available' && (
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      {field.closureStartAt ? `Closed from: ${new Date(field.closureStartAt).toLocaleDateString()}` : 'Closed from: -'}
+                      <br />
+                      {field.closureEndAt ? `Open back: ${new Date(field.closureEndAt).toLocaleDateString()}` : 'Open back: not scheduled'}
+                    </p>
+                  )}
+
                   {field.description && <p className="text-sm text-gray-600">{field.description}</p>}
+
                   <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startStatusEdit(field);
+                      }}
+                      disabled={!isOwned || saving}
+                      className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                        field.status === 'available' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
+                    >
+                      {field.status === 'available' ? 'Close Field' : 'Open Field'}
+                    </button>
                     <button
                       type="button"
                       onClick={(event) => {
@@ -554,7 +1031,7 @@ const OwnerFieldsPage = () => {
                       className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     >
                       <PencilSquareIcon className="h-4 w-4" />
-                      {text('Edit', 'កែប្រែ')}
+                      Edit
                     </button>
                     <button
                       type="button"
@@ -566,7 +1043,7 @@ const OwnerFieldsPage = () => {
                       className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       <TrashIcon className="h-4 w-4" />
-                      {text('Delete', 'លុប')}
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -576,8 +1053,8 @@ const OwnerFieldsPage = () => {
         ) : (
           <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center">
             <PhotoIcon className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-4 text-lg font-semibold text-gray-900">{text('No fields yet', 'មិនទាន់មានទីលាន')}</h3>
-            <p className="mt-2 text-sm text-gray-500">{text('Create your first field to start receiving bookings.', 'បង្កើតទីលានដំបូងរបស់អ្នកដើម្បីចាប់ផ្តើមទទួលការកក់។')}</p>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">No fields yet</h3>
+            <p className="mt-2 text-sm text-gray-500">Create your first field to start receiving bookings.</p>
           </div>
         )}
       </div>

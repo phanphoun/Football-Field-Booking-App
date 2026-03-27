@@ -35,6 +35,7 @@ import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
 import { EmptyState, Spinner } from '../components/ui';
 import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
+import brandLogo from './img/logo.png';
 
 const HERO_IMAGES = [
   '/hero-manu.jpg',
@@ -945,7 +946,7 @@ const LandingPage = () => {
     navigate(`/fields?${params.toString()}`);
   };
   return (
-    <div className="flex flex-col gap-14 bg-gradient-to-b from-emerald-50/70 via-white to-sky-50/40">
+    <div className="flex flex-col gap-14 bg-white">
       <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-[640px] overflow-hidden text-white shadow-sm ring-1 ring-black/10">
         <div className="absolute inset-0 overflow-hidden">
           <div
@@ -1034,15 +1035,15 @@ const LandingPage = () => {
         </div>
       )}
 
-      <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/60 py-14">
+      <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-[13px] font-semibold text-emerald-700">
               <ArrowTrendingUpIcon className="h-4 w-4" />
               Popular Sessions
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Popular Playing Sessions</h2>
-            <p className="mt-2 text-base text-slate-600">See which parts of the day are most popular and pick the session that fits your team</p>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Popular Playing Sessions</h2>
+            <p className="mt-3 text-[15px] leading-7 text-slate-600">See which parts of the day are most popular and pick the session that fits your team.</p>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -1079,7 +1080,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-emerald-50/40 to-white py-16">
+      <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
@@ -1093,7 +1094,7 @@ const LandingPage = () => {
           <div className="mt-8 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 className="text-4xl font-extrabold">
+                <h3 className="text-[1.9rem] font-bold tracking-tight">
                   {featuredDiscountOffer ? `${featuredDiscountOffer.discountLabel} at ${featuredDiscountOffer.field.name}` : 'Discounts Coming Soon'}
                 </h3>
                 <p className="mt-2 text-base text-emerald-50">
@@ -1174,111 +1175,129 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-sky-50/50 py-14">
+      <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-base font-semibold text-emerald-700 shadow-sm">
               <BoltIcon className="h-4 w-4" />
               Live Field Listings
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Fields You Can Book Today</h2>
-            <p className="mt-2 text-base text-slate-600">Browse live football field options with current prices, locations, and open booking windows.</p>
+            <h2 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">Fields You Can Book Today</h2>
+            <p className="mt-3 text-base leading-7 text-slate-600">Browse live football field options with current prices, locations, and open booking windows.</p>
           </div>
 
-            <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="mx-auto mt-10 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
             {availableNowCards.length > 0 ? (
                 availableNowCards.map((field, index) => (
                   <div
                     key={`live-${field.id}-${index}`}
-                    className="overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.09)]"
+                    className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition hover:-translate-y-1.5 hover:shadow-[0_24px_52px_rgba(15,23,42,0.12)]"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_250px]">
-                      <div className="p-5 md:p-6">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                            Live availability
-                          </span>
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              field.isFullyBooked
-                                ? 'bg-red-100 text-red-700'
+                    <div className="flex min-h-[340px] h-full flex-col">
+                      <div className="flex flex-wrap items-start gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                              Live availability
+                            </span>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                field.isFullyBooked
+                                  ? 'bg-red-100 text-red-700'
+                                  : field.isAvailableNow
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-amber-100 text-amber-700'
+                              }`}
+                            >
+                              {field.isFullyBooked
+                                ? 'No slots left'
                                 : field.isAvailableNow
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : 'bg-amber-100 text-amber-700'
-                            }`}
-                          >
-                            {field.isFullyBooked
-                              ? 'No slots left'
-                              : field.isAvailableNow
-                                ? 'Available now'
-                                : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
+                                  ? 'Available now'
+                              : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
                           </span>
+                          </div>
+
+                          <h3 className="mt-3 text-[1.1rem] font-extrabold leading-[1.2] tracking-tight text-slate-950 break-words sm:text-[1.25rem]">
+                            {field.name}
+                          </h3>
+                          <p className="mt-2 flex items-start gap-1.5 text-[13px] leading-5 text-slate-600">
+                            <MapPinIcon className="mt-0.5 h-4 w-4 flex-none text-slate-400" />
+                            <span>{field.location}</span>
+                          </p>
                         </div>
 
-                        <h3 className="mt-4 text-[2rem] font-black leading-[1.05] tracking-tight text-slate-950 break-words">
-                          {field.name}
-                        </h3>
-                        <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-slate-500">
-                          <MapPinIcon className="mt-0.5 h-4 w-4 flex-none" />
-                          <span>{field.location}</span>
-                        </p>
-
-                        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                            <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
-                            {field.fieldType}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                            {field.surfaceType}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                            {field.slotsLeft} open window{field.slotsLeft === 1 ? '' : 's'}
-                          </span>
+                        <div className="ml-auto rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right shadow-sm">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Price</p>
+                          <div className="mt-1 text-[1.45rem] font-black leading-none text-[#0ea765]">
+                            ${field.pricePerHour}
+                            <span className="ml-0.5 text-sm font-bold text-emerald-700">/hr</span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="border-t border-slate-200 bg-[linear-gradient(180deg,_#f8fafc_0%,_#ecfdf5_100%)] p-5 md:border-l md:border-t-0 md:p-6">
-                        <div className="flex h-full flex-col justify-between">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Starting price</p>
-                            <div className="mt-2 text-4xl font-black leading-none text-emerald-600">${field.pricePerHour}<span className="text-xl font-bold text-emerald-700">/hr</span></div>
-                            <p
-                              className={`mt-3 text-sm font-semibold ${
-                                field.isFullyBooked
-                                  ? 'text-red-700'
-                                  : field.isAvailableNow
-                                    ? 'text-emerald-700'
-                                    : 'text-amber-700'
-                              }`}
-                            >
-                              {field.nextLabel}
-                            </p>
-                            <span
-                              className={`mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
-                              }`}
-                            >
-                              {field.isFullyBooked ? 'Sold Out' : field.slotsLeft <= 1 ? 'Filling Fast' : 'Ready to Book'}
-                            </span>
+                      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">Field Size</p>
+                          <div className="mt-1 flex items-center gap-1.5 text-[15px] font-bold text-slate-950">
+                            <UsersIcon className="h-4 w-4 text-blue-600" />
+                            <span>{field.fieldType}</span>
                           </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">Surface Type</p>
+                          <p className="mt-1 text-[15px] font-bold capitalize text-slate-950">{field.surfaceType}</p>
+                        </div>
+                      </div>
 
-                          <button
-                            type="button"
-                            disabled={!field.nextTime}
-                            onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                            className={`mt-6 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
-                              field.nextTime
-                                ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700'
-                                : 'cursor-not-allowed bg-slate-300'
+                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
+                        <div>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">Next Available</p>
+                          <p
+                            className={`mt-1 text-[1rem] font-bold leading-tight ${
+                              field.isFullyBooked
+                                ? 'text-red-700'
+                                : field.isAvailableNow
+                                  ? 'text-emerald-600'
+                                  : 'text-slate-950'
                             }`}
                           >
-                            {field.nextTime
-                              ? isAuthenticated && !canCreateBooking
-                                ? 'Request Captain Access'
-                                : 'Quick Book'
-                              : 'Sold Out'}
-                          </button>
+                            {field.nextLabel}
+                          </p>
                         </div>
+
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            field.isFullyBooked
+                              ? 'bg-red-100 text-red-700'
+                              : field.slotsLeft <= 3
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {field.isFullyBooked
+                            ? 'Sold out'
+                            : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
+                        </span>
+                      </div>
+
+                      <div className="mt-5">
+                        <button
+                          type="button"
+                          disabled={!field.nextTime}
+                          onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                          className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
+                            field.nextTime
+                              ? 'bg-[#1fb455] hover:-translate-y-0.5 hover:bg-[#18984a]'
+                              : 'cursor-not-allowed bg-slate-300'
+                          }`}
+                        >
+                          <BoltIcon className="h-4 w-4" />
+                          {field.nextTime
+                            ? isAuthenticated && !canCreateBooking
+                              ? 'Request Captain Access'
+                              : 'Quick Book'
+                            : 'Sold Out'}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1292,14 +1311,14 @@ const LandingPage = () => {
             )}
           </div>
 
-          <div className="mt-8 text-center">
+          <div className="mt-10 text-center">
             <button
               type="button"
               onClick={() => navigate('/fields?focus=search')}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-base font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/60"
             >
               View All Available Fields
-              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">24 more</span>
+              <span className="rounded-full bg-[#1fb455] px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">24 more</span>
             </button>
           </div>
         </div>
@@ -1523,15 +1542,15 @@ const LandingPage = () => {
         </>
       )}
 
-      <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/40 py-10">
+      <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
+          <div className="mx-auto mb-12 max-w-3xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
             <BuildingOfficeIcon className="h-4 w-4" />
             Editor&apos;s Picks
           </span>
-          <h2 className="mt-4 text-3xl font-black text-gray-900">Featured Football Fields</h2>
-          <p className="mt-2 text-base text-gray-600">Choose from top-rated football fields and see how other players score each venue</p>
+          <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Featured Football Fields</h2>
+          <p className="mt-3 text-base leading-7 text-slate-600">Choose from top-rated football fields and see how other players score each venue.</p>
           </div>
 
           {loading ? (
@@ -1554,7 +1573,7 @@ const LandingPage = () => {
                 <Link
                   key={field.id}
                   to={`/fields/${field.id}`}
-                  className="group overflow-hidden rounded-[1.9rem] bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-2xl"
+                  className="group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)] transition hover:-translate-y-1.5 hover:shadow-[0_24px_52px_rgba(15,23,42,0.12)]"
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
                     <img
@@ -1567,18 +1586,18 @@ const LandingPage = () => {
                       }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/10 to-transparent opacity-80" />
-                    <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                    <div className="absolute left-4 top-4 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
                       {field.fieldType || '11v11'}
                     </div>
                     <span
-                      className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        isAvailable ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                      className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ${
+                        isAvailable ? 'bg-[#1fb455] text-white' : 'bg-red-500 text-white'
                       }`}
                     >
                       {isAvailable ? 'Available' : 'Booked'}
                     </span>
                     <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                      <div className="text-2xl font-black">{field.name}</div>
+                      <div className="text-[1.65rem] font-black leading-tight">{field.name}</div>
                       <div className="mt-1 flex items-center gap-2 text-sm text-white/85">
                         <MapPinIcon className="h-4 w-4" />
                         <span>{field.city || field.address || 'City Stadium Arena'}</span>
@@ -1586,15 +1605,15 @@ const LandingPage = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-4 p-6">
+                  <div className="space-y-5 p-6">
 
-                    <div className="flex items-center justify-between text-base text-gray-700">
+                    <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
                       <div className="flex items-center gap-2">
-                        <UsersIcon className="h-5 w-5" />
+                        <UsersIcon className="h-4 w-4 text-emerald-600" />
                         <span>{players} players</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <ClockIcon className="h-5 w-5" />
+                        <ClockIcon className="h-4 w-4 text-emerald-600" />
                         <span>{duration} min</span>
                       </div>
                     </div>
@@ -1615,11 +1634,11 @@ const LandingPage = () => {
                     </p>
 
                     <div className="flex items-end justify-between gap-4">
-                      <div className="text-4xl font-bold leading-none text-green-600">
+                      <div className="text-4xl font-black leading-none text-[#0ea765]">
                       ${Number.isFinite(price) ? price.toFixed(0) : 0}
-                      <span className="ml-1 text-xl font-semibold text-green-700">/session</span>
+                      <span className="ml-1 text-lg font-semibold text-emerald-700">/session</span>
                       </div>
-                      <p className="text-right text-sm leading-5 text-slate-600">
+                      <p className="max-w-[150px] text-right text-sm leading-5 text-slate-600">
                         <span className="font-semibold text-slate-700">Best for:</span>{' '}
                         <span className="font-semibold text-emerald-800">{players >= 20 ? 'Full squads' : 'Quick matches'}</span>
                       </p>
@@ -1633,7 +1652,7 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-[#1dbf5f] py-2 text-base font-semibold text-white shadow-sm transition hover:bg-[#18aa52]"
+                        className="w-full rounded-xl bg-[#1fb455] py-3 text-base font-semibold text-white shadow-sm transition hover:bg-[#18984a]"
                       >
                         {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
                       </button>
@@ -1663,7 +1682,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-sky-50/40 to-white py-10">
+      <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
         <div className="mx-auto max-w-7xl px-6 sm:px-10">
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
@@ -1738,86 +1757,70 @@ const LandingPage = () => {
 
       <section
         id="account-upgrade"
-        className="order-10 scroll-mt-24 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_42%,#ecfdf5_100%)] p-6 shadow-sm sm:p-8"
+        className="order-10 scroll-mt-24 py-6"
       >
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700">
+        <div className="mx-auto max-w-4xl text-center">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
               <BoltIcon className="h-4 w-4" />
               Upgrade Your Account
             </span>
-            <h2 className="mt-4 text-3xl font-black text-slate-950">Grow From Player To Organizer Or Venue Owner</h2>
-            <p className="mt-3 text-base leading-7 text-slate-600">
-              Players can upgrade into business-ready roles with a one-time platform fee. Every upgrade includes admin review,
-              stronger account permissions, and a clearer path to operating teams or fields professionally.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-            Upgrade fees are charged once per role request and reviewed by admins after payment.
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Grow From Player To Organizer Or Venue Owner</h2>
           </div>
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {upgradePrograms.map((program) => {
             const plan = ROLE_UPGRADE_CONFIG[program.roleKey];
-            const Icon = program.icon;
 
             return (
-              <div key={program.roleKey} className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <div className={`bg-gradient-to-r ${program.accent} px-6 py-5 text-white`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">{program.audience}</p>
-                      <h3 className="mt-2 text-2xl font-bold">{plan.title}</h3>
+              <div
+                key={program.roleKey}
+                className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+              >
+                <div className="text-center">
+                  <div className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    {program.audience}
+                  </div>
+                  <h3 className="mt-2.5 text-[1.5rem] font-black tracking-tight text-slate-950">{plan.title}</h3>
+                  <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-slate-600">{plan.description}</p>
+
+                  <div className="mt-3">
+                    <div className="text-[2.25rem] font-black leading-none text-[#0ea765]">
+                      ${plan.feeUsd}
+                      <span className="ml-1 text-base font-medium text-slate-600">/one-time</span>
                     </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-                      <Icon className="h-6 w-6" />
-                    </div>
+                    <p className="mt-2 text-[12px] font-medium text-slate-500">Admin approval included</p>
                   </div>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">One-time upgrade fee</p>
-                      <p className="mt-1 text-4xl font-black text-slate-950">${plan.feeUsd}</p>
+                <div className="mt-5 space-y-2.5">
+                  {plan.benefits.map((benefit) => (
+                    <div key={benefit} className="flex items-start gap-2.5 text-[13px] leading-5 text-slate-700">
+                      <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        <CheckIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <span>{benefit}</span>
                     </div>
-                    <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Admin approval included
-                    </div>
-                  </div>
+                  ))}
+                </div>
 
-                  <p className="mt-4 text-sm leading-6 text-slate-600">{plan.description}</p>
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => handleUpgradeNow(program.roleKey)}
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-[#1fb455] px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#18984a]"
+                  >
+                    Book Now
+                  </button>
 
-                  <div className="mt-5 space-y-3">
-                    {plan.benefits.map((benefit) => (
-                      <div key={benefit} className="flex items-start gap-3 text-sm text-slate-700">
-                        <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-none text-emerald-600" />
-                        <span>{benefit}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    Best flow: pay the upgrade fee, submit your request in Settings, and wait for admin approval.
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => handleUpgradeNow(program.roleKey)}
-                      className={`inline-flex items-center justify-center rounded-2xl bg-gradient-to-r ${program.accent} px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5`}
-                    >
-                      Upgrade Now
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCallForDemo(program.roleKey)}
-                      className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                    >
-                      Call for Demo
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCallForDemo(program.roleKey)}
+                    className="mt-2 inline-flex w-full items-center justify-center text-[11px] font-medium text-slate-500 transition hover:text-emerald-700"
+                  >
+                    Need help? Call for Demo
+                  </button>
                 </div>
               </div>
             );
@@ -1825,17 +1828,17 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/50 py-8">
+      <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
         <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900">Premium Experience Guaranteed</h2>
-            <p className="mx-auto mt-3 max-w-4xl text-base text-slate-600">
+          <div className="rounded-[28px] border border-emerald-200 bg-white px-6 py-10 text-center shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Premium Experience Guaranteed</h2>
+            <p className="mx-auto mt-4 max-w-4xl text-base leading-7 text-slate-600">
               All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and
               safety for all our customers. Every field is inspected daily and meets professional football standards.
             </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               {PREMIUM_GUARANTEE_ITEMS.map((item) => (
-                <span key={item.label} className={`rounded-md px-4 py-2 text-sm font-semibold ${item.className}`}>
+                <span key={item.label} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${item.className}`}>
                   {`✓ ${item.label}`}
                 </span>
               ))}
@@ -1849,9 +1852,11 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 gap-8 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500">
-                  <GlobeAltIcon className="h-6 w-6 text-slate-950" />
-                </div>
+                <img
+                  src={brandLogo}
+                  alt="Football Field Booking logo"
+                  className="h-12 w-12 rounded-xl object-cover"
+                />
                 <div>
                   <div className="khmer-brand-font text-3xl font-extrabold tracking-tight text-white">អាណាចក្រភ្នំស្វាយ</div>
                   <div className="text-sm text-emerald-300">Book football fields faster</div>

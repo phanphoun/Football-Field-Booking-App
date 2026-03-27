@@ -7,7 +7,6 @@ import {
   ArrowTrendingDownIcon,
   MinusIcon
 } from '@heroicons/react/24/outline';
-import { useLanguage } from '../context/LanguageContext';
 
 const APP_TIMEZONE = process.env.REACT_APP_TIMEZONE || 'Asia/Bangkok';
 const PUBLIC_URL = process.env.PUBLIC_URL || '';
@@ -69,19 +68,7 @@ const getTodayAnchorInTimezone = (timeZone) => {
   return new Date(Date.UTC(year, month - 1, day));
 };
 
-const formatWeekdayLabel = (date, language) => {
-  const day = new Intl.DateTimeFormat(language === 'km' ? 'km-KH' : 'en-US', {
-    timeZone: APP_TIMEZONE,
-    day: '2-digit'
-  }).format(date);
-  const weekday = new Intl.DateTimeFormat(language === 'km' ? 'km-KH' : 'en-US', {
-    timeZone: APP_TIMEZONE,
-    weekday: 'short'
-  }).format(date);
-  return `${day} ${weekday}`;
-};
-
-const getWeekDateItems = (language) => {
+const getWeekDateItems = () => {
   const anchor = getTodayAnchorInTimezone(APP_TIMEZONE);
   const start = new Date(anchor);
   start.setUTCDate(anchor.getUTCDate() - 1); // yesterday
@@ -96,7 +83,9 @@ const getWeekDateItems = (language) => {
     else if (index === 1) label = 'Today';
     else if (index === 2) label = 'Tomorrow';
     else {
-      label = formatWeekdayLabel(date, language);
+      const day = new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, day: '2-digit' }).format(date);
+      const weekday = new Intl.DateTimeFormat('en-US', { timeZone: APP_TIMEZONE, weekday: 'short' }).format(date);
+      label = `${day} ${weekday}`;
     }
 
     return { dateISO, label };
@@ -104,14 +93,13 @@ const getWeekDateItems = (language) => {
 };
 
 const League = () => {
-  const { t, language } = useLanguage();
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
   const [activeTab, setActiveTab] = useState('matches');
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
   const [selectedLeague, setSelectedLeague] = useState('PL');
-  const weekDates = useMemo(() => getWeekDateItems(language), [language]);
-  const [selectedDateKey, setSelectedDateKey] = useState(() => getWeekDateItems('en')[1]?.dateISO || '');
+  const [weekDates] = useState(() => getWeekDateItems());
+  const [selectedDateKey, setSelectedDateKey] = useState(() => getWeekDateItems()[1]?.dateISO || '');
   const [loading, setLoading] = useState(false);
 
   const fetchLeagueData = useCallback(async () => {
@@ -182,7 +170,7 @@ const League = () => {
 
   const formatMatchDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleString(language === 'km' ? 'km-KH' : 'en-US', {
+    return date.toLocaleDateString('en-US', {
       timeZone: APP_TIMEZONE,
       month: 'short',
       day: 'numeric',
@@ -194,13 +182,13 @@ const League = () => {
   const getMatchStatus = (status) => {
     switch (status) {
       case 'FINISHED':
-        return { text: t('league_full_time', 'Full Time'), color: 'text-green-600' };
+        return { text: 'Full Time', color: 'text-green-600' };
       case 'IN_PLAY':
-        return { text: t('league_live', 'Live'), color: 'text-red-600' };
+        return { text: 'Live', color: 'text-red-600' };
       case 'POSTPONED':
-        return { text: t('league_postponed', 'Postponed'), color: 'text-gray-500' };
+        return { text: 'Postponed', color: 'text-gray-500' };
       default:
-        return { text: t('league_upcoming', 'Upcoming'), color: 'text-blue-600' };
+        return { text: 'Upcoming', color: 'text-blue-600' };
     }
   };
 
@@ -236,8 +224,8 @@ const League = () => {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-3">
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{t('league_title', 'Football Leagues')}</h1>
-            <div className="hidden sm:block text-sm text-gray-500">{t('league_subtitle', 'Live scores and standings')}</div>
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Football Leagues</h1>
+            <div className="hidden sm:block text-sm text-gray-500">Live scores and standings</div>
           </div>
         </div>
       </div>
@@ -290,7 +278,7 @@ const League = () => {
             >
               <div className="flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
-                {t('nav_matches', 'Matches')}
+                Matches
               </div>
             </button>
             <button
@@ -303,7 +291,7 @@ const League = () => {
             >
               <div className="flex items-center gap-2">
                 <TrophyIcon className="w-4 h-4" />
-                {t('league_table', 'Table')}
+                Table
               </div>
             </button>
           </div>
@@ -315,7 +303,7 @@ const League = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">{t('league_loading', 'Loading league data...')}</p>
+            <p className="mt-4 text-gray-600">Loading league data...</p>
           </div>
         ) : (
           <>
@@ -335,17 +323,11 @@ const League = () => {
                             : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed opacity-70'
                       }`}
                     >
-                       {item.label === 'Yesterday'
-                         ? t('league_yesterday', 'Yesterday')
-                         : item.label === 'Today'
-                           ? t('league_today', 'Today')
-                           : item.label === 'Tomorrow'
-                             ? t('league_tomorrow', 'Tomorrow')
-                             : item.label}
-                     </button>
-                   ))}
-                 </div>
-                <h2 className="text-base sm:text-xl font-bold text-gray-900 mb-4">{t('league_latest_matches', 'Latest Matches')}</h2>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+                <h2 className="text-base sm:text-xl font-bold text-gray-900 mb-4">Latest Matches</h2>
                 <div className="space-y-4">
                   {filteredMatches.map((match, index) => {
                     const status = getMatchStatus(match.status);
@@ -428,7 +410,7 @@ const League = () => {
                 </div>
                 {filteredMatches.length === 0 && (
                   <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-600">
-                    {t('league_no_matches_date', 'No matches for this date.')}
+                    No matches for this date.
                   </div>
                 )}
               </div>
@@ -436,21 +418,21 @@ const League = () => {
 
             {activeTab === 'table' && (
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">{t('league_table_title', 'League Table')}</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">League Table</h2>
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50 border-b">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('nav_teams', 'Team')}</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">MP</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">P</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">W</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">D</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">L</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">GD</th>
                           <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pts</th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{t('league_form', 'Form')}</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Form</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">

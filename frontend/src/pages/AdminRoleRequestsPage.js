@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLanguage } from '../context/LanguageContext';
 import authService from '../services/authService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { buildAssetUrl } from '../config/appConfig';
@@ -27,8 +26,6 @@ const resolveAvatarUrl = (user) => {
 };
 
 const AdminRoleRequestsPage = () => {
-  const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -45,7 +42,7 @@ const AdminRoleRequestsPage = () => {
       const response = await authService.getAdminRoleRequests(filter);
       setRequests(Array.isArray(response.data?.requests) ? response.data.requests : []);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || text('Failed to load role requests.', 'មិនអាចផ្ទុកសំណើតួនាទីបានទេ។') });
+      setFlash({ type: 'error', message: error.error || 'Failed to load role requests.' });
     } finally {
       setLoading(false);
     }
@@ -81,18 +78,18 @@ const AdminRoleRequestsPage = () => {
   }, [requests, search]);
 
   const handleReview = async (requestId, action) => {
-    const confirmed = await confirm(text(`Are you sure you want to ${action} this request?`, `តើអ្នកប្រាកដថាចង់${action === 'approve' ? 'អនុម័ត' : 'បដិសេធ'}សំណើនេះមែនទេ?`), {
-      title: action === 'approve' ? text('Approve Request', 'អនុម័តសំណើ') : text('Reject Request', 'បដិសេធសំណើ')
+    const confirmed = await confirm(`Are you sure you want to ${action} this request?`, {
+      title: `${action === 'approve' ? 'Approve' : 'Reject'} Request`
     });
     if (!confirmed) return;
 
     try {
       setSubmittingId(requestId);
       await authService.reviewRoleRequest(requestId, action);
-      setFlash({ type: 'success', message: action === 'approve' ? text('Request approved.', 'បានអនុម័តសំណើ។') : text('Request rejected.', 'បានបដិសេធសំណើ។') });
+      setFlash({ type: 'success', message: `Request ${action === 'approve' ? 'approved' : 'rejected'}.` });
       await loadRequests();
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || text('Failed to review request.', 'មិនអាចពិនិត្យសំណើបានទេ។') });
+      setFlash({ type: 'error', message: error.error || 'Failed to review request.' });
     } finally {
       setSubmittingId(null);
     }
@@ -112,10 +109,10 @@ const AdminRoleRequestsPage = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-100">
-            {text('Access Review', 'ការពិនិត្យសិទ្ធិ')}
+            Access Review
           </div>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{text('Role Requests', 'សំណើតួនាទី')}</h1>
-          <p className="mt-2 text-sm text-slate-600">{text('Review captain and field owner access requests with the same dashboard card style.', 'ពិនិត្យសំណើសិទ្ធិកាពីតែន និងម្ចាស់ទីលាន ជាមួយរចនាប័ទ្មកាតដូចផ្ទាំងគ្រប់គ្រង។')}</p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Role Requests</h1>
+          <p className="mt-2 text-sm text-slate-600">Review captain and field owner access requests with the same dashboard card style.</p>
         </div>
         </div>
       </div>
@@ -128,19 +125,19 @@ const AdminRoleRequestsPage = () => {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">{text('Total', 'សរុប')}</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">Total</p>
           <AnimatedStatValue value={stats.total} className="mt-1 text-2xl font-bold text-gray-900" />
         </div>
         <div className="rounded-[24px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">{text('Pending', 'កំពុងរង់ចាំ')}</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">Pending</p>
           <AnimatedStatValue value={stats.pending} className="mt-1 text-2xl font-bold text-yellow-700" />
         </div>
         <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">{text('Approved', 'បានអនុម័ត')}</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">Approved</p>
           <AnimatedStatValue value={stats.approved} className="mt-1 text-2xl font-bold text-green-700" />
         </div>
         <div className="rounded-[24px] border border-red-100 bg-gradient-to-br from-red-50 via-white to-red-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">{text('Rejected', 'បានបដិសេធ')}</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">Rejected</p>
           <AnimatedStatValue value={stats.rejected} className="mt-1 text-2xl font-bold text-red-700" />
         </div>
       </div>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import {
@@ -18,11 +17,10 @@ import {
   UserGroupIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import { ConfirmationModal, ImagePreviewModal, useDialog, useToast } from '../components/ui';
+import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { compressImageForUpload } from '../utils/imageCompression';
+import { buildAssetUrl } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const MAX_AVATAR_SIZE_MB = 5;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 
@@ -36,6 +34,12 @@ const getInitialFormData = (user) => ({
   gender: user?.gender || ''
 });
 
+const formatDate = (value) => {
+  if (!value) return 'Not specified';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not specified' : date.toLocaleDateString();
+};
+
 const openNativeDatePicker = (event) => {
   if (typeof event.currentTarget.showPicker === 'function') {
     event.currentTarget.showPicker();
@@ -44,18 +48,13 @@ const openNativeDatePicker = (event) => {
 
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
-  if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
-  const normalizedLogoPath = rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
-  return `${API_ORIGIN}${normalizedLogoPath}`;
+  return buildAssetUrl(rawLogo, null);
 };
 
 const ProfilePage = () => {
-  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
-  const { t, language } = useLanguage();
+  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading, isLoggingOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { confirm } = useDialog();
-  const { showToast } = useToast();
   const isAdminUser = user?.role === 'admin';
   const isFieldOwner = user?.role === 'field_owner';
   const [formData, setFormData] = useState(getInitialFormData(user));
@@ -66,25 +65,6 @@ const ProfilePage = () => {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-
-  useEffect(() => {
-    if (!successMessage) return;
-    showToast(successMessage, { type: 'success', duration: 3200 });
-    setSuccessMessage('');
-  }, [showToast, successMessage]);
-
-  useEffect(() => {
-    if (!error) return;
-    showToast(error, { type: 'error', duration: 3600 });
-    setError('');
-  }, [error, showToast]);
-  const formatProfileDate = (value) => {
-    if (!value) return t('profile_not_specified', 'Not specified');
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? t('profile_not_specified', 'Not specified')
-      : date.toLocaleDateString(language === 'km' ? 'km-KH' : undefined);
-  };
 
   useEffect(() => {
     setFormData(getInitialFormData(user));
@@ -143,11 +123,7 @@ const ProfilePage = () => {
 
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
-    const rawAvatar = user?.avatarUrl || user?.avatar_url;
-    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
-    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-    return `${API_ORIGIN}${normalizedPath}`;
+    return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   })();
 
   const handleChange = (event) => {
@@ -207,13 +183,20 @@ const ProfilePage = () => {
     try {
       setError('');
       setSuccessMessage('');
+      const compressedFile = await compressImageForUpload(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        targetMaxBytes: 350 * 1024,
+        minCompressBytes: 120 * 1024
+      });
+
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview);
       }
-      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarPreview(URL.createObjectURL(compressedFile));
 
       const uploadData = new FormData();
-      uploadData.append('avatar', file);
+      uploadData.append('avatar', compressedFile);
       const result = await uploadAvatar(uploadData);
 
       if (!result.success) {
@@ -252,15 +235,21 @@ const ProfilePage = () => {
   };
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
     const confirmed = await confirm('Are you sure you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
 
-    logout();
-    navigate('/login', { state: { backgroundLocation: location } });
+    await logout();
+    navigate('/', { replace: true });
   };
 
   return (
     <div className="space-y-6">
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {successMessage && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>
+      )}
+
       <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-emerald-50/60 p-6 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
@@ -271,26 +260,35 @@ const ProfilePage = () => {
                 className="h-24 w-24 cursor-zoom-in rounded-full border-4 border-emerald-100 object-cover"
                 onClick={() => setImagePreviewOpen(true)}
                 onError={(event) => {
-                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
+                  const fallbackUrl = buildAssetUrl();
                   if (event.currentTarget.src !== fallbackUrl) {
                     event.currentTarget.src = fallbackUrl;
                   }
                 }}
               />
-              <label className="absolute bottom-0 right-0 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <label
+                htmlFor="avatar-upload"
+                className="absolute bottom-0 right-0 z-10 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+              >
                 <CameraIcon className="h-4 w-4" />
-                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleAvatarUpload}
+              />
             </div>
 
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
-                {isAdminUser ? t('profile_admin', 'Admin Profile') : isFieldOwner ? t('profile_owner', 'Owner Profile') : t('profile_account', 'Account Profile')}
+                {isAdminUser ? 'Admin Profile' : isFieldOwner ? 'Owner Profile' : 'Account Profile'}
               </div>
               <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
-                {`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || t('profile_unknown_user', 'Unknown User')}
+                {`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'Unknown User'}
               </h1>
-              <p className="mt-1 text-sm text-slate-600">{user?.role?.replace('_', ' ') || t('profile_guest', 'guest')}</p>
+              <p className="mt-1 text-sm text-slate-600">{user?.role?.replace('_', ' ') || 'guest'}</p>
             </div>
           </div>
 
@@ -301,7 +299,7 @@ const ProfilePage = () => {
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
             >
               <PencilSquareIcon className="h-4 w-4" />
-              {isEditing ? t('action_cancel', 'Cancel') : t('profile_edit', 'Edit Profile')}
+              {isEditing ? 'Cancel' : 'Edit Profile'}
             </button>
             <button
               type="button"
@@ -310,15 +308,16 @@ const ProfilePage = () => {
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
             >
               <TrashIcon className="h-4 w-4" />
-              {t('profile_remove_photo', 'Remove Photo')}
+              Remove Photo
             </button>
             <button
               type="button"
               onClick={handleLogout}
+              disabled={isLoggingOut}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              {t('action_logout', 'Logout')}
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </button>
           </div>
         </div>
@@ -332,10 +331,10 @@ const ProfilePage = () => {
                 <div>
                   <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
                     <ShieldCheckIcon className="h-4 w-4" />
-                    {t('profile_admin_tools', 'Admin Tools')}
+                    Admin Tools
                   </div>
-                  <h2 className="mt-3 text-lg font-semibold text-gray-900">{t('profile_admin_shortcuts', 'Administration Shortcuts')}</h2>
-                  <p className="mt-1 text-sm text-gray-500">{t('profile_admin_shortcuts_desc', 'Quick links for the areas you manage most often.')}</p>
+                  <h2 className="mt-3 text-lg font-semibold text-gray-900">Administration Shortcuts</h2>
+                  <p className="mt-1 text-sm text-gray-500">Quick links for the areas you manage most often.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -343,19 +342,19 @@ const ProfilePage = () => {
                     to="/app/admin/users"
                     className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/60"
                   >
-                    <p className="text-sm font-semibold text-gray-900">{t('nav_manage_users', 'Manage Users')}</p>
-                    <p className="mt-1 text-xs text-gray-500">{t('profile_manage_users_desc', 'Review and manage user accounts.')}</p>
+                    <p className="text-sm font-semibold text-gray-900">Manage Users</p>
+                    <p className="mt-1 text-xs text-gray-500">Review and manage user accounts.</p>
                   </Link>
                   <Link
                     to="/app/admin/role-requests"
                     className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/60"
                   >
-                    <p className="text-sm font-semibold text-gray-900">{t('nav_role_requests', 'Role Requests')}</p>
-                    <p className="mt-1 text-xs text-gray-500">{t('profile_role_requests_desc', 'Approve or reject access changes.')}</p>
+                    <p className="text-sm font-semibold text-gray-900">Role Requests</p>
+                    <p className="mt-1 text-xs text-gray-500">Approve or reject access changes.</p>
                   </Link>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
-                    <p className="text-sm font-semibold text-gray-900">{t('profile_account_status', 'Account Status')}</p>
-                    <p className="mt-1 text-xs text-gray-500 capitalize">{user?.status || t('profile_active', 'active')}</p>
+                    <p className="text-sm font-semibold text-gray-900">Account Status</p>
+                    <p className="mt-1 text-xs text-gray-500 capitalize">{user?.status || 'active'}</p>
                   </div>
                 </div>
               </div>
@@ -363,43 +362,43 @@ const ProfilePage = () => {
           )}
 
           <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">{t('profile_personal_info', 'Personal Information')}</h2>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Personal Information</h2>
 
           {(
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">{t('profile_full_name', 'Full Name')}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">Full Name</p>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-gray-900">
                   <UserIcon className="h-4 w-4 text-emerald-600" />
-                  {`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || t('profile_unknown_user', 'Unknown User')}
+                  {`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'Unknown User'}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">{t('register_email', 'Email')}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">Email</p>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-gray-900">
                   <EnvelopeIcon className="h-4 w-4 text-emerald-600" />
-                  {user?.email || t('profile_not_specified', 'Not specified')}
+                  {user?.email || 'Not specified'}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">{t('register_phone', 'Phone')}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">Phone</p>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-gray-900">
                   <PhoneIcon className="h-4 w-4 text-emerald-600" />
-                  {user?.phone || t('profile_not_specified', 'Not specified')}
+                  {user?.phone || 'Not specified'}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">{t('profile_dob', 'Date of Birth')}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">Date of Birth</p>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-gray-900">
                   <CalendarIcon className="h-4 w-4 text-emerald-600" />
-                  {formatProfileDate(user?.dateOfBirth)}
+                  {formatDate(user?.dateOfBirth)}
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:col-span-2">
-                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">{t('profile_address', 'Address')}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-gray-500">Address</p>
                 <p className="mt-2 inline-flex items-start gap-2 text-sm font-medium text-gray-900">
                   <MapPinIcon className="mt-0.5 h-4 w-4 text-emerald-600" />
-                  <span>{user?.address || t('profile_not_specified', 'Not specified')}</span>
+                  <span>{user?.address || 'Not specified'}</span>
                 </p>
               </div>
             </div>
@@ -411,19 +410,19 @@ const ProfilePage = () => {
         {!isAdminUser && !isFieldOwner && (
           <div className="space-y-6">
             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">{t('profile_account_stats', 'Account Statistics')}</h2>
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Account Statistics</h2>
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                   <span className="inline-flex items-center gap-2 text-sm text-gray-600">
                     <BookmarkSquareIcon className="h-4 w-4 text-blue-500" />
-                    {t('profile_total_bookings', 'Total Bookings')}
+                    Total Bookings
                   </span>
                   <span className="text-sm font-bold text-gray-900">{stats.totalBookings}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                   <span className="inline-flex items-center gap-2 text-sm text-gray-600">
                     <UserGroupIcon className="h-4 w-4 text-violet-500" />
-                    {t('nav_teams', 'Teams')}
+                    Teams
                   </span>
                   <span className="text-sm font-bold text-gray-900">{stats.totalTeams}</span>
                 </div>
@@ -432,7 +431,7 @@ const ProfilePage = () => {
 
             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">{t('profile_current_teams', 'Current Teams')}</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Current Teams</h2>
                 <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
                   {currentTeams.length}
                 </span>
@@ -440,7 +439,7 @@ const ProfilePage = () => {
 
               {currentTeams.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-gray-500">
-                  {t('profile_no_teams', 'You are not in any team yet.')}
+                  You are not in any team yet.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -467,7 +466,7 @@ const ProfilePage = () => {
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-gray-900">{team.name}</p>
                             <p className="mt-1 text-xs text-gray-500">
-                              {team.homeField?.name || t('profile_no_home_field', 'No home field assigned')}
+                              {team.homeField?.name || 'No home field assigned'}
                             </p>
                             {team.skillLevel && (
                               <p className="mt-1 text-xs capitalize text-emerald-700">{team.skillLevel}</p>
@@ -475,12 +474,12 @@ const ProfilePage = () => {
                           </div>
                         </div>
                         <div className="mt-3 flex items-center justify-between gap-3 text-xs text-gray-500">
-                          <span>{t('profile_members_count', '{{count}} members', { count: team.memberCount || 0 })}</span>
+                          <span>{team.memberCount || 0} members</span>
                           <Link
                             to={`/app/teams/${team.id}`}
                             className="font-semibold text-emerald-700 hover:text-emerald-800"
                           >
-                            {t('profile_view_team', 'View team')}
+                            View team
                           </Link>
                         </div>
                       </div>
@@ -495,16 +494,16 @@ const ProfilePage = () => {
       <ImagePreviewModal
         open={imagePreviewOpen}
         imageUrl={resolvedAvatarUrl}
-        title={t('profile_photo', 'Profile photo')}
+        title="Profile photo"
         onClose={() => setImagePreviewOpen(false)}
       />
       <ConfirmationModal
         isOpen={isEditing}
-        title={t('profile_edit', 'Edit Profile')}
-        message={t('profile_edit_message', 'Update your account information below.')}
-        badgeLabel={t('nav_profile', 'Profile')}
-        confirmLabel={loading ? t('profile_saving', 'Saving...') : t('profile_save_changes', 'Save Changes')}
-        cancelLabel={t('action_cancel', 'Cancel')}
+        title="Edit Profile"
+        message="Update your account information below."
+        badgeLabel="Profile"
+        confirmLabel={loading ? 'Saving...' : 'Save Changes'}
+        cancelLabel="Cancel"
         variant="default"
         onConfirm={handleSubmit}
         onClose={handleEditClose}
@@ -512,48 +511,48 @@ const ProfilePage = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-gray-700">{t('register_first_name', 'First Name')}</span>
+              <span className="mb-2 block text-sm font-semibold text-gray-700">First Name</span>
               <input
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
-                placeholder={t('profile_enter_first_name', 'Enter first name')}
+                placeholder="Enter first name"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-gray-700">{t('register_last_name', 'Last Name')}</span>
+              <span className="mb-2 block text-sm font-semibold text-gray-700">Last Name</span>
               <input
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
-                placeholder={t('profile_enter_last_name', 'Enter last name')}
+                placeholder="Enter last name"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-gray-700">{t('login_email_label', 'Email Address')}</span>
+              <span className="mb-2 block text-sm font-semibold text-gray-700">Email Address</span>
               <input
                 name="email"
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder={t('profile_enter_email', 'Enter email address')}
+                placeholder="Enter email address"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-gray-700">{t('profile_phone_number', 'Phone Number')}</span>
+              <span className="mb-2 block text-sm font-semibold text-gray-700">Phone Number</span>
               <input
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder={t('profile_enter_phone', 'Enter phone number')}
+                placeholder="Enter phone number"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-gray-700">{t('profile_dob', 'Date of Birth')}</span>
+              <span className="mb-2 block text-sm font-semibold text-gray-700">Date of Birth</span>
               <input
                 name="dateOfBirth"
                 type="date"
@@ -564,24 +563,24 @@ const ProfilePage = () => {
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-gray-700">{t('profile_gender', 'Gender')}</span>
+              <span className="mb-2 block text-sm font-semibold text-gray-700">Gender</span>
               <select name="gender" value={formData.gender} onChange={handleChange} className="w-full rounded-lg border border-gray-300 px-3 py-2">
-                <option value="">{t('profile_not_specified', 'Not specified')}</option>
-                <option value="male">{t('profile_gender_male', 'Male')}</option>
-                <option value="female">{t('profile_gender_female', 'Female')}</option>
-                <option value="other">{t('profile_gender_other', 'Other')}</option>
+                <option value="">Not specified</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
               </select>
             </label>
           </div>
 
           <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-gray-700">{t('profile_address', 'Address')}</span>
+            <span className="mb-2 block text-sm font-semibold text-gray-700">Address</span>
             <textarea
               name="address"
               value={formData.address}
               onChange={handleChange}
               rows={4}
-              placeholder={t('profile_enter_address', 'Enter address')}
+              placeholder="Enter address"
               className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
           </label>

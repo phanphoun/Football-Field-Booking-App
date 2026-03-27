@@ -9,7 +9,6 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
-import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
@@ -20,9 +19,11 @@ const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusTone = (status) => {
-  const tones = { pending: 'yellow', confirmed: 'green', completed: 'blue', cancelled: 'red' };
+  const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
 };
+
+const formatStatusLabel = (status) => (status ? status.replace('_', ' ') : status);
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -43,6 +44,43 @@ const formatTimeOnly = (value) => {
   return parsed.toLocaleTimeString();
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildScheduleWithSelectedDate = (booking, dateValue) => {
+  if (!booking?.startTime || !booking?.endTime || !dateValue) return null;
+  const [year, month, day] = String(dateValue).split('-').map(Number);
+  if (![year, month, day].every(Number.isFinite)) return null;
+
+  const currentStart = new Date(booking.startTime);
+  const currentEnd = new Date(booking.endTime);
+  if (Number.isNaN(currentStart.getTime()) || Number.isNaN(currentEnd.getTime())) return null;
+
+  const durationMs = currentEnd.getTime() - currentStart.getTime();
+  if (durationMs <= 0) return null;
+
+  const nextStart = new Date(currentStart);
+  nextStart.setFullYear(year, month - 1, day);
+
+  let nextEnd = new Date(currentEnd);
+  nextEnd.setFullYear(year, month - 1, day);
+  if (nextEnd <= nextStart) {
+    nextEnd = new Date(nextStart.getTime() + durationMs);
+  }
+
+  return {
+    startTime: nextStart.toISOString(),
+    endTime: nextEnd.toISOString()
+  };
+};
+
 const resolveAvatarUrl = (user) => {
   const rawAvatar = user?.avatarUrl || user?.avatar_url;
   if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
@@ -51,8 +89,6 @@ const resolveAvatarUrl = (user) => {
 };
 
 const OwnerBookingsPage = () => {
-  const { language } = useLanguage();
-  const text = useCallback((en, km) => (language === 'km' ? km : en), [language]);
   const { version } = useRealtime();
   const [searchParams] = useSearchParams();
   const { confirm } = useDialog();
@@ -64,6 +100,7 @@ const OwnerBookingsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [captainDetailsOpen, setCaptainDetailsOpen] = useState(false);
+  const [acceptDateByBooking, setAcceptDateByBooking] = useState({});
 
   const refresh = useCallback(async () => {
     const filters = { limit: 200 };
@@ -79,16 +116,16 @@ const OwnerBookingsPage = () => {
         setError(null);
         await refresh();
       } catch (err) {
-        setError(err?.error || text('Failed to load booking requests', 'មិនអាចផ្ទុកសំណើកក់បានទេ'));
+        setError(err?.error || 'Failed to load booking requests');
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [refresh, text, version]);
+  }, [refresh, version]);
 
   const counts = useMemo(() => {
-    const base = { all: bookings.length, pending: 0, confirmed: 0, completed: 0, cancelled: 0 };
+    const base = { all: bookings.length, pending: 0, confirmed: 0, cancellation_pending: 0, completed: 0, cancelled: 0 };
     for (const b of bookings) {
       if (b?.status && Object.prototype.hasOwnProperty.call(base, b.status)) base[b.status] += 1;
     }
@@ -106,21 +143,32 @@ const OwnerBookingsPage = () => {
       setError(null);
 
       if (nextStatus === 'confirmed') {
+        const selectedDate = acceptDateByBooking[booking.id] || toDateInputValue(booking.startTime);
+        if (!selectedDate) {
+          setError('Please select a date before accepting this booking.');
+          return;
+        }
+        const nextSchedule = buildScheduleWithSelectedDate(booking, selectedDate);
+        if (!nextSchedule) {
+          setError('Unable to update booking date. Please choose a valid date.');
+          return;
+        }
+
         const confirmed = await confirm('Do you want to accept this booking request?', {
-          title: text('Accept Booking', 'ទទួលយកការកក់')
+          title: 'Accept Booking'
         });
         if (!confirmed) return;
-        await bookingService.confirmBooking(booking.id);
+        await bookingService.confirmBooking(booking.id, nextSchedule);
       }
       if (nextStatus === 'cancelled') {
-        const confirmed = await confirm(text('Do you want to cancel booking?', 'តើអ្នកចង់បោះបង់ការកក់នេះមែនទេ?'), { title: text('Cancel Booking', 'បោះបង់ការកក់') });
+        const confirmed = await confirm('Do you want to cancel booking?', { title: 'Cancel Booking' });
         if (!confirmed) return;
         await bookingService.cancelBooking(booking.id);
       }
 
       await refresh();
     } catch (err) {
-      setError(err?.error || text('Failed to update booking', 'មិនអាចធ្វើបច្ចុប្បន្នភាពការកក់បានទេ'));
+      setError(err?.error || 'Failed to update booking');
     } finally {
       setUpdatingId(null);
     }
@@ -130,7 +178,7 @@ const OwnerBookingsPage = () => {
     if (booking?.team?.captain?.firstName || booking?.team?.captain?.lastName) {
       return `${booking.team?.captain?.firstName || ''} ${booking.team?.captain?.lastName || ''}`.trim();
     }
-     return booking?.team?.captain?.username || text('Unknown', 'មិនស្គាល់');
+    return booking?.team?.captain?.username || 'Unknown';
   };
 
   if (loading) {
@@ -142,28 +190,29 @@ const OwnerBookingsPage = () => {
   }
 
   const tabs = [
-    { key: 'pending', label: text('Pending', 'កំពុងរង់ចាំ'), count: counts.pending },
-    { key: 'confirmed', label: text('Confirmed', 'បានបញ្ជាក់'), count: counts.confirmed },
-    { key: 'completed', label: text('Completed', 'បានបញ្ចប់'), count: counts.completed },
-    { key: 'cancelled', label: text('Cancelled', 'បានបោះបង់'), count: counts.cancelled },
-    { key: 'all', label: text('All', 'ទាំងអស់'), count: counts.all }
+    { key: 'pending', label: 'Pending', count: counts.pending },
+    { key: 'cancellation_pending', label: 'Cancellation Pending', count: counts.cancellation_pending },
+    { key: 'confirmed', label: 'Confirmed', count: counts.confirmed },
+    { key: 'completed', label: 'Completed', count: counts.completed },
+    { key: 'cancelled', label: 'Cancelled', count: counts.cancelled },
+    { key: 'all', label: 'All', count: counts.all }
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-           <h1 className="text-2xl font-bold text-gray-900">{text('Booking requests', 'សំណើកក់')}</h1>
-           <p className="mt-1 text-sm text-gray-600">{text('Confirm or cancel booking requests. Match completion is managed in Matches.', 'បញ្ជាក់ ឬបោះបង់សំណើកក់។ ការបញ្ចប់ការប្រកួតត្រូវគ្រប់គ្រងនៅទំព័រការប្រកួត។')}</p>
-         </div>
+          <h1 className="text-2xl font-bold text-gray-900">Booking requests</h1>
+          <p className="mt-1 text-sm text-gray-600">Confirm or cancel booking requests. Match completion is managed in Matches.</p>
+        </div>
         <div className="flex items-center gap-2">
           <Button as={Link} to="/owner/fields" variant="outline" size="sm">
             <BuildingOfficeIcon className="h-4 w-4" />
-            {text('My fields', 'ទីលានរបស់ខ្ញុំ')}
+            My fields
           </Button>
           <Button as={Link} to="/owner/matches" variant="outline" size="sm">
             <CalendarIcon className="h-4 w-4" />
-            {text('Matches', 'ការប្រកួត')}
+            Matches
           </Button>
         </div>
       </div>
@@ -173,9 +222,9 @@ const OwnerBookingsPage = () => {
         <div className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/80 p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">{text('Booked', 'បានកក់')}</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Booked</div>
               <div className="mt-3 text-4xl font-bold leading-none text-blue-950">{counts.confirmed}</div>
-               <p className="mt-2 text-sm text-blue-700/80">{text('Confirmed bookings ready for play.', 'ការកក់ដែលបានបញ្ជាក់ រួចរាល់សម្រាប់លេង។')}</p>
+              <p className="mt-2 text-sm text-blue-700/80">Confirmed bookings ready for play.</p>
             </div>
             <div className="rounded-2xl bg-white/80 p-3 text-blue-600 shadow-sm ring-1 ring-blue-100">
               <CalendarIcon className="h-6 w-6" />
@@ -185,9 +234,9 @@ const OwnerBookingsPage = () => {
         <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/80 p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">{text('Completed', 'បានបញ្ចប់')}</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Completed</div>
               <div className="mt-3 text-4xl font-bold leading-none text-emerald-950">{counts.completed}</div>
-               <p className="mt-2 text-sm text-emerald-700/80">{text('Finished matches recorded successfully.', 'ការប្រកួតដែលបានបញ្ចប់ត្រូវបានកត់ត្រាដោយជោគជ័យ។')}</p>
+              <p className="mt-2 text-sm text-emerald-700/80">Finished matches recorded successfully.</p>
             </div>
             <div className="rounded-2xl bg-white/80 p-3 text-emerald-600 shadow-sm ring-1 ring-emerald-100">
               <CheckCircleIcon className="h-6 w-6" />
@@ -217,16 +266,16 @@ const OwnerBookingsPage = () => {
       <Card>
         <CardHeader className="px-6 py-4 flex items-center justify-between">
           <div>
-             <div className="text-sm font-semibold text-gray-900">{text('Requests', 'សំណើ')}</div>
-             <div className="text-xs text-gray-500">{text('Showing:', 'កំពុងបង្ហាញ:')} {statusFilter}</div>
-           </div>
-           <Badge tone={statusFilter === 'pending' ? 'yellow' : 'gray'}>{text(`${filtered.length} items`, `${filtered.length} ធាតុ`)}</Badge>
+            <div className="text-sm font-semibold text-gray-900">Requests</div>
+            <div className="text-xs text-gray-500">Showing: {statusFilter}</div>
+          </div>
+          <Badge tone={statusFilter === 'pending' ? 'yellow' : 'gray'}>{filtered.length} items</Badge>
         </CardHeader>
 
         <div className="border-t border-gray-200">
           {filtered.length === 0 ? (
             <div className="p-6">
-               <EmptyState icon={ClockIcon} title={text('No bookings', 'មិនមានការកក់ទេ')} description={text('Try another filter, or wait for new booking requests.', 'សូមសាកល្បងតម្រងផ្សេង ឬរង់ចាំសំណើកក់ថ្មីៗ។')} />
+              <EmptyState icon={ClockIcon} title="No bookings" description="Try another filter, or wait for new booking requests." />
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
@@ -293,6 +342,25 @@ const OwnerBookingsPage = () => {
 
                     <div className="flex justify-start lg:justify-end">
                       <div className="flex flex-col items-start gap-3 lg:items-end">
+                        {b.status === 'pending' && (
+                          <div className="w-full min-w-[220px] lg:w-[220px]">
+                            <label className="block text-[11px] font-medium text-gray-600">Match date</label>
+                            <input
+                              type="date"
+                              value={acceptDateByBooking[b.id] ?? toDateInputValue(b.startTime)}
+                              min={toDateInputValue(new Date())}
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              onChange={(event) =>
+                                setAcceptDateByBooking((prev) => ({
+                                  ...prev,
+                                  [b.id]: event.target.value
+                                }))
+                              }
+                              className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                            />
+                          </div>
+                        )}
                         <div className="flex flex-wrap items-center gap-2">
                       {b.status === 'pending' && (
                         <>
@@ -475,6 +543,21 @@ const OwnerBookingsPage = () => {
 
             {selectedBooking.status === 'pending' && (
               <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mr-auto min-w-[220px]">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Match date</label>
+                  <input
+                    type="date"
+                    value={acceptDateByBooking[selectedBooking.id] ?? toDateInputValue(selectedBooking.startTime)}
+                    min={toDateInputValue(new Date())}
+                    onChange={(event) =>
+                      setAcceptDateByBooking((prev) => ({
+                        ...prev,
+                        [selectedBooking.id]: event.target.value
+                      }))
+                    }
+                    className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900"
+                  />
+                </div>
                 <Button
                   size="sm"
                   variant="danger"

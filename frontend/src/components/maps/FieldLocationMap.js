@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import { useLanguage } from '../../context/LanguageContext';
+import { ArrowTopRightOnSquareIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { hasGoogleMapsApiKey, loadGoogleMaps } from './googleMapsLoader';
 import { loadLeaflet } from './leafletLoader';
 
 const MAP_THEME_OPTIONS = [
-  { id: 'roadmap', en: 'Map', km: 'ផែនទី' },
-  { id: 'satellite', en: 'Satellite', km: 'ផ្កាយរណប' },
-  { id: 'terrain', en: 'Terrain', km: 'ភូមិសាស្ត្រ' },
-  { id: 'dark', en: 'Dark', km: 'ងងឹត' }
+  { id: 'roadmap', label: 'Map' },
+  { id: 'satellite', label: 'Satellite' },
+  { id: 'terrain', label: 'Terrain' },
+  { id: 'dark', label: 'Dark' }
 ];
 const LEAFLET_THEME_CONFIG = {
   roadmap: {
@@ -42,9 +41,7 @@ const GOOGLE_MAP_STYLES = {
   ]
 };
 
-const FieldLocationMap = ({ latitude, longitude }) => {
-  const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
+const FieldLocationMap = ({ latitude, longitude, locationUrl = '' }) => {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -168,10 +165,7 @@ const FieldLocationMap = ({ latitude, longitude }) => {
               onClick={() => setMapThemeMenuOpen((current) => !current)}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-700 shadow-lg backdrop-blur transition hover:bg-white"
             >
-              {(() => {
-                const activeTheme = MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme);
-                return activeTheme ? text(activeTheme.en, activeTheme.km) : text('Map', 'ផែនទី');
-              })()}
+              {MAP_THEME_OPTIONS.find((theme) => theme.id === mapTheme)?.label || 'Map'}
               <ChevronDownIcon className={`h-3.5 w-3.5 transition ${mapThemeMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             {mapThemeMenuOpen && (
@@ -190,7 +184,7 @@ const FieldLocationMap = ({ latitude, longitude }) => {
                         isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      {text(theme.en, theme.km)}
+                      {theme.label}
                     </button>
                   );
                 })}
@@ -198,10 +192,36 @@ const FieldLocationMap = ({ latitude, longitude }) => {
             )}
           </div>
         </div>
+        {locationUrl && (
+          <div className="absolute right-3 top-3 z-[500]">
+            <a
+              href={locationUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/95 px-3 py-2 text-[11px] font-semibold text-emerald-700 shadow-lg backdrop-blur transition hover:border-emerald-300 hover:bg-white"
+            >
+              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+              Open Location
+            </a>
+          </div>
+        )}
         <div ref={mapElementRef} className="h-[320px] w-full bg-slate-100" />
       </div>
-      <div className="border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
-        {Number(latitude).toFixed(6)}, {Number(longitude).toFixed(6)}
+      <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          {Number(latitude).toFixed(6)}, {Number(longitude).toFixed(6)}
+        </span>
+        {locationUrl && (
+          <a
+            href={locationUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 font-semibold text-emerald-700 underline-offset-4 hover:text-emerald-800 hover:underline"
+          >
+            <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+            Open location from map
+          </a>
+        )}
       </div>
     </div>
   );

@@ -4,13 +4,11 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
-import { useLanguage } from '../../context/LanguageContext';
 
 const RegisterPage = () => {
   const { register, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -32,7 +30,7 @@ const RegisterPage = () => {
   const inputClassName = useMemo(
     () =>
       'block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 ' +
-      'placeholder-slate-400 shadow-sm transition focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20',
+      'placeholder-slate-500 shadow-sm transition focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20',
     []
   );
 
@@ -52,28 +50,24 @@ const RegisterPage = () => {
 
   const passwordsMatch =
     !formData.confirmPassword || formData.password === formData.confirmPassword;
-
-  const isFormValid =
-    formData.firstName &&
-    formData.lastName &&
-    formData.username &&
-    formData.email &&
-    formData.password &&
-    formData.confirmPassword &&
-    formData.password === formData.confirmPassword;
+  const passwordMeetsServerRules =
+    formData.password.length >= 8 &&
+    /[a-z]/.test(formData.password) &&
+    /[A-Z]/.test(formData.password) &&
+    /\d/.test(formData.password);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setClientError(null);
     const nextErrors = {};
 
-    if (!formData.firstName.trim()) nextErrors.firstName = t('register_validation_first_name', 'Please enter your first name.');
-    if (!formData.lastName.trim()) nextErrors.lastName = t('register_validation_last_name', 'Please enter your last name.');
-    if (!formData.username.trim()) nextErrors.username = t('register_validation_username', 'Please enter your username.');
-    if (!formData.email.trim()) nextErrors.email = t('register_validation_email', 'Please enter your email address.');
-    if (!formData.password.trim()) nextErrors.password = t('register_validation_password', 'Please enter your password.');
+    if (!formData.firstName.trim()) nextErrors.firstName = 'Please enter your first name.';
+    if (!formData.lastName.trim()) nextErrors.lastName = 'Please enter your last name.';
+    if (!formData.username.trim()) nextErrors.username = 'Please enter your username.';
+    if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
+    if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
     if (!formData.confirmPassword.trim()) {
-      nextErrors.confirmPassword = t('register_validation_confirm_password', 'Please confirm your password.');
+      nextErrors.confirmPassword = 'Please confirm your password.';
     }
 
     if (Object.keys(nextErrors).length > 0) {
@@ -82,7 +76,12 @@ const RegisterPage = () => {
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setClientError(t('register_passwords_no_match', 'Passwords do not match.'));
+      setClientError('Passwords do not match.');
+      return;
+    }
+
+    if (!passwordMeetsServerRules) {
+      setClientError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
       return;
     }
 
@@ -103,19 +102,16 @@ const RegisterPage = () => {
 
   return (
     <AuthModalShell
-      badgeLabel={t('register_badge', 'New Account')}
-      title={t('register_title', 'Create Account')}
-      description={t(
-        'register_description',
-        'Create your account to start booking fields, joining teams, or managing your venue with a clean and simple setup.'
-      )}
+      badgeLabel="New Account"
+      title="Create Account"
+      description="Create your account to start booking fields, joining teams, or managing your venue with a clean and simple setup."
       maxWidth={760}
       homeLinkState={authRouteState}
     >
       <p className="mb-6 text-sm text-slate-600 sm:text-base">
-        {t('register_already_have_account', 'Already have an account?')}{' '}
+        Already have an account?{' '}
         <Link to="/login" state={authRouteState} className="font-semibold text-green-700 hover:text-green-800">
-          {t('register_sign_in', 'Sign in')}
+          Sign in
         </Link>
       </p>
 
@@ -137,8 +133,8 @@ const RegisterPage = () => {
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-              <label htmlFor="firstName" className="mb-2 block text-sm font-semibold text-slate-700">
-              {t('register_first_name', 'First name')}
+            <label htmlFor="firstName" className="mb-2 block text-sm font-semibold text-slate-700">
+              First name
             </label>
             <input
               id="firstName"
@@ -150,15 +146,14 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder={t('register_first_name_placeholder', 'John')}
             />
             {validationErrors.firstName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.firstName}</p>
             )}
           </div>
           <div>
-              <label htmlFor="lastName" className="mb-2 block text-sm font-semibold text-slate-700">
-              {t('register_last_name', 'Last name')}
+            <label htmlFor="lastName" className="mb-2 block text-sm font-semibold text-slate-700">
+              Last name
             </label>
             <input
               id="lastName"
@@ -170,7 +165,6 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder={t('register_last_name_placeholder', 'Doe')}
             />
             {validationErrors.lastName && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.lastName}</p>
@@ -180,8 +174,8 @@ const RegisterPage = () => {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-              <label htmlFor="username" className="mb-2 block text-sm font-semibold text-slate-700">
-              {t('register_username', 'Username')}
+            <label htmlFor="username" className="mb-2 block text-sm font-semibold text-slate-700">
+              Username
             </label>
             <input
               id="username"
@@ -193,15 +187,14 @@ const RegisterPage = () => {
               className={`${inputClassName} ${
                 validationErrors.username ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
               }`}
-              placeholder={t('register_username_placeholder', 'yourname')}
             />
             {validationErrors.username && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.username}</p>
             )}
           </div>
           <div>
-              <label htmlFor="phone" className="mb-2 block text-sm font-semibold text-slate-700">
-              {t('register_phone', 'Phone')}
+            <label htmlFor="phone" className="mb-2 block text-sm font-semibold text-slate-700">
+              Phone
             </label>
             <input
               id="phone"
@@ -210,14 +203,13 @@ const RegisterPage = () => {
               value={formData.phone}
               onChange={handleChange}
               className={inputClassName}
-              placeholder={t('register_phone_placeholder', '+1234567890')}
             />
           </div>
         </div>
 
         <div>
           <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
-            {t('register_email', 'Email')}
+            Email
           </label>
           <input
             id="email"
@@ -230,7 +222,6 @@ const RegisterPage = () => {
             className={`${inputClassName} ${
               validationErrors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
             }`}
-            placeholder={t('register_email_placeholder', 'you@example.com')}
           />
           {validationErrors.email && (
             <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
@@ -240,7 +231,7 @@ const RegisterPage = () => {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
-              {t('register_password', 'Password')}
+              Password
             </label>
             <div className="relative">
               <input
@@ -251,15 +242,14 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 aria-invalid={Boolean(validationErrors.password)}
                 className={`${inputClassName} pr-11 ${
-                  validationErrors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
+                  validationErrors.password || !passwordsMatch ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
                 }`}
-                placeholder={t('register_password_placeholder', 'Password')}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-slate-700"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? t('login_hide_password', 'Hide password') : t('login_show_password', 'Show password')}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
               </button>
@@ -267,12 +257,12 @@ const RegisterPage = () => {
             {validationErrors.password && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
             )}
-            <p className="mt-2 text-xs text-slate-500">{t('register_password_hint', 'Use at least 8 characters.')}</p>
+            <p className="mt-2 text-xs text-slate-500">Use at least 8 characters with uppercase, lowercase, and a number.</p>
           </div>
 
           <div>
             <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-slate-700">
-              {t('register_confirm_password', 'Confirm password')}
+              Confirm password
             </label>
             <div className="relative">
               <input
@@ -287,13 +277,12 @@ const RegisterPage = () => {
                     ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
                     : ''
                 }`}
-                placeholder={t('register_confirm_password_placeholder', 'Confirm password')}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-slate-700"
                 onClick={() => setShowConfirmPassword((v) => !v)}
-                aria-label={showConfirmPassword ? t('login_hide_password', 'Hide password') : t('login_show_password', 'Show password')}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
               >
                 {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
               </button>
@@ -302,27 +291,27 @@ const RegisterPage = () => {
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.confirmPassword}</p>
             )}
             {!passwordsMatch && (
-              <p className="mt-2 text-xs text-red-600">{t('register_passwords_no_match', 'Passwords do not match.')}</p>
+              <p className="mt-2 text-xs text-red-600">Passwords do not match.</p>
             )}
           </div>
         </div>
 
         <div className="flex flex-col gap-3 rounded-2xl bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Badge tone="gray" className="w-fit">
-            {t('register_update_later', 'You can update your profile later')}
+            You can update your profile later
           </Badge>
           <Button
             type="submit"
-            disabled={loading || !isFormValid}
+            disabled={loading}
             className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:px-8"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                {t('register_creating', 'Creating...')}
+                Creating...
               </span>
             ) : (
-              t('register_title', 'Create Account')
+              'Create Account'
             )}
           </Button>
         </div>

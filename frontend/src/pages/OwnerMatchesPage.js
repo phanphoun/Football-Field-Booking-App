@@ -12,9 +12,8 @@ import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import notificationService from '../services/notificationService';
-import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
-import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useToast } from '../components/ui';
+import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -59,9 +58,6 @@ const TeamAvatar = ({ teamName, logoUrl }) => {
 
 const OwnerMatchesPage = () => {
   const { user } = useAuth();
-  const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
-  const { showToast } = useToast();
   const { version } = useRealtime();
   const PAGE_SIZE = 10;
   const RESULT_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -77,18 +73,6 @@ const OwnerMatchesPage = () => {
   const [teamLogosById, setTeamLogosById] = useState({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  useEffect(() => {
-    if (!successMessage) return;
-    showToast(successMessage, { type: 'success', duration: 3200 });
-    setSuccessMessage(null);
-  }, [showToast, successMessage]);
-
-  useEffect(() => {
-    if (!error) return;
-    showToast(error, { type: 'error', duration: 3600 });
-    setError(null);
-  }, [error, showToast]);
-
   const refresh = async () => {
     const res = await bookingService.getAllBookings({ limit: 300 });
     setBookings(Array.isArray(res.data) ? res.data : []);
@@ -101,7 +85,7 @@ const OwnerMatchesPage = () => {
         setError(null);
         await refresh();
       } catch (err) {
-        setError(err?.error || text('Failed to load matches', 'មិនអាចផ្ទុកការប្រកួតបានទេ'));
+        setError(err?.error || 'Failed to load matches');
       } finally {
         setLoading(false);
       }
@@ -263,7 +247,7 @@ const OwnerMatchesPage = () => {
       const admins = allUsers.filter((u) => u?.role === 'admin' && u?.id);
 
       if (admins.length === 0) {
-          setError(text('No admin account found to receive this request.', 'មិនមានគណនីអ្នកគ្រប់គ្រងសម្រាប់ទទួលសំណើនេះទេ។'));
+        setError('No admin account found to receive this request.');
         return;
       }
 
@@ -290,9 +274,9 @@ const OwnerMatchesPage = () => {
         )
       );
 
-      setSuccessMessage(text('Request sent to admin. They will review this match result change.', 'បានផ្ញើសំណើទៅអ្នកគ្រប់គ្រង។ ពួកគេនឹងពិនិត្យការផ្លាស់ប្តូរលទ្ធផលនេះ។'));
+      setSuccessMessage('Request sent to admin. They will review this match result change.');
     } catch (err) {
-      setError(err?.error || text('Failed to send admin change request', 'មិនអាចផ្ញើសំណើទៅអ្នកគ្រប់គ្រងបានទេ'));
+      setError(err?.error || 'Failed to send admin change request');
     } finally {
       setSavingId(null);
     }
@@ -300,11 +284,11 @@ const OwnerMatchesPage = () => {
 
   const saveResult = async (booking) => {
     if (booking.status !== 'completed') {
-      setError(text('Result can only be entered after the match is completed.', 'អាចបញ្ចូលលទ្ធផលបានតែបន្ទាប់ពីការប្រកួតបានបញ្ចប់ប៉ុណ្ណោះ។'));
+      setError('Result can only be entered after the match is completed.');
       return;
     }
     if (!isWithinEditWindow(booking)) {
-      setError(text('Result editing is locked after 24 hours. Please request admin to change it.', 'ការកែសម្រួលលទ្ធផលត្រូវបានចាក់សោបន្ទាប់ពី 24 ម៉ោង។ សូមស្នើអ្នកគ្រប់គ្រងដើម្បីផ្លាស់ប្តូរ។'));
+      setError('Result editing is locked after 24 hours. Please request admin to change it.');
       return;
     }
 
@@ -313,14 +297,14 @@ const OwnerMatchesPage = () => {
     const awayRaw = String(draft.awayScore ?? '').trim();
 
     if (homeRaw === '' || awayRaw === '') {
-      setError(text('Please enter both team scores.', 'សូមបញ្ចូលពិន្ទុក្រុមទាំងពីរ។'));
+      setError('Please enter both team scores.');
       return;
     }
 
     const homeScore = Number(homeRaw);
     const awayScore = Number(awayRaw);
     if (!Number.isInteger(homeScore) || homeScore < 0 || !Number.isInteger(awayScore) || awayScore < 0) {
-      setError(text('Scores must be non-negative whole numbers.', 'ពិន្ទុត្រូវតែជាចំនួនគត់មិនអវិជ្ជមាន។'));
+      setError('Scores must be non-negative whole numbers.');
       return;
     }
 
@@ -426,6 +410,11 @@ const OwnerMatchesPage = () => {
           Booking requests
         </Button>
       </div>
+
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">{successMessage}</div>
+      )}
+      {error && <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
 
       <Card>
         <CardHeader className="px-6 py-4 flex items-center justify-between">

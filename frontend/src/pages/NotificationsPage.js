@@ -11,15 +11,12 @@ import apiService from '../services/api';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../context/RealtimeContext';
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
   const { version } = useRealtime();
   const { user } = useAuth();
-  const { language } = useLanguage();
-  const text = (en, km) => (language === 'km' ? km : en);
 
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +36,7 @@ const NotificationsPage = () => {
         setError(null);
         await loadNotifications();
       } catch (err) {
-        setError(err?.error || text('Failed to load notifications', 'មិនអាចផ្ទុកការជូនដំណឹងបានទេ'));
+        setError(err?.error || 'Failed to load notifications');
       } finally {
         setLoading(false);
       }
@@ -81,7 +78,7 @@ const NotificationsPage = () => {
       await markAsRead(notification.id);
       await loadNotifications();
     } catch (err) {
-        setError(err?.error || text(`Failed to ${action} invitation`, `មិនអាច${action === 'accept' ? 'ទទួលយក' : 'បដិសេធ'}ការអញ្ជើញបានទេ`));
+      setError(err?.error || `Failed to ${action} invitation`);
     } finally {
       setActionLoading(false);
     }
@@ -94,7 +91,7 @@ const NotificationsPage = () => {
       await markAsRead(notification.id);
       await loadNotifications();
     } catch (err) {
-      setError(err?.error || text('Failed to update notification', 'មិនអាចធ្វើបច្ចុប្បន្នភាពការជូនដំណឹងបានទេ'));
+      setError(err?.error || 'Failed to update notification');
     } finally {
       setActionLoading(false);
     }
@@ -116,7 +113,7 @@ const NotificationsPage = () => {
       );
       await loadNotifications();
     } catch (err) {
-      setError(err?.error || text('Failed to mark all notifications as read', 'មិនអាចសម្គាល់ការជូនដំណឹងទាំងអស់ថាបានអានបានទេ'));
+      setError(err?.error || 'Failed to mark all notifications as read');
     } finally {
       setActionLoading(false);
     }
@@ -197,14 +194,14 @@ const NotificationsPage = () => {
       setError(null);
       const { bookingId, requestId } = await resolveBookingJoinRequestContext(notification);
       if (!bookingId || !requestId) {
-        setError(text('Could not identify that match request. Open Bookings page and accept from Join Requests.', 'មិនអាចកំណត់សំណើប្រកួតនោះបានទេ។ សូមបើកទំព័រការកក់ ហើយទទួលយកពីសំណើចូលរួម។'));
+        setError('Could not identify that match request. Open Bookings page and accept from Join Requests.');
         return;
       }
       await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
       await markAsRead(notification.id);
       await loadNotifications();
     } catch (err) {
-      setError(err?.error || text(`Failed to ${action} join request`, `មិនអាច${action === 'accept' ? 'ទទួលយក' : 'បដិសេធ'}សំណើចូលរួមបានទេ`));
+      setError(err?.error || `Failed to ${action} join request`);
     } finally {
       setActionLoading(false);
     }
@@ -221,10 +218,10 @@ const NotificationsPage = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <h1 className="text-2xl font-bold text-gray-900">{text('Notifications & Requests', 'ការជូនដំណឹង និងសំណើ')}</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {text('View all team invitations and request updates in one place.', 'មើលការអញ្ជើញក្រុម និងបច្ចុប្បន្នភាពសំណើទាំងអស់នៅកន្លែងតែមួយ។')}
-          </p>
+        <h1 className="text-2xl font-bold text-gray-900">Notifications & Requests</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          View all team invitations and request updates in one place.
+        </p>
       </div>
 
       {error && (
@@ -237,9 +234,9 @@ const NotificationsPage = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {[
-               { key: 'all', label: text('All', 'ទាំងអស់') },
-               { key: 'invites', label: text('Invitations', 'ការអញ្ជើញ') },
-               { key: 'requests', label: text('Join Requests', 'សំណើចូលរួម') }
+              { key: 'all', label: 'All' },
+              { key: 'invites', label: 'Invitations' },
+              { key: 'requests', label: 'Join Requests' }
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -259,7 +256,7 @@ const NotificationsPage = () => {
             disabled={actionLoading || notifications.every((item) => item.isRead)}
             className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            {text('Mark all read', 'សម្គាល់ថាបានអានទាំងអស់')}
+            Mark all read
           </button>
         </div>
 
