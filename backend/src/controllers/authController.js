@@ -53,6 +53,8 @@ const normalizeIdentifier = (value = '') => String(value).trim().toLowerCase();
 const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const GOOGLE_TOKENINFO_URL = 'https://oauth2.googleapis.com/tokeninfo';
+const getGoogleClientId = () =>
+  String(process.env.GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID || '').trim();
 
 const sanitizeUsernamePart = (value = '') =>
   String(value)
@@ -89,7 +91,11 @@ const verifyGoogleIdToken = async (idToken) => {
   });
 
   const payload = response.data || {};
-  const expectedAudience = process.env.GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID;
+  const expectedAudience = getGoogleClientId();
+
+  if (!expectedAudience) {
+    throw new Error('Google sign-in is not configured on the server.');
+  }
 
   if (expectedAudience && payload.aud !== expectedAudience) {
     throw new Error('Google token audience mismatch.');
@@ -275,6 +281,15 @@ const login = async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error during login.' });
   }
+};
+
+const getGoogleAuthConfig = async (req, res) => {
+  const clientId = getGoogleClientId();
+
+  return res.json({
+    enabled: Boolean(clientId),
+    clientId: clientId || null
+  });
 };
 
 const googleAuth = async (req, res) => {
@@ -1298,6 +1313,7 @@ const reviewRoleRequest = async (req, res) => {
 module.exports = {
   register,
   login,
+  getGoogleAuthConfig,
   getProfile,
   getProfileStats,
   updateProfile,
