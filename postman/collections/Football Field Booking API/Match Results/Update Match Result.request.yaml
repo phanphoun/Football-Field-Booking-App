@@ -1,0 +1,26 @@
+$kind: http-request
+name: Update Match Result
+method: PUT
+url: '{{base_url}}/api/match-results/{{match_result_id}}'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "home_score": 3,
+      "away_score": 2,
+      "notes": "Updated score after review."
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

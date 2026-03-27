@@ -1,0 +1,6 @@
+$kind: collection
+name: Bookings
+description: |-
+  Booking lifecycle — create, list, confirm, open for opponents,
+  join-request management, and public schedule/stats.
+order: 4000

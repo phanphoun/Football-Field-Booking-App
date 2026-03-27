@@ -1,0 +1,4 @@
+$kind: collection
+name: Notifications
+description: In-app notification management and real-time SSE stream.
+order: 8000

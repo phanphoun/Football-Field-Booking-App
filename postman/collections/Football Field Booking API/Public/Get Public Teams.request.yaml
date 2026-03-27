@@ -1,0 +1,22 @@
+$kind: http-request
+name: Get Public Teams
+method: GET
+url: '{{base_url}}/api/public/teams'
+order: 1000
+queryParams:
+  - key: page
+    value: '1'
+    description: Page number
+  - key: limit
+    value: '10'
+    description: Results per page
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

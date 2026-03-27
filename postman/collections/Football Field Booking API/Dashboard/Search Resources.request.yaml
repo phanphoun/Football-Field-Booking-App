@@ -1,0 +1,22 @@
+$kind: http-request
+name: Search Resources
+method: GET
+url: '{{base_url}}/api/dashboard/search'
+order: 2000
+queryParams:
+  - key: q
+    value: football
+    description: Search query string
+  - key: type
+    value: all
+    description: 'Resource type filter: all, fields, teams, bookings'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

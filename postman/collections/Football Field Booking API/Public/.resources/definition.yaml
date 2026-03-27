@@ -1,0 +1,4 @@
+$kind: collection
+name: Public
+description: Unauthenticated public endpoints — teams, fields, and league data.
+order: 13000

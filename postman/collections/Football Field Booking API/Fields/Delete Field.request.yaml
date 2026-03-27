@@ -1,0 +1,12 @@
+$kind: http-request
+name: Delete Field
+method: DELETE
+url: '{{base_url}}/api/fields/{{field_id}}'
+order: 6000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });

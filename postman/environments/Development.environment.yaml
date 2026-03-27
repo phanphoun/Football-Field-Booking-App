@@ -1,0 +1,32 @@
+name: Development
+values:
+  - key: base_url
+    value: 'http://localhost:5000'
+    enabled: true
+  - key: auth_token
+    value: ''
+    enabled: true
+  - key: test_email
+    value: john@example.com
+    enabled: true
+  - key: test_password
+    value: Password123!
+    enabled: true
+  - key: user_id
+    value: '1'
+    enabled: true
+  - key: field_id
+    value: '1'
+    enabled: true
+  - key: booking_id
+    value: '1'
+    enabled: true
+  - key: team_id
+    value: '1'
+    enabled: true
+  - key: ''
+    value: ''
+    enabled: true
+  - key: reset_token
+    value: ''
+    enabled: true

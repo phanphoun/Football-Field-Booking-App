@@ -1,0 +1,24 @@
+$kind: http-request
+name: Cancel Matched Opponent
+method: PATCH
+url: '{{base_url}}/api/bookings/{{booking_id}}/cancel-matched-opponent'
+order: 14000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "reason": "Opponent team cancelled due to scheduling conflict."
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

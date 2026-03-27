@@ -1,0 +1,4 @@
+$kind: collection
+name: Owner MVP
+description: Owner-specific MVP and performance endpoints.
+order: 14000

@@ -1,0 +1,19 @@
+$kind: http-request
+name: Search Users
+method: GET
+url: '{{base_url}}/api/users/search'
+order: 2000
+queryParams:
+  - key: q
+    value: john
+    description: Search query (name or email)
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

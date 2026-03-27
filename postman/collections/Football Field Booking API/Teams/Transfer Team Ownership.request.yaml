@@ -1,0 +1,24 @@
+$kind: http-request
+name: Transfer Team Ownership
+method: PATCH
+url: '{{base_url}}/api/teams/{{team_id}}/transfer-ownership'
+order: 16000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "new_owner_id": "{{user_id}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

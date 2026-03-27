@@ -1,0 +1,4 @@
+$kind: collection
+name: Match Results
+description: Record and retrieve match results for bookings.
+order: 7000

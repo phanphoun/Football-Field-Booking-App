@@ -1,0 +1,5 @@
+$kind: collection
+name: Teams
+description: |-
+  Team management — CRUD, membership (join/leave/invite), and match history.
+order: 5000

@@ -1,0 +1,24 @@
+$kind: http-request
+name: Get Open Matches
+method: GET
+url: '{{base_url}}/api/bookings/open-matches'
+order: 6000
+queryParams:
+  - key: field_id
+    value: '{{field_id}}'
+    description: Filter by field
+    disabled: true
+  - key: date
+    value: '2025-01-15'
+    description: Filter by date
+    disabled: true
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

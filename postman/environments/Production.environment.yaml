@@ -1,0 +1,27 @@
+$kind: environment
+name: Production
+values:
+  - key: base_url
+    value: 'https://api.football-booking.example.com'
+    enabled: true
+  - key: auth_token
+    value: ''
+    enabled: true
+  - key: test_email
+    value: ''
+    enabled: true
+  - key: test_password
+    value: ''
+    enabled: true
+  - key: user_id
+    value: ''
+    enabled: true
+  - key: field_id
+    value: ''
+    enabled: true
+  - key: booking_id
+    value: ''
+    enabled: true
+  - key: team_id
+    value: ''
+    enabled: true

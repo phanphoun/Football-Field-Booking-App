@@ -1,0 +1,5 @@
+$kind: collection
+name: Users
+description: |-
+  User management endpoints (admin-level CRUD and search).
+order: 2000

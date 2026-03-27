@@ -1,0 +1,15 @@
+$kind: http-request
+name: Reject Invitation
+method: PUT
+url: '{{base_url}}/api/team-members/invitations/{{invitation_id}}/reject'
+order: 4000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

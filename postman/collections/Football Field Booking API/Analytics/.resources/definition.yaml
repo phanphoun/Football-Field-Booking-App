@@ -1,0 +1,4 @@
+$kind: collection
+name: Analytics
+description: Analytics overview and CSV export (admin/owner).
+order: 11000

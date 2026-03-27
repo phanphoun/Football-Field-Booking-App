@@ -1,0 +1,32 @@
+$kind: http-request
+name: Stripe Webhook
+method: POST
+url: '{{base_url}}/api/payments/webhook'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: stripe-signature
+    value: '{{stripe_signature}}'
+body:
+  type: json
+  content: |-
+    {
+      "id": "evt_test_webhook",
+      "object": "event",
+      "type": "payment_intent.succeeded",
+      "data": {
+        "object": {
+          "id": "pi_test_123",
+          "amount": 5000,
+          "currency": "thb"
+        }
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });

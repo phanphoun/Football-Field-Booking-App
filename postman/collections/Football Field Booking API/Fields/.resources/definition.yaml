@@ -1,0 +1,5 @@
+$kind: collection
+name: Fields
+description: |-
+  Football field management — list, create, update, delete, and image management.
+order: 3000

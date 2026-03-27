@@ -1,0 +1,8 @@
+username,email,password,first_name,last_name,phone,expected_status,test_description
+testuser1,testuser1@example.com,Password123!,Test,User1,0811111111,201,Valid registration
+testuser2,testuser2@example.com,Password123!,Test,User2,0822222222,201,Another valid registration
+,testuser3@example.com,Password123!,Test,User3,0833333333,400,Registration without username
+testuser4,,Password123!,Test,User4,0844444444,400,Registration without email
+testuser5,testuser5@example.com,,Test,User5,0855555555,400,Registration without password
+testuser6,not-an-email,Password123!,Test,User6,0866666666,400,Registration with invalid email
+testuser7,testuser7@example.com,short,Test,User7,0877777777,400,Registration with weak password

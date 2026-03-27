@@ -1,0 +1,4 @@
+$kind: collection
+name: Dashboard
+description: Dashboard summary data for admin, owner, and player roles.
+order: 10000

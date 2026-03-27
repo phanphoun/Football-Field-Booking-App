@@ -1,0 +1,21 @@
+$kind: http-request
+name: Get All Users (Admin)
+method: GET
+url: '{{base_url}}/api/users'
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      pm.test("Returns array or paginated data", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.satisfy(function(r) {
+          return Array.isArray(r) || Array.isArray(r.data) || Array.isArray(r.users);
+        });
+      });

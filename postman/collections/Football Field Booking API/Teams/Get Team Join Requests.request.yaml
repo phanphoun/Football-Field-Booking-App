@@ -1,0 +1,15 @@
+$kind: http-request
+name: Get Team Join Requests
+method: GET
+url: '{{base_url}}/api/teams/{{team_id}}/join-requests'
+order: 12000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

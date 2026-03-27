@@ -1,0 +1,34 @@
+$kind: http-request
+name: Get All Fields (Public)
+method: GET
+url: '{{base_url}}/api/fields'
+order: 1000
+queryParams:
+  - key: location
+    value: ''
+    description: Filter by location
+    disabled: true
+  - key: min_price
+    value: ''
+    description: Minimum price per hour
+    disabled: true
+  - key: max_price
+    value: ''
+    description: Maximum price per hour
+    disabled: true
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      pm.test("Returns fields list", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.satisfy(function(r) {
+          return Array.isArray(r) || Array.isArray(r.data) || Array.isArray(r.fields);
+        });
+      });

@@ -1,0 +1,9 @@
+email,password,expected_status,test_description
+john@example.com,Password123!,200,Valid login with correct credentials
+invalid@example.com,Password123!,401,Login with non-existent email
+john@example.com,WrongPassword!,401,Login with wrong password
+,Password123!,400,Login with empty email
+john@example.com,,400,Login with empty password
+,,400,Login with empty email and password
+not-an-email,Password123!,400,Login with invalid email format
+john@example.com,short,400,Login with too short password

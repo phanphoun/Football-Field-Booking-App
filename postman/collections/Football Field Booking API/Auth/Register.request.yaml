@@ -1,0 +1,52 @@
+$kind: http-request
+name: Register
+method: POST
+url: '{{base_url}}/api/auth/register'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "{{username}}",
+      "email": "{{email}}",
+      "password": "{{password}}",
+      "firstName": "{{first_name}}",
+      "lastName": "{{last_name}}",
+      "phone": "{{phone}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const iterData = pm.iterationData;
+      const expectedStatus = iterData.get("expected_status")
+        ? Number(iterData.get("expected_status"))
+        : null;
+      const testDesc = iterData.get("test_description") || "Register test";
+
+      if (expectedStatus) {
+        pm.test(testDesc + " — status " + expectedStatus, function () {
+          pm.response.to.have.status(expectedStatus);
+        });
+      } else {
+        pm.test("Status is 2xx", function () {
+          pm.response.to.be.success;
+        });
+      }
+
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+
+      if (pm.response.code === 201 || pm.response.code === 200) {
+        pm.test("Returns token", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("token");
+          if (json.token) {
+            pm.collectionVariables.set("auth_token", json.token);
+          }
+        });
+      }

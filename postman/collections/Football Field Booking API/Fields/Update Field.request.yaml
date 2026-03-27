@@ -1,0 +1,27 @@
+$kind: http-request
+name: Update Field
+method: PUT
+url: '{{base_url}}/api/fields/{{field_id}}'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Green Pitch Arena (Updated)",
+      "price_per_hour": 600,
+      "description": "Updated description with new amenities.",
+      "amenities": ["parking", "changing_rooms", "floodlights", "cafe"]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

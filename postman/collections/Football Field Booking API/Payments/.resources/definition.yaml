@@ -1,0 +1,4 @@
+$kind: collection
+name: Payments
+description: Payment initiation and webhook/callback handling.
+order: 12000

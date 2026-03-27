@@ -1,0 +1,6 @@
+$kind: collection
+name: Auth
+description: |-
+  Authentication endpoints — register, login, profile management,
+  password change/reset, avatar upload, and role-request workflows.
+order: 1000

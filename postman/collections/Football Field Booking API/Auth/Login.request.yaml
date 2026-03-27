@@ -1,0 +1,61 @@
+$kind: http-request
+name: Login
+method: POST
+url: "{{base_url}}/api/auth/login"
+order: 2000
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+    "email": "kanasaga123@gmail.com",
+      "password": "Kanasaga123@"
+    }
+scripts:
+  - type: afterResponse
+    code: >-
+      // Data-driven test: use iteration data if available, fall back to
+      defaults
+
+      const iterData = pm.iterationData;
+
+      const expectedStatus = iterData.get("expected_status")
+        ? Number(iterData.get("expected_status"))
+        : null;
+      const testDesc = iterData.get("test_description") || "Login test";
+
+
+      if (expectedStatus) {
+        // Data-driven mode
+        pm.test(testDesc + " — status " + expectedStatus, function () {
+          pm.response.to.have.status(expectedStatus);
+        });
+      } else {
+        // Default mode (no data file)
+        pm.test("Status is 2xx", function () {
+          pm.response.to.be.success;
+        });
+      }
+
+
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+
+
+      if (pm.response.code === 200) {
+        pm.test("Returns token and saves it", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("token");
+          if (json.token) {
+            pm.environment.set("auth_token", json.token);
+            console.log("auth_token saved:", json.token.substring(0, 20) + "...");
+          }
+        });
+        pm.test("Returns user object", function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property("user");
+        });
+      }
+    language: text/javascript

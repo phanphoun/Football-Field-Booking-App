@@ -1,0 +1,4 @@
+$kind: collection
+name: Realtime
+description: Server-Sent Events (SSE) and realtime status endpoints.
+order: 15000

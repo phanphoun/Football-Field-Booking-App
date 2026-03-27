@@ -1,0 +1,25 @@
+$kind: http-request
+name: Update Rating
+method: PUT
+url: '{{base_url}}/api/ratings/{{rating_id}}'
+order: 6000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "score": 5,
+      "comment": "Updated rating - excellent player."
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

@@ -1,0 +1,15 @@
+$kind: http-request
+name: Set Field Cover Image
+method: PATCH
+url: '{{base_url}}/api/fields/{{field_id}}/images/{{image_id}}/cover'
+order: 9000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

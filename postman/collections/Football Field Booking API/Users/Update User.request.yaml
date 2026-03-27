@@ -1,0 +1,26 @@
+$kind: http-request
+name: Update User (Admin)
+method: PUT
+url: '{{base_url}}/api/users/{{user_id}}'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "first_name": "Updated",
+      "last_name": "Name",
+      "role": "player"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

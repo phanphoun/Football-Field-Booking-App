@@ -1,0 +1,15 @@
+$kind: http-request
+name: Get Match History for Rating
+method: GET
+url: '{{base_url}}/api/ratings/match-history'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

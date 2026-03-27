@@ -1,0 +1,35 @@
+$kind: http-request
+name: Create Match Result
+method: POST
+url: '{{base_url}}/api/match-results'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "booking_id": "{{booking_id}}",
+      "home_team_id": "{{team_id}}",
+      "away_team_id": "{{opponent_team_id}}",
+      "home_score": 3,
+      "away_score": 1,
+      "notes": "Great match, home team dominated the second half."
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      if (pm.response.code === 201) {
+        const json = pm.response.json();
+        if (json.data && json.data.id) {
+          pm.collectionVariables.set("match_result_id", json.data.id);
+        }
+      }

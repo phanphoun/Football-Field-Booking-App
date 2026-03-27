@@ -1,0 +1,12 @@
+$kind: http-request
+name: Realtime SSE Stream
+method: GET
+url: '{{base_url}}/api/realtime/stream'
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });

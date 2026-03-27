@@ -1,0 +1,22 @@
+$kind: http-request
+name: Upload Field Images
+method: POST
+url: '{{base_url}}/api/fields/{{field_id}}/images'
+order: 7000
+body:
+  type: formdata
+  content:
+    - key: images
+      type: file
+      src: ''
+      description: 'Field images (multipart/form-data)'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

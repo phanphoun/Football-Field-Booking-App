@@ -1,0 +1,4 @@
+$kind: collection
+name: Team Members
+description: Direct team-member record management.
+order: 6000

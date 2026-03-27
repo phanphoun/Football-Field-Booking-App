@@ -1,0 +1,22 @@
+$kind: http-request
+name: Upload Avatar
+method: POST
+url: '{{base_url}}/api/auth/profile/avatar'
+order: 10000
+body:
+  type: formdata
+  content:
+    - key: avatar
+      type: file
+      src: /path/to/avatar.jpg
+      description: Profile avatar image file (JPEG/PNG)
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

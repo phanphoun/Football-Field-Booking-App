@@ -1,0 +1,33 @@
+$kind: http-request
+name: Create Rating
+method: POST
+url: '{{base_url}}/api/ratings'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "booking_id": "{{booking_id}}",
+      "rated_user_id": "{{user_id}}",
+      "score": 4,
+      "comment": "Great player, very skilled and fair."
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      if (pm.response.code === 201) {
+        const json = pm.response.json();
+        if (json.data && json.data.id) {
+          pm.collectionVariables.set("rating_id", json.data.id);
+        }
+      }

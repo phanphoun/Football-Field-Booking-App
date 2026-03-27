@@ -1,0 +1,39 @@
+$kind: http-request
+name: Create Field
+method: POST
+url: '{{base_url}}/api/fields'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Green Pitch Arena",
+      "description": "A well-maintained 5-a-side football field with floodlights.",
+      "location": "123 Sports Ave, Bangkok",
+      "price_per_hour": 500,
+      "capacity": 10,
+      "field_type": "5v5",
+      "surface_type": "artificial_grass",
+      "amenities": ["parking", "changing_rooms", "floodlights"],
+      "open_time": "08:00",
+      "close_time": "22:00"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      pm.test("Field created with id", function () {
+        const json = pm.response.json();
+        const field = json.data || json.field || json;
+        pm.expect(field).to.have.property("id");
+        pm.collectionVariables.set("field_id", field.id);
+      });

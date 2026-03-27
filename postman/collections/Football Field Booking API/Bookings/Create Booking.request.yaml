@@ -1,0 +1,36 @@
+$kind: http-request
+name: Create Booking
+method: POST
+url: '{{base_url}}/api/bookings'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "field_id": "{{field_id}}",
+      "team_id": "{{team_id}}",
+      "booking_date": "2025-02-01",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "notes": "Please prepare the field with corner flags.",
+      "open_for_opponents": false
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      pm.test("Booking created with id", function () {
+        const json = pm.response.json();
+        const booking = json.data || json.booking || json;
+        pm.expect(booking).to.have.property("id");
+        pm.collectionVariables.set("booking_id", booking.id);
+      });

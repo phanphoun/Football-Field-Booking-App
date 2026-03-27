@@ -1,0 +1,19 @@
+$kind: http-request
+name: 'Admin - Get All Role Requests'
+method: GET
+url: '{{base_url}}/api/auth/admin/role-requests'
+order: 15000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
+      pm.test("Returns array", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.be.an("array").or.have.property("data");
+      });

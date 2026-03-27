@@ -1,0 +1,26 @@
+$kind: http-request
+name: Request Field Owner Role
+method: POST
+url: '{{base_url}}/api/auth/request-field-owner'
+order: 17000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "reason": "I own a football field and want to list it on the platform.",
+      "field_name": "My Football Field",
+      "location": "123 Main St, City"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

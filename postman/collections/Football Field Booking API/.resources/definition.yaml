@@ -1,0 +1,49 @@
+$kind: collection
+name: Football Field Booking API
+description: |-
+  Complete API collection for the Football Field Booking App backend.
+  Covers Auth, Users, Fields, Bookings, Teams, Team Members, Match Results,
+  Notifications, Ratings, Dashboard, Analytics, Payments, Public endpoints,
+  Realtime (SSE), Owner MVP, and League data.
+
+  Base URL is controlled by the {{base_url}} collection variable.
+  Set {{auth_token}} after a successful login to authenticate protected requests.
+variables:
+  - key: base_url
+    value: 'http://localhost:5000'
+    description: Backend server base URL
+  - key: auth_token
+    value: ''
+    description: JWT bearer token — set this after login
+  - key: user_id
+    value: '1'
+    description: A sample user ID for admin/test requests
+  - key: field_id
+    value: '1'
+    description: A sample field ID
+  - key: booking_id
+    value: '1'
+    description: A sample booking ID
+  - key: team_id
+    value: '1'
+    description: A sample team ID
+  - key: team_member_id
+    value: '1'
+    description: A sample team-member record ID
+  - key: notification_id
+    value: '1'
+    description: A sample notification ID
+  - key: rating_id
+    value: '1'
+    description: A sample rating ID
+  - key: match_result_id
+    value: '1'
+    description: A sample match-result ID
+  - key: role_request_id
+    value: '1'
+    description: A sample role-request ID
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{auth_token}}'

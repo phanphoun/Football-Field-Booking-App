@@ -1,0 +1,24 @@
+$kind: http-request
+name: Set Owner Match MVP
+method: PATCH
+url: '{{base_url}}/api/owner-mvp/matches/{{booking_id}}/mvp'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "mvp_user_id": "{{user_id}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });

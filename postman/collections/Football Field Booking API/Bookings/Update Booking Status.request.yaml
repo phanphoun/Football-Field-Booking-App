@@ -1,0 +1,25 @@
+$kind: http-request
+name: Update Booking Status
+method: PUT
+url: '{{base_url}}/api/bookings/{{booking_id}}'
+order: 8000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "status": "cancelled",
+      "cancellation_reason": "Team unavailable on that date."
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 2xx", function () {
+        pm.response.to.be.success;
+      });
+      pm.test("Response is JSON", function () {
+        pm.response.to.be.json;
+      });
