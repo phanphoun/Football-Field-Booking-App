@@ -7,10 +7,12 @@ import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../component
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const OpenMatchesPage = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
+  const { t } = useLanguage();
   const canUseOpenMatches = ['captain', 'field_owner'].includes(user?.role || '');
   const [openMatches, setOpenMatches] = useState([]);
   const [captainedTeams, setCaptainedTeams] = useState([]);
@@ -30,7 +32,7 @@ const OpenMatchesPage = () => {
     if (!canUseOpenMatches) {
       setOpenMatches([]);
       setCaptainedTeams([]);
-      setError('This feature is available for team captains and field owners only.');
+      setError(t('open_matches_access_only', 'This feature is available for team captains and field owners only.'));
       setLoading(false);
       return;
     }
@@ -49,11 +51,11 @@ const OpenMatchesPage = () => {
       setCaptainedTeams(teams);
     } catch (err) {
       console.error('Failed to load open matches:', err);
-      setError(err.error || 'Failed to load open matches');
+      setError(err.error || t('open_matches_load_failed', 'Failed to load open matches'));
     } finally {
       setLoading(false);
     }
-  }, [canUseOpenMatches]);
+  }, [canUseOpenMatches, t]);
 
   useEffect(() => {
     loadData();
@@ -75,7 +77,7 @@ const OpenMatchesPage = () => {
     new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const getCaptainName = (team) => {
     const fullName = `${team?.captain?.firstName || ''} ${team?.captain?.lastName || ''}`.trim();
-    return fullName || team?.captain?.username || 'Unknown captain';
+    return fullName || team?.captain?.username || t('booking_unknown_captain', 'Unknown captain');
   };
   const getActiveMemberCount = (team) =>
     Array.isArray(team?.teamMembers)
@@ -89,18 +91,18 @@ const OpenMatchesPage = () => {
     try {
       const selectedTeamId = Number(selectedTeams[bookingId]);
       if (!selectedTeamId) {
-        setError('Please choose a team before sending the request.');
+        setError(t('open_matches_choose_team', 'Please choose a team before sending the request.'));
         return;
       }
 
       setSubmittingMap((prev) => ({ ...prev, [bookingId]: true }));
       setSuccessMessage('');
       await bookingService.requestJoinMatch(bookingId, selectedTeamId, messages[bookingId] || '');
-      setSuccessMessage('Join request submitted successfully.');
+      setSuccessMessage(t('open_matches_request_success', 'Join request submitted successfully.'));
       await loadData();
     } catch (err) {
       console.error('Failed to submit join request:', err);
-      setError(err.error || 'Failed to submit join request');
+      setError(err.error || t('open_matches_request_failed', 'Failed to submit join request'));
     } finally {
       setSubmittingMap((prev) => ({ ...prev, [bookingId]: false }));
     }
@@ -118,13 +120,13 @@ const OpenMatchesPage = () => {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Open Matches</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">{t('nav_open_matches', 'Open Matches')}</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Find bookings that are open for opponents and send join requests.
+            {t('page_open_matches_subtitle', 'Find and respond to open opponent matches')}
           </p>
         </div>
         <Badge tone="gray" className="px-4 py-1.5 text-sm">
-          {openMatches.length} available
+          {t('open_matches_available_count', '{{count}} available', { count: openMatches.length })}
         </Badge>
       </div>
 
@@ -135,7 +137,7 @@ const OpenMatchesPage = () => {
 
       {captainedTeams.length === 0 && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-3 rounded-md text-sm">
-          You need at least one team where you are captain to request an open match.
+          {t('open_matches_need_team', 'You need at least one team where you are captain to request an open match.')}
         </div>
       )}
 
@@ -162,12 +164,12 @@ const OpenMatchesPage = () => {
                           to={`/fields/${match.field.id}`}
                           className="text-base font-semibold text-slate-950 transition hover:text-green-700 hover:underline"
                         >
-                          {match.field?.name || 'Unknown Field'}
+                          {match.field?.name || t('booking_unknown_field', 'Unknown Field')}
                         </Link>
                       ) : (
-                        <h3 className="text-base font-semibold text-slate-950">{match.field?.name || 'Unknown Field'}</h3>
+                        <h3 className="text-base font-semibold text-slate-950">{match.field?.name || t('booking_unknown_field', 'Unknown Field')}</h3>
                       )}
-                      <Badge tone="blue" className="px-3 py-1">Open for Opponents</Badge>
+                      <Badge tone="blue" className="px-3 py-1">{t('booking_open_for_opponents', 'Open for Opponents')}</Badge>
                     </div>
 
                     <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-3">
@@ -181,23 +183,23 @@ const OpenMatchesPage = () => {
                       </div>
                       <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                         <UsersIcon className="h-4 w-4 text-slate-400" />
-                        <span>Owner Team: {match.team?.name || 'Unknown Team'}</span>
+                        <span>{t('open_matches_owner_team', 'Owner Team: {{name}}', { name: match.team?.name || t('booking_unknown_team', 'Unknown team') })}</span>
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
                           {ownerColors.map((color, index) => (
                             <span key={`owner-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
                           ))}
                         </span>
                       </div>
-                      <div className="text-slate-600">Captain: <span className="font-medium text-slate-800">{ownerCaptainName}</span></div>
-                      <div className="text-slate-600"><span className="font-medium text-slate-800">{activeMemberCount}</span> active members</div>
+                      <div className="text-slate-600">{t('teams_captain_label', 'Captain: {{name}}', { name: ownerCaptainName })}</div>
+                      <div className="text-slate-600">{t('open_matches_active_members', '{{count}} active members', { count: activeMemberCount })}</div>
                       <div className="text-slate-600">
-                        Rate: ${discountPercent > 0 ? effectiveRate.toFixed(2) : hourlyRate.toFixed(2)}/hr
-                        {discountPercent > 0 && <span className="ml-2 text-green-600">({discountPercent}% off)</span>}
+                        {t('open_matches_rate', 'Rate: ${{rate}}/hr', { rate: discountPercent > 0 ? effectiveRate.toFixed(2) : hourlyRate.toFixed(2) })}
+                        {discountPercent > 0 && <span className="ml-2 text-green-600">{t('open_matches_discount', '({{percent}}% off)', { percent: discountPercent })}</span>}
                       </div>
                     </div>
 
                     {hasPendingRequest(match) && (
-                      <p className="mt-2 text-sm text-yellow-700">You already have a pending request for this match.</p>
+                      <p className="mt-2 text-sm text-yellow-700">{t('open_matches_pending_exists', 'You already have a pending request for this match.')}</p>
                     )}
                   </div>
 
@@ -208,7 +210,7 @@ const OpenMatchesPage = () => {
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match)}
                       className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
                     >
-                      <option value="">Select your team</option>
+                      <option value="">{t('open_matches_select_team', 'Select your team')}</option>
                       {captainedTeams.map((team) => (
                         <option key={team.id} value={team.id}>
                           {team.name}
@@ -217,7 +219,7 @@ const OpenMatchesPage = () => {
                     </select>
                     <textarea
                       rows={1}
-                      placeholder="Optional message"
+                      placeholder={t('open_matches_optional_message', 'Optional message')}
                       value={messages[match.id] || ''}
                       onChange={(e) => setMessages((prev) => ({ ...prev, [match.id]: e.target.value }))}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match)}
@@ -225,7 +227,7 @@ const OpenMatchesPage = () => {
                     />
                     {selectedTeam && selectedColors.length > 0 && (
                       <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-1.5">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Your Jersey</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{t('open_matches_your_jersey', 'Your Jersey')}</span>
                         <div className="inline-flex items-center gap-1">
                           {selectedColors.map((color, index) => (
                             <span key={`selected-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
@@ -238,7 +240,7 @@ const OpenMatchesPage = () => {
                       onClick={() => handleSubmitRequest(match.id)}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match) || submittingMap[match.id]}
                     >
-                      {submittingMap[match.id] ? 'Sending...' : 'Request to Join'}
+                      {submittingMap[match.id] ? t('open_matches_sending', 'Sending...') : t('open_matches_request_join', 'Request to Join')}
                     </Button>
                   </div>
                 </div>
@@ -248,8 +250,8 @@ const OpenMatchesPage = () => {
             <div className="p-6">
               <EmptyState
                 icon={CalendarIcon}
-                title="No open matches right now"
-                description="Check again later for new matches opened by other captains."
+                title={t('open_matches_empty_title', 'No open matches right now')}
+                description={t('open_matches_empty_description', 'Check again later for new matches opened by other captains.')}
               />
             </div>
           )}

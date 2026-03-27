@@ -20,9 +20,9 @@ const statusTone = (status) => {
   return tones[status] || 'gray';
 };
 
-const formatMoney = (value) => {
+const formatMoney = (value, locale) => {
   const n = Number(value || 0);
-  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
+  return n.toLocaleString(locale, { style: 'currency', currency: 'USD' });
 };
 
 const getStatusTranslationKey = (status) => {
@@ -42,7 +42,7 @@ const OwnerDashboardPage = () => {
   const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [fields, setFields] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +101,15 @@ const OwnerDashboardPage = () => {
       .filter((booking) => booking.ownerRevenueLocked || booking.status === 'confirmed' || booking.status === 'completed')
       .reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0);
   }, [bookings]);
+
+  const locale = language === 'km' ? 'km-KH' : 'en-US';
+
+  const formatBookingDateTime = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleString(locale);
+  };
 
   const kpiCards = useMemo(
     () => [
@@ -248,7 +257,12 @@ const OwnerDashboardPage = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{card.name}</div>
-                  <AnimatedStatValue value={card.value} type={card.valueType} className={`mt-1.5 text-[1.8rem] font-bold leading-none ${card.textClass}`} />
+                  <AnimatedStatValue
+                    value={card.value}
+                    type={card.valueType}
+                    locale={locale}
+                    className={`mt-1.5 text-[1.8rem] font-bold leading-none ${card.textClass}`}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -281,7 +295,7 @@ const OwnerDashboardPage = () => {
                             </Badge>
                           </div>
                           <div className="mt-1.5 text-xs text-slate-600">
-                            {new Date(booking.startTime).toLocaleString()} | {booking.team?.name || t('nav_teams', 'Team')}
+                            {formatBookingDateTime(booking.startTime)} | {booking.team?.name || t('nav_teams', 'Team')}
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -336,11 +350,11 @@ const OwnerDashboardPage = () => {
                         <Badge tone="green">{t('common_confirmed', 'Confirmed')}</Badge>
                       </div>
                       <div className="mt-1.5 truncate text-xs text-slate-600">
-                        {new Date(booking.startTime).toLocaleString()} | {booking.team?.name || t('nav_teams', 'Team')}
+                        {formatBookingDateTime(booking.startTime)} | {booking.team?.name || t('nav_teams', 'Team')}
                       </div>
                     </div>
                     <div className="shrink-0">
-                      <Badge tone="green">{formatMoney(booking.totalPrice)}</Badge>
+                      <Badge tone="green">{formatMoney(booking.totalPrice, locale)}</Badge>
                     </div>
                   </div>
                 ))}
@@ -386,7 +400,7 @@ const OwnerDashboardPage = () => {
                     </div>
                     <div className="mt-1.5 truncate text-xs text-slate-600">
                       {field.city}
-                      {field.province ? `, ${field.province}` : ''} | {formatMoney(field.pricePerHour)}/hr
+                      {field.province ? `, ${field.province}` : ''} | {formatMoney(field.pricePerHour, locale)}/hr
                     </div>
                   </div>
                   <Button as={Link} to="/owner/fields" size="sm" variant="outline" className="rounded-xl border-slate-300 bg-white px-4">

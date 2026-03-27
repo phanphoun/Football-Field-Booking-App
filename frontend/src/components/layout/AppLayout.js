@@ -891,14 +891,14 @@ const AppLayout = () => {
                   <div className="absolute right-0 top-full pt-2 z-30 w-[min(92vw,380px)]">
                     <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                        <p className="text-sm font-semibold text-gray-900">{t('nav_notifications', 'Notifications')}</p>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={handleMarkAllAsRead}
                             disabled={notificationActionLoading || unreadNotifications === 0}
                             className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           >
-                            Mark all read
+                            {t('notifications_mark_all_read', 'Mark all read')}
                           </button>
                           <button
                             onClick={() => {
@@ -907,18 +907,18 @@ const AppLayout = () => {
                             }}
                             className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                           >
-                            View all
+                            {t('dashboard_view_all', 'View all')}
                           </button>
                         </div>
                       </div>
 
                       <div className="max-h-[420px] overflow-y-auto">
                         {notificationsLoading ? (
-                          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading...</div>
+                          <div className="px-4 py-8 text-center text-sm text-gray-500">{t('common_loading', 'Loading...')}</div>
                         ) : latestNotifications.length === 0 ? (
                           <div className="px-4 py-8 text-center">
                             <InboxIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500">No notifications yet.</p>
+                            <p className="text-sm text-gray-500">{t('notifications_empty_title', 'No notifications yet.')}</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-gray-100">
@@ -980,7 +980,7 @@ const AppLayout = () => {
                                   </div>
                                   {!notification.isRead && (
                                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700">
-                                      New
+                                      {t('common_new', 'New')}
                                     </span>
                                   )}
                                 </div>
@@ -994,7 +994,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Accept
+                                         {t('teams_accept', 'Accept')}
                                       </button>
                                       <button
                                         onClick={() => handleInviteAction(notification, 'decline')}
@@ -1002,7 +1002,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1015,7 +1015,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Leave
+                                         {t('notifications_approve_leave', 'Approve Leave')}
                                       </button>
                                       <button
                                         onClick={() => handleLeaveRequestAction(notification, 'decline')}
@@ -1023,7 +1023,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1036,7 +1036,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Join
+                                         {t('booking_approve_join', 'Approve Join')}
                                       </button>
                                       <button
                                         onClick={() => handleJoinRequestAction(notification, 'decline')}
@@ -1044,7 +1044,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1057,7 +1057,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Join
+                                         {t('booking_approve_join', 'Approve Join')}
                                       </button>
                                       <button
                                         onClick={() => handleBookingJoinRequestAction(notification, 'decline')}
@@ -1065,7 +1065,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1076,7 +1076,7 @@ const AppLayout = () => {
                                       className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
                                     >
                                       <EyeIcon className="h-3.5 w-3.5" />
-                                      View Team
+                                      {t('notifications_view_team', 'View Team')}
                                     </button>
                                   )}
 
@@ -1086,7 +1086,7 @@ const AppLayout = () => {
                                       disabled={notificationActionLoading}
                                       className="inline-flex items-center rounded-md border border-emerald-200 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
                                     >
-                                      Mark read
+                                      {t('notifications_mark_read', 'Mark read')}
                                     </button>
                                   )}
                                 </div>

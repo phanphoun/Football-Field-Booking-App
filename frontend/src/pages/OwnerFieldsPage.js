@@ -589,20 +589,20 @@ const OwnerFieldsPage = () => {
             <div className="shrink-0 flex items-start justify-between border-b border-slate-200 bg-white px-5 py-4 md:px-6">
               <div>
                 <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                  {editingFieldId ? 'Edit Field' : 'Create Field'}
+                  {editingFieldId ? t('owner_field_edit_badge', 'Edit Field') : t('owner_field_create_badge', 'Create Field')}
                 </span>
                 <h2 className="mt-2 text-[1.9rem] font-bold leading-tight text-slate-950">
-                  {editingFieldId ? 'Update Field Information' : 'Add a New Field'}
+                  {editingFieldId ? t('owner_field_edit_title', 'Update Field Information') : t('owner_field_create_title', 'Add a New Field')}
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-500">
-                  Update pricing, location, amenities, and photos in one place.
+                  {t('owner_field_modal_subtitle', 'Update pricing, location, amenities, and photos in one place.')}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={resetForm}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
-                aria-label="Close field form"
+                aria-label={t('owner_field_close_form', 'Close field form')}
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -610,20 +610,20 @@ const OwnerFieldsPage = () => {
 
             <div className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white px-5 py-3 md:px-6">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700 shadow-sm">Live Preview</span>
+                <span className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-700 shadow-sm">{t('owner_field_live_preview', 'Live Preview')}</span>
                 <span className="font-medium text-slate-700">{modalFieldName}</span>
                 <span className="text-slate-400">|</span>
-                <span className="font-semibold text-slate-900">{liveBasePrice > 0 ? `$${liveDiscountedPrice}/hr` : 'Set price'}</span>
+                <span className="font-semibold text-slate-900">{liveBasePrice > 0 ? `$${liveDiscountedPrice}/hr` : t('owner_field_set_price', 'Set price')}</span>
                 {liveDiscountPercent > 0 && (
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                     {liveDiscountPercent}% OFF
                   </span>
                 )}
                 <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {form.fieldType || 'Field type'}
+                  {form.fieldType || t('owner_field_type_label', 'Field type')}
                 </span>
                 <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {Number(form.capacity) > 0 ? `${form.capacity} players` : 'Set capacity'}
+                  {Number(form.capacity) > 0 ? t('players_suffix', '{{count}} players', { count: form.capacity }) : t('owner_field_set_capacity', 'Set capacity')}
                 </span>
               </div>
             </div>
@@ -631,28 +631,28 @@ const OwnerFieldsPage = () => {
             <div className="min-h-0 overflow-y-auto bg-slate-50/50 px-5 py-4 md:px-6 md:py-5">
             <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
             <div className="mb-3">
-              <h3 className="text-lg font-semibold text-slate-900">Field Details</h3>
-              <p className="mt-1 text-sm text-slate-500">Set the essential details players see before booking.</p>
+              <h3 className="text-lg font-semibold text-slate-900">{t('owner_field_details_title', 'Field Details')}</h3>
+              <p className="mt-1 text-sm text-slate-500">{t('owner_field_details_subtitle', 'Set the essential details players see before booking.')}</p>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Field Name</span>
-                <input name="name" value={form.name} onChange={handleChange} placeholder="Field name" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_name_label', 'Field Name')}</span>
+                <input name="name" value={form.name} onChange={handleChange} placeholder={t('owner_field_name_placeholder', 'Field name')} className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Price Per Hour</span>
-                <input name="pricePerHour" type="number" value={form.pricePerHour} onChange={handleChange} placeholder="Price per hour" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_price_label', 'Price Per Hour')}</span>
+                <input name="pricePerHour" type="number" value={form.pricePerHour} onChange={handleChange} placeholder={t('owner_field_price_placeholder', 'Price per hour')} className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Capacity</span>
-                <input name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder="Capacity" className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_capacity_label', 'Capacity')}</span>
+                <input name="capacity" type="number" value={form.capacity} onChange={handleChange} placeholder={t('owner_field_capacity_placeholder', 'Capacity')} className="w-full rounded-xl border border-gray-300 px-4 py-3" required />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Discount Percent</span>
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_discount_label', 'Discount Percent')}</span>
                 <input name="discountPercent" type="number" min="0" max="100" value={form.discountPercent} onChange={handleChange} placeholder="0" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Field Type</span>
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_type_title', 'Field Type')}</span>
                 <select name="fieldType" value={form.fieldType} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
                   <option value="5v5">5v5</option>
                   <option value="7v7">7v7</option>
@@ -661,17 +661,17 @@ const OwnerFieldsPage = () => {
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Surface Type</span>
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_surface_title', 'Surface Type')}</span>
                 <select name="surfaceType" value={form.surfaceType} onChange={handleChange} className="w-full rounded-xl border border-gray-300 px-4 py-3">
-                  <option value="artificial_turf">Artificial Turf</option>
-                  <option value="natural_grass">Natural Grass</option>
-                  <option value="concrete">Concrete</option>
-                  <option value="indoor">Indoor</option>
+                  <option value="artificial_turf">{t('surface_artificial_turf', 'Artificial Turf')}</option>
+                  <option value="natural_grass">{t('surface_natural_grass', 'Natural Grass')}</option>
+                  <option value="concrete">{t('surface_concrete', 'Concrete')}</option>
+                  <option value="indoor">{t('surface_indoor', 'Indoor')}</option>
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="block text-sm font-medium text-slate-700">Amenities</span>
-                <input name="amenities" value={form.amenities} onChange={handleChange} placeholder="parking, showers, lights" className="w-full rounded-xl border border-gray-300 px-4 py-3" />
+                <span className="block text-sm font-medium text-slate-700">{t('owner_field_amenities_label', 'Amenities')}</span>
+                <input name="amenities" value={form.amenities} onChange={handleChange} placeholder={t('owner_field_amenities_placeholder', 'parking, showers, lights')} className="w-full rounded-xl border border-gray-300 px-4 py-3" />
               </label>
               {amenitiesPreview.length > 0 && (
                 <div className="md:col-span-2 -mt-1 flex flex-wrap gap-2">
@@ -687,8 +687,8 @@ const OwnerFieldsPage = () => {
 
             <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="mb-3">
-                <h3 className="text-lg font-semibold text-slate-900">Location</h3>
-                <p className="mt-1 text-sm text-slate-500">Search, click, or drag the pin to set the field location.</p>
+                  <h3 className="text-lg font-semibold text-slate-900">{t('owner_field_location_title', 'Location')}</h3>
+                  <p className="mt-1 text-sm text-slate-500">{t('owner_field_location_subtitle', 'Search, click, or drag the pin to set the field location.')}</p>
               </div>
               <FieldLocationPicker
                 value={{
@@ -706,17 +706,17 @@ const OwnerFieldsPage = () => {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <label htmlFor="field-images" className="block text-lg font-semibold text-slate-900">
-                    Photos
+                    {t('owner_field_photos_title', 'Photos')}
                   </label>
                   <p className="mt-1 text-sm text-slate-500">
-                    Upload up to 5 images. Images are compressed before upload to keep pages fast.
+                    {t('owner_field_photos_subtitle', 'Upload up to 5 images. Images are compressed before upload to keep pages fast.')}
                   </p>
                 </div>
                 <label
                   htmlFor="field-images"
                   className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
                 >
-                  {existingImages.length > 0 ? 'Change Photos' : 'Upload Photos'}
+                  {existingImages.length > 0 ? t('owner_field_change_photos', 'Change Photos') : t('owner_field_upload_photos', 'Upload Photos')}
                 </label>
               </div>
 
@@ -736,12 +736,12 @@ const OwnerFieldsPage = () => {
               )}
               {editingFieldId && imageFiles.length > 0 && (
                 <div className="mt-3 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                  New photos are ready and will replace current photos when you click Save
+                  {t('owner_field_new_photos_ready', 'New photos are ready and will replace current photos when you click Save')}
                 </div>
               )}
               {imageFiles.length === 0 && existingImages.length > 0 && (
                 <div className="mt-3 inline-flex rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                  Showing current image(s)
+                  {t('owner_field_showing_current_images', 'Showing current image(s)')}
                 </div>
               )}
 
@@ -757,7 +757,7 @@ const OwnerFieldsPage = () => {
                         <p className="truncate text-xs font-medium text-slate-600">{image.name}</p>
                         <div className="flex items-center gap-2">
                           <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
-                            {imageFiles.length > 0 ? 'New' : 'Current'}
+                            {imageFiles.length > 0 ? t('common_new', 'New') : t('common_current', 'Current')}
                           </span>
                           {image.isCurrent && (
                             <button
@@ -766,7 +766,7 @@ const OwnerFieldsPage = () => {
                               disabled={saving}
                               className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700 disabled:opacity-50"
                             >
-                              Delete
+                              {t('action_delete', 'Delete')}
                             </button>
                           )}
                         </div>
@@ -776,21 +776,21 @@ const OwnerFieldsPage = () => {
                 </div>
               ) : (
                 <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/80 px-4 py-6 text-center text-sm text-slate-500">
-                  No photos selected yet.
+                  {t('owner_field_no_photos_selected', 'No photos selected yet.')}
                 </div>
               )}
             </div>
 
             <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <label className="space-y-2">
-                <span className="block text-lg font-semibold text-slate-900">Field Description</span>
-                <span className="block text-sm text-slate-500">Share what makes this field special for players and captains.</span>
+                <span className="block text-lg font-semibold text-slate-900">{t('owner_field_description_title', 'Field Description')}</span>
+                <span className="block text-sm text-slate-500">{t('owner_field_description_subtitle', 'Share what makes this field special for players and captains.')}</span>
                 <textarea
                   name="description"
                   value={form.description}
                   onChange={handleChange}
                   rows={4}
-                  placeholder="Field description"
+                  placeholder={t('owner_field_description_placeholder', 'Field description')}
                   className="w-full rounded-2xl border border-gray-300 px-4 py-3"
                 />
               </label>
@@ -800,14 +800,14 @@ const OwnerFieldsPage = () => {
             <div className="shrink-0 border-t border-slate-200 bg-white px-5 py-3.5 md:px-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">
-                {isFormReady ? 'Ready to save' : 'Fill required details: name, price, capacity, and location'}
+                {isFormReady ? t('owner_field_ready_to_save', 'Ready to save') : t('owner_field_fill_required', 'Fill required details: name, price, capacity, and location')}
               </p>
               <div className="flex gap-3">
                 <button type="button" onClick={resetForm} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
-                  Cancel
+                  {t('action_cancel', 'Cancel')}
                 </button>
                 <button type="submit" disabled={saving || !isFormReady} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50">
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? t('common_saving', 'Saving...') : t('action_save', 'Save')}
                 </button>
               </div>
               </div>
