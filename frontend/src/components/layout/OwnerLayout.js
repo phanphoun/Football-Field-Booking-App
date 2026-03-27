@@ -21,6 +21,7 @@ import {
 import notificationService from '../../services/notificationService';
 import { ImagePreviewModal, useToast } from '../ui';
 import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
 import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
@@ -490,6 +491,7 @@ const OwnerLayout = () => {
             </div>
 
             <div className="ml-auto flex items-center space-x-3">
+              <ThemeToggle className="h-11 w-11" />
               <LanguageSwitcher className="hidden lg:inline-flex" />
               <div className="relative" ref={notificationsMenuRef}>
                 <button

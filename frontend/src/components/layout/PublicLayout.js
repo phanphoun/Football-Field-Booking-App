@@ -16,6 +16,7 @@ import {
 import { Button, useDialog, useToast } from '../ui';
 import { APP_CONFIG } from '../../config/appConfig';
 import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, isLoggingOut, logout } = useAuth();
@@ -126,6 +127,7 @@ const PublicLayout = () => {
             </nav>
 
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <ThemeToggle className="h-11 w-11" />
               <LanguageSwitcher className="hidden lg:inline-flex" />
               <button
                 type="button"
@@ -190,7 +192,10 @@ const PublicLayout = () => {
               <div className="overflow-hidden rounded-3xl border border-emerald-100 bg-white/95 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.09)]">
                 <div className="space-y-1">
                   <div className="px-1 pb-2">
-                    <LanguageSwitcher className="w-full justify-between" />
+                    <div className="flex items-center gap-2">
+                      <ThemeToggle className="h-11 w-11 shrink-0" />
+                      <LanguageSwitcher className="w-full justify-between" />
+                    </div>
                   </div>
                   {navItems.map((item) => (
                     <NavLink

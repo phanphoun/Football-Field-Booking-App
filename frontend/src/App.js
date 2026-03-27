@@ -36,6 +36,7 @@ import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
 import { DialogProvider, ToastProvider } from './components/ui';
 import { RealtimeProvider } from './context/RealtimeContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
@@ -213,19 +214,21 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <LanguageProvider>
-        <ToastProvider>
-          <DialogProvider>
-            <RealtimeProvider>
-              <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <div className="App">
-                  <AppRoutes />
-                </div>
-              </Router>
-            </RealtimeProvider>
-          </DialogProvider>
-        </ToastProvider>
-      </LanguageProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <ToastProvider>
+            <DialogProvider>
+              <RealtimeProvider>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                  <div className="App">
+                    <AppRoutes />
+                  </div>
+                </Router>
+              </RealtimeProvider>
+            </DialogProvider>
+          </ToastProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

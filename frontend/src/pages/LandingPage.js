@@ -1245,7 +1245,9 @@ const LandingPage = () => {
                       disabled={!field.nextTime}
                       onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
                       className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
-                        field.nextTime ? 'bg-[#1fb455] hover:bg-[#18984a]' : 'cursor-not-allowed bg-slate-300'
+                        field.nextTime
+                          ? 'bg-[#1fb455] hover:bg-[#18984a]'
+                          : 'cursor-not-allowed border border-slate-600 bg-slate-700 text-slate-300 shadow-none'
                       }`}
                     >
                       {field.nextTime
