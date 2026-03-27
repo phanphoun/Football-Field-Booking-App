@@ -82,7 +82,7 @@ const PublicTeamsPage = () => {
     };
 
     fetchTeams();
-  }, []);
+  }, [t]);
 
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {

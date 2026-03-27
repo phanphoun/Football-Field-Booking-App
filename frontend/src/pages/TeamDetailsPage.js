@@ -1090,11 +1090,12 @@ const TeamDetailsPage = () => {
 
       <div className="bg-white shadow rounded-lg p-6 space-y-6">
         <div className="border-b border-gray-200">
-          <div className="flex items-center gap-8">
+          <div className="-mx-2 overflow-x-auto px-2">
+            <div className="flex min-w-max items-center gap-5 sm:gap-8">
             <button
               type="button"
               onClick={() => setTab('overview')}
-              className={`border-b-2 px-1 py-3 text-base font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition sm:text-base ${
                 activeTab === 'overview'
                   ? 'border-slate-900 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1105,7 +1106,7 @@ const TeamDetailsPage = () => {
             <button
               type="button"
               onClick={() => setTab('members')}
-              className={`border-b-2 px-1 py-3 text-base font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition sm:text-base ${
                 activeTab === 'members'
                   ? 'border-slate-900 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1116,7 +1117,7 @@ const TeamDetailsPage = () => {
             <button
               type="button"
               onClick={() => setTab('history')}
-              className={`border-b-2 px-1 py-3 text-base font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition sm:text-base ${
                 activeTab === 'history'
                   ? 'border-slate-900 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -1128,11 +1129,12 @@ const TeamDetailsPage = () => {
                 <button
                   type="button"
                   onClick={() => navigate(`${basePath}/teams/${id}/manage`)}
-                  className="border-b-2 border-transparent px-1 py-3 text-base font-semibold text-slate-500 transition hover:text-slate-700"
+                  className="shrink-0 whitespace-nowrap border-b-2 border-transparent px-1 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-700 sm:text-base"
                 >
                   {t('team_details_manage_team', 'Manage Team')}
-              </button>
-            )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

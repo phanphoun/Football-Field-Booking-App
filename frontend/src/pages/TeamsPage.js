@@ -67,7 +67,7 @@ const TeamsPage = () => {
     };
 
     fetchTeamsAndInvitations();
-  }, [user?.id, isAdmin, version]);
+  }, [t, user?.id, isAdmin, version]);
 
   const handleCreateTeam = () => {
     navigate(`${basePath}/teams/create`);

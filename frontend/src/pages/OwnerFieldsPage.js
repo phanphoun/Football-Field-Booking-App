@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import {
   CheckIcon,
   ChevronDownIcon,
-  MapPinIcon,
   PencilSquareIcon,
   PhotoIcon,
   StarIcon,
@@ -562,15 +561,15 @@ const OwnerFieldsPage = () => {
           {error}
         </div>
       )}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">{t('owner_my_fields_title', 'ទីលានរបស់ខ្ញុំ')}</h1>
           <p className="mt-1 text-sm text-gray-600">{t('owner_fields_subtitle', 'បង្កើត កែប្រែ និងគ្រប់គ្រងបញ្ជីទីលានរបស់អ្នក។')}</p>
         </div>
         <button
           type="button"
           onClick={startCreate}
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto"
         >
           <PlusIcon className="h-4 w-4" />
           {t('action_add_field', 'បន្ថែមទីលាន')}
@@ -1116,4 +1115,5 @@ const OwnerFieldsPage = () => {
 };
 
 export default OwnerFieldsPage;
+
 

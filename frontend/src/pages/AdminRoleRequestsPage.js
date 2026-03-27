@@ -50,7 +50,7 @@ const AdminRoleRequestsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => {
     loadRequests();

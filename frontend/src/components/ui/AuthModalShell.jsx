@@ -49,7 +49,6 @@ const AuthModalShell = ({
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-600 text-sm font-bold text-white">
                 FB
               </span>
-              <span className="text-base font-semibold tracking-tight">Football Booking</span>
             </Link>
           </div>
 

@@ -79,7 +79,7 @@ const FieldsPage = () => {
     };
 
     fetchFields();
-  }, [version]);
+  }, [t, version]);
 
   useEffect(() => {
     const filtered = fields.filter(field => {

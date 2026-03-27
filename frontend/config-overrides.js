@@ -1,6 +1,6 @@
 const webpack = require('webpack');
 
-module.exports = function override(config, env) {
+const override = function override(config, env) {
   // Add polyfills for Node.js modules in browser
   config.resolve.fallback = {
     ...config.resolve.fallback,
@@ -32,3 +32,19 @@ module.exports = function override(config, env) {
 
   return config;
 };
+
+const overrideDevServer = function overrideDevServer(devServerConfig) {
+  return function configuredDevServer(proxy, allowedHost) {
+    const config = devServerConfig(proxy, allowedHost);
+    config.client = config.client || {};
+    config.client.overlay = {
+      ...(config.client.overlay || {}),
+      runtimeErrors: false
+    };
+
+    return config;
+  };
+};
+
+module.exports = override;
+module.exports.devServer = overrideDevServer;

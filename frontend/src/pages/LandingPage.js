@@ -313,7 +313,7 @@ const buildDiscountOfferDescription = (field, t) => {
   const savedAmount = Number((Number(field?.pricePerHour || 0) - getDiscountedFieldPrice(field)).toFixed(2));
   return t(
     'landing_discount_description',
-    'Save ${{amount}}/hour on this field in {{city}}.',
+    'Save {{amount}}/hour on this field in {{city}}.',
     { amount: savedAmount, city: field.city || field.province || t('landing_your_city', 'your city') }
   );
 };
@@ -1150,10 +1150,10 @@ const LandingPage = () => {
                 availableNowCards.map((field, index) => (
                   <div
                     key={`live-${field.id}-${index}`}
-                    className="overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.09)]"
+                    className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.09)]"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_250px]">
-                      <div className="p-5 md:p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                             {t('landing_live_availability', 'Live availability')}
@@ -1174,77 +1174,86 @@ const LandingPage = () => {
                                 : t('landing_slots_left', '{{count}} slots left', { count: field.slotsLeft })}
                           </span>
                         </div>
-
-                        <h3 className="mt-4 text-[2rem] font-black leading-[1.05] tracking-tight text-slate-950 break-words">
+                        <h3 className="mt-5 text-[1.25rem] font-black leading-[1.15] tracking-tight text-slate-950 break-words sm:text-[1.45rem]">
                           {field.name}
                         </h3>
-                        <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-slate-500">
+                        <p className="mt-2 flex items-start gap-2 text-sm leading-5 text-slate-500">
                           <MapPinIcon className="mt-0.5 h-4 w-4 flex-none" />
                           <span>{field.location}</span>
                         </p>
-
-                        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
-                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                            <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
-                            {field.fieldType}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                            {field.surfaceType}
-                          </span>
-                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-700">
-                            {t('landing_open_windows', '{{count}} open slots', { count: field.slotsLeft })}
-                          </span>
-                        </div>
                       </div>
 
-                      <div className="border-t border-slate-200 bg-[linear-gradient(180deg,_#f8fafc_0%,_#ecfdf5_100%)] p-5 md:border-l md:border-t-0 md:p-6">
-                        <div className="flex h-full flex-col justify-between">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{t('landing_starting_price', 'Starting price')}</p>
-                            <div className="mt-2 text-4xl font-black leading-none text-emerald-600">${field.pricePerHour}<span className="text-xl font-bold text-emerald-700">/{t('field_per_hour_short', 'hour')}</span></div>
-                            <p
-                              className={`mt-3 text-sm font-semibold ${
-                                field.isFullyBooked
-                                  ? 'text-red-700'
-                                  : field.isAvailableNow
-                                    ? 'text-emerald-700'
-                                    : 'text-amber-700'
-                              }`}
-                            >
-                              {field.nextLabel}
-                            </p>
-                            <span
-                              className={`mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                                field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
-                              }`}
-                            >
-                              {field.isFullyBooked
-                                ? t('landing_sold_out', 'Sold out')
-                                : field.slotsLeft <= 1
-                                ? t('landing_filling_fast', 'Filling fast')
-                                : t('landing_ready_to_book', 'Ready to book')}
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={!field.nextTime}
-                            onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                            className={`mt-6 inline-flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
-                              field.nextTime
-                                ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700'
-                                : 'cursor-not-allowed bg-slate-300'
-                            }`}
-                          >
-                            {field.nextTime
-                              ? isAuthenticated && !canCreateBooking
-                                ? t('booking_request_captain', 'Request Captain Access')
-                                : t('landing_quick_book', 'Quick book')
-                              : t('landing_sold_out', 'Sold out')}
-                          </button>
+                      <div className="w-fit rounded-2xl bg-emerald-50 px-4 py-3 text-right sm:min-w-[120px]">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {t('landing_price_label', 'Price')}
+                        </p>
+                        <div className="mt-1 whitespace-nowrap text-[1.7rem] font-black leading-none text-emerald-600 sm:text-[1.9rem]">
+                          ${field.pricePerHour}
+                          <span className="text-sm font-bold text-emerald-700 sm:text-base">/{t('field_per_hour_short', 'hr')}</span>
                         </div>
                       </div>
                     </div>
+
+                    <div className="mt-6 grid grid-cols-1 gap-4 rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-5 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {t('landing_field_size', 'Field size')}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
+                          <UsersIcon className="h-5 w-5 text-blue-600" />
+                          <span>{field.fieldType}</span>
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {t('landing_surface_type', 'Surface type')}
+                        </p>
+                        <div className="mt-2 break-words text-base font-bold text-slate-900 sm:text-lg">{field.surfaceType}</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 border-t border-slate-200 pt-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            {t('landing_next_available_label', 'Next available')}
+                          </p>
+                          <p
+                            className={`mt-2 break-words text-[1.1rem] font-black leading-tight sm:text-[1.3rem] ${
+                              field.isFullyBooked
+                                ? 'text-red-600'
+                                : field.isAvailableNow
+                                  ? 'text-emerald-600'
+                                  : 'text-amber-600'
+                            }`}
+                          >
+                            {field.nextLabel}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${
+                            field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {t('landing_slots_left', '{{count}} slots left', { count: field.slotsLeft })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!field.nextTime}
+                      onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                      className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
+                        field.nextTime ? 'bg-[#1fb455] hover:bg-[#18984a]' : 'cursor-not-allowed bg-slate-300'
+                      }`}
+                    >
+                      {field.nextTime
+                        ? isAuthenticated && !canCreateBooking
+                          ? t('booking_request_captain', 'Request Captain Access')
+                          : t('landing_quick_book', 'Book Now')
+                        : t('landing_sold_out', 'Sold out')}
+                    </button>
                   </div>
               ))
             ) : (
@@ -1714,87 +1723,67 @@ const LandingPage = () => {
 
       <section
         id="account-upgrade"
-        className="order-10 scroll-mt-24 rounded-[32px] border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_42%,#ecfdf5_100%)] p-6 shadow-sm sm:p-8"
+        className="order-10 scroll-mt-24 py-6"
       >
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700">
+        <div className="mx-auto max-w-5xl text-center">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
               <BoltIcon className="h-4 w-4" />
               Upgrade Your Account
             </span>
-            <h2 className="mt-4 text-3xl font-black text-slate-950">Grow From Player To Organizer Or Venue Owner</h2>
-            <p className="mt-3 text-base leading-7 text-slate-600">
-              Players can upgrade into business-ready roles with a one-time platform fee. Every upgrade includes admin review,
-              stronger account permissions, and a clearer path to operating teams or fields professionally.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-            Upgrade fees are charged once per role request and reviewed by admins after payment.
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Grow From Player To Organizer Or Venue Owner</h2>
           </div>
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {upgradePrograms.map((program) => {
             const plan = ROLE_UPGRADE_CONFIG[program.roleKey];
-            const Icon = program.icon;
 
             return (
-              <div key={program.roleKey} className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <div className={`bg-gradient-to-r ${program.accent} px-6 py-5 text-white`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">{program.audience}</p>
-                      <h3 className="mt-2 text-2xl font-bold">{plan.title}</h3>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-                      <Icon className="h-6 w-6" />
-                    </div>
+              <div
+                key={program.roleKey}
+                className="rounded-[28px] border border-slate-200 bg-white p-5 text-center shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
+              >
+                <div className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  {program.audience}
+                </div>
+                <h3 className="mt-3 text-[1.9rem] font-black tracking-tight text-slate-950">{plan.title}</h3>
+                <p className="mx-auto mt-3 max-w-xl text-[13px] leading-6 text-slate-600">{plan.description}</p>
+
+                <div className="mt-5">
+                  <div className="text-[3rem] font-black leading-none text-[#0ea765]">
+                    ${plan.feeUsd}
+                    <span className="ml-1 text-xl font-semibold text-slate-700">/one-time</span>
                   </div>
+                  <p className="mt-2 text-[12px] font-medium text-slate-500">Admin approval included</p>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">One-time upgrade fee</p>
-                      <p className="mt-1 text-4xl font-black text-slate-950">${plan.feeUsd}</p>
+                <div className="mt-7 space-y-3 text-left">
+                  {plan.benefits.map((benefit) => (
+                    <div key={benefit} className="flex items-start gap-3 text-sm text-slate-700">
+                      <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        <CheckCircleIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <span>{benefit}</span>
                     </div>
-                    <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      Admin approval included
-                    </div>
-                  </div>
-
-                  <p className="mt-4 text-sm leading-6 text-slate-600">{plan.description}</p>
-
-                  <div className="mt-5 space-y-3">
-                    {plan.benefits.map((benefit) => (
-                      <div key={benefit} className="flex items-start gap-3 text-sm text-slate-700">
-                        <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-none text-emerald-600" />
-                        <span>{benefit}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    Best flow: pay the upgrade fee, submit your request in Settings, and wait for admin approval.
-                  </div>
-
-                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => handleUpgradeNow(program.roleKey)}
-                      className={`inline-flex items-center justify-center rounded-2xl bg-gradient-to-r ${program.accent} px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5`}
-                    >
-                      Upgrade Now
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleCallForDemo(program.roleKey)}
-                      className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
-                    >
-                      Call for Demo
-                    </button>
-                  </div>
+                  ))}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleUpgradeNow(program.roleKey)}
+                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-[#1fb455] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#18984a]"
+                >
+                  Book Now
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCallForDemo(program.roleKey)}
+                  className="mt-3 inline-flex w-full items-center justify-center text-[11px] font-medium text-slate-500 transition hover:text-emerald-700"
+                >
+                  Need help? Call for Demo
+                </button>
               </div>
             );
           })}
@@ -1837,9 +1826,6 @@ const LandingPage = () => {
                   FB
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-300">
-                    {APP_CONFIG.brand.englishName}
-                  </div>
                   <div className="khmer-brand-font text-base font-semibold leading-[1.2] text-white sm:text-xl">
                     {APP_CONFIG.brand.displayName}
                   </div>

@@ -39,7 +39,6 @@ const SidebarBrand = ({ collapsed = false }) => (
     </div>
     {!collapsed && (
       <div className="min-w-0 py-0.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-600">Football Arena</div>
         <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
           {BRAND_NAME}
         </div>

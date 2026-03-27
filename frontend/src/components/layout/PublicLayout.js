@@ -85,49 +85,48 @@ const PublicLayout = () => {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(22,163,74,0.12),_transparent_28%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)]">
-      <header className="sticky top-0 z-20 border-b border-emerald-100/80 bg-white/85 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+      <header className="sticky top-0 z-20 border-b border-emerald-100/80 bg-[linear-gradient(180deg,rgba(247,254,250,0.98)_0%,rgba(236,253,245,0.94)_100%)] shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-20 items-center justify-between gap-4">
+          <div className="flex min-h-[64px] flex-wrap items-center justify-between gap-3 py-1.5 xl:flex-nowrap xl:gap-4">
             <Link
               to="/"
-              className="group flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white/80 px-3 py-2 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+              className="group flex shrink-0 items-center gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-green-600 to-lime-500 text-sm font-black tracking-wide text-white shadow-[0_10px_24px_rgba(22,163,74,0.3)]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-[18px] bg-gradient-to-br from-emerald-500 via-green-600 to-lime-500 text-[1.05rem] font-black tracking-wide text-white shadow-[0_12px_28px_rgba(22,163,74,0.28)]">
                 FB
               </span>
               <span className="min-w-0 py-0.5">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-600">
-                  {APP_CONFIG.brand.englishName}
-                </span>
-                <span className="khmer-brand-font block text-base font-semibold leading-[1.2] text-slate-900 sm:text-xl">
+                <span className="khmer-brand-font block text-[0.95rem] font-semibold leading-[1.05] text-slate-900 sm:text-[1.3rem]">
                   {APP_CONFIG.brand.displayName}
                 </span>
               </span>
             </Link>
 
-            <nav className="hidden items-center rounded-full border border-slate-200/80 bg-white/80 p-1.5 shadow-sm md:flex">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={`group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    isActivePath(item.to)
-                      ? 'bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.28)]'
-                      : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
-                  }`}
-                >
-                  <item.icon
-                    className={`h-4 w-4 ${
-                      isActivePath(item.to) ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600'
+            <nav className="hidden min-w-0 flex-1 items-center justify-center xl:flex">
+              <div className="flex items-center rounded-full border border-white/80 bg-white/92 p-1 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={`group inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                      isActivePath(item.to)
+                        ? 'bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.28)]'
+                        : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
                     }`}
-                  />
-                  {item.label}
-                </NavLink>
-              ))}
+                  >
+                    <item.icon
+                      className={`h-4 w-4 ${
+                        isActivePath(item.to) ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600'
+                      }`}
+                    />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
             </nav>
 
-            <div className="flex items-center gap-2">
-              <LanguageSwitcher className="hidden md:inline-flex" />
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <LanguageSwitcher className="hidden lg:inline-flex" />
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
@@ -144,7 +143,7 @@ const PublicLayout = () => {
                     to={dashboardHref}
                     variant="outline"
                     size="sm"
-                    className="hidden rounded-full border-slate-300 bg-white px-5 text-slate-800 shadow-[0_8px_20px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 sm:inline-flex"
+                    className="hidden rounded-2xl border-white/80 bg-white/92 px-4 text-slate-800 shadow-[0_8px_20px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 lg:inline-flex"
                   >
                     <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                     {t('action_go_dashboard', 'ទៅកាន់ផ្ទាំងគ្រប់គ្រង')}
@@ -153,7 +152,7 @@ const PublicLayout = () => {
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     size="sm"
-                    className="hidden rounded-full bg-gradient-to-r from-emerald-600 to-green-600 px-5 text-white shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 sm:inline-flex"
+                    className="hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-green-600 px-4 text-white shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:-translate-y-0.5 hover:from-emerald-700 hover:to-green-700 lg:inline-flex"
                   >
                     <PowerIcon className="h-4 w-4" />
                     {isLoggingOut ? t('public_logging_out', 'កំពុងចាកចេញ...') : t('action_logout', 'ចាកចេញ')}
@@ -167,7 +166,7 @@ const PublicLayout = () => {
                     state={authRouteState}
                     variant="outline"
                     size="sm"
-                    className="hidden rounded-full border-slate-300 bg-white/90 px-4 sm:inline-flex"
+                    className="hidden rounded-2xl border-white/80 bg-white/92 px-4 lg:inline-flex"
                   >
                     {t('nav_login', 'ចូលគណនី')}
                   </Button>
@@ -176,7 +175,7 @@ const PublicLayout = () => {
                     to="/register"
                     state={authRouteState}
                     size="sm"
-                    className="hidden rounded-full px-4 shadow-[0_12px_24px_rgba(22,163,74,0.22)] sm:inline-flex"
+                    className="hidden rounded-2xl px-4 shadow-[0_12px_24px_rgba(22,163,74,0.22)] lg:inline-flex"
                   >
                     {t('nav_register', 'ចុះឈ្មោះ')}
                     <ArrowRightIcon className="h-4 w-4" />

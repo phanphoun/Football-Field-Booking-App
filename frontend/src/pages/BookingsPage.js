@@ -102,7 +102,7 @@ const BookingsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast, user?.id, user?.role]);
+  }, [showToast, t, user?.id, user?.role]);
 
   useEffect(() => {
     loadBookings();

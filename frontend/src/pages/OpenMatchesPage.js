@@ -156,9 +156,9 @@ const OpenMatchesPage = () => {
 
               return (
               <CardBody key={match.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2.5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {match.field?.id ? (
                         <Link
                           to={`/fields/${match.field.id}`}
@@ -172,19 +172,19 @@ const OpenMatchesPage = () => {
                       <Badge tone="blue" className="px-3 py-1">{t('booking_open_for_opponents', 'Open for Opponents')}</Badge>
                     </div>
 
-                    <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-3">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="inline-flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                         <CalendarIcon className="h-4 w-4 text-slate-400" />
-                        {formatDate(match.startTime)}
+                        <span className="truncate">{formatDate(match.startTime)}</span>
                       </div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                      <div className="inline-flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                         <ClockIcon className="h-4 w-4 text-slate-400" />
-                        {formatTime(match.startTime)} - {formatTime(match.endTime)}
+                        <span className="truncate">{formatTime(match.startTime)} - {formatTime(match.endTime)}</span>
                       </div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                      <div className="inline-flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
                         <UsersIcon className="h-4 w-4 text-slate-400" />
-                        <span>{t('open_matches_owner_team', 'Owner Team: {{name}}', { name: match.team?.name || t('booking_unknown_team', 'Unknown team') })}</span>
-                        <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
+                        <span className="truncate">{t('open_matches_owner_team', 'Owner Team: {{name}}', { name: match.team?.name || t('booking_unknown_team', 'Unknown team') })}</span>
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
                           {ownerColors.map((color, index) => (
                             <span key={`owner-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
                           ))}
@@ -193,7 +193,7 @@ const OpenMatchesPage = () => {
                       <div className="text-slate-600">{t('teams_captain_label', 'Captain: {{name}}', { name: ownerCaptainName })}</div>
                       <div className="text-slate-600">{t('open_matches_active_members', '{{count}} active members', { count: activeMemberCount })}</div>
                       <div className="text-slate-600">
-                        {t('open_matches_rate', 'Rate: ${{rate}}/hr', { rate: discountPercent > 0 ? effectiveRate.toFixed(2) : hourlyRate.toFixed(2) })}
+                        {t('open_matches_rate', 'Rate: {{rate}}/hr', { rate: discountPercent > 0 ? effectiveRate.toFixed(2) : hourlyRate.toFixed(2) })}
                         {discountPercent > 0 && <span className="ml-2 text-green-600">{t('open_matches_discount', '({{percent}}% off)', { percent: discountPercent })}</span>}
                       </div>
                     </div>
@@ -203,7 +203,7 @@ const OpenMatchesPage = () => {
                     )}
                   </div>
 
-                  <div className="w-full max-w-sm space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                  <div className="w-full space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 lg:max-w-sm lg:min-w-[20rem]">
                     <select
                       value={selectedTeams[match.id] || ''}
                       onChange={(e) => setSelectedTeams((prev) => ({ ...prev, [match.id]: e.target.value }))}

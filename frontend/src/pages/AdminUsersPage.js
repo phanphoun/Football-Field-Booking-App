@@ -57,7 +57,7 @@ const AdminUsersPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   useEffect(() => {
     loadUsers();

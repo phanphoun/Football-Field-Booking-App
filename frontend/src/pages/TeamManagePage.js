@@ -387,17 +387,17 @@ const TeamManagePage = () => {
               </span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Link
               to={`${basePath}/teams/${team.id}`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:w-auto"
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Back
             </Link>
             <Link
               to={`${basePath}/teams/${team.id}?tab=history`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-green-300 text-green-700 hover:bg-green-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-50 sm:w-auto"
             >
               <CalendarIcon className="h-4 w-4" />
               Match History
@@ -406,7 +406,7 @@ const TeamManagePage = () => {
               <button
                 onClick={handleDeleteTeam}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 sm:w-auto"
               >
                 <TrashIcon className="h-4 w-4" />
                 Delete Team
