@@ -29,6 +29,10 @@ import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
 
 const BRAND_NAME = APP_CONFIG.brand.displayName;
+const topControlButtonClass =
+  'group inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-[0_14px_28px_rgba(16,185,129,0.14)] active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 focus-visible:ring-offset-2';
+const backButtonClass =
+  'group ml-4 inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-700 hover:shadow-[0_14px_28px_rgba(16,185,129,0.14)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 focus-visible:ring-offset-2';
 
 const SidebarBrand = ({ collapsed = false }) => (
   <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
@@ -158,7 +162,6 @@ const AppLayout = () => {
     return current || { title: APP_CONFIG.brand.displayName, subtitle: 'Welcome to your workspace' };
   }, [location.pathname]);
   const showBackHomeButton = location.pathname.startsWith('/app');
-  const isAppFieldsRoute = location.pathname.startsWith('/app/fields');
   const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
   const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
 
@@ -650,16 +653,20 @@ const AppLayout = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Mobile sidebar */}
-      <div className={`fixed inset-0 z-50 ${sidebarOpen ? 'block' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
+      <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${sidebarOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+        <div
+          className={`fixed inset-0 bg-slate-950/35 backdrop-blur-[2px] transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+        <div className={`fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-[18px_0_42px_rgba(15,23,42,0.16)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex h-16 items-center justify-between px-4">
             <SidebarBrand />
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className={`${topControlButtonClass} h-10 w-10 rounded-xl border-slate-200 text-slate-500 shadow-sm`}
+              aria-label="Close navigation"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
@@ -668,10 +675,11 @@ const AppLayout = () => {
                 <Link
                   key={item.name}
                   to={item.href}
+                  aria-current={item.current ? 'page' : undefined}
                   className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
                     item.current
-                      ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                      ? 'translate-x-1 rounded-xl bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.14)]'
+                      : 'text-gray-600 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -685,10 +693,10 @@ const AppLayout = () => {
               <Link
                 to="/app/profile"
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-200 ${
                   profileCurrent
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.14)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <img
@@ -715,10 +723,10 @@ const AppLayout = () => {
               <Link
                 to={settingsItem.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
                   settingsItem.current
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.14)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <settingsItem.icon
@@ -746,10 +754,11 @@ const AppLayout = () => {
                   key={item.name}
                   to={item.href}
                   title={item.name}
-                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
+                  aria-current={item.current ? 'page' : undefined}
+                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-200 ${
                     item.current
-                      ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                      ? 'rounded-xl bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.12)]'
+                      : 'text-gray-600 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   } ${desktopSidebarCollapsed ? 'justify-center' : ''}`}
                 >
                   {renderNavIcon(item)}
@@ -762,10 +771,10 @@ const AppLayout = () => {
               <Link
                 to="/app/profile"
                 title={userDisplayName}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-200 ${
                   profileCurrent
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.12)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 } ${desktopSidebarCollapsed ? 'justify-center px-2' : ''}`}
               >
                 <img
@@ -794,10 +803,10 @@ const AppLayout = () => {
               <Link
                 to={settingsItem.href}
                 title={settingsItem.name}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
                   settingsItem.current
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.12)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 } ${desktopSidebarCollapsed ? 'justify-center px-2' : ''}`}
               >
                 <settingsItem.icon
@@ -820,7 +829,8 @@ const AppLayout = () => {
             <div className="flex items-center min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="text-gray-500 hover:text-gray-700 md:hidden"
+                className={`${topControlButtonClass} md:hidden`}
+                aria-label="Open navigation"
               >
                 <Bars3Icon className="h-6 w-6" />
               </button>
@@ -828,13 +838,14 @@ const AppLayout = () => {
               <button
                 type="button"
                 onClick={() => setDesktopSidebarCollapsed((prev) => !prev)}
-                className="hidden h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 md:inline-flex"
+                className={`hidden md:inline-flex ${topControlButtonClass}`}
                 aria-label={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {desktopSidebarCollapsed ? (
-                  <ChevronDoubleRightIcon className="h-5 w-5" />
+                  <ChevronDoubleRightIcon className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
                 ) : (
-                  <ChevronDoubleLeftIcon className="h-5 w-5" />
+                  <ChevronDoubleLeftIcon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
                 )}
               </button>
 
@@ -842,13 +853,10 @@ const AppLayout = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className={`ml-4 inline-flex items-center border bg-white transition ${
-                    isAppFieldsRoute
-                      ? 'gap-2.5 rounded-full border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-700'
-                      : 'gap-2.5 rounded-2xl border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.05)] hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950'
-                  }`}
+                  className={backButtonClass}
+                  aria-label="Go back to home"
                 >
-                  <ArrowLeftIcon className={isAppFieldsRoute ? 'h-[18px] w-[18px]' : 'h-[18px] w-[18px]'} />
+                  <ArrowLeftIcon className="h-[18px] w-[18px] transition-transform duration-200 group-hover:-translate-x-0.5" />
                   <span className="hidden sm:inline">Back</span>
                 </button>
               )}

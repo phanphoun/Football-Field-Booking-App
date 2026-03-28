@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CalendarIcon, ClockIcon, UsersIcon } from '@heroicons/react/24/outline';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
@@ -72,6 +73,14 @@ const OpenMatchesPage = () => {
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
   const formatTime = (dateString) =>
     new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const getCaptainName = (team) => {
+    const fullName = `${team?.captain?.firstName || ''} ${team?.captain?.lastName || ''}`.trim();
+    return fullName || team?.captain?.username || 'Unknown captain';
+  };
+  const getActiveMemberCount = (team) =>
+    Array.isArray(team?.teamMembers)
+      ? team.teamMembers.filter((member) => member.status === 'active' && member.isActive !== false).length
+      : 0;
 
   const hasPendingRequest = (match) =>
     Array.isArray(match.myRequests) && match.myRequests.some((request) => request.status === 'pending');
@@ -106,15 +115,17 @@ const OpenMatchesPage = () => {
   }
 
   return (
-    <div>
-      <div className="mb-8 flex items-end justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Open Matches</h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Open Matches</h1>
+          <p className="mt-2 text-sm text-gray-600">
             Find bookings that are open for opponents and send join requests.
           </p>
         </div>
-        <Badge tone="gray">{openMatches.length} available</Badge>
+        <Badge tone="gray" className="px-4 py-1.5 text-sm">
+          {openMatches.length} available
+        </Badge>
       </div>
 
       {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">{error}</div>}
@@ -128,40 +139,60 @@ const OpenMatchesPage = () => {
         </div>
       )}
 
-      <Card className="overflow-hidden">
-        <div className="divide-y divide-gray-200">
+      <Card className="overflow-hidden rounded-[28px] border border-slate-200 shadow-sm">
+        <div className="divide-y divide-slate-200">
           {openMatches.length > 0 ? (
             openMatches.map((match) => {
               const ownerColors = getTeamJerseyColors(match.team);
               const selectedTeam = captainedTeams.find((team) => String(team.id) === String(selectedTeams[match.id] || ''));
               const selectedColors = selectedTeam ? getTeamJerseyColors(selectedTeam) : [];
+              const ownerCaptainName = getCaptainName(match.team);
+              const activeMemberCount = getActiveMemberCount(match.team);
+              const hourlyRate = Number(match.field?.pricePerHour || 0);
+              const discountPercent = Math.min(100, Math.max(0, Number(match.field?.discountPercent || 0)));
+              const effectiveRate = Number((hourlyRate * (1 - discountPercent / 100)).toFixed(2));
 
               return (
-              <CardBody key={match.id} className="p-6">
-                <div className="flex items-start justify-between gap-6">
+              <CardBody key={match.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-medium text-gray-900">{match.field?.name || 'Unknown Field'}</h3>
-                      <Badge tone="blue">Open for Opponents</Badge>
+                    <div className="flex items-center gap-2.5">
+                      {match.field?.id ? (
+                        <Link
+                          to={`/fields/${match.field.id}`}
+                          className="text-base font-semibold text-slate-950 transition hover:text-green-700 hover:underline"
+                        >
+                          {match.field?.name || 'Unknown Field'}
+                        </Link>
+                      ) : (
+                        <h3 className="text-base font-semibold text-slate-950">{match.field?.name || 'Unknown Field'}</h3>
+                      )}
+                      <Badge tone="blue" className="px-3 py-1">Open for Opponents</Badge>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <CalendarIcon className="h-4 w-4 mr-1" />
+                    <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-3">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                        <CalendarIcon className="h-4 w-4 text-slate-400" />
                         {formatDate(match.startTime)}
                       </div>
-                      <div className="flex items-center">
-                        <ClockIcon className="h-4 w-4 mr-1" />
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                        <ClockIcon className="h-4 w-4 text-slate-400" />
                         {formatTime(match.startTime)} - {formatTime(match.endTime)}
                       </div>
-                      <div className="flex items-center">
-                        <UsersIcon className="h-4 w-4 mr-1" />
-                        Owner Team: {match.team?.name || 'Unknown Team'}
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                        <UsersIcon className="h-4 w-4 text-slate-400" />
+                        <span>Owner Team: {match.team?.name || 'Unknown Team'}</span>
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
                           {ownerColors.map((color, index) => (
                             <span key={`owner-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
                           ))}
                         </span>
+                      </div>
+                      <div className="text-slate-600">Captain: <span className="font-medium text-slate-800">{ownerCaptainName}</span></div>
+                      <div className="text-slate-600"><span className="font-medium text-slate-800">{activeMemberCount}</span> active members</div>
+                      <div className="text-slate-600">
+                        Rate: ${discountPercent > 0 ? effectiveRate.toFixed(2) : hourlyRate.toFixed(2)}/hr
+                        {discountPercent > 0 && <span className="ml-2 text-green-600">({discountPercent}% off)</span>}
                       </div>
                     </div>
 
@@ -170,12 +201,12 @@ const OpenMatchesPage = () => {
                     )}
                   </div>
 
-                  <div className="w-full max-w-sm space-y-2">
+                  <div className="w-full max-w-sm space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
                     <select
                       value={selectedTeams[match.id] || ''}
                       onChange={(e) => setSelectedTeams((prev) => ({ ...prev, [match.id]: e.target.value }))}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
                     >
                       <option value="">Select your team</option>
                       {captainedTeams.map((team) => (
@@ -185,27 +216,30 @@ const OpenMatchesPage = () => {
                       ))}
                     </select>
                     <textarea
-                      rows={2}
+                      rows={1}
                       placeholder="Optional message"
                       value={messages[match.id] || ''}
                       onChange={(e) => setMessages((prev) => ({ ...prev, [match.id]: e.target.value }))}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+                      className="w-full min-h-[38px] rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
                     />
+                    {selectedTeam && selectedColors.length > 0 && (
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-1.5">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Your Jersey</span>
+                        <div className="inline-flex items-center gap-1">
+                          {selectedColors.map((color, index) => (
+                            <span key={`selected-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <Button
-                      className="w-full"
+                      className="h-9 w-full rounded-xl"
                       onClick={() => handleSubmitRequest(match.id)}
                       disabled={captainedTeams.length === 0 || hasPendingRequest(match) || submittingMap[match.id]}
                     >
                       {submittingMap[match.id] ? 'Sending...' : 'Request to Join'}
                     </Button>
-                    {selectedTeam && (
-                      <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1">
-                        {selectedColors.map((color, index) => (
-                          <span key={`selected-${match.id}-${color}-${index}`} className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               </CardBody>

@@ -10,6 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       Field.hasMany(models.Booking, { foreignKey: 'fieldId', as: 'bookings' });
       // Field can have ratings
       Field.hasMany(models.Rating, { foreignKey: 'fieldId', as: 'ratings' });
+      Field.hasMany(models.FieldReview, { foreignKey: 'fieldId', as: 'fieldReviews' });
     }
   }
 

@@ -401,21 +401,6 @@ const TeamDetailsPage = () => {
   }, [id, refreshTeam, version]);
 
   useEffect(() => {
-    if (!location.state?.successMessage && !location.state?.errorMessage) {
-      return;
-    }
-
-    if (location.state.successMessage) {
-      showToast(location.state.successMessage, { type: 'success', duration: 3200 });
-    }
-    if (location.state.errorMessage) {
-      showToast(location.state.errorMessage, { type: 'error', duration: 3600 });
-    }
-
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
-  }, [location.pathname, location.search, location.state, navigate, showToast]);
-
-  useEffect(() => {
     if (!team) return;
 
     let cancelled = false;
