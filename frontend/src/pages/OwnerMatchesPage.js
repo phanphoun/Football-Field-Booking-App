@@ -16,7 +16,7 @@ import { useRealtime } from '../context/RealtimeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
 // Support status tone for this page.
