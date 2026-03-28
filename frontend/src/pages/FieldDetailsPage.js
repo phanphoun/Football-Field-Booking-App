@@ -2,17 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ChatBubbleLeftRightIcon,
+  ArrowTopRightOnSquareIcon,
   BuildingOfficeIcon,
   CalendarIcon,
   ClockIcon,
   CurrencyDollarIcon,
-  MapPinIcon
+  MapPinIcon,
+  StarIcon as StarOutlineIcon
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import FieldLocationMap from '../components/maps/FieldLocationMap';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
-import { Badge, Button, Card, CardBody, EmptyState, Spinner } from '../components/ui';
+import { Badge, Button, Card, CardBody, EmptyState, Spinner, useToast } from '../components/ui';
+import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -30,6 +35,15 @@ const formatDayInput = (date) => {
 };
 
 const formatHourLabel = (hour) => `${String(hour).padStart(2, '0')}:00`;
+
+const openNativeDatePicker = (event) => {
+  event.currentTarget.focus();
+  if (typeof event.currentTarget.showPicker === 'function') {
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
+  }
+};
 
 const formatSlotRange = (hour) => {
   const start = new Date();
@@ -57,13 +71,38 @@ const getStatusTone = (status) => {
   return 'gray';
 };
 
+const buildAssetUrl = (rawPath) => {
+  if (!rawPath) return '';
+  if (/^https?:\/\//i.test(rawPath) || /^data:/i.test(rawPath)) return rawPath;
+  if (String(rawPath).startsWith('/uploads/')) return `${API_ORIGIN}${rawPath}`;
+  return rawPath;
+};
+
+const getReviewerName = (review) => {
+  const fullName = `${review?.user?.firstName || ''} ${review?.user?.lastName || ''}`.trim();
+  return fullName || review?.user?.username || 'Unknown user';
+};
+
+const getReviewerInitials = (review) => {
+  const label = getReviewerName(review);
+  return label
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || 'U';
+};
+
 const FieldDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
+  const { version } = useRealtime();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const isAdmin = user?.role === 'admin';
+  const canReviewField = ['player', 'captain', 'admin'].includes(user?.role);
 
   const [field, setField] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,9 +111,21 @@ const FieldDetailsPage = () => {
   const [scheduleDay, setScheduleDay] = useState(() => formatDayInput(new Date()));
   const [slotBookings, setSlotBookings] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
   const discountPercent = getDiscountPercent(field);
   const discountedPrice = getDiscountedPrice(field);
   const canBookThisField = isBookableField(field);
+  const fieldAddressLabel = useMemo(() => buildLocationLabel(field || {}), [field]);
+  const locationUrl = useMemo(() => buildGoogleMapsLocationUrl(field || {}), [field]);
+  const currentUserReview = useMemo(
+    () => reviews.find((review) => Number(review.userId) === Number(user?.id)) || null,
+    [reviews, user?.id]
+  );
+  const averageFieldRating = Number(field?.rating || 0);
+  const totalFieldRatings = Number(field?.totalRatings || 0);
 
   useEffect(() => {
     const fetchField = async () => {
@@ -92,7 +143,7 @@ const FieldDetailsPage = () => {
     };
 
     fetchField();
-  }, [id]);
+  }, [id, version]);
 
   useEffect(() => {
     const fetchFieldSchedule = async () => {
@@ -112,7 +163,51 @@ const FieldDetailsPage = () => {
     };
 
     fetchFieldSchedule();
-  }, [field?.id, scheduleDay]);
+  }, [field?.id, scheduleDay, version]);
+
+  useEffect(() => {
+    const fetchFieldReviews = async () => {
+      if (!id) return;
+
+      try {
+        setReviewsLoading(true);
+        const response = await fieldService.getFieldRatings(id);
+        const payload = response?.data || {};
+        const nextReviews = Array.isArray(payload.reviews) ? payload.reviews : [];
+        setReviews(nextReviews);
+        if (payload.field) {
+          setField((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  rating: payload.field.rating,
+                  totalRatings: payload.field.totalRatings
+                }
+              : prev
+          );
+        }
+      } catch (err) {
+        console.error('Failed to fetch field reviews:', err);
+        setReviews([]);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    fetchFieldReviews();
+  }, [id, version]);
+
+  useEffect(() => {
+    if (currentUserReview) {
+      setReviewForm({
+        rating: Number(currentUserReview.rating || 0),
+        comment: currentUserReview.comment || ''
+      });
+      return;
+    }
+
+    setReviewForm({ rating: 0, comment: '' });
+  }, [currentUserReview]);
 
   const handleBook = () => {
     if (field?.status && field.status !== 'available') {
@@ -167,6 +262,73 @@ const FieldDetailsPage = () => {
       }
     }
     return [];
+  };
+
+  const renderStars = (value, interactive = false, onSelect = null, iconClassName = 'h-5 w-5') => (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const active = star <= Number(value || 0);
+        const Icon = active ? StarSolidIcon : StarOutlineIcon;
+        return (
+          <button
+            key={star}
+            type="button"
+            disabled={!interactive}
+            onClick={() => onSelect?.(star)}
+            className={interactive ? 'transition hover:scale-110 disabled:hover:scale-100' : 'cursor-default'}
+          >
+            <Icon className={`${iconClassName} ${active ? 'text-amber-400' : 'text-slate-300'}`} />
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const handleReviewSubmit = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/fields/${id}`, backgroundLocation: location } });
+      return;
+    }
+
+    if (!canReviewField) {
+      showToast('Only players and captains can submit field reviews.', { type: 'error' });
+      return;
+    }
+
+    const trimmedComment = reviewForm.comment.trim();
+    if (!reviewForm.rating || !trimmedComment) {
+      showToast('Please choose a star rating and write a comment.', { type: 'error' });
+      return;
+    }
+
+    try {
+      setReviewSubmitting(true);
+      const response = await fieldService.rateField(id, {
+        rating: reviewForm.rating,
+        comment: trimmedComment
+      });
+      const payload = response?.data || {};
+
+      if (payload.field) {
+        setField((prev) =>
+          prev
+            ? {
+                ...prev,
+                rating: payload.field.rating,
+                totalRatings: payload.field.totalRatings
+              }
+            : prev
+        );
+      }
+
+      const reviewsResponse = await fieldService.getFieldRatings(id);
+      setReviews(Array.isArray(reviewsResponse?.data?.reviews) ? reviewsResponse.data.reviews : []);
+      showToast(payload?.message || 'Review submitted successfully.', { type: 'success' });
+    } catch (err) {
+      showToast(err?.error || 'Failed to submit review.', { type: 'error' });
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   const slotItems = useMemo(() => {
@@ -258,7 +420,7 @@ const FieldDetailsPage = () => {
               <div className="mt-2 space-y-1 text-sm text-gray-600">
                 <div className="flex items-center">
                   <MapPinIcon className="mr-2 h-4 w-4 text-gray-400" />
-                  {field.address}, {field.city}, {field.province}
+                  {fieldAddressLabel || 'Address not specified'}
                 </div>
                 <div className="flex items-center">
                   <BuildingOfficeIcon className="mr-2 h-4 w-4 text-gray-400" />
@@ -279,6 +441,12 @@ const FieldDetailsPage = () => {
             </div>
 
             <div className="flex items-center gap-3">
+              {locationUrl && (
+                <Button as="a" href={locationUrl} target="_blank" rel="noreferrer" variant="outline">
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                  Location
+                </Button>
+              )}
               {!isAdmin && (
                 <Button onClick={handleBook} disabled={isFieldClosed}>
                   {isFieldClosed
@@ -398,7 +566,7 @@ const FieldDetailsPage = () => {
                     <div className="mt-3 flex items-start gap-2 text-sm text-slate-700">
                       <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                       <span>
-                        {[field.address, field.city, field.province, field.country].filter(Boolean).join(', ') || 'Address not specified'}
+                        {fieldAddressLabel || 'Address not specified'}
                       </span>
                     </div>
                     {(field.latitude || field.longitude) && (
@@ -412,7 +580,7 @@ const FieldDetailsPage = () => {
                     <div>
                       <h2 className="text-sm font-semibold text-gray-900">Location Map</h2>
                       <div className="mt-3">
-                        <FieldLocationMap latitude={field.latitude} longitude={field.longitude} />
+                        <FieldLocationMap latitude={field.latitude} longitude={field.longitude} locationUrl={locationUrl} />
                       </div>
                     </div>
                   )}
@@ -449,6 +617,7 @@ const FieldDetailsPage = () => {
                           value={scheduleDay}
                           min={formatDayInput(new Date())}
                           onChange={(event) => setScheduleDay(event.target.value)}
+                          onClick={openNativeDatePicker}
                           className="rounded-xl border border-gray-300 py-2 pl-10 pr-3 text-sm text-gray-700 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
                         />
                       </div>
@@ -564,14 +733,123 @@ const FieldDetailsPage = () => {
                     <p className="mt-2 text-sm text-slate-600">See field feedback and rating summary for this venue.</p>
                   </div>
 
-                  <div className="rounded-[24px] border border-dashed border-slate-200 bg-white p-6 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                      <ChatBubbleLeftRightIcon className="h-6 w-6" />
+                  <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="text-sm font-medium text-slate-500">Average Rating</div>
+                      <div className="mt-3 flex items-end gap-3">
+                        <div className="text-4xl font-bold text-slate-950">{averageFieldRating > 0 ? averageFieldRating.toFixed(1) : '0.0'}</div>
+                        <div className="pb-1 text-sm text-slate-500">/ 5</div>
+                      </div>
+                      <div className="mt-3">{renderStars(Math.round(averageFieldRating), false, null, 'h-6 w-6')}</div>
+                      <div className="mt-3 text-sm text-slate-600">
+                        {totalFieldRatings > 0 ? `${totalFieldRatings} review${totalFieldRatings === 1 ? '' : 's'}` : 'No reviews yet'}
+                      </div>
                     </div>
-                    <h3 className="mt-4 text-base font-semibold text-slate-950">Reviews will appear here</h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Field comments and rating submissions can be shown in this section after review data is connected for this page.
-                    </p>
+
+                    <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                      <h3 className="text-lg font-semibold text-slate-950">
+                        {currentUserReview ? 'Update Your Review' : 'Write a Review'}
+                      </h3>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Players and captains can leave a star rating with a comment for this field.
+                      </p>
+
+                      {!isAuthenticated ? (
+                        <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm text-slate-600">Log in as a player or captain to rate this field.</p>
+                          <Button
+                            className="mt-4"
+                            onClick={() => navigate('/login', { state: { from: `/fields/${id}`, backgroundLocation: location } })}
+                          >
+                            Login to Review
+                          </Button>
+                        </div>
+                      ) : canReviewField ? (
+                        <>
+                          <div className="mt-5">
+                            <div className="text-sm font-medium text-slate-700">Your Star Rating</div>
+                            <div className="mt-3">{renderStars(reviewForm.rating, true, (star) => setReviewForm((prev) => ({ ...prev, rating: star })), 'h-8 w-8')}</div>
+                          </div>
+                          <label className="mt-5 block">
+                            <span className="text-sm font-medium text-slate-700">Your Comment</span>
+                            <textarea
+                              value={reviewForm.comment}
+                              onChange={(event) => setReviewForm((prev) => ({ ...prev, comment: event.target.value.slice(0, 1000) }))}
+                              rows={5}
+                              placeholder="Share your experience with this field."
+                              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                            />
+                            <div className="mt-2 text-right text-xs text-slate-400">{reviewForm.comment.length}/1000</div>
+                          </label>
+                          <div className="mt-5">
+                            <Button onClick={handleReviewSubmit} disabled={reviewSubmitting}>
+                              {reviewSubmitting ? 'Submitting...' : currentUserReview ? 'Update Review' : 'Submit Review'}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                          Only player and captain accounts can submit reviews here.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-950">Recent Reviews</h3>
+                        <p className="mt-1 text-sm text-slate-600">Everyone can see who reviewed this field and how many stars they gave.</p>
+                      </div>
+                    </div>
+
+                    {reviewsLoading ? (
+                      <div className="flex min-h-[160px] items-center justify-center">
+                        <Spinner className="h-6 w-6" />
+                      </div>
+                    ) : reviews.length > 0 ? (
+                      <div className="mt-5 space-y-4">
+                        {reviews.map((review) => {
+                          const avatarUrl = buildAssetUrl(review?.user?.avatarUrl);
+                          return (
+                            <div key={review.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                              <div className="flex items-start gap-4">
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt={`${getReviewerName(review)} avatar`} className="h-12 w-12 rounded-full object-cover" />
+                                ) : (
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
+                                    {getReviewerInitials(review)}
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                      <div className="font-semibold text-slate-950">{getReviewerName(review)}</div>
+                                      <div className="text-xs text-slate-500">
+                                        @{review?.user?.username || 'user'} | {review?.createdAt ? new Date(review.createdAt).toLocaleString() : 'Date unavailable'}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {renderStars(review.rating, false, null, 'h-5 w-5')}
+                                      <span className="text-sm font-semibold text-slate-700">{Number(review.rating).toFixed(1)}</span>
+                                    </div>
+                                  </div>
+                                  <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{review.comment}</p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-[24px] border border-dashed border-slate-200 bg-white p-6 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                          <ChatBubbleLeftRightIcon className="h-6 w-6" />
+                        </div>
+                        <h3 className="mt-4 text-base font-semibold text-slate-950">No reviews yet</h3>
+                        <p className="mt-2 text-sm text-slate-600">Be the first player or captain to leave a rating and comment for this field.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { UsersIcon } from '@heroicons/react/24/outline';
-import { Badge, Button, EmptyState, ImagePreviewModal, Spinner } from '../components/ui';
+import { Badge, Button, EmptyState, ImagePreviewModal, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -17,6 +18,28 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+const translateSkillLevel = (value, t) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'beginner') return t('teams_skill_beginner', 'Beginner');
+  if (normalized === 'intermediate') return t('teams_skill_intermediate', 'Intermediate');
+  if (normalized === 'advanced') return t('teams_skill_advanced', 'Advanced');
+  return value;
+};
+
+const hasPendingJoinRequest = (team, userId) => {
+  if (!team || !userId) return false;
+
+  if (team.joinRequestPending || team.hasPendingJoinRequest || team.membershipStatus === 'pending' || team.userMembershipStatus === 'pending') {
+    return true;
+  }
+
+  if (Array.isArray(team.teamMembers)) {
+    return team.teamMembers.some((member) => member.userId === userId && member.status === 'pending');
+  }
+
+  return false;
+};
+
 const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -24,18 +47,19 @@ const PublicTeamsPage = () => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [deletingTeamId, setDeletingTeamId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
+  const { showSuccess, showError } = useToast();
+  const { t } = useLanguage();
   const isAdmin = user?.role === 'admin';
 
   const canRequestJoin = (team) => {
     if (!isAuthenticated) return false;
     if (!user) return false;
-    if (!['player', 'captain'].includes(user?.role || '')) return false;
+    if (!['player', 'captain', 'field_owner', 'admin'].includes(user?.role || '')) return false;
     // Prevent captains from joining their own teams
     if (team.captainId === user?.id) return false;
     return true;
@@ -51,14 +75,14 @@ const PublicTeamsPage = () => {
         setTeams(teamsData);
       } catch (err) {
         console.error('Failed to fetch public teams:', err);
-        setError('Failed to load teams');
+        setError(err?.error || t('teams_load_failed', 'Failed to load teams'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchTeams();
-  }, []);
+  }, [t]);
 
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {
@@ -68,13 +92,39 @@ const PublicTeamsPage = () => {
 
     try {
       setError(null);
-      setSuccessMessage(null);
       const response = await teamService.joinTeam(teamId);
       if (response.success) {
-        setSuccessMessage('Join request submitted!');
+        setTeams((prev) =>
+          prev.map((team) =>
+            team.id === teamId
+              ? {
+                  ...team,
+                  joinRequestPending: true,
+                  userMembershipStatus: 'pending'
+                }
+              : team
+          )
+        );
+        showSuccess(t('teams_join_submitted', 'Join request submitted. Waiting for captain approval.'));
       }
     } catch (err) {
-      setError(err?.error || 'Failed to submit join request');
+      if ((err?.error || '').toLowerCase().includes('already pending')) {
+        setTeams((prev) =>
+          prev.map((team) =>
+            team.id === teamId
+              ? {
+                  ...team,
+                  joinRequestPending: true,
+                  userMembershipStatus: 'pending'
+                }
+              : team
+          )
+        );
+        showSuccess(t('teams_join_still_pending', 'Your join request is still waiting for captain approval.'));
+        setError(null);
+        return;
+      }
+      showError(err?.error || t('teams_join_failed', 'Failed to submit join request'));
     }
   };
 
@@ -94,7 +144,7 @@ const PublicTeamsPage = () => {
     if (!teamToDelete?.id) return;
     const message = deleteMessage.trim();
     if (!message) {
-      setError('Please enter a message to captain before deleting.');
+      showError(t('teams_delete_message_required', 'Please enter a message to captain before deleting.'));
       return;
     }
 
@@ -103,7 +153,6 @@ const PublicTeamsPage = () => {
     try {
       setDeletingTeamId(teamId);
       setError(null);
-      setSuccessMessage(null);
 
       const captainUserId = teamToDelete?.captainId || teamToDelete?.captain?.id;
       if (captainUserId) {
@@ -123,10 +172,10 @@ const PublicTeamsPage = () => {
 
       await teamService.deleteTeam(teamId);
       setTeams((prev) => prev.filter((team) => team.id !== teamId));
-      setSuccessMessage('Team deleted successfully.');
+      showSuccess(t('teams_delete_success', 'Team deleted successfully.'));
       closeDeleteDialog();
     } catch (err) {
-      setError(err?.error || 'Failed to delete team');
+      showError(err?.error || t('teams_delete_failed', 'Failed to delete team'));
     } finally {
       setDeletingTeamId(null);
     }
@@ -144,19 +193,13 @@ const PublicTeamsPage = () => {
     <div>
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teams</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav_teams', 'Teams')}</h1>
           <p className="mt-1 text-sm text-gray-600">
-            {isAdmin ? 'Admin view: view and delete teams.' : 'Discover football teams and request to join.'}
+            {isAdmin ? t('teams_admin_desc', 'Admin view of all teams. You can open or delete any team.') : t('teams_public_desc', 'Discover football teams and request to join.')}
           </p>
         </div>
-        <Badge tone="gray">{teams.length} results</Badge>
+        <Badge tone="gray">{t('teams_results', '{{count}} results', { count: teams.length })}</Badge>
       </div>
-
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
 
       {error && (
         <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
@@ -169,6 +212,7 @@ const PublicTeamsPage = () => {
           teams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
             const jerseyColors = getTeamJerseyColors(team);
+            const joinRequestPending = hasPendingJoinRequest(team, user?.id);
 
             return (
             <div
@@ -184,18 +228,18 @@ const PublicTeamsPage = () => {
               }}
               className="bg-white shadow-sm ring-1 ring-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
-              <div className="relative h-44">
+              <div className="relative h-52">
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                   <UsersIcon className="h-12 w-12 text-gray-300" />
                 </div>
                 {teamLogoUrl && (
                   <img
                     src={teamLogoUrl}
-                    alt={`${team.name} logo`}
-                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-cover object-center"
+                    alt={`${team.name} ${t('teams_image', 'Team image').toLowerCase()}`}
+                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain object-center p-4"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
+                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} ${t('teams_image', 'Team image')}` });
                     }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
@@ -208,25 +252,25 @@ const PublicTeamsPage = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-lg font-semibold text-gray-900 truncate">{team.name}</h3>
-                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'No description available.'}</p>
+                    <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || t('teams_no_description', 'No description available.')}</p>
                   </div>
-                  <Badge tone="gray">{team.memberCount || 0} members</Badge>
+                  <Badge tone="gray">{t('profile_members_count', '{{count}} members', { count: team.memberCount || 0 })}</Badge>
                 </div>
               </div>
 
               <div className="px-6 text-sm text-gray-600 space-y-1">
-                <div>Captain: {team.captain?.firstName || team.captain?.username || 'Unknown'}</div>
-                {team.homeField?.name && <div>Home Field: {team.homeField.name}</div>}
+                <div>{t('teams_captain_label', 'Captain: {{name}}', { name: team.captain?.firstName || team.captain?.username || t('common_unknown', 'Unknown') })}</div>
+                {team.homeField?.name && <div>{t('teams_home_field', 'Home Field: {{name}}', { name: team.homeField.name })}</div>}
                 {team.skillLevel && (
                   <div className="flex items-center gap-2">
-                    <span>Skill:</span>
+                    <span>{t('teams_skill', 'Skill:')}</span>
                     <Badge tone="green" className="capitalize">
-                      {team.skillLevel}
+                      {translateSkillLevel(team.skillLevel, t)}
                     </Badge>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span>Jersey:</span>
+                  <span>{t('teams_jersey', 'Jersey:')}</span>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1">
                       {jerseyColors.map((color, index) => (
@@ -245,7 +289,7 @@ const PublicTeamsPage = () => {
                   variant="outline"
                   className="flex-1"
                 >
-                  View Details
+                  {t('teams_view_details', 'View Details')}
                 </Button>
 
                 {isAdmin ? (
@@ -257,7 +301,14 @@ const PublicTeamsPage = () => {
                     className="flex-1 bg-red-600 hover:bg-red-700"
                     disabled={deletingTeamId === team.id}
                   >
-                    {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
+                    {deletingTeamId === team.id ? t('settings_deleting', 'Deleting...') : t('teams_delete', 'Delete')}
+                  </Button>
+                ) : joinRequestPending ? (
+                  <Button
+                    disabled
+                    className="flex-1 bg-amber-100 text-amber-800 hover:bg-amber-100"
+                  >
+                    {t('teams_request_pending', 'Request Pending')}
                   </Button>
                 ) : canRequestJoin(team) ? (
                   <Button
@@ -267,14 +318,14 @@ const PublicTeamsPage = () => {
                     }}
                     className="flex-1"
                   >
-                    Request Join
+                    {t('teams_request_join', 'Request Join')}
                   </Button>
                 ) : team.captainId === user?.id ? (
                   <Button
                     disabled
                     className="flex-1"
                   >
-                    Your Team
+                    {t('teams_your_team', 'Your Team')}
                   </Button>
                 ) : (
                   <Button
@@ -284,7 +335,7 @@ const PublicTeamsPage = () => {
                     }}
                     className="flex-1"
                   >
-                    Login to Join
+                    {t('teams_login_to_join', 'Login to Join')}
                   </Button>
                 )}
               </div>
@@ -292,7 +343,7 @@ const PublicTeamsPage = () => {
           )})
         ) : (
           <div className="col-span-full">
-            <EmptyState icon={UsersIcon} title="No teams found" description="Check back later, or register as a captain to create a team." />
+            <EmptyState icon={UsersIcon} title={t('teams_none_found', 'No teams found')} description={t('teams_public_empty_desc', 'Check back later, or register as a captain to create a team.')} />
           </div>
         )}
       </div>
@@ -301,18 +352,18 @@ const PublicTeamsPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
             <div className="border-b border-gray-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Delete Team</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('teams_delete_modal_title', 'Delete Team')}</h2>
               <p className="mt-1 text-sm text-gray-600">
-                Send a message to captain before deleting <span className="font-semibold">{teamToDelete.name}</span>.
+                {t('teams_delete_modal_desc', 'Send a message to captain before deleting {{team}}.', { team: teamToDelete.name })}
               </p>
             </div>
             <div className="px-5 py-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">Message to captain</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">{t('teams_message_to_captain', 'Message to captain')}</label>
               <textarea
                 value={deleteMessage}
                 onChange={(e) => setDeleteMessage(e.target.value)}
                 rows={4}
-                placeholder="Explain why this team is being deleted..."
+                placeholder={t('teams_delete_reason_placeholder', 'Explain why this team is being deleted...')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
               />
             </div>
@@ -323,7 +374,7 @@ const PublicTeamsPage = () => {
                 disabled={deletingTeamId === teamToDelete.id}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t('action_cancel', 'Cancel')}
               </button>
               <button
                 type="button"
@@ -331,7 +382,7 @@ const PublicTeamsPage = () => {
                 disabled={deletingTeamId === teamToDelete.id}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {deletingTeamId === teamToDelete.id ? 'Deleting...' : 'Send & Delete'}
+                {deletingTeamId === teamToDelete.id ? t('settings_deleting', 'Deleting...') : t('teams_send_delete', 'Send & Delete')}
               </button>
             </div>
           </div>
@@ -340,7 +391,7 @@ const PublicTeamsPage = () => {
       <ImagePreviewModal
         open={Boolean(previewImage)}
         imageUrl={previewImage?.url}
-        title={previewImage?.title || 'Team image'}
+        title={previewImage?.title || t('teams_image', 'Team image')}
         onClose={() => setPreviewImage(null)}
       />
     </div>

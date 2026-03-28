@@ -11,6 +11,10 @@ const userService = {
     return apiService.get('/users');
   },
 
+  getUserById: async (userId) => {
+    return apiService.get(`/users/${userId}`);
+  },
+
   updateUser: async (userId, payload) => {
     return apiService.put(`/users/${userId}`, payload);
   },

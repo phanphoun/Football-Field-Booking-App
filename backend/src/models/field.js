@@ -10,6 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       Field.hasMany(models.Booking, { foreignKey: 'fieldId', as: 'bookings' });
       // Field can have ratings
       Field.hasMany(models.Rating, { foreignKey: 'fieldId', as: 'ratings' });
+      Field.hasMany(models.FieldReview, { foreignKey: 'fieldId', as: 'fieldReviews' });
     }
   }
 
@@ -48,6 +49,13 @@ module.exports = (sequelize, DataTypes) => {
       validate: {
         len: [1, 50],
         notEmpty: true
+      }
+    },
+    country: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        len: [0, 100]
       }
     },
     latitude: {

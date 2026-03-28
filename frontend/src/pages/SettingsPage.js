@@ -18,8 +18,11 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import authService from '../services/authService';
-import { useDialog } from '../components/ui';
+import { useDialog, useToast } from '../components/ui';
+import LanguageSwitcher from '../components/common/LanguageSwitcher';
+import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 
 const SETTINGS_DEVICE_PREFS_KEY = 'app_settings_device_preferences';
 
@@ -131,9 +134,11 @@ const PreferenceToggle = ({ title, description, enabled, onChange }) => (
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const location = useLocation();
   const { confirm } = useDialog();
+  const { showSuccess, showError } = useToast();
   const accessRequestsRef = useRef(null);
   const [roleRequests, setRoleRequests] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -141,8 +146,6 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [submittingRole, setSubmittingRole] = useState('');
   const [cancellingRequestId, setCancellingRequestId] = useState(null);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [preferences, setPreferences] = useState(getStoredPreferences);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -162,21 +165,20 @@ const SettingsPage = () => {
   const loadRoleRequests = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
       const response = await authService.getRoleRequests();
       setRoleRequests(Array.isArray(response.data?.requests) ? response.data.requests : []);
       setAvailableRoles(Array.isArray(response.data?.availableRoles) ? response.data.availableRoles : []);
       setHasPendingRequest(Boolean(response.data?.hasPendingRequest));
     } catch (err) {
-      setError(err.error || 'Failed to load settings');
+      showError(err.error || 'Failed to load settings');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadRoleRequests();
-  }, [loadRoleRequests]);
+  }, [loadRoleRequests, version]);
 
   useEffect(() => {
     const requestedRole = location.state?.focusRoleRequest;
@@ -231,8 +233,7 @@ const SettingsPage = () => {
   const savePreferences = (nextPreferences) => {
     setPreferences(nextPreferences);
     window.localStorage.setItem(SETTINGS_DEVICE_PREFS_KEY, JSON.stringify(nextPreferences));
-    setError('');
-    setSuccessMessage('Settings preferences saved on this device.');
+    showSuccess('Settings preferences saved on this device.');
   };
 
   const updatePreference = (key, value) => {
@@ -244,29 +245,29 @@ const SettingsPage = () => {
 
   const handleRoleRequest = async (requestedRole) => {
     const option = ROLE_OPTIONS[requestedRole];
+    const upgradePlan = ROLE_UPGRADE_CONFIG[requestedRole];
     if (!option) return;
 
     const confirmed = await confirm(
-      `Send a request for ${option.title.toLowerCase()}? Only admins can approve or reject this role request.`,
+      `Upgrade to ${option.title.toLowerCase()} for $${upgradePlan?.feeUsd || 0}? This includes a one-time platform fee, then your request goes to admins for approval.`,
       {
-        title: 'Role Request',
-        confirmText: 'Send Request'
+        title: 'Upgrade & Request Access',
+        confirmText: `Pay $${upgradePlan?.feeUsd || 0} and Continue`
       }
     );
     if (!confirmed) return;
 
     try {
       setSubmittingRole(requestedRole);
-      setError('');
-      setSuccessMessage('');
 
-      const response = await authService.requestRoleUpgrade(requestedRole);
-      setSuccessMessage(
-        response.message || `${option.title} request sent successfully. Only admins can approve or reject it.`
+      const paymentReference = `UPG-${requestedRole.toUpperCase()}-${Date.now()}`;
+      const response = await authService.requestRoleUpgrade(requestedRole, '', paymentReference);
+      showSuccess(
+        response.message || `${option.title} request sent successfully. Only admins can approve or reject it after payment.`
       );
       await loadRoleRequests();
     } catch (err) {
-      setError(err.error || 'Failed to submit role request');
+      showError(err.error || 'Failed to submit role request');
     } finally {
       setSubmittingRole('');
     }
@@ -284,17 +285,15 @@ const SettingsPage = () => {
 
     try {
       setCancellingRequestId(request.id);
-      setError('');
-      setSuccessMessage('');
 
       const response = await authService.cancelRoleRequest(request.id);
-      setSuccessMessage(
+      showSuccess(
         response.message ||
           `Your ${formatRoleLabel(request.requestedRole).toLowerCase()} request was deleted. Admins have been notified.`
       );
       await loadRoleRequests();
     } catch (err) {
-      setError(err.error || 'Failed to delete role request');
+      showError(err.error || 'Failed to delete role request');
     } finally {
       setCancellingRequestId(null);
     }
@@ -330,8 +329,6 @@ const SettingsPage = () => {
 
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
-    setError('');
-    setSuccessMessage('');
     setPasswordError('');
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -347,7 +344,7 @@ const SettingsPage = () => {
     try {
       setChangingPassword(true);
       const response = await authService.changePassword(passwordForm);
-      setSuccessMessage(response.message || 'Password changed successfully.');
+      showSuccess(response.message || 'Password changed successfully.');
       setIsPasswordModalOpen(false);
       resetPasswordForm();
     } catch (err) {
@@ -415,18 +412,6 @@ const SettingsPage = () => {
         </div>
       </section>
 
-      {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {successMessage}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
           <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
@@ -445,6 +430,16 @@ const SettingsPage = () => {
             </div>
 
             <div className="mt-6 space-y-4">
+              <div className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Language</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Change the app language for this device.
+                  </p>
+                </div>
+                <LanguageSwitcher />
+              </div>
+
               <PreferenceToggle
                 title="Email updates"
                 description="Keep important account updates and approval decisions enabled."
@@ -500,7 +495,7 @@ const SettingsPage = () => {
                 Access Requests
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Upgrade your account when you need more control, like creating field bookings, team management, or field administration.
+                Upgrade your account when you need more control. Each access upgrade includes a one-time platform fee and then an admin approval review.
               </p>
             </div>
 
@@ -546,12 +541,37 @@ const SettingsPage = () => {
                         </div>
                         <h3 className="mt-4 text-lg font-semibold text-slate-900">{option.title}</h3>
                         <p className="mt-2 text-sm leading-6 text-slate-600">{option.description}</p>
+                        <div className="mt-4 flex items-end justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Upgrade fee</p>
+                            <p className="mt-1 text-2xl font-bold text-slate-950">${ROLE_UPGRADE_CONFIG[roleKey]?.feeUsd || 0}</p>
+                          </div>
+                          <div className="text-right text-xs text-slate-500">
+                            <p>One-time platform fee</p>
+                            <p>Admin approval required</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-2 rounded-2xl bg-slate-50/70 p-4">
+                          {ROLE_UPGRADE_CONFIG[roleKey]?.benefits?.slice(0, 3).map((benefit) => (
+                            <div key={benefit} className="flex items-start gap-2 text-sm text-slate-600">
+                              <CheckCircleIcon className="mt-0.5 h-4 w-4 flex-none text-emerald-600" />
+                              <span>{benefit}</span>
+                            </div>
+                          ))}
+                        </div>
 
                         {latestRequest && (
                           <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[latestRequest.status] || STATUS_STYLES.pending}`}>
                             {React.createElement(getStatusIcon(latestRequest.status), { className: 'h-4 w-4' })}
                             {formatRoleLabel(latestRequest.status)}
                           </div>
+                        )}
+
+                        {latestRequest?.paymentPaidAt && (
+                          <p className="mt-3 text-xs text-slate-500">
+                            Payment confirmed on {formatDateTime(latestRequest.paymentPaidAt)}
+                          </p>
                         )}
 
                         <button
@@ -611,13 +631,16 @@ const SettingsPage = () => {
                       <div key={request.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">
-                              {formatRoleLabel(request.requestedRole)}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              Submitted {formatDateTime(request.createdAt)}
-                            </p>
-                          </div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {formatRoleLabel(request.requestedRole)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Submitted {formatDateTime(request.createdAt)}
+                          </p>
+                          <p className="mt-2 text-xs font-medium text-emerald-700">
+                            Paid ${Number(request.feeAmountUsd || 0).toFixed(0)} {request.paymentPaidAt ? `on ${formatDateTime(request.paymentPaidAt)}` : ''}
+                          </p>
+                        </div>
                           <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${STATUS_STYLES[request.status] || STATUS_STYLES.pending}`}>
                             <StatusIcon className="h-4 w-4" />
                             {formatRoleLabel(request.status)}
@@ -675,8 +698,6 @@ const SettingsPage = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setError('');
-                  setSuccessMessage('');
                   setPasswordError('');
                   setIsPasswordModalOpen(true);
                 }}

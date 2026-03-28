@@ -5,9 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 const LoginPage = () => {
-  const { login, loading, error } = useAuth();
+  const { login, googleAuth, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -66,6 +67,32 @@ const LoginPage = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credential) => {
+    setValidationErrors({});
+    const result = await googleAuth(credential);
+    if (result.success) {
+      const role = result.data?.user?.role;
+      const defaultPath = getPreferredStartPath(role === 'field_owner' ? 'owner' : 'app');
+      navigate(from || defaultPath, { replace: true });
+      return;
+    }
+
+    if (result.error) {
+      setValidationErrors({
+        email: result.error,
+        password: result.error
+      });
+    }
+  };
+
+  const handleGoogleError = (message) => {
+    if (!message) return;
+    setValidationErrors({
+      email: message,
+      password: message
+    });
+  };
+
   return (
     <AuthModalShell
       badgeLabel="Account Access"
@@ -100,6 +127,20 @@ const LoginPage = () => {
       )}
 
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+        <div className="space-y-3">
+          <GoogleAuthButton
+            disabled={loading}
+            onCredential={handleGoogleSuccess}
+            onError={handleGoogleError}
+            text="continue_with"
+          />
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+        </div>
+
         <div>
           <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
             Email Address

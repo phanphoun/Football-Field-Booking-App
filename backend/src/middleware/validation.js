@@ -97,12 +97,20 @@ const userValidation = {
     handleValidationErrors
   ],
 
-  requestRoleUpgrade: [
-    body('requestedRole')
-      .notEmpty()
-      .withMessage('Requested role is required')
-      .isIn(['captain', 'field_owner'])
-      .withMessage('Requested role must be captain or field_owner'),
+    requestRoleUpgrade: [
+      body('requestedRole')
+        .notEmpty()
+        .withMessage('Requested role is required')
+        .isIn(['captain', 'field_owner'])
+        .withMessage('Requested role must be captain or field_owner'),
+      body('paymentAcknowledged')
+        .isBoolean()
+        .withMessage('Payment acknowledgement is required'),
+      body('paymentReference')
+        .optional()
+        .isString()
+        .isLength({ max: 120 })
+        .withMessage('Payment reference must be a string up to 120 characters'),
     body('note')
       .optional({ checkFalsy: true })
       .isLength({ max: 500 })

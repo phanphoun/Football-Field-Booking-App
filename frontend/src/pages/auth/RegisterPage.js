@@ -4,9 +4,10 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 const RegisterPage = () => {
-  const { register, loading, error } = useAuth();
+  const { register, googleAuth, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -50,6 +51,11 @@ const RegisterPage = () => {
 
   const passwordsMatch =
     !formData.confirmPassword || formData.password === formData.confirmPassword;
+  const passwordMeetsServerRules =
+    formData.password.length >= 8 &&
+    /[a-z]/.test(formData.password) &&
+    /[A-Z]/.test(formData.password) &&
+    /\d/.test(formData.password);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -75,6 +81,11 @@ const RegisterPage = () => {
       return;
     }
 
+    if (!passwordMeetsServerRules) {
+      setClientError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
+      return;
+    }
+
     const { confirmPassword, ...registerData } = formData;
     const cleanedData = {
       ...registerData,
@@ -87,6 +98,23 @@ const RegisterPage = () => {
       const role = result.data?.user?.role;
       const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
       navigate(defaultPath);
+    }
+  };
+
+  const handleGoogleSuccess = async (credential) => {
+    setClientError(null);
+    setValidationErrors({});
+
+    const result = await googleAuth(credential);
+    if (result.success) {
+      const role = result.data?.user?.role;
+      const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+      navigate(defaultPath);
+      return;
+    }
+
+    if (result.error) {
+      setClientError(result.error);
     }
   };
 
@@ -121,6 +149,20 @@ const RegisterPage = () => {
       )}
 
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+        <div className="space-y-3">
+          <GoogleAuthButton
+            disabled={loading}
+            onCredential={handleGoogleSuccess}
+            onError={(message) => setClientError(message || 'Google sign-up failed.')}
+            text="signup_with"
+          />
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="firstName" className="mb-2 block text-sm font-semibold text-slate-700">
@@ -247,7 +289,7 @@ const RegisterPage = () => {
             {validationErrors.password && (
               <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
             )}
-            <p className="mt-2 text-xs text-slate-500">Use at least 8 characters.</p>
+            <p className="mt-2 text-xs text-slate-500">Use at least 8 characters with uppercase, lowercase, and a number.</p>
           </div>
 
           <div>

@@ -15,6 +15,7 @@ router.post('/reset-password', authController.resetPasswordWithToken);
 
 router.post('/register', userValidation.register, authController.register);
 router.post('/login', userValidation.login, authController.login);
+router.post('/google', authController.googleAuth);
 router.get('/profile', auth, authController.getProfile);
 router.get('/profile/stats', auth, authController.getProfileStats);
 router.put('/profile', auth, userValidation.updateProfile, authController.updateProfile);

@@ -22,9 +22,11 @@ const validateFileSignature = (buffer, mimetype) => {
   });
 };
 const serverConfig = require('../config/serverConfig');
+const { getRoleUpgradeConfig } = require('../config/roleUpgradeConfig');
 const { createInAppNotification } = require('../utils/notify');
 const { sendEmail } = require('../utils/emailService');
 const crypto = require('crypto');
+const axios = require('axios');
 
 const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const LEGACY_DEFAULT_AVATAR_PATH = '/uploads/profile/defualt_profile.jpg';
@@ -50,6 +52,56 @@ const normalizeIdentifier = (value = '') => String(value).trim().toLowerCase();
 
 const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
+const GOOGLE_TOKENINFO_URL = 'https://oauth2.googleapis.com/tokeninfo';
+
+const sanitizeUsernamePart = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 20);
+
+const buildUniqueGoogleUsername = async ({ email, firstName, lastName }) => {
+  const emailPrefix = sanitizeUsernamePart(String(email || '').split('@')[0]);
+  const firstPart = sanitizeUsernamePart(firstName);
+  const lastPart = sanitizeUsernamePart(lastName);
+  const base =
+    [firstPart, lastPart].filter(Boolean).join('') ||
+    emailPrefix ||
+    `player${Date.now()}`;
+
+  let candidate = base.slice(0, 30) || `player${Date.now()}`;
+  let suffix = 0;
+
+  while (true) {
+    const existing = await User.findOne({ where: { username: candidate } });
+    if (!existing) return candidate;
+    suffix += 1;
+    const suffixText = String(suffix);
+    const trimmedBase = base.slice(0, Math.max(3, 30 - suffixText.length));
+    candidate = `${trimmedBase}${suffixText}`;
+  }
+};
+
+const verifyGoogleIdToken = async (idToken) => {
+  const response = await axios.get(GOOGLE_TOKENINFO_URL, {
+    params: { id_token: idToken },
+    timeout: 10000
+  });
+
+  const payload = response.data || {};
+  const expectedAudience = process.env.GOOGLE_CLIENT_ID || process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+  if (expectedAudience && payload.aud !== expectedAudience) {
+    throw new Error('Google token audience mismatch.');
+  }
+
+  if (payload.email_verified !== 'true' && payload.email_verified !== true) {
+    throw new Error('Google email is not verified.');
+  }
+
+  return payload;
+};
+
 const findUserByIdentifier = async (identifier) => {
   if (!identifier) return null;
   return User.findOne({
@@ -66,6 +118,10 @@ const serializeRoleRequest = (roleRequest) => ({
   id: roleRequest.id,
   requestedRole: roleRequest.requestedRole,
   status: roleRequest.status,
+  feeAmountUsd: Number(roleRequest.feeAmountUsd || 0),
+  paymentStatus: roleRequest.paymentStatus || 'paid',
+  paymentReference: roleRequest.paymentReference || '',
+  paymentPaidAt: roleRequest.paymentPaidAt,
   note: roleRequest.note || '',
   reviewedBy: roleRequest.reviewedBy,
   reviewedAt: roleRequest.reviewedAt,
@@ -218,6 +274,99 @@ const login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error during login.' });
+  }
+};
+
+const googleAuth = async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+
+    if (!credential) {
+      return res.status(400).json({ error: 'Google credential is required.' });
+    }
+
+    const googleProfile = await verifyGoogleIdToken(credential);
+    const email = normalizeIdentifier(googleProfile.email);
+
+    if (!email) {
+      return res.status(400).json({ error: 'Google account email is missing.' });
+    }
+
+    let user = await User.findOne({ where: { email } });
+
+    if (user) {
+      if (user.status !== 'active') {
+        return res.status(400).json({ error: 'Account is not active. Please contact support.' });
+      }
+
+      const updatePayload = {
+        lastLogin: new Date(),
+        emailVerified: true
+      };
+
+      if (!user.avatarUrl && googleProfile.picture) {
+        updatePayload.avatarUrl = googleProfile.picture;
+      }
+
+      await user.update(updatePayload);
+    } else {
+      const firstName = String(googleProfile.given_name || googleProfile.name || 'Google').trim();
+      const lastName = String(googleProfile.family_name || 'User').trim();
+      const username = await buildUniqueGoogleUsername({
+        email,
+        firstName,
+        lastName
+      });
+      const randomPassword = crypto.randomBytes(24).toString('hex');
+      const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
+      user = await User.create({
+        username,
+        email,
+        password: hashedPassword,
+        firstName: firstName || 'Google',
+        lastName: lastName || 'User',
+        role: 'player',
+        status: 'active',
+        emailVerified: true,
+        avatarUrl: googleProfile.picture || null,
+        lastLogin: new Date()
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const userResponse = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      phone: user.phone,
+      address: user.address,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
+      avatarUrl: user.avatarUrl,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt
+    };
+
+    return res.json({ user: userResponse, token });
+  } catch (error) {
+    console.error('Google auth error:', error?.response?.data || error);
+    return res.status(500).json({
+      error:
+        error?.response?.status === 400
+          ? 'Invalid Google sign-in token.'
+          : error.message || 'Internal server error during Google authentication.'
+    });
   }
 };
 
@@ -862,6 +1011,11 @@ const getRoleRequests = async (req, res) => {
     res.json({
       currentRole: user.role,
       availableRoles: getAllowedRequestedRoles(user.role),
+      upgradePlans: Object.fromEntries(
+        getAllowedRequestedRoles(user.role)
+          .map((roleKey) => [roleKey, getRoleUpgradeConfig(roleKey)])
+          .filter(([, value]) => Boolean(value))
+      ),
       hasPendingRequest: requests.some((request) => request.status === 'pending'),
       requests: requests.map(serializeRoleRequest)
     });
@@ -873,7 +1027,7 @@ const getRoleRequests = async (req, res) => {
 
 const requestRoleUpgrade = async (req, res) => {
   try {
-    const { requestedRole, note } = req.body;
+    const { requestedRole, note, paymentAcknowledged, paymentReference } = req.body;
     const user = await User.findByPk(req.user.id, {
       attributes: ['id', 'email', 'username', 'firstName', 'lastName', 'role']
     });
@@ -886,6 +1040,17 @@ const requestRoleUpgrade = async (req, res) => {
     if (!allowedRoles.includes(requestedRole)) {
       return res.status(400).json({
         error: 'Your current account cannot request that role.'
+      });
+    }
+
+    const upgradePlan = getRoleUpgradeConfig(requestedRole);
+    if (!upgradePlan) {
+      return res.status(400).json({ error: 'Upgrade plan is not available.' });
+    }
+
+    if (!paymentAcknowledged) {
+      return res.status(400).json({
+        error: `Payment confirmation is required before requesting ${ROLE_REQUEST_LABELS[requestedRole]} access.`
       });
     }
 
@@ -905,6 +1070,10 @@ const requestRoleUpgrade = async (req, res) => {
     const roleRequest = await RoleRequest.create({
       requesterId: user.id,
       requestedRole,
+      feeAmountUsd: upgradePlan.feeUsd,
+      paymentStatus: 'paid',
+      paymentReference: paymentReference?.trim() || `ROLE-${requestedRole.toUpperCase()}-${Date.now()}`,
+      paymentPaidAt: new Date(),
       note: note?.trim() || null
     });
 
@@ -923,12 +1092,14 @@ const requestRoleUpgrade = async (req, res) => {
             userId: admin.id,
             type: 'system',
             title: `${requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request`,
-            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access.`,
+            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access after paying $${upgradePlan.feeUsd}.`,
             metadata: {
               event: 'role_request',
               requestId: roleRequest.id,
               requesterId: user.id,
               requestedRole,
+              feeAmountUsd: upgradePlan.feeUsd,
+              paymentStatus: 'paid',
               status: 'pending'
             }
           })
@@ -937,7 +1108,7 @@ const requestRoleUpgrade = async (req, res) => {
     }
 
     res.status(201).json({
-      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted.`,
+      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted with a $${upgradePlan.feeUsd} upgrade fee.`,
       roleRequest: serializeRoleRequest(roleRequest)
     });
   } catch (error) {
@@ -1082,6 +1253,10 @@ const reviewRoleRequest = async (req, res) => {
       return res.status(400).json({ error: 'This role request has already been reviewed.' });
     }
 
+    if (!['paid', 'waived'].includes(roleRequest.paymentStatus)) {
+      return res.status(400).json({ error: 'This role request cannot be approved until payment is completed.' });
+    }
+
     const isApproved = action === 'approve';
     roleRequest.status = isApproved ? 'approved' : 'rejected';
     roleRequest.reviewedBy = req.user.id;
@@ -1137,6 +1312,7 @@ module.exports = {
   cancelRoleRequest,
   getAllRoleRequestsForAdmin,
   reviewRoleRequest,
+  googleAuth,
   uploadProfileAvatar,
   deleteProfileAvatar
 };

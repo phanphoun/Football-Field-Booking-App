@@ -1,7 +1,8 @@
 import authService from './authService';
+import { APP_CONFIG } from '../config/appConfig';
 
 const buildRealtimeUrl = () => {
-  const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  const apiBase = APP_CONFIG.apiBaseUrl;
   return `${apiBase.replace(/\/api\/?$/, '')}/api/realtime/stream`;
 };
 
