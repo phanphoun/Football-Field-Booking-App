@@ -43,11 +43,13 @@ const GOOGLE_MAP_STYLES = {
   ]
 };
 
+// Support extract address component for this module.
 const extractAddressComponent = (components, types) => {
   const match = components.find((component) => types.some((type) => component.types.includes(type)));
   return match?.long_name || '';
 };
 
+// Support reverse geocode with google for this module.
 const reverseGeocodeWithGoogle = async (maps, latitude, longitude) => {
   const geocoder = new maps.Geocoder();
   const response = await geocoder.geocode({
@@ -77,6 +79,7 @@ const reverseGeocodeWithGoogle = async (maps, latitude, longitude) => {
   };
 };
 
+// Support reverse geocode with osm for this module.
 const reverseGeocodeWithOsm = async (latitude, longitude) => {
   const url = new URL('https://nominatim.openstreetmap.org/reverse');
   url.searchParams.set('format', 'jsonv2');
@@ -115,6 +118,7 @@ const reverseGeocodeWithOsm = async (latitude, longitude) => {
   };
 };
 
+// Support geocode address with google for this module.
 const geocodeAddressWithGoogle = async (maps, query) => {
   const geocoder = new maps.Geocoder();
   const response = await geocoder.geocode({ address: query });
@@ -129,6 +133,7 @@ const geocodeAddressWithGoogle = async (maps, query) => {
   return reverseGeocodeWithGoogle(maps, latitude, longitude);
 };
 
+// Support geocode address with osm for this module.
 const geocodeAddressWithOsm = async (query) => {
   const url = new URL('https://nominatim.openstreetmap.org/search');
   url.searchParams.set('format', 'jsonv2');
@@ -157,6 +162,7 @@ const geocodeAddressWithOsm = async (query) => {
   return reverseGeocodeWithOsm(latitude, longitude);
 };
 
+// Support field location picker for this module.
 const FieldLocationPicker = ({ value, onChange }) => {
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
@@ -184,6 +190,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
   useEffect(() => {
     let active = true;
 
+    // Support init map for this module.
     const initMap = async () => {
       try {
         const initialLat = Number(initialCoordinatesRef.current.latitude);
@@ -207,6 +214,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
             styles: []
           });
 
+          // Update location in local state.
           const updateLocation = async (latitude, longitude) => {
             const position = { lat: latitude, lng: longitude };
 
@@ -488,6 +496,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
     }
   }, [onChange, value?.latitude, value?.longitude]);
 
+  // Handle search location interactions.
   const handleSearchLocation = async () => {
     const query = String(searchQuery || '').trim();
     if (!query) {
@@ -515,6 +524,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
     }
   };
 
+  // Handle clear location interactions.
   const handleClearLocation = () => {
     setLocationError('');
     setSearchQuery('');
@@ -544,6 +554,7 @@ const FieldLocationPicker = ({ value, onChange }) => {
     }
   };
 
+  // Handle use my location interactions.
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not available in this browser.');

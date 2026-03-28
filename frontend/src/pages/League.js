@@ -11,6 +11,7 @@ import {
 const APP_TIMEZONE = process.env.REACT_APP_TIMEZONE || 'Asia/Bangkok';
 const PUBLIC_URL = process.env.PUBLIC_URL || '';
 
+// Get public asset url for the current view.
 const getPublicAssetUrl = (assetPath) => {
   const normalizedPath = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
   return `${PUBLIC_URL}${encodeURI(normalizedPath)}`;
@@ -44,6 +45,7 @@ const LEAGUES = [
   }
 ];
 
+// Get date parts in timezone for the current view.
 const getDatePartsInTimezone = (value, timeZone) => {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -58,16 +60,19 @@ const getDatePartsInTimezone = (value, timeZone) => {
   return { year, month, day };
 };
 
+// Format date key in timezone for display.
 const formatDateKeyInTimezone = (value, timeZone) => {
   const { year, month, day } = getDatePartsInTimezone(value, timeZone);
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
 
+// Get today anchor in timezone for the current view.
 const getTodayAnchorInTimezone = (timeZone) => {
   const { year, month, day } = getDatePartsInTimezone(new Date(), timeZone);
   return new Date(Date.UTC(year, month - 1, day));
 };
 
+// Get week date items for the current view.
 const getWeekDateItems = () => {
   const anchor = getTodayAnchorInTimezone(APP_TIMEZONE);
   const start = new Date(anchor);
@@ -92,6 +97,7 @@ const getWeekDateItems = () => {
   });
 };
 
+// Render the league page.
 const League = () => {
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
   const [activeTab, setActiveTab] = useState('matches');
@@ -145,6 +151,7 @@ const League = () => {
     fetchLeagueData();
   }, [fetchLeagueData]);
 
+  // Get form icon for the current view.
   const getFormIcon = (form) => {
     if (!form) return <MinusIcon className="w-4 h-4 text-gray-400" />;
     
@@ -161,6 +168,7 @@ const League = () => {
     }
   };
 
+  // Get position color for the current view.
   const getPositionColor = (position) => {
     if (position <= 4) return 'text-green-600 font-bold'; // Champions League
     if (position <= 6) return 'text-blue-600'; // Europa League
@@ -168,6 +176,7 @@ const League = () => {
     return 'text-gray-800';
   };
 
+  // Format match date for display.
   const formatMatchDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -179,6 +188,7 @@ const League = () => {
     });
   };
 
+  // Get match status for the current view.
   const getMatchStatus = (status) => {
     switch (status) {
       case 'FINISHED':
@@ -192,6 +202,7 @@ const League = () => {
     }
   };
 
+  // Get match date key for the current view.
   const getMatchDateKey = (dateString) => formatDateKeyInTimezone(dateString, APP_TIMEZONE);
   const matchDateKeys = useMemo(
     () => new Set(matches.map(match => getMatchDateKey(match.dateTime))),

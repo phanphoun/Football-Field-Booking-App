@@ -14,6 +14,7 @@ const FILE_SIGNATURES = {
   'image/webp': [[0x52, 0x49, 0x46, 0x46]]
 };
 
+// Validate file signature before continuing.
 const validateFileSignature = (buffer, mimetype) => {
   const signatures = FILE_SIGNATURES[mimetype];
   if (!signatures) return false;
@@ -119,7 +120,6 @@ const findUserByIdentifier = async (identifier) => {
     }
   });
 };
-
 const serializeRoleRequest = (roleRequest) => ({
   id: roleRequest.id,
   requestedRole: roleRequest.requestedRole,
@@ -135,8 +135,10 @@ const serializeRoleRequest = (roleRequest) => ({
   updatedAt: roleRequest.updatedAt
 });
 
+// Get allowed requested roles for the current flow.
 const getAllowedRequestedRoles = (currentRole) => REQUESTABLE_ROLES_BY_USER_ROLE[currentRole] || [];
 
+// Support register for this module.
 const register = async (req, res) => {
   try {
     console.log('Registration request body:', req.body);
@@ -219,6 +221,7 @@ const register = async (req, res) => {
   }
 };
 
+// Support login for this module.
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -384,7 +387,6 @@ const googleAuth = async (req, res) => {
     });
   }
 };
-
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, { 
@@ -402,6 +404,7 @@ const getProfile = async (req, res) => {
   }
 };
 
+// Update profile in local state.
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -574,7 +577,6 @@ const getProfileStats = async (req, res) => {
     res.status(500).json({ error: 'Internal server error while fetching profile stats.' });
   }
 };
-
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -813,7 +815,6 @@ const resetPasswordWithToken = async (req, res) => {
     res.status(500).json({ error: 'Internal server error while resetting password.' });
   }
 };
-
 const uploadProfileAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -941,6 +942,7 @@ const uploadProfileAvatar = async (req, res) => {
   }
 };
 
+// Support delete profile avatar for this module.
 const deleteProfileAvatar = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -1008,6 +1010,7 @@ const deleteProfileAvatar = async (req, res) => {
   }
 };
 
+// Get role requests for the current flow.
 const getRoleRequests = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
@@ -1040,6 +1043,7 @@ const getRoleRequests = async (req, res) => {
   }
 };
 
+// Request role upgrade from the API.
 const requestRoleUpgrade = async (req, res) => {
   try {
     const { requestedRole, note, paymentAcknowledged, paymentReference } = req.body;
@@ -1132,6 +1136,7 @@ const requestRoleUpgrade = async (req, res) => {
   }
 };
 
+// Check whether cel role request is allowed.
 const cancelRoleRequest = async (req, res) => {
   try {
     const requestId = Number(req.params.id);
@@ -1204,6 +1209,7 @@ const cancelRoleRequest = async (req, res) => {
   }
 };
 
+// Get all role requests for admin for the current flow.
 const getAllRoleRequestsForAdmin = async (req, res) => {
   try {
     const statusFilter = req.query.status;
@@ -1237,6 +1243,7 @@ const getAllRoleRequestsForAdmin = async (req, res) => {
   }
 };
 
+// Support review role request for this module.
 const reviewRoleRequest = async (req, res) => {
   try {
     const requestId = Number(req.params.id);

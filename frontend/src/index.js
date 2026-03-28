@@ -47,6 +47,7 @@ if (process.env.NODE_ENV === 'development') {
       message.includes('ResizeObserver loop limit exceeded')
     );
   
+  // Filter extension warnings for the current result.
   const filterExtensionWarnings = (args) => {
     const message = args[0];
     if (isIgnoredRuntimeMessage(message)) {

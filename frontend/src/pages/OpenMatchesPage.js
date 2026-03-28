@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
 import { useLanguage } from '../context/LanguageContext';
 
+// Render the open matches page.
 const OpenMatchesPage = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
@@ -72,7 +73,9 @@ const OpenMatchesPage = () => {
     });
   }, [openMatches, defaultTeamId]);
 
+  // Format date for display.
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
+  // Format time for display.
   const formatTime = (dateString) =>
     new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const getCaptainName = (team) => {
@@ -87,6 +90,7 @@ const OpenMatchesPage = () => {
   const hasPendingRequest = (match) =>
     Array.isArray(match.myRequests) && match.myRequests.some((request) => request.status === 'pending');
 
+  // Handle submit request interactions.
   const handleSubmitRequest = async (bookingId) => {
     try {
       const selectedTeamId = Number(selectedTeams[bookingId]);

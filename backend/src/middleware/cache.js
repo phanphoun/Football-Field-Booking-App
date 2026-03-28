@@ -1,5 +1,6 @@
 const cacheStore = new Map();
 
+// Support cleanup expired for this module.
 const cleanupExpired = () => {
   const now = Date.now();
   for (const [key, entry] of cacheStore.entries()) {
@@ -9,11 +10,13 @@ const cleanupExpired = () => {
   }
 };
 
+// Build key for rendering.
 const buildKey = (req) => {
   const userPart = req.user?.id ? `user:${req.user.id}` : 'guest';
   return `${req.method}:${req.originalUrl}:${userPart}`;
 };
 
+// Support response cache for this module.
 const responseCache = (ttlSeconds = 60) => (req, res, next) => {
   if (req.method !== 'GET') return next();
   cleanupExpired();
@@ -38,6 +41,7 @@ const responseCache = (ttlSeconds = 60) => (req, res, next) => {
   return next();
 };
 
+// Support clear cache for this module.
 const clearCache = () => {
   cacheStore.clear();
 };

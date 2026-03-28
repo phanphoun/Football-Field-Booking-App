@@ -25,6 +25,7 @@ import { buildAssetUrl } from '../config/appConfig';
 const MAX_AVATAR_SIZE_MB = 5;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 
+// Get initial form data for the current view.
 const getInitialFormData = (user) => ({
   firstName: user?.firstName || '',
   lastName: user?.lastName || '',
@@ -35,12 +36,14 @@ const getInitialFormData = (user) => ({
   gender: user?.gender || ''
 });
 
+// Format date for display.
 const formatDate = (value) => {
   if (!value) return 'Not specified';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'Not specified' : date.toLocaleDateString();
 };
 
+// Open native date picker in the UI.
 const openNativeDatePicker = (event) => {
   event.currentTarget.focus();
   if (typeof event.currentTarget.showPicker === 'function') {
@@ -50,11 +53,13 @@ const openNativeDatePicker = (event) => {
   }
 };
 
+// Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
   return buildAssetUrl(rawLogo, null);
 };
 
+// Render the profile page.
 const ProfilePage = () => {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading, isLoggingOut } = useAuth();
   const { version } = useRealtime();
@@ -78,6 +83,7 @@ const ProfilePage = () => {
   useEffect(() => {
     let active = true;
 
+    // Support load stats for this page.
     const loadStats = async () => {
       if (isAdminUser) {
         if (!active) return;
@@ -126,26 +132,31 @@ const ProfilePage = () => {
     };
   }, [avatarPreview, isAdminUser, isFieldOwner, version]);
 
+  // Resolve d avatar url into a display-safe value.
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
     return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   })();
 
+  // Handle change interactions.
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
   };
 
+  // Handle edit open interactions.
   const handleEditOpen = () => {
     setFormData(getInitialFormData(user));
     setIsEditing(true);
   };
 
+  // Handle edit close interactions.
   const handleEditClose = () => {
     setFormData(getInitialFormData(user));
     setIsEditing(false);
   };
 
+  // Handle submit interactions.
   const handleSubmit = async () => {
     setError('');
     setSuccessMessage('');
@@ -169,6 +180,7 @@ const ProfilePage = () => {
     }
   };
 
+  // Handle avatar upload interactions.
   const handleAvatarUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -218,6 +230,7 @@ const ProfilePage = () => {
     }
   };
 
+  // Handle avatar delete interactions.
   const handleAvatarDelete = async () => {
     const confirmed = await confirm('Are you sure you want to delete your profile photo?', {
       title: 'Delete Profile Photo'
@@ -239,6 +252,7 @@ const ProfilePage = () => {
     }
   };
 
+  // Handle logout interactions.
   const handleLogout = async () => {
     if (isLoggingOut) return;
     const confirmed = await confirm('Are you sure you want to logout?', { title: 'Logout' });

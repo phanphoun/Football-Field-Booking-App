@@ -71,7 +71,9 @@ const emptyForm = {
   closureEndAt: ''
 };
 
+// Get discount percent for the current view.
 const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+// Get discounted hourly price for the current view.
 const getDiscountedHourlyPrice = (field) => {
   const price = Number(field?.pricePerHour || 0);
   const discountPercent = getDiscountPercent(field);
@@ -218,6 +220,7 @@ const OwnerFieldsPage = () => {
   }, []);
 
   useEffect(() => {
+    // Support run for this page.
     const run = async () => {
       try {
         setLoading(true);
@@ -231,6 +234,7 @@ const OwnerFieldsPage = () => {
     run();
   }, [loadFields, showToast]);
 
+  // Reset form to its default state.
   const resetForm = () => {
     setForm(emptyForm);
     setImageFiles([]);
@@ -262,6 +266,7 @@ const OwnerFieldsPage = () => {
     setIsOpen(true);
   };
 
+  // Start edit flow.
   const startEdit = (field) => {
     setEditingFieldId(field.id);
     setImageFiles([]);
@@ -345,6 +350,7 @@ const OwnerFieldsPage = () => {
     setForm((current) => ({ ...current, [name]: value }));
   };
 
+  // Handle location change interactions.
   const handleLocationChange = (locationData) => {
     setForm((current) => ({
       ...current,
@@ -356,6 +362,7 @@ const OwnerFieldsPage = () => {
     }));
   };
 
+  // Handle image change interactions.
   const handleImageChange = (event) => {
     const selectedFiles = Array.from(event.target.files || []);
     const nextFiles = selectedFiles.filter((file) => String(file.type || '').startsWith('image/'));
@@ -385,6 +392,7 @@ const OwnerFieldsPage = () => {
     });
   };
 
+  // Handle submit interactions.
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.name?.trim()) {

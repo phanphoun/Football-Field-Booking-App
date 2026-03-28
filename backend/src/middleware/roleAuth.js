@@ -1,3 +1,4 @@
+// Support authorize for this module.
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -26,6 +27,7 @@ const isGuest = (req, res, next) => {
   next();
 };
 
+// Check whether player is true.
 const isPlayer = (req, res, next) => {
   if (!req.user || req.user.role !== 'player') {
     return res.status(403).json({ 
@@ -35,6 +37,7 @@ const isPlayer = (req, res, next) => {
   next();
 };
 
+// Check whether captain is true.
 const isCaptain = (req, res, next) => {
   if (!req.user || req.user.role !== 'captain') {
     return res.status(403).json({ 
@@ -44,6 +47,7 @@ const isCaptain = (req, res, next) => {
   next();
 };
 
+// Check whether field owner is true.
 const isFieldOwner = (req, res, next) => {
   if (!req.user || req.user.role !== 'field_owner') {
     return res.status(403).json({ 
@@ -53,6 +57,7 @@ const isFieldOwner = (req, res, next) => {
   next();
 };
 
+// Check whether admin is true.
 const isAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ 
@@ -72,6 +77,7 @@ const isPlayerOrCaptain = (req, res, next) => {
   next();
 };
 
+// Check whether captain or field owner is true.
 const isCaptainOrFieldOwner = (req, res, next) => {
   if (!req.user || !['captain', 'field_owner'].includes(req.user.role)) {
     return res.status(403).json({ 
@@ -81,6 +87,7 @@ const isCaptainOrFieldOwner = (req, res, next) => {
   next();
 };
 
+// Check whether field owner or admin is true.
 const isFieldOwnerOrAdmin = (req, res, next) => {
   if (!req.user || !['field_owner', 'admin'].includes(req.user.role)) {
     return res.status(403).json({ 
@@ -90,6 +97,7 @@ const isFieldOwnerOrAdmin = (req, res, next) => {
   next();
 };
 
+// Check whether captain or admin is true.
 const isCaptainOrAdmin = (req, res, next) => {
   if (!req.user || !['captain', 'admin'].includes(req.user.role)) {
     return res.status(403).json({ 

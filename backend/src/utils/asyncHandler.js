@@ -8,6 +8,7 @@
  * @param {Function} fn - Async function to wrap
  * @returns {Function} Express middleware function
  */
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 
+// Validate environment before continuing.
 const validateEnvironment = () => {
   const requiredEnvVars = [
     'NODE_ENV',
@@ -43,6 +44,7 @@ const configuredAllowedExtensions = process.env.ALLOWED_FILE_EXTENSIONS
   ? process.env.ALLOWED_FILE_EXTENSIONS.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean)
   : defaultAllowedExtensions;
 
+// Check whether allowed image upload is true.
 const isAllowedImageUpload = (file = {}) => {
   const mimeType = String(file.mimetype || '').toLowerCase();
   const extension = path.extname(String(file.originalname || '')).toLowerCase();

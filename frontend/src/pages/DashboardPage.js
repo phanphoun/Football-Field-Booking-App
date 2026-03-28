@@ -23,6 +23,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 
+// Support status tone for this page.
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
@@ -67,6 +68,7 @@ const roleTheme = {
   }
 };
 
+// Render the dashboard page.
 const DashboardPage = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
@@ -92,6 +94,7 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Support load for this page.
     const load = async () => {
       try {
         setLoading(true);
@@ -460,6 +463,7 @@ const DashboardPage = () => {
     );
   };
 
+  // Handle invite action interactions.
   const handleInviteAction = async (notification, action) => {
     const teamId = notification?.metadata?.teamId;
     if (!teamId) return;

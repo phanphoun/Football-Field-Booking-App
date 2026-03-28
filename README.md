@@ -1,565 +1,272 @@
-# ⚽ Football Field Booking App
+# Football Field Booking App
 
-A comprehensive web application for booking football fields and organizing matches, connecting teams, field owners, and football enthusiasts.
+Full-stack football field booking platform built with React, Express, Sequelize, and MySQL.
 
-## 🚀 **PROJECT STATUS: PRODUCTION READY**
+## Overview
 
-✅ **Complete full-stack application with real API integration**  
-✅ **Frontend and backend fully connected and tested**  
-✅ **All CRUD operations implemented and working**  
-✅ **User authentication with role-based access control**  
-✅ **Responsive design with modern UI/UX**  
-✅ **Production ready with comprehensive documentation**  
-✅ **Advanced team management and booking features**  
-✅ **Professional UI component library**  
-✅ **Public team access and member management**  
-✅ **Database seeding with sample data**  
-✅ **Enhanced API consistency and error handling**  
+This project lets players, captains, field owners, and admins manage football fields, bookings, teams, matches, and notifications in one application.
 
----
+The repository contains:
+- `frontend/`: React client
+- `backend/`: Express API with Sequelize models and MySQL integration
 
-## 📋 **Project Overview**
+## Features
 
-The Football Field Booking App is a centralized platform that bridges field owners and football teams, offering streamlined booking management, team organization, and community engagement features.
+- Authentication with JWT and role-based access control
+- Public browsing for fields, teams, and league data pages
+- Team creation, team management, and member requests
+- Field listing, field details, and owner field management
+- Booking flow for matches and field reservations
+- Notifications and profile/settings pages
+- Owner dashboard and booking management views
+- Admin user management and role request review
+- Demo seed script with sample users, fields, teams, bookings, and match history
+- Optional live league standings and match data via `football-data.org`
 
-### **🎯 Key Features**
+## Role Relationships
 
-#### **👥 For Players & Teams**
-- **Field Booking** - Browse and book available football fields
-- **Team Management** - Create and manage team profiles and members
-- **Booking Management** - Create, view, and manage field reservations
-- **Profile Management** - Edit personal information and preferences
-- **Statistics Dashboard** - View personal and team statistics
-- **Public Teams** - Browse and join public teams without authentication
-- **Join Requests** - Request to join teams with captain approval
+The application is organized around four active roles plus public visitors. Each role has a clear relationship to the others:
 
-#### **🏟️ For Field Owners**
-- **Field Management** - Add and manage multiple field locations
-- **Booking Control** - Confirm, cancel, and modify bookings
-- **Revenue Tracking** - Monitor field utilization and earnings
-- **Schedule Management** - Set operating hours and availability
-- **Team Analytics** - View team activities and statistics
+| Role | Primary responsibility | Works most closely with | Typical interactions |
+|------|------------------------|--------------------------|----------------------|
+| Guest | Browse public content | Players, captains, field owners | View public fields and teams, then register for an account |
+| Player | Join teams and participate in matches | Captains | Request to join teams, manage profile, follow bookings and match activity |
+| Captain | Organize teams and create team-side bookings | Players, field owners | Create teams, manage members, invite players, request bookings, open matches |
+| Field owner | Manage venues and booking approval | Captains, admins | Create and update fields, review bookings, manage owner dashboard data |
+| Admin | Govern the platform | All roles | Review role requests, manage users, oversee platform activity |
 
-#### **👨 For Administrators**
-- **User Management** - Manage all users and permissions
-- **System Analytics** - View platform-wide statistics
-- **Content Moderation** - Manage fields, teams, and bookings
-- **System Configuration** - Configure platform settings
-- **Database Management** - Full CRUD operations on all entities
+### How roles connect
 
----
+- Guests become authenticated users by registering, and new accounts default to `player`.
+- Players are the entry point for team participation. They can join teams and later request a role upgrade.
+- Captains are team operators. They coordinate players and interact with field owners to secure matches and bookings.
+- Field owners are venue operators. They do not manage teams directly, but they are the key counterpart for captains during the booking flow.
+- Admins are platform supervisors. They do not replace the day-to-day role of captain or owner, but they can intervene across all areas.
 
-## 👥 **User Roles & Permissions**
+### Role upgrade path
 
-| Role | Permissions | Description |
-|------|-------------|-------------|
-| **Guest** | View public fields and teams | Limited access for browsing |
-| **Player** | Book fields, join teams, manage profile | Standard user access |
-| **Captain** | Create/manage teams, approve join requests | Team leadership capabilities |
-| **Field Owner** | Manage fields, view bookings | Field management access |
-| **Admin** | Full system access | Administrative privileges |
+- A new user starts as `player`.
+- A player can request upgrade to `captain` or `field_owner`.
+- An admin reviews and approves or rejects role requests.
+- Once approved, access changes immediately because the backend resolves the latest role from the database on authenticated requests.
 
----
+### Collaboration model in the app
 
-## 🛠️ **Technology Stack**
+- `Player <-> Captain`: team membership, invitations, join requests, and match participation.
+- `Captain <-> Field owner`: field reservations, booking confirmation, match scheduling, and venue coordination.
+- `Captain <-> Admin`: escalations, moderation, and role-governed access to team-related flows.
+- `Field owner <-> Admin`: owner permissions, field oversight, and dispute resolution.
+- `Admin <-> Everyone`: user management, role governance, and system-wide visibility.
 
-### **Backend**
-- **Node.js** - JavaScript runtime environment
-- **Express.js** - Fast, minimalist web framework
-- **MySQL** - Relational database
-- **Sequelize** - ORM for database management
-- **JWT** - Authentication tokens
-- **bcryptjs** - Password hashing
-- **Express Validator** - Input validation
-- **Express Rate Limit** - API rate limiting
-- **Helmet** - Security headers
-- **CORS** - Cross-origin resource sharing
+## Tech Stack
 
-### **Frontend**
-- **React 19** - Modern UI framework
-- **React Router 6** - Client-side routing
-- **Tailwind CSS** - Utility-first CSS framework
-- **Heroicons** - Icon library
-- **Axios** - HTTP client for API calls
-- **React Hook Form** - Form management
-- **date-fns** - Date manipulation
+### Frontend
+- React 19
+- React Router 6
+- Tailwind CSS
+- Axios
+- Heroicons
+- React App Rewired
 
----
+### Backend
+- Node.js
+- Express 5
+- Sequelize
+- MySQL / MariaDB
+- JWT
+- bcryptjs
+- express-validator
+- helmet
+- cors
+- multer
 
-## 📁 **Project Structure**
+## Project Structure
 
-```
+```text
 Football-Field-Booking-App/
-├── backend/                    # Node.js API server
-│   ├── src/
-│   │   ├── controllers/        # Route handlers
-│   │   │   ├── authController.js
-│   │   │   ├── userController.js
-│   │   │   ├── fieldController.js
-│   │   │   ├── bookingController.js
-│   │   │   ├── teamController.js
-│   │   │   ├── ratingController.js
-│   │   │   └── dashboardController.js
-│   ├── routes/            # API routes
-│   ├── middleware/        # Authentication & validation
-│   ├── models/            # Sequelize models
-│   ├── config/            # Configuration files
-│   └── utils/             # Utility functions
-│   ├── .env                  # Environment variables
-│   ├── package.json          # Dependencies
-│   └── server.js              # Main server file
-├── frontend/                   # React frontend
-│   ├── public/               # Static assets
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── common/
-│   │   │   │   └── ProtectedRoute.js
-│   │   │   └── layout/
-│   │   │       └── AppLayout.js
-│   │   ├── context/
-│   │   │   └── AuthContext.js
-│   │   ├── pages/
-│   │   │   ├── auth/
-│   │   │   │   ├── LoginPage.js
-│   │   │   │   └── RegisterPage.js
-│   │   │   ├── DashboardPage.js
-│   │   │   ├── FieldsPage.js
-│   │   │   ├── TeamsPage.js
-│   │   │   ├── BookingsPage.js
-│   │   │   ├── CreateBookingPage.js
-│   │   │   └── ProfilePage.js
-│   │   ├── services/
-│   │   │   ├── api.js
-│   │   │   ├── authService.js
-│   │   │   ├── fieldService.js
-│   │   │   ├── bookingService.js
-│   │   │   ├── teamService.js
-│   │   │   └── dashboardService.js
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── package.json
-│   └── README.md
-├── .gitignore                  # Git ignore rules
-└── README.md                  # This file
+|-- backend/
+|   |-- src/
+|   |   |-- config/
+|   |   |-- controllers/
+|   |   |-- middleware/
+|   |   |-- models/
+|   |   |-- routes/
+|   |   `-- utils/
+|   |-- server.js
+|   `-- package.json
+|-- frontend/
+|   |-- public/
+|   |-- src/
+|   |   |-- components/
+|   |   |-- context/
+|   |   |-- pages/
+|   |   |-- services/
+|   |   `-- utils/
+|   |-- package.json
+|   `-- tailwind.config.js
+`-- README.md
 ```
 
----
+## Prerequisites
 
-## 🚀 **Quick Start**
+- Node.js 18+
+- MySQL 8+ or MariaDB
+- npm
 
-### **Prerequisites**
-- Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
-- Git
+## Getting Started
 
-### **1. Clone Repository**
-```bash
-git clone https://github.com/phanphoun/Football-Field-Booking-App.git
-cd Football-Field-Booking-App
-```
+### 1. Install dependencies
 
-### **2. Backend Setup**
 ```bash
 cd backend
 npm install
 
-# Create .env file (example provided)
-cp .env.example .env
-# Edit .env with your database credentials
-
-# Create database
-mysql -u root -p
-CREATE DATABASE football_booking;
-
-# Start backend server
-npm run dev
-```
-
-### **3. Frontend Setup**
-```bash
-cd frontend
+cd ../frontend
 npm install
-
-# Create .env file
-echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
-
-# Start frontend server
-npm start
 ```
 
-### **4. Access Application**
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **API Documentation**: http://localhost:5000/
+### 2. Configure the backend
 
----
+Create `backend/.env`:
 
-## 🔐 **Environment Configuration**
-
-### **Backend .env**
 ```env
-# Server Configuration
 NODE_ENV=development
 PORT=5000
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=football_booking
-
-# JWT Configuration
-JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters_long
+JWT_SECRET=replace_with_a_secret_at_least_32_characters_long
 JWT_EXPIRES_IN=7d
 
-# CORS Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=football_booking
+DB_USER=root
+DB_PASSWORD=your_password
+
 CORS_ORIGIN=http://localhost:3000
-
-# Development Settings
 RATE_LIMITING=true
-LOG_LEVEL=dev
+HTTP_LOGGING=true
+DB_SYNC_ALTER=false
+APP_TIMEZONE=Asia/Bangkok
+
+# Optional: enables league data pages
+FOOTBALL_API_KEY=your_football_data_org_api_key
 ```
 
-### **Frontend .env**
-```env
-REACT_APP_API_URL=http://localhost:5000/api
+Notes:
+- `JWT_SECRET` is required and must be at least 32 characters.
+- If `FOOTBALL_API_KEY` is missing, the league endpoints return `503` and the rest of the app still works.
+
+### 3. Create the database
+
+```sql
+CREATE DATABASE football_booking;
 ```
 
----
+### 4. Seed demo data
 
-## 📚 **API Documentation**
+From `backend/`:
 
-### **🔐 Authentication**
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `GET /api/auth/profile` - Get user profile
-- `PUT /api/auth/profile` - Update profile
-
-### **👥 Users**
-- `GET /api/users` - List users (Admin only)
-- `GET /api/users/:id` - Get user details
-
-### **⚽ Fields**
-- `GET /api/fields` - List all fields
-- `GET /api/fields/:id` - Get field details
-- `POST /api/fields` - Create field (Admin/Owner)
-- `PUT /api/fields/:id` - Update field (Admin/Owner)
-- `DELETE /api/fields/:id` - Delete field (Admin/Owner)
-
-### **📅 Bookings**
-- `GET /api/bookings` - List bookings (Protected)
-- `GET /api/bookings/:id` - Get booking details
-- `POST /api/bookings` - Create booking
-- `PUT /api/bookings/:id` - Update booking status
-
-### **👥 Teams**
-- `GET /api/teams` - List teams (Protected)
-- `GET /api/teams/:id` - Get team details
-- `POST /api/teams` - Create team (Captain/Admin)
-- `PUT /api/teams/:id` - Update team
-- `DELETE /api/teams/:id` - Delete team
-
-### **⭐ Ratings**
-- `GET /api/ratings` - List ratings (Protected)
-- `GET /api/ratings/:id` - Get rating details
-- `POST /api/ratings` - Create rating
-- `PUT /api/ratings/:id` - Update rating
-- `DELETE /api/ratings/:id` - Delete rating
-
-### **📊 Dashboard**
-- `GET /api/dashboard/stats` - Dashboard statistics
-- `GET /api/dashboard/search` - Search resources
-
----
-
-## 🔐 **Security Features**
-
-- **🛡️ JWT Authentication** - Secure token-based auth
-- **📋 Input Validation** - Comprehensive validation with express-validator
-- **🚦 Rate Limiting** - Different limits for different endpoints
-- **🔒 Security Headers** - Helmet middleware protection
-- **🌐 CORS Protection** - Configurable CORS settings
-- **🔐 Password Hashing** - bcrypt for secure password storage
-- **⚠️ Error Handling** - Standardized error responses
-
----
-
-## 📊 **Database Schema**
-
-### **Core Tables**
-
-#### **Users**
-- Authentication and profile management
-- Roles: guest, player, captain, field_owner, admin
-- Fields: username, email, password, firstName, lastName, phone, role, status
-
-#### **Fields**
-- Football field information and management
-- Fields: name, description, address, pricePerHour, fieldType, surfaceType, status
-- Relationships: Owner (User), Bookings
-
-#### **Teams**
-- Team details and configuration
-- Fields: name, description, captain_id, maxPlayers, skillLevel, preferredTime
-- Relationships: Captain (User), TeamMembers
-
-#### **Bookings**
-- Field reservation records and scheduling
-- Fields: startTime, endTime, totalPrice, status, notes
-- Relationships: Field, Team, Creator (User)
-
-#### **TeamMembers**
-- Many-to-many relationship between users and teams
-- Fields: role, status, joinedAt
-- Relationships: Team, User
-
-#### **Ratings**
-- Team reviews and community feedback
-- Fields: rating, comment, ratingType
-- Relationships: Teams, Booking
-
----
-
-## 🎨 **UI/UX Features**
-
-### **Design System**
-- **Color Scheme**: Green (primary), Blue (trust), Gray (neutral)
-- **Typography**: Clean, readable font hierarchy
-- **Spacing**: Consistent Tailwind spacing
-- **Icons**: Heroicons for consistency
-- **Responsive**: Mobile-first design
-
-### **User Experience**
-- **Loading States**: Spinners and disabled buttons
-- **Error Handling**: Clear error messages
-- **Form Validation**: Real-time validation feedback
-- **Hover Effects**: Interactive button states
-- **Transitions**: Smooth animations
-
----
-
-## 🧪 **Testing**
-
-### **Test Credentials**
-- **Admin**: `admin@example.com` / `Password123`
-- **Field Owner**: `owner@example.com` / `Password123`
-- **Player**: `player@example.com` / `Password123`
-
-### **Seed Data**
 ```bash
-cd backend
 npm run seed
 ```
 
-### **API Testing**
+Sample seeded accounts:
+- `admin1@example.com / Password123`
+- `field_owner2@example.com / Password123`
+- `captain5@example.com / Password123`
+- `player10@example.com / Password123`
+
+### 5. Start the backend
+
+From `backend/`:
+
 ```bash
-# Test authentication
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"Password123"}'
-```
-
----
-
-## 🚀 **Deployment**
-
-### **Development**
-```bash
-# Backend
-cd backend
 npm run dev
-
-# Frontend
-cd frontend
-npm start
 ```
 
-### **Production**
+Backend URLs:
+- API root: `http://localhost:5000/`
+- Health check: `http://localhost:5000/health`
+
+### 6. Start the frontend
+
+From `frontend/`:
+
 ```bash
-# Build frontend
-cd frontend
-npm run build
-
-# Start backend with PM2
-cd backend
 npm start
 ```
 
-### **Docker Support**
-```dockerfile
-# Backend Dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-EXPOSE 5000
-CMD ["npm", "start"]
+Frontend URL:
+- `http://localhost:3000`
+
+The frontend defaults to `/api` and uses the local proxy in development, so a frontend `.env` file is optional unless you want to override `REACT_APP_API_URL`.
+
+## Available Scripts
+
+### Backend
+
+```bash
+npm start       # start server
+npm run dev     # start with nodemon
+npm run seed    # reset and seed demo data
+npm run db:create
+npm test
 ```
 
----
+### Frontend
 
-## 📱 **Responsive Design**
+```bash
+npm start
+npm run build
+npm test
+npm run lint
+npm run lint:fix
+```
 
-### **Breakpoints**
-- **Mobile**: < 640px
-- **Tablet**: 640px - 1024px
-- **Desktop** > 1024px
+## Main Routes
 
-### **Mobile Features**
-- Collapsible sidebar navigation
-- Touch-friendly buttons
-- Optimized form layouts
-- Swipeable cards
+### Frontend pages
+- Public: `/`, `/fields`, `/fields/:id`, `/teams`, `/teams/:id`, `/league`, `/login`, `/register`
+- App area: `/app/dashboard`, `/app/teams`, `/app/bookings`, `/app/open-matches`, `/app/notifications`, `/app/profile`, `/app/settings`
+- Owner area: `/owner/dashboard`, `/owner/fields`, `/owner/bookings`, `/owner/matches`
+- Admin area: `/app/admin/users`, `/app/admin/role-requests`
 
----
+### Backend API
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/profile`
+- `GET /api/users`
+- `GET /api/fields`
+- `GET /api/bookings`
+- `GET /api/teams`
+- `GET /api/public/teams`
+- `GET /api/team-members`
+- `GET /api/match-results`
+- `GET /api/notifications`
+- `GET /api/ratings`
+- `GET /api/dashboard/stats`
+- `GET /api/matches`
+- `GET /api/leagues/standings`
 
-## 🤝 **Contributing**
+## Uploads and Static Assets
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Make your changes
-4. Test thoroughly
-5. Commit with descriptive message
-6. Push to branch
-7. Open Pull Request
+Uploaded files are served from:
+- `frontend/public/uploads/`
+- `backend/uploads/` for backward compatibility
 
-### **Code Style**
-- Use ESLint for code formatting
-- Follow React best practices
-- Use Tailwind for styling
-- Implement proper error handling
-- Write meaningful commit messages
+If a field image is missing, the backend falls back to `frontend/public/hero-manu.jpg`.
 
----
+## Notes for Development
 
-## 📄 **License**
+- The backend validates required environment variables during startup.
+- In development, Sequelize runs a safe sync by default.
+- Set `DB_SYNC_ALTER=true` only if you explicitly want alter-based schema sync.
+- The server applies rate limiting, CORS, helmet, compression, and centralized error handling.
 
-This project is licensed under the MIT License.
+## Current Scope
 
----
+This root README documents the app as it is currently wired in `backend/server.js` and `frontend/src/App.js`.
+Some extra backend files exist for future or partial features, but the routes listed above are the ones currently mounted by the main server.
 
-## 🎯 **Application Status**
+## License
 
-### **✅ Completed Features**
-- **Backend API**: Complete with all CRUD operations
-- **Frontend**: Full React application with real API integration
-- **Authentication**: JWT-based with role-based access control
-- **Database**: Fully designed MySQL database with Sequelize
-- **UI/UX**: Modern responsive design with Tailwind CSS
-- **Error Handling**: Comprehensive error handling throughout
-- **Documentation**: Complete API and user documentation
-
-### **🔄 Current Version**
-- **Backend**: v1.0.0 - Production ready
-- **Frontend**: v1.0.0 - Production ready
-- **Database**: v1.0.0 - Complete schema
-- **Integration**: v1.0.0 - Fully connected
-
----
-
-## 📞 **Support**
-
-For support and inquiries:
-- **GitHub Issues**: [Create an issue](https://github.com/phanphoun/Football-Field-Booking-App/issues)
-- **Documentation**: Check individual README files for detailed information
-
----
-
-## 🗺️ **Project Roadmap**
-
-### **Phase 1 ✅ (Current Release)**
-- [x] Complete backend API with authentication
-- [x] Full frontend React application
-- [x] Database design and implementation
-- [x] User authentication and authorization
-- [x] CRUD operations for all entities
-- [x] Responsive UI/UX design
-- [x] Error handling and validation
-- [x] Professional UI component library
-- [x] Team management with member operations
-- [x] Public team access endpoints
-- [x] Enhanced API consistency and error handling
-- [x] Database seeding with sample data
-- [x] Comprehensive documentation
-
-### **Phase 2 (Future Enhancements)**
-- [ ] Payment gateway integration
-- [ ] Advanced analytics dashboard
-- [ ] Email notifications
-- [ ] File upload for team logos and field images
-- [ ] Advanced search and filtering
-- [ ] Mobile applications
-
-### **Phase 3 (Long-term Vision)**
-- [ ] Real-time notifications with WebSockets
-- [ ] Advanced analytics and reporting
-- [ ] Multi-language support
-- [ ] API rate limiting and caching
-- [ ] Advanced security features
-- [ ] Cloud deployment optimization
-
----
-
-## 🏆 **Achievements**
-
-### **🎯 Core Functionality**
-- ✅ **Complete Authentication System** - JWT-based login/registration with role management
-- ✅ **Full CRUD Operations** - Teams, fields, bookings, users, ratings
-- ✅ **Role-Based Access Control** - Guest, player, captain, field owner, admin
-- ✅ **Public Team Access** - Browse teams without authentication
-- ✅ **Team Member Management** - Join requests, approvals, member roles
-- ✅ **Professional UI Components** - Reusable component library
-- ✅ **Responsive Design** - Mobile-friendly interface with Tailwind CSS
-
-### **🔧 Technical Excellence**
-- ✅ **API Consistency** - Standardized response formats and error handling
-- ✅ **Database Design** - Proper relationships and associations
-- ✅ **Security Implementation** - Validation, rate limiting, CORS, password hashing
-- ✅ **Frontend Architecture** - Modern React with hooks and context
-- ✅ **Development Workflow** - Git version control and documentation
-
-### **📚 Documentation Quality**
-- ✅ **Comprehensive READMEs** - Main, backend, frontend documentation
-- ✅ **Setup Instructions** - Clear installation and configuration guides
-- ✅ **API Documentation** - Complete endpoint documentation
-- ✅ **Project Structure** - Detailed file organization guides
-
-### **🚀 Production Readiness**
-- ✅ **Environment Configuration** - Development and production setups
-- ✅ **Database Seeding** - Sample data for testing
-- ✅ **Error Handling** - Comprehensive error management
-- ✅ **Performance Optimization** - Efficient loading and caching
-
-### **📊 Development Metrics**
-- **Code Lines**: ~5,000+ lines of production code
-- **API Endpoints**: 20+ fully functional endpoints
-- **Database Tables**: 8 core tables with relationships
-- **Frontend Pages**: 7 complete page components
-- **User Roles**: 5 distinct permission levels
-- **Security Features**: 10+ security implementations
-
-### **🎯 Technical Excellence**
-- **Full-Stack Integration**: Complete frontend-backend connectivity
-- **Modern Architecture**: RESTful API with React frontend
-- **Security First**: JWT auth, rate limiting, input validation
-- **User Experience**: Responsive design with loading states
-- **Code Quality**: Comprehensive error handling and validation
-- **Documentation**: Complete API and user documentation
-
----
-
-**🚀 Built with ❤️ for the football community**
-
-**⚽ Your Football Field Booking App is now production-ready and fully functional!**
-
----
-
-## 🌟 **Live Demo**
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **API Docs**: http://localhost:5000/
-
-**🎮 Start booking your football fields today!**
+MIT

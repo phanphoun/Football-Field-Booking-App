@@ -1,20 +1,24 @@
 const { Notification, User } = require('../models');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Resolve sender id from metadata into a display-safe value.
 const resolveSenderIdFromMetadata = (metadata = {}) => {
   if (!metadata || typeof metadata !== 'object') return null;
   return metadata.requesterId || metadata.inviterId || metadata.inviteeId || metadata.actorId || null;
 };
 
+// Build display name for rendering.
 const buildDisplayName = (user) => {
   if (!user) return null;
   const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
   return fullName || user.username || null;
 };
 
+// Support attach sender profiles for this module.
 const attachSenderProfiles = async (notifications) => {
   const senderIds = Array.from(
     new Set(

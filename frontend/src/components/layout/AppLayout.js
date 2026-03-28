@@ -53,6 +53,7 @@ const SidebarBrand = ({ collapsed = false }) => (
   </div>
 );
 
+// Render the app layout for shared page structure.
 const AppLayout = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
@@ -168,10 +169,12 @@ const AppLayout = () => {
   const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
   const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
 
+  // Format role for display.
   const formatRole = (role) => {
     return formatRoleLabel(role, 'Player');
   };
 
+  // Support render nav icon for this module.
   const renderNavIcon = (item) => {
     return (
       <item.icon
@@ -182,6 +185,7 @@ const AppLayout = () => {
     );
   };
 
+  // Resolve avatar url into a display-safe value.
   const resolveAvatarUrl = () => {
     return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   };
@@ -190,6 +194,7 @@ const AppLayout = () => {
     return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
   };
 
+  // Resolve notification sender avatar into a display-safe value.
   const resolveNotificationSenderAvatar = (notification) => {
     return buildAssetUrl(notification?.sender?.avatarUrl);
   };
@@ -243,6 +248,7 @@ const AppLayout = () => {
     await notificationService.markRead(notificationId);
   };
 
+  // Check whether respond to invite is allowed.
   const canRespondToInvite = (notification) => {
     return (
       !notification?.isRead &&
@@ -250,6 +256,7 @@ const AppLayout = () => {
     );
   };
 
+  // Check whether respond to leave request is allowed.
   const canRespondToLeaveRequest = (notification) => {
     const title = String(notification?.title || '').toLowerCase();
     return (
@@ -261,6 +268,7 @@ const AppLayout = () => {
     );
   };
 
+  // Check whether respond to join request is allowed.
   const canRespondToJoinRequest = (notification) => {
     const title = String(notification?.title || '').toLowerCase();
     const message = String(notification?.message || '').toLowerCase();
@@ -277,6 +285,7 @@ const AppLayout = () => {
     );
   };
 
+  // Check whether respond to booking join request is allowed.
   const canRespondToBookingJoinRequest = (notification) => {
     const title = String(notification?.title || '').toLowerCase();
     const message = String(notification?.message || '').toLowerCase();
@@ -292,6 +301,7 @@ const AppLayout = () => {
     );
   };
 
+  // Support extract booking host team name for this module.
   const extractBookingHostTeamName = (notification) => {
     const title = String(notification?.title || '');
     const titlePrefix = 'Join request for ';
@@ -301,12 +311,14 @@ const AppLayout = () => {
     return '';
   };
 
+  // Support extract booking requester team name for this module.
   const extractBookingRequesterTeamName = (notification) => {
     const message = String(notification?.message || '');
     const match = message.match(/^(.*?)\s+requested to join your open match/i);
     return match?.[1]?.trim().toLowerCase() || '';
   };
 
+  // Resolve booking join request context into a display-safe value.
   const resolveBookingJoinRequestContext = async (notification) => {
     let bookingId = Number(notification?.metadata?.bookingId);
     let requestId = Number(notification?.metadata?.requestId);
@@ -344,6 +356,7 @@ const AppLayout = () => {
     return { bookingId: null, requestId: null };
   };
 
+  // Support extract leave request team name for this module.
   const extractLeaveRequestTeamName = (notification) => {
     const title = String(notification?.title || '');
     const titlePrefix = 'Leave request for ';
@@ -356,12 +369,14 @@ const AppLayout = () => {
     return '';
   };
 
+  // Support extract leave requester name for this module.
   const extractLeaveRequesterName = (notification) => {
     const message = String(notification?.message || '');
     const match = message.match(/^(.*?)\s+requested to leave/i);
     return match?.[1]?.trim().toLowerCase() || '';
   };
 
+  // Resolve leave request context into a display-safe value.
   const resolveLeaveRequestContext = async (notification) => {
     let teamId = notification?.metadata?.teamId || null;
     let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
@@ -396,6 +411,7 @@ const AppLayout = () => {
     return { teamId, requesterId };
   };
 
+  // Support extract join request team name for this module.
   const extractJoinRequestTeamName = (notification) => {
     const title = String(notification?.title || '');
     const titlePrefix = 'Join request for ';
@@ -408,12 +424,14 @@ const AppLayout = () => {
     return '';
   };
 
+  // Support extract join requester name for this module.
   const extractJoinRequesterName = (notification) => {
     const message = String(notification?.message || '');
     const match = message.match(/^(.*?)\s+requested to join/i);
     return match?.[1]?.trim().toLowerCase() || '';
   };
 
+  // Resolve join request context into a display-safe value.
   const resolveJoinRequestContext = async (notification) => {
     let teamId = notification?.metadata?.teamId || null;
     let requesterId = notification?.metadata?.requesterId || notification?.sender?.id || null;
@@ -449,6 +467,7 @@ const AppLayout = () => {
     return { teamId, requesterId };
   };
 
+  // Support extract team name from notification for this module.
   const extractTeamNameFromNotification = (notification) => {
     const title = notification?.title || '';
     const titlePrefix = 'Invitation to join ';
@@ -462,6 +481,7 @@ const AppLayout = () => {
     return '';
   };
 
+  // Resolve invite team id into a display-safe value.
   const resolveInviteTeamId = async (notification) => {
     if (notification?.metadata?.teamId) return notification.metadata.teamId;
 
@@ -486,6 +506,7 @@ const AppLayout = () => {
     return null;
   };
 
+  // Handle invite action interactions.
   const handleInviteAction = async (notification, action) => {
     try {
       setNotificationActionLoading(true);
@@ -503,6 +524,7 @@ const AppLayout = () => {
     }
   };
 
+  // Handle leave request action interactions.
   const handleLeaveRequestAction = async (notification, action) => {
     try {
       setNotificationActionLoading(true);
@@ -518,6 +540,7 @@ const AppLayout = () => {
     }
   };
 
+  // Handle join request action interactions.
   const handleJoinRequestAction = async (notification, action) => {
     try {
       setNotificationActionLoading(true);
@@ -535,6 +558,7 @@ const AppLayout = () => {
     }
   };
 
+  // Handle booking join request action interactions.
   const handleBookingJoinRequestAction = async (notification, action) => {
     try {
       setNotificationActionLoading(true);
@@ -558,6 +582,7 @@ const AppLayout = () => {
     }
   };
 
+  // Handle mark as read interactions.
   const handleMarkAsRead = async (notificationId) => {
     try {
       setNotificationActionLoading(true);
@@ -569,6 +594,7 @@ const AppLayout = () => {
     }
   };
 
+  // Handle notification click interactions.
   const handleNotificationClick = async (notification) => {
     if (!notification || notificationActionLoading) return;
 
@@ -593,6 +619,7 @@ const AppLayout = () => {
     navigate('/app/notifications');
   };
 
+  // Handle mark all as read interactions.
   const handleMarkAllAsRead = async () => {
     try {
       setNotificationActionLoading(true);
@@ -630,12 +657,14 @@ const AppLayout = () => {
   useEffect(() => {
     if (!notificationsMenuOpen) return undefined;
 
+    // Handle pointer down interactions.
     const handlePointerDown = (event) => {
       if (!notificationsMenuRef.current?.contains(event.target)) {
         setNotificationsMenuOpen(false);
       }
     };
 
+    // Handle escape interactions.
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setNotificationsMenuOpen(false);

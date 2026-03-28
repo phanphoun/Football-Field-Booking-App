@@ -54,6 +54,7 @@ const BOOKING_BASE_INCLUDE = [
   { model: User, as: 'creator', attributes: ['id', 'username', 'firstName', 'lastName'] }
 ];
 
+// Serialize booking for API responses.
 const serializeBooking = (booking) => {
   const payload = booking && typeof booking.toJSON === 'function' ? booking.toJSON() : booking;
   if (!payload) return payload;
@@ -113,12 +114,14 @@ const createTeamBookingNotifications = async ({
 
 const SCHEDULE_SHOWCASE_START_HOURS = [8, 10, 12, 14, 16, 18, 20];
 
+// Get schedule showcase target for the current flow.
 const getScheduleShowcaseTarget = (date) => {
   const [year, month, day] = String(date || '').split('-').map(Number);
   if (![year, month, day].every(Number.isFinite)) return 2;
   return (year + month + day) % 2 === 0 ? 2 : 4;
 };
 
+// Build date at hour for rendering.
 const buildDateAtHour = (date, hour) => {
   const bookingDate = new Date(`${date}T00:00:00`);
   bookingDate.setHours(hour, 0, 0, 0);
@@ -132,6 +135,7 @@ const getEffectiveHourlyRate = (field) => {
 
 const enrichScheduleWithShowcaseBookings = ({ bookings }) => bookings.map(serializeBooking);
 
+// Support require captain role for this module.
 const requireCaptainRole = (req, res) => {
   if (req.user.role !== 'captain') {
     res.status(403).json({
@@ -153,12 +157,13 @@ const requireOpenMatchAccess = (req, res) => {
   }
   return true;
 };
-
 const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
+// Check whether unavailable for join is true.
 const isUnavailableForJoin = (booking) =>
   isClosedStatus(booking) || new Date(booking.startTime) <= new Date();
 const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
 
+// Create booking for the current flow.
 const createBooking = async (req, res) => {
   try {
     const { fieldId, startTime, endTime, teamId } = req.body;
@@ -304,6 +309,7 @@ const createBooking = async (req, res) => {
   }
 };
 
+// Get bookings for the current flow.
 const getBookings = async (req, res) => {
   try {
     let where = {};
@@ -366,6 +372,7 @@ const getBookings = async (req, res) => {
   }
 };
 
+// Get booking by id for the current flow.
 const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findByPk(req.params.id, {
@@ -416,6 +423,7 @@ const getBookingById = async (req, res) => {
   }
 };
 
+// Get booking schedule for the current flow.
 const getBookingSchedule = async (req, res) => {
   try {
     const { date } = req.query;
@@ -466,6 +474,7 @@ const getBookingSchedule = async (req, res) => {
   }
 };
 
+// Get public booking schedule for the current flow.
 const getPublicBookingSchedule = async (req, res) => {
   try {
     const { date } = req.query;
@@ -539,6 +548,7 @@ const getPublicBookingSchedule = async (req, res) => {
   }
 };
 
+// Update booking status in local state.
 const updateBookingStatus = async (req, res) => {
   const transaction = await sequelize.transaction();
 
@@ -897,6 +907,7 @@ const updateBookingStatus = async (req, res) => {
   }
 };
 
+// Support confirm match teams for this module.
 const confirmMatchTeams = async (req, res) => {
   try {
     const booking = await Booking.findByPk(req.params.id, {
@@ -998,6 +1009,7 @@ const confirmMatchTeams = async (req, res) => {
   }
 };
 
+// Toggle open for opponents in the UI.
 const toggleOpenForOpponents = async (req, res) => {
   try {
     if (!requireCaptainRole(req, res)) return;
@@ -1115,6 +1127,7 @@ const toggleOpenForOpponents = async (req, res) => {
   }
 };
 
+// Get open matches for the current flow.
 const getOpenMatches = async (req, res) => {
   try {
     if (!requireOpenMatchAccess(req, res)) return;
@@ -1174,6 +1187,7 @@ const getOpenMatches = async (req, res) => {
   }
 };
 
+// Request join match from the API.
 const requestJoinMatch = async (req, res) => {
   try {
     if (!requireOpenMatchAccess(req, res)) return;
@@ -1314,6 +1328,7 @@ const requestJoinMatch = async (req, res) => {
   }
 };
 
+// Get booking join requests for the current flow.
 const getBookingJoinRequests = async (req, res) => {
   try {
     if (!requireCaptainRole(req, res)) return;
@@ -1367,6 +1382,7 @@ const getBookingJoinRequests = async (req, res) => {
   }
 };
 
+// Support respond to join request for this module.
 const respondToJoinRequest = async (req, res) => {
   try {
     if (!requireCaptainRole(req, res)) return;
@@ -1520,6 +1536,7 @@ const respondToJoinRequest = async (req, res) => {
   }
 };
 
+// Check whether cel matched opponent is allowed.
 const cancelMatchedOpponent = async (req, res) => {
   try {
     if (!requireCaptainRole(req, res)) return;
@@ -1639,11 +1656,15 @@ const POPULAR_SLOT_WINDOWS = [
   { startHour: 20, endHour: 22, label: 'Night Session' }
 ];
 
+// Support clamp for this module.
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+// Support to two digits for this module.
 const toTwoDigits = (value) => String(value).padStart(2, '0');
 
+// Format slot time for display.
 const formatSlotTime = (startHour, endHour) => `${toTwoDigits(startHour)}:00 - ${toTwoDigits(endHour)}:00`;
 
+// Map to tone for the current UI state.
 const rateToTone = (rate) => {
   if (rate >= 75) return 'limited';
   if (rate >= 50) return 'moderate';
@@ -1651,6 +1672,7 @@ const rateToTone = (rate) => {
   return 'cool';
 };
 
+// Map to status for the current UI state.
 const rateToStatus = (rate) => {
   if (rate >= 75) return 'Limited';
   if (rate >= 50) return 'Moderate';
@@ -1658,17 +1680,20 @@ const rateToStatus = (rate) => {
   return 'Cool';
 };
 
+// Support to local ms for this module.
 const toLocalMs = (dateValue, timezoneOffsetMinutes) => {
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return null;
   return date.getTime() - timezoneOffsetMinutes * 60 * 1000;
 };
 
+// Get start of local day ms for the current flow.
 const getStartOfLocalDayMs = (localMs) => {
   const localDate = new Date(localMs);
   return Date.UTC(localDate.getUTCFullYear(), localDate.getUTCMonth(), localDate.getUTCDate());
 };
 
+// Calculate overlap minutes from the current data.
 const calculateOverlapMinutes = (startA, endA, startB, endB) => {
   const overlap = Math.min(endA, endB) - Math.max(startA, startB);
   return overlap > 0 ? Math.floor(overlap / 60000) : 0;

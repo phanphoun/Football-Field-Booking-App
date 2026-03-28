@@ -18,6 +18,7 @@ import { APP_CONFIG } from '../../config/appConfig';
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import ThemeToggle from '../common/ThemeToggle';
 
+// Render the public layout for shared page structure.
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, isLoggingOut, logout } = useAuth();
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ const PublicLayout = () => {
   const hasResolvedUser = Boolean(user?.id || user?.username || user?.email);
   const showAuthenticatedActions = !loading && isAuthenticated && hasResolvedUser;
 
+  // Handle logout interactions.
   const handleLogout = async () => {
     if (isLoggingOut) return;
     const confirmed = await confirm(t('public_logout_message', 'តើអ្នកចង់ចាកចេញមែនទេ?'), {
@@ -54,6 +56,7 @@ const PublicLayout = () => {
     [t]
   );
 
+  // Check whether active path is true.
   const isActivePath = (path) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
   const isHomePage = location.pathname === '/';

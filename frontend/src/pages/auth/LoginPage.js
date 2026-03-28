@@ -7,6 +7,7 @@ import AuthModalShell from '../../components/ui/AuthModalShell';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
+// Render the login page.
 const LoginPage = () => {
   const { login, googleAuth, loading, error } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [validationErrors, setValidationErrors] = useState({});
 
+  // Preserve the intended destination after a successful login.
   const fromState = location.state?.from;
   const from =
     typeof fromState === 'string'
@@ -25,6 +27,7 @@ const LoginPage = () => {
   const backgroundLocation = location.state?.backgroundLocation;
   const authRouteState = backgroundLocation ? { backgroundLocation } : undefined;
 
+  // Keep form state in sync and clear field-level errors as the user fixes them.
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -38,6 +41,7 @@ const LoginPage = () => {
     });
   };
 
+  // Validate required fields before calling the auth flow.
   const handleSubmit = async (e) => {
     e.preventDefault();
     const nextErrors = {};
@@ -50,6 +54,7 @@ const LoginPage = () => {
       return;
     }
 
+    // Route users to the correct area based on role after login.
     const result = await login(formData);
     if (result.success) {
       const role = result.data?.user?.role;

@@ -1,5 +1,6 @@
 import React from 'react';
 
+// Support card for this module.
 const Card = ({ className = '', children }) => (
   <div className={`rounded-[24px] border border-slate-200 bg-white shadow-sm shadow-slate-200/50 ${className}`}>{children}</div>
 );
