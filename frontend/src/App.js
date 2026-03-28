@@ -65,8 +65,8 @@ import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
 
 import AdminUsersPage from './pages/AdminUsersPage';
-
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
+import StatisticsPage from './pages/StatisticsPage';
 
 import { getPreferredStartPath } from './utils/navigationPreferences';
 
@@ -151,6 +151,15 @@ const AppRoutes = () => {
           <Route path="teams" element={<TeamsPage />} />
 
           <Route path="match-history" element={<MatchHistoryIndexPage />} />
+
+          <Route
+            path="statistics"
+            element={
+              <ProtectedRoute allowedRoles={['captain', 'field_owner', 'admin']} redirectTo="/app/dashboard">
+                <StatisticsPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
 

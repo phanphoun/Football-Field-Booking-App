@@ -1,4 +1,4 @@
-const { Booking, Field } = require('../models');
+const { Booking, Field, MatchResult, Team, User } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 
 // ========================================
@@ -83,6 +83,23 @@ const calculateCompletionRate = (statusCounts) => {
   return Number(((completedBookings / totalBookings) * 100).toFixed(2));
 };
 
+const formatMonthKey = (date) => {
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return null;
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const formatMonthLabel = (date) =>
+  new Date(date).toLocaleString('en-US', {
+    month: 'short'
+  });
+
+const toDisplayName = (user) => {
+  if (!user) return 'Unknown Player';
+  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  return fullName || user.username || user.email || 'Unknown Player';
+};
+
 // ========================================
 // MAIN CONTROLLER FUNCTIONS
 // ========================================
@@ -107,7 +124,8 @@ const getAnalyticsOverview = asyncHandler(async (req, res) => {
       dailyRows,         // Daily booking trends
       revenueRows,       // Daily revenue trends
       peakHourRows,     // Peak booking hours
-      fieldRows         // Field performance metrics
+      fieldRows,        // Field performance metrics
+      matchRows         // Completed match results
     ] = await Promise.all([
       // Bookings grouped by status
       Booking.findAll({
@@ -167,6 +185,46 @@ const getAnalyticsOverview = asyncHandler(async (req, res) => {
         group: ['fieldId', 'field.id', 'field.name', 'field.city', 'field.province'],
         order: [[literal('bookingCount'), 'DESC']],
         limit: 10
+      }),
+
+      MatchResult.findAll({
+        where: { matchStatus: 'completed' },
+        include: [
+          {
+            model: Booking,
+            as: 'booking',
+            attributes: ['id', 'startTime', 'fieldId'],
+            where: dateWhere,
+            required: true,
+            include: [
+              {
+                model: Field,
+                as: 'field',
+                attributes: ['id', 'name', 'city', 'province'],
+                required: false
+              }
+            ]
+          },
+          {
+            model: Team,
+            as: 'homeTeam',
+            attributes: ['id', 'name', 'logoUrl'],
+            required: false
+          },
+          {
+            model: Team,
+            as: 'awayTeam',
+            attributes: ['id', 'name', 'logoUrl'],
+            required: false
+          },
+          {
+            model: User,
+            as: 'mvpPlayer',
+            attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+            required: false
+          }
+        ],
+        order: [[{ model: Booking, as: 'booking' }, 'startTime', 'ASC']]
       })
     ]);
 
@@ -175,6 +233,131 @@ const getAnalyticsOverview = asyncHandler(async (req, res) => {
     const totalBookings = Object.values(bookingsByStatus).reduce((sum, count) => sum + Number(count || 0), 0);
     const totalRevenue = revenueRows.reduce((sum, item) => sum + Number(item.revenue || 0), 0);
     const completionRate = calculateCompletionRate(bookingsByStatus);
+    const safeMatchRows = matchRows.map((row) => (row.toJSON ? row.toJSON() : row));
+
+    const teamMap = new Map();
+    const monthlyTrendMap = new Map();
+    const scorerMap = new Map();
+
+    for (const match of safeMatchRows) {
+      const bookingDate = match.booking?.startTime || match.recordedAt || match.createdAt;
+      const monthKey = formatMonthKey(bookingDate);
+
+      if (monthKey) {
+        const current = monthlyTrendMap.get(monthKey) || {
+          monthKey,
+          monthLabel: formatMonthLabel(bookingDate),
+          matches: 0,
+          goals: 0
+        };
+        current.matches += 1;
+        current.goals += Number(match.homeScore || 0) + Number(match.awayScore || 0);
+        monthlyTrendMap.set(monthKey, current);
+      }
+
+      const upsertTeam = (team, goalsFor, goalsAgainst) => {
+        if (!team?.id) return;
+        const existing = teamMap.get(team.id) || {
+          teamId: team.id,
+          teamName: team.name || 'Unknown Team',
+          teamLogoUrl: team.logoUrl || null,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          goalsFor: 0,
+          goalsAgainst: 0,
+          played: 0,
+          points: 0
+        };
+
+        existing.played += 1;
+        existing.goalsFor += goalsFor;
+        existing.goalsAgainst += goalsAgainst;
+
+        if (goalsFor > goalsAgainst) {
+          existing.wins += 1;
+          existing.points += 3;
+        } else if (goalsFor < goalsAgainst) {
+          existing.losses += 1;
+        } else {
+          existing.draws += 1;
+          existing.points += 1;
+        }
+
+        teamMap.set(team.id, existing);
+      };
+
+      upsertTeam(match.homeTeam, Number(match.homeScore || 0), Number(match.awayScore || 0));
+      upsertTeam(match.awayTeam, Number(match.awayScore || 0), Number(match.homeScore || 0));
+
+      if (match.mvpPlayer?.id) {
+        const existingPlayer = scorerMap.get(match.mvpPlayer.id) || {
+          playerId: match.mvpPlayer.id,
+          name: toDisplayName(match.mvpPlayer),
+          username: match.mvpPlayer.username || null,
+          teamName: null,
+          goals: 0,
+          metricLabel: 'MVP Awards'
+        };
+
+        existingPlayer.goals += 1;
+        if (!existingPlayer.teamName) {
+          if (Number(match.homeTeam?.captainId) === Number(match.mvpPlayer.id)) {
+            existingPlayer.teamName = match.homeTeam?.name || null;
+          } else if (Number(match.awayTeam?.captainId) === Number(match.mvpPlayer.id)) {
+            existingPlayer.teamName = match.awayTeam?.name || null;
+          } else {
+            existingPlayer.teamName = match.homeTeam?.name || match.awayTeam?.name || null;
+          }
+        }
+        scorerMap.set(match.mvpPlayer.id, existingPlayer);
+      }
+    }
+
+    const monthlyMatchTrends = Array.from(monthlyTrendMap.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+    const teamPerformance = Array.from(teamMap.values())
+      .map((team) => ({
+        ...team,
+        goalDifference: team.goalsFor - team.goalsAgainst
+      }))
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return b.goalsFor - a.goalsFor;
+      })
+      .slice(0, 5);
+
+    const topScorers = Array.from(scorerMap.values())
+      .sort((a, b) => {
+        if (b.goals !== a.goals) return b.goals - a.goals;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 5);
+
+    const totalMatches = safeMatchRows.length;
+    const totalGoals = safeMatchRows.reduce(
+      (sum, match) => sum + Number(match.homeScore || 0) + Number(match.awayScore || 0),
+      0
+    );
+    const activeTeams = teamMap.size;
+    const averageGoalsPerMatch = totalMatches > 0 ? Number((totalGoals / totalMatches).toFixed(2)) : 0;
+    const utilizationRate = totalBookings > 0
+      ? Number((((bookingsByStatus.confirmed || 0) + (bookingsByStatus.completed || 0)) / totalBookings * 100).toFixed(1))
+      : 0;
+
+    const midpoint = Math.ceil(bookingsTrendLengthOrOne(dailyRows) / 2);
+    const firstHalfCount = dailyRows
+      .slice(0, midpoint)
+      .reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const secondHalfCount = dailyRows
+      .slice(midpoint)
+      .reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const bookingGrowthRate = firstHalfCount > 0
+      ? Number((((secondHalfCount - firstHalfCount) / firstHalfCount) * 100).toFixed(1))
+      : secondHalfCount > 0
+        ? 100
+        : 0;
 
     // Format response data for frontend consumption
     const responseData = {
@@ -184,7 +367,13 @@ const getAnalyticsOverview = asyncHandler(async (req, res) => {
       summary: {
         totalBookings,
         totalRevenue,
-        completionRate
+        completionRate,
+        totalMatches,
+        totalGoals,
+        averageGoalsPerMatch,
+        activeTeams,
+        utilizationRate,
+        bookingGrowthRate
       },
       bookingsByStatus,
       bookingsTrend: dailyRows.map((row) => ({ 
@@ -199,6 +388,9 @@ const getAnalyticsOverview = asyncHandler(async (req, res) => {
         hour: Number(row.hour), 
         count: Number(row.count || 0) 
       })),
+      monthlyMatchTrends,
+      teamPerformance,
+      topScorers,
       fieldPerformance: fieldRows.map((row) => {
         const fieldData = row.toJSON ? row.toJSON() : row;
         return {
@@ -224,6 +416,10 @@ const getAnalyticsOverview = asyncHandler(async (req, res) => {
     });
   }
 });
+
+function bookingsTrendLengthOrOne(rows) {
+  return Math.max(Array.isArray(rows) ? rows.length : 0, 1);
+}
 
 /**
  * GET /api/analytics/csv

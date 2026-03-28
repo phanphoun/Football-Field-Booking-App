@@ -71,7 +71,8 @@
 }
 
 .animate-fade-in {
-  animation: fade-in 0.8s ease-out;
+  animation: fade-in 0.8s ease-out forwards;
+  opacity: 0;
 }
 
 .animate-slide-up {

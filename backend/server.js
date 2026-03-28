@@ -25,6 +25,7 @@ const matchResultRoutes = require('./src/routes/matchResultRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
 const ratingRoutes = require('./src/routes/ratingRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
+const analyticsRoutes = require('./src/routes/analyticsRoutes');
 const realtimeRoutes = require('./src/routes/realtimeRoutes');
 const ownerMvpRoutes = require('./src/routes/ownerMvpRoutes');
 
@@ -292,6 +293,7 @@ app.use('/api/match-results', matchResultRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/realtime', realtimeRoutes);
 app.use('/api/owner-mvp', ownerMvpRoutes);
 

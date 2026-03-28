@@ -44,3 +44,20 @@ code {
     opacity: 1;
   }
 }
+
+/* Fade-in animation for statistics page */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+    opacity: 0;
+  }
+}

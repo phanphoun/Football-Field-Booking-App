@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "bakong-khqr": "^1.0.20"
+    "bakong-khqr": "^1.0.20",
+    "lucide-react": "^1.7.0",
+    "motion": "^12.38.0",
+    "recharts": "^3.8.1"
   }
 }

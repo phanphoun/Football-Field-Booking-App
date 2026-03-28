@@ -7,6 +7,7 @@ import {
   BuildingOfficeIcon, 
   UsersIcon, 
   CalendarIcon, 
+  ChartBarIcon,
   UserCircleIcon,
   Cog6ToothIcon,
   BellAlertIcon,
@@ -98,6 +99,12 @@ const AppLayout = () => {
       current: location.pathname.startsWith('/app/league')
     },
     {
+      name: 'Statistics',
+      href: '/app/statistics',
+      icon: ChartBarIcon,
+      current: location.pathname.startsWith('/app/statistics')
+    },
+    {
       name: 'Teams',
       href: '/app/teams',
       icon: UsersIcon,
@@ -153,6 +160,7 @@ const AppLayout = () => {
       { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
       { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
       { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
+      { match: '/app/statistics', title: 'Statistics', subtitle: 'Real-time usage and booking analytics' },
       { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
       { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
     ];
