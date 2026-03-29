@@ -20,6 +20,8 @@ const resolveAvatarUrl = (user) => {
   return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
 };
 
+const resolvePaymentProofUrl = (request) => buildAssetUrl(request?.paymentScreenshotUrl, null);
+
 const AdminRoleRequestsPage = () => {
   const { version } = useRealtime();
   const [requests, setRequests] = useState([]);
@@ -83,16 +85,16 @@ const AdminRoleRequestsPage = () => {
 
   const handleReview = async (requestId, action) => {
     const confirmed = await confirm(t('admin_role_requests_confirm', 'Are you sure you want to {{action}} this request?', {
-      action: action === 'approve' ? t('admin_role_requests_approve', 'approve') : t('admin_role_requests_reject', 'reject')
+      action: action === 'approve' ? 'verify this payment and approve' : 'mark this payment as failed'
     }), {
-      title: action === 'approve' ? t('admin_role_requests_approve_title', 'Approve Request') : t('admin_role_requests_reject_title', 'Reject Request')
+      title: action === 'approve' ? 'Verify Payment' : 'Reject Payment'
     });
     if (!confirmed) return;
 
     try {
       setSubmittingId(requestId);
       await authService.reviewRoleRequest(requestId, action);
-      setFlash({ type: 'success', message: action === 'approve' ? t('admin_role_requests_request_approved', 'Request approved.') : t('admin_role_requests_request_rejected', 'Request rejected.') });
+      setFlash({ type: 'success', message: action === 'approve' ? 'Payment verified and role approved.' : 'Payment failed and request rejected.' });
       await loadRequests();
     } catch (error) {
       setFlash({ type: 'error', message: error.error || t('admin_role_requests_review_failed', 'Failed to review request.') });
@@ -221,7 +223,22 @@ const AdminRoleRequestsPage = () => {
                           {t('admin_role_requests_upgrade_fee', 'Upgrade fee')}: <span className="font-semibold">${Number(request.feeAmountUsd || 0).toFixed(0)}</span>
                           {' '}| {t('admin_role_requests_payment', 'Payment')}: <span className="font-semibold capitalize">{request.paymentStatus || t('admin_role_requests_paid', 'paid')}</span>
                         </p>
-                        {request.note && <p className="text-sm text-gray-600">{t('admin_role_requests_note', 'Note')}: {request.note}</p>}
+                        {request.paymentAccountName && (
+                          <p className="text-sm text-gray-600">
+                            Payer: <span className="font-semibold text-gray-900">{request.paymentAccountName}</span>
+                            {request.paymentPhone ? ` | ${request.paymentPhone}` : ''}
+                          </p>
+                        )}
+                        {request.paymentReference && (
+                          <p className="text-sm text-gray-600">
+                            Reference details: <span className="font-semibold text-gray-900">{request.paymentReference}</span>
+                          </p>
+                        )}
+                        {request.note && (
+                          <p className="whitespace-pre-line text-sm text-gray-600">
+                            {t('admin_role_requests_note', 'Note')}: {request.note}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-500">{t('admin_role_requests_submitted', 'Submitted')}: {new Date(request.createdAt).toLocaleString()}</p>
                         {reviewer && request.reviewedAt && (
                           <p className="text-xs text-gray-500">{t('admin_role_requests_reviewed_by', 'Reviewed by {{user}} at {{date}}', { user: reviewer.username, date: new Date(request.reviewedAt).toLocaleString() })}</p>
@@ -235,6 +252,21 @@ const AdminRoleRequestsPage = () => {
                       {request.status === 'pending' ? t('common_pending', 'Pending') : request.status === 'approved' ? t('admin_role_requests_approved', 'Approved') : t('admin_role_requests_rejected', 'Rejected')}
                     </span>
 
+                    {request.paymentScreenshotUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewImage({
+                            url: resolvePaymentProofUrl(request),
+                            title: `${displayName} payment proof`
+                          })
+                        }
+                        className="inline-flex w-fit text-sm font-semibold text-emerald-700 underline underline-offset-4"
+                      >
+                        View payment screenshot
+                      </button>
+                    )}
+
                     {request.status === 'pending' && (
                       <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
                         <button
@@ -243,7 +275,7 @@ const AdminRoleRequestsPage = () => {
                           onClick={() => handleReview(request.id, 'approve')}
                           className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                         >
-                          {isSubmitting ? t('admin_role_requests_processing', 'Processing...') : t('action_confirm', 'Approve')}
+                          {isSubmitting ? t('admin_role_requests_processing', 'Processing...') : 'Approve Payment'}
                         </button>
                         <button
                           type="button"
@@ -251,7 +283,7 @@ const AdminRoleRequestsPage = () => {
                           onClick={() => handleReview(request.id, 'reject')}
                           className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                         >
-                          {isSubmitting ? t('admin_role_requests_processing', 'Processing...') : t('teams_decline', 'Reject')}
+                          {isSubmitting ? t('admin_role_requests_processing', 'Processing...') : 'Reject Payment'}
                         </button>
                       </div>
                     )}

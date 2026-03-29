@@ -208,6 +208,15 @@ const applyLegacySchemaFixes = async (sequelize) => {
   if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentReference', 'VARCHAR(255) NULL')) {
     changes.push('role_requests.paymentReference');
   }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentAccountName', 'VARCHAR(255) NULL')) {
+    changes.push('role_requests.paymentAccountName');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentPhone', 'VARCHAR(50) NULL')) {
+    changes.push('role_requests.paymentPhone');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentScreenshotUrl', 'VARCHAR(255) NULL')) {
+    changes.push('role_requests.paymentScreenshotUrl');
+  }
   if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentPaidAt', 'DATETIME NULL')) {
     changes.push('role_requests.paymentPaidAt');
   }

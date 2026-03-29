@@ -11,6 +11,7 @@ import {
   Cog6ToothIcon,
   BellAlertIcon,
   ClipboardDocumentCheckIcon,
+  ChatBubbleLeftRightIcon,
   EyeIcon,
   InboxIcon,
   Bars3Icon,
@@ -102,6 +103,12 @@ const OwnerLayout = () => {
       href: '/owner/bookings',
       icon: CalendarIcon,
       current: location.pathname.startsWith('/owner/bookings')
+    },
+    {
+      name: t('nav_chat', 'Chat'),
+      href: '/owner/chat',
+      icon: ChatBubbleLeftRightIcon,
+      current: location.pathname.startsWith('/owner/chat')
     },
     {
       name: t('nav_matches', 'Matches'),

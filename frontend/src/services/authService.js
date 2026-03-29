@@ -104,12 +104,28 @@ const authService = {
   },
 
   // Submit a role upgrade request
-  requestRoleUpgrade: async (requestedRole, note = '', paymentReference = '') => {
-    return apiService.post('/auth/role-requests', {
-      requestedRole,
-      note,
-      paymentAcknowledged: true,
-      paymentReference
+  requestRoleUpgrade: async ({
+    requestedRole,
+    note = '',
+    paymentReference = '',
+    paymentAccountName = '',
+    paymentPhone = '',
+    paymentProof = null
+  }) => {
+    const formData = new FormData();
+    formData.append('requestedRole', requestedRole);
+    formData.append('note', note);
+    formData.append('paymentAcknowledged', 'true');
+    formData.append('paymentReference', paymentReference);
+    formData.append('paymentAccountName', paymentAccountName);
+    formData.append('paymentPhone', paymentPhone);
+
+    if (paymentProof) {
+      formData.append('paymentProof', paymentProof);
+    }
+
+    return apiService.upload('/auth/role-requests', formData, {
+      timeout: 30000
     });
   },
 

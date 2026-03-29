@@ -62,37 +62,6 @@ const sanitizeUsernamePart = (value = '') =>
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 20);
 
-const toNameTokens = (value = '') =>
-  String(value)
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .split(/[^a-zA-Z0-9]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-const formatFallbackName = (value = '') =>
-  String(value)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-    .slice(0, 50);
-
-const resolveRegistrationNames = ({ username, email, firstName, lastName }) => {
-  const normalizedFirstName = String(firstName || '').trim();
-  const normalizedLastName = String(lastName || '').trim();
-  const sourceValue = String(username || '').trim() || String(email || '').split('@')[0];
-  const nameTokens = toNameTokens(sourceValue);
-  const letterTokens = nameTokens.filter((part) => /[A-Za-z]/.test(part));
-  const fallbackFirstName = formatFallbackName(letterTokens[0] || 'Player');
-  const fallbackLastName = formatFallbackName(letterTokens.slice(1).join(' ') || 'User');
-
-  return {
-    firstName: (normalizedFirstName || fallbackFirstName).slice(0, 50),
-    lastName: (normalizedLastName || fallbackLastName).slice(0, 50)
-  };
-};
-
 const buildUniqueGoogleUsername = async ({ email, firstName, lastName }) => {
   const emailPrefix = sanitizeUsernamePart(String(email || '').split('@')[0]);
   const firstPart = sanitizeUsernamePart(firstName);
@@ -158,6 +127,9 @@ const serializeRoleRequest = (roleRequest) => ({
   feeAmountUsd: Number(roleRequest.feeAmountUsd || 0),
   paymentStatus: roleRequest.paymentStatus || 'paid',
   paymentReference: roleRequest.paymentReference || '',
+  paymentAccountName: roleRequest.paymentAccountName || '',
+  paymentPhone: roleRequest.paymentPhone || '',
+  paymentScreenshotUrl: roleRequest.paymentScreenshotUrl || '',
   paymentPaidAt: roleRequest.paymentPaidAt,
   note: roleRequest.note || '',
   reviewedBy: roleRequest.reviewedBy,
@@ -166,18 +138,54 @@ const serializeRoleRequest = (roleRequest) => ({
   updatedAt: roleRequest.updatedAt
 });
 
+const buildUploadedAssetPath = (filePath = '') => {
+  const uploadRoot = path.join(process.cwd(), serverConfig.upload.destination || 'uploads');
+  const relativePath = path.relative(uploadRoot, filePath || '');
+  if (!relativePath || relativePath.startsWith('..')) {
+    return '';
+  }
+
+  return `/uploads/${relativePath.replace(/\\/g, '/')}`;
+};
+
+const resolveUploadedAssetAbsolutePath = (assetPath = '') => {
+  const normalizedAssetPath = String(assetPath || '').trim();
+  if (!normalizedAssetPath.startsWith('/uploads/')) {
+    return '';
+  }
+
+  const relativePath = normalizedAssetPath.replace(/^\/uploads\//, '').replace(/\//g, path.sep);
+  return path.join(process.cwd(), serverConfig.upload.destination || 'uploads', relativePath);
+};
+
+const cleanupUploadedFile = (filePath = '') => {
+  if (!filePath) return;
+
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (cleanupError) {
+    console.error('Failed to clean up uploaded file:', cleanupError);
+  }
+};
+
+const cleanupRoleRequestPaymentProof = (roleRequest) => {
+  const absolutePath = resolveUploadedAssetAbsolutePath(roleRequest?.paymentScreenshotUrl);
+  cleanupUploadedFile(absolutePath);
+};
+
 const getAllowedRequestedRoles = (currentRole) => REQUESTABLE_ROLES_BY_USER_ROLE[currentRole] || [];
 
 const register = async (req, res) => {
   try {
     console.log('Registration request body:', req.body);
     const { username, email, password, firstName, lastName, phone, role } = req.body;
-    const resolvedNames = resolveRegistrationNames({ username, email, firstName, lastName });
     
     // Enhanced validation
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !firstName || !lastName) {
       return res.status(400).json({ 
-        error: 'Please provide all required fields: username, email, password.'
+        error: 'Please provide all required fields: username, email, password, firstName, lastName.' 
       });
     }
 
@@ -188,14 +196,8 @@ const register = async (req, res) => {
     }
 
     // Password strength validation
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
-    }
-
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      return res.status(400).json({
-        error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number.'
-      });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     // Username validation
@@ -219,8 +221,8 @@ const register = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      firstName: resolvedNames.firstName,
-      lastName: resolvedNames.lastName,
+      firstName,
+      lastName,
       phone: phone || null,
       role: role || 'player'
     });
@@ -1080,17 +1082,26 @@ const getRoleRequests = async (req, res) => {
 
 const requestRoleUpgrade = async (req, res) => {
   try {
-    const { requestedRole, note, paymentAcknowledged, paymentReference } = req.body;
+    const {
+      requestedRole,
+      note,
+      paymentAcknowledged,
+      paymentReference,
+      paymentAccountName,
+      paymentPhone
+    } = req.body;
     const user = await User.findByPk(req.user.id, {
       attributes: ['id', 'email', 'username', 'firstName', 'lastName', 'role']
     });
 
     if (!user) {
+      cleanupUploadedFile(req.file?.path);
       return res.status(404).json({ error: 'User not found.' });
     }
 
     const allowedRoles = getAllowedRequestedRoles(user.role);
     if (!allowedRoles.includes(requestedRole)) {
+      cleanupUploadedFile(req.file?.path);
       return res.status(400).json({
         error: 'Your current account cannot request that role.'
       });
@@ -1098,12 +1109,20 @@ const requestRoleUpgrade = async (req, res) => {
 
     const upgradePlan = getRoleUpgradeConfig(requestedRole);
     if (!upgradePlan) {
+      cleanupUploadedFile(req.file?.path);
       return res.status(400).json({ error: 'Upgrade plan is not available.' });
     }
 
-    if (!paymentAcknowledged) {
+    if (paymentAcknowledged !== true && paymentAcknowledged !== 'true') {
+      cleanupUploadedFile(req.file?.path);
       return res.status(400).json({
         error: `Payment confirmation is required before requesting ${ROLE_REQUEST_LABELS[requestedRole]} access.`
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Please upload your payment screenshot before submitting the upgrade request.'
       });
     }
 
@@ -1115,6 +1134,7 @@ const requestRoleUpgrade = async (req, res) => {
     });
 
     if (existingPendingRequest) {
+      cleanupUploadedFile(req.file?.path);
       return res.status(400).json({
         error: `You already have a pending request to become a ${ROLE_REQUEST_LABELS[existingPendingRequest.requestedRole]}.`
       });
@@ -1126,6 +1146,9 @@ const requestRoleUpgrade = async (req, res) => {
       feeAmountUsd: upgradePlan.feeUsd,
       paymentStatus: 'paid',
       paymentReference: paymentReference?.trim() || `ROLE-${requestedRole.toUpperCase()}-${Date.now()}`,
+      paymentAccountName: paymentAccountName?.trim() || null,
+      paymentPhone: paymentPhone?.trim() || null,
+      paymentScreenshotUrl: buildUploadedAssetPath(req.file.path),
       paymentPaidAt: new Date(),
       note: note?.trim() || null
     });
@@ -1145,7 +1168,7 @@ const requestRoleUpgrade = async (req, res) => {
             userId: admin.id,
             type: 'system',
             title: `${requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request`,
-            message: `${requesterName} requested ${ROLE_REQUEST_LABELS[requestedRole]} access after paying $${upgradePlan.feeUsd}.`,
+            message: `${requesterName} submitted ${ROLE_REQUEST_LABELS[requestedRole]} payment proof for $${upgradePlan.feeUsd}.`,
             metadata: {
               event: 'role_request',
               requestId: roleRequest.id,
@@ -1153,6 +1176,7 @@ const requestRoleUpgrade = async (req, res) => {
               requestedRole,
               feeAmountUsd: upgradePlan.feeUsd,
               paymentStatus: 'paid',
+              paymentScreenshotUrl: roleRequest.paymentScreenshotUrl,
               status: 'pending'
             }
           })
@@ -1161,10 +1185,11 @@ const requestRoleUpgrade = async (req, res) => {
     }
 
     res.status(201).json({
-      message: `Your ${ROLE_REQUEST_LABELS[requestedRole]} request has been submitted with a $${upgradePlan.feeUsd} upgrade fee.`,
+      message: `Your payment proof for ${ROLE_REQUEST_LABELS[requestedRole]} access has been submitted. Admins will verify it now.`,
       roleRequest: serializeRoleRequest(roleRequest)
     });
   } catch (error) {
+    cleanupUploadedFile(req.file?.path);
     console.error('Request role upgrade error:', error);
     res.status(500).json({ error: 'Internal server error while submitting role request.' });
   }
@@ -1204,6 +1229,7 @@ const cancelRoleRequest = async (req, res) => {
     const requestedRole = roleRequest.requestedRole;
 
     await roleRequest.destroy();
+    cleanupRoleRequestPaymentProof(roleRequest);
 
     const admins = await User.findAll({
       where: { role: 'admin', status: 'active' },
@@ -1325,10 +1351,10 @@ const reviewRoleRequest = async (req, res) => {
       await createInAppNotification({
         userId: roleRequest.requester.id,
         type: 'system',
-        title: `${roleRequest.requestedRole === 'captain' ? 'Captain' : 'Field owner'} role request ${isApproved ? 'approved' : 'rejected'}`,
+        title: `${roleRequest.requestedRole === 'captain' ? 'Captain' : 'Field owner'} payment ${isApproved ? 'verified' : 'failed'}`,
         message: isApproved
-          ? `Your request for ${ROLE_REQUEST_LABELS[roleRequest.requestedRole]} access was approved.`
-          : `Your request for ${ROLE_REQUEST_LABELS[roleRequest.requestedRole]} access was rejected.`,
+          ? `Your payment was verified. You are now becoming a ${ROLE_REQUEST_LABELS[roleRequest.requestedRole]}.`
+          : `Your payment verification failed for ${ROLE_REQUEST_LABELS[roleRequest.requestedRole]} access.`,
         metadata: {
           event: 'role_request_reviewed',
           requestId: roleRequest.id,
@@ -1339,7 +1365,9 @@ const reviewRoleRequest = async (req, res) => {
     }
 
     res.json({
-      message: `Role request ${isApproved ? 'approved' : 'rejected'} successfully.`,
+      message: isApproved
+        ? 'Payment verified and role upgrade approved successfully.'
+        : 'Payment verification failed and the role request was rejected.',
       roleRequest: serializeRoleRequest(roleRequest)
     });
   } catch (error) {

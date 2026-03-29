@@ -18,6 +18,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   TrophyIcon,
+  BanknotesIcon,
+  ChatBubbleLeftRightIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon
 } from '@heroicons/react/24/outline';
@@ -108,6 +110,12 @@ const AppLayout = () => {
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
     },
+    {
+      name: t('nav_chat', 'Chat'),
+      href: '/app/chat',
+      icon: ChatBubbleLeftRightIcon,
+      current: location.pathname.startsWith('/app/chat')
+    },
     ...(['player', 'captain', 'field_owner'].includes(user?.role)
       ? [
           {
@@ -131,6 +139,12 @@ const AppLayout = () => {
             href: '/app/admin/role-requests',
             icon: ClipboardDocumentCheckIcon,
             current: location.pathname.startsWith('/app/admin/role-requests')
+          },
+          {
+            name: t('nav_payments', 'Payments'),
+            href: '/app/admin/payments',
+            icon: BanknotesIcon,
+            current: location.pathname.startsWith('/app/admin/payments')
           }
         ]
       : []),
@@ -153,12 +167,15 @@ const AppLayout = () => {
       { match: '/app/fields', title: t('nav_fields', 'Fields'), subtitle: t('page_fields_subtitle', 'Browse and discover available football fields') },
       { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
       { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
+      { match: '/app/chat', title: t('nav_chat', 'Chat'), subtitle: t('page_chat_subtitle', 'Talk directly with users across the platform') },
       { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
       { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
       { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
       { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
       { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
       { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
+      { match: '/app/admin/role-requests', title: t('nav_role_requests', 'Role Requests'), subtitle: 'Review captain and field owner access requests' },
+      { match: '/app/admin/payments', title: t('nav_payments', 'Payments'), subtitle: 'Review payment proofs and track upgrade revenue' },
       { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));

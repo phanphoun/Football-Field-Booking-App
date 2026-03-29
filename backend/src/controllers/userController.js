@@ -10,6 +10,8 @@ const {
   MatchResult,
   Rating,
   RoleRequest,
+  ChatConversation,
+  ChatMessage,
   sequelize
 } = require('../models');
 const bcrypt = require('bcryptjs');
@@ -244,6 +246,20 @@ const deleteUser = asyncHandler(async (req, res) => {
 
       await Notification.destroy({
         where: { userId: user.id },
+        transaction
+      });
+
+      await ChatMessage.destroy({
+        where: {
+          [Op.or]: [{ senderId: user.id }, { recipientId: user.id }]
+        },
+        transaction
+      });
+
+      await ChatConversation.destroy({
+        where: {
+          [Op.or]: [{ userOneId: user.id }, { userTwoId: user.id }, { createdBy: user.id }]
+        },
         transaction
       });
 

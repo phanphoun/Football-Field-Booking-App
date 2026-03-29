@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useRealtime } from '../context/RealtimeContext';
 import { useLanguage } from '../context/LanguageContext';
 import userService from '../services/userService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog, useToast } from '../components/ui';
-import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { buildAssetUrl } from '../config/appConfig';
 import { formatRoleLabel } from '../utils/formatters';
 
@@ -96,6 +97,7 @@ const AdminUsersPage = () => {
   const { showToast } = useToast();
   const { t } = useLanguage();
   const actionMenuRef = useRef(null);
+  const navigate = useNavigate();
 
   const loadUsers = useCallback(async () => {
     try {
@@ -325,6 +327,12 @@ const AdminUsersPage = () => {
     }
   };
 
+  const openChatForUser = (targetUserId) => {
+    if (!targetUserId) return;
+    setOpenMenuUserId(null);
+    navigate(`/app/chat?user=${targetUserId}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-indigo-50/70 p-6 shadow-sm">
@@ -525,6 +533,17 @@ const AdminUsersPage = () => {
 
                         {openMenuUserId === user.id && (
                           <div className="absolute right-0 top-12 z-20 w-40 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-200/70">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openChatForUser(user.id);
+                              }}
+                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <ChatBubbleLeftRightIcon className="h-4 w-4 text-emerald-600" />
+                              Chat
+                            </button>
                             <button
                               type="button"
                               onClick={(event) => {
@@ -747,6 +766,14 @@ const AdminUsersPage = () => {
                 </p>
                 <p className="truncate text-sm text-gray-500">@{viewUser.username}</p>
               </div>
+              <button
+                type="button"
+                onClick={() => openChatForUser(viewUser.id)}
+                className="ml-auto inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+              >
+                <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                Chat
+              </button>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">

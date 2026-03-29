@@ -42,6 +42,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true
       },
+      paymentAccountName: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+      paymentPhone: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+      paymentScreenshotUrl: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
       paymentPaidAt: {
         type: DataTypes.DATE,
         allowNull: true

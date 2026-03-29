@@ -9,6 +9,44 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+const mockUsers = [
+  {
+    id: 1,
+    firstName: 'Test',
+    lastName: 'User',
+    username: 'testuser',
+    email: 'test@example.com',
+    role: 'player',
+    status: 'active',
+    avatarUrl: null
+  },
+  {
+    id: 2,
+    firstName: 'Admin',
+    lastName: 'Support',
+    username: 'admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: null
+  },
+  {
+    id: 3,
+    firstName: 'Dara',
+    lastName: 'Captain',
+    username: 'dara.captain',
+    email: 'captain@example.com',
+    role: 'captain',
+    status: 'active',
+    avatarUrl: null
+  }
+];
+const chatConversations = [];
+const chatMessages = [];
+let chatConversationIdCounter = 1;
+let chatMessageIdCounter = 1;
+let mockUserIdCounter = 4;
+
 // Mock auth routes
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -20,6 +58,84 @@ const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toStri
 const RESET_TTL_MS = 30 * 60 * 1000;
 const resetTokenStore = new Map();
 const generateResetToken = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+const buildMockToken = (userId) => `mock-jwt-token-${Date.now()}-${userId}`;
+const extractTokenUserId = (req) => {
+  const header = String(req.headers.authorization || '');
+  if (!header.startsWith('Bearer ')) return null;
+  const token = header.slice(7).trim();
+  const match = token.match(/-(\d+)$/);
+  const userId = match ? Number(match[1]) : null;
+  return Number.isInteger(userId) && userId > 0 ? userId : null;
+};
+const getCurrentUser = (req) => {
+  const tokenUserId = extractTokenUserId(req);
+  if (tokenUserId) {
+    const user = mockUsers.find((item) => Number(item.id) === tokenUserId);
+    if (user) return user;
+  }
+
+  return mockUsers[0];
+};
+const buildChatUser = (user) => ({
+  id: user.id,
+  username: user.username || '',
+  email: user.email || '',
+  firstName: user.firstName || '',
+  lastName: user.lastName || '',
+  role: user.role || 'player',
+  status: user.status || 'active',
+  avatarUrl: user.avatarUrl || null
+});
+const buildConversationKey = (leftUserId, rightUserId) =>
+  [Number(leftUserId), Number(rightUserId)].sort((a, b) => a - b).join(':');
+const getConversationMessages = (conversationId) =>
+  chatMessages
+    .filter((message) => Number(message.conversationId) === Number(conversationId))
+    .sort((leftMessage, rightMessage) => new Date(leftMessage.createdAt) - new Date(rightMessage.createdAt));
+const getOrCreateConversation = (currentUserId, otherUserId) => {
+  const directKey = buildConversationKey(currentUserId, otherUserId);
+  let conversation = chatConversations.find((item) => item.directKey === directKey);
+
+  if (!conversation) {
+    const [userOneId, userTwoId] = directKey.split(':').map(Number);
+    const timestamp = new Date().toISOString();
+    conversation = {
+      id: chatConversationIdCounter++,
+      directKey,
+      userOneId,
+      userTwoId,
+      createdBy: currentUserId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastMessageAt: null
+    };
+    chatConversations.push(conversation);
+  }
+
+  return conversation;
+};
+const buildConversationSummary = (conversation, currentUserId) => {
+  const otherUserId =
+    Number(conversation.userOneId) === Number(currentUserId)
+      ? Number(conversation.userTwoId)
+      : Number(conversation.userOneId);
+  const otherUser = mockUsers.find((user) => Number(user.id) === otherUserId);
+  const messages = getConversationMessages(conversation.id);
+  const lastMessage = messages[messages.length - 1] || null;
+  const unreadCount = messages.filter(
+    (message) => Number(message.recipientId) === Number(currentUserId) && !message.readAt
+  ).length;
+
+  return {
+    id: conversation.id,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    lastMessageAt: conversation.lastMessageAt || conversation.updatedAt,
+    otherUser: otherUser ? buildChatUser(otherUser) : null,
+    unreadCount,
+    lastMessage
+  };
+};
 
 app.post('/api/auth/register', (req, res) => {
   console.log('Mock registration received:', JSON.stringify(req.body, null, 2));
@@ -37,18 +153,23 @@ app.post('/api/auth/register', (req, res) => {
     
     // Simulate successful registration
     setTimeout(() => {
+      const newUser = {
+        id: mockUserIdCounter++,
+        firstName,
+        lastName,
+        username,
+        email,
+        role: role || 'player',
+        status: 'active',
+        avatarUrl: null
+      };
+      mockUsers.push(newUser);
+
       res.json({
         success: true,
         data: {
-          user: {
-            id: Math.floor(Math.random() * 1000) + 1,
-            firstName,
-            lastName,
-            username,
-            email,
-            role: role || 'player'
-          },
-          token: 'mock-jwt-token-' + Date.now()
+          user: newUser,
+          token: buildMockToken(newUser.id)
         }
       });
     }, 1000); // Simulate network delay
@@ -65,25 +186,26 @@ app.post('/api/auth/login', (req, res) => {
   console.log('Mock login received:', req.body);
   
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
+    const loginIdentifier = username || email;
     
-    if (!username || !password) {
+    if (!loginIdentifier || !password) {
       return res.status(400).json({
         success: false,
         error: 'Username and password are required'
       });
     }
+
+    const user =
+      mockUsers.find(
+        (item) => item.username === loginIdentifier || item.email === loginIdentifier
+      ) || mockUsers[0];
     
     res.json({
       success: true,
       data: {
-        user: {
-          id: 1,
-          username,
-          email: 'test@example.com',
-          role: 'player'
-        },
-        token: 'mock-jwt-token-' + Date.now()
+        user,
+        token: buildMockToken(user.id)
       }
     });
   } catch (error) {
@@ -241,13 +363,164 @@ app.post('/auth/reset-password', (req, res) => {
 });
 
 app.get('/api/auth/profile', (req, res) => {
+  const user = getCurrentUser(req);
+  res.json({
+    success: true,
+    data: user
+  });
+});
+
+app.get('/api/chats/users', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const query = String(req.query.q || '').trim().toLowerCase();
+  const limit = Math.min(Math.max(Number(req.query.limit) || 12, 1), 30);
+
+  const results = mockUsers
+    .filter((user) => Number(user.id) !== Number(currentUser.id))
+    .filter((user) => {
+      if (!query) return true;
+      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase();
+      return (
+        String(user.username || '').toLowerCase().includes(query) ||
+        String(user.email || '').toLowerCase().includes(query) ||
+        fullName.includes(query)
+      );
+    })
+    .slice(0, limit)
+    .map(buildChatUser);
+
+  res.json({ success: true, data: results });
+});
+
+app.get('/api/chats/conversations', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const summaries = chatConversations
+    .filter(
+      (conversation) =>
+        Number(conversation.userOneId) === Number(currentUser.id) ||
+        Number(conversation.userTwoId) === Number(currentUser.id)
+    )
+    .map((conversation) => buildConversationSummary(conversation, currentUser.id))
+    .sort((leftItem, rightItem) => new Date(rightItem.lastMessageAt || 0) - new Date(leftItem.lastMessageAt || 0));
+
+  res.json({ success: true, data: summaries });
+});
+
+app.post('/api/chats/conversations', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const otherUserId = Number(req.body?.userId);
+
+  if (!Number.isInteger(otherUserId) || otherUserId <= 0 || otherUserId === Number(currentUser.id)) {
+    return res.status(400).json({ success: false, error: 'Valid userId is required' });
+  }
+
+  const otherUser = mockUsers.find((user) => Number(user.id) === otherUserId);
+  if (!otherUser) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+
+  const conversation = getOrCreateConversation(currentUser.id, otherUserId);
+  res.json({ success: true, data: buildConversationSummary(conversation, currentUser.id) });
+});
+
+app.get('/api/chats/conversations/:id/messages', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const conversationId = Number(req.params.id);
+  const conversation = chatConversations.find((item) => Number(item.id) === conversationId);
+
+  if (!conversation) {
+    return res.status(404).json({ success: false, error: 'Conversation not found' });
+  }
+
+  const isParticipant =
+    Number(conversation.userOneId) === Number(currentUser.id) ||
+    Number(conversation.userTwoId) === Number(currentUser.id);
+  if (!isParticipant) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  const messages = getConversationMessages(conversationId).map((message) => ({
+    ...message,
+    isOwn: Number(message.senderId) === Number(currentUser.id)
+  }));
+
   res.json({
     success: true,
     data: {
-      id: 1,
-      username: 'testuser',
-      email: 'test@example.com',
-      role: 'player'
+      conversation: buildConversationSummary(conversation, currentUser.id),
+      messages
+    }
+  });
+});
+
+app.post('/api/chats/conversations/:id/read', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const conversationId = Number(req.params.id);
+  const readAt = new Date().toISOString();
+  let updatedCount = 0;
+
+  chatMessages.forEach((message) => {
+    if (
+      Number(message.conversationId) === conversationId &&
+      Number(message.recipientId) === Number(currentUser.id) &&
+      !message.readAt
+    ) {
+      message.readAt = readAt;
+      updatedCount += 1;
+    }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      updatedCount,
+      readAt
+    }
+  });
+});
+
+app.post('/api/chats/conversations/:id/messages', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  const conversationId = Number(req.params.id);
+  const body = String(req.body?.body || '').trim();
+  const conversation = chatConversations.find((item) => Number(item.id) === conversationId);
+
+  if (!conversation) {
+    return res.status(404).json({ success: false, error: 'Conversation not found' });
+  }
+
+  if (!body) {
+    return res.status(400).json({ success: false, error: 'Message text is required' });
+  }
+
+  const recipientId =
+    Number(conversation.userOneId) === Number(currentUser.id)
+      ? Number(conversation.userTwoId)
+      : Number(conversation.userOneId);
+  const timestamp = new Date().toISOString();
+  const message = {
+    id: chatMessageIdCounter++,
+    conversationId,
+    senderId: currentUser.id,
+    recipientId,
+    body,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    readAt: null
+  };
+
+  chatMessages.push(message);
+  conversation.lastMessageAt = timestamp;
+  conversation.updatedAt = timestamp;
+
+  res.status(201).json({
+    success: true,
+    data: {
+      conversation: buildConversationSummary(conversation, currentUser.id),
+      message: {
+        ...message,
+        isOwn: true
+      }
     }
   });
 });

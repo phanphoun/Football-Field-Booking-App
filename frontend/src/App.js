@@ -33,6 +33,9 @@ import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
+import AdminPaymentsPage from './pages/AdminPaymentsPage';
+import ChatPage from './pages/ChatPage';
+import UpgradeRoleHelpPage from './pages/UpgradeRoleHelpPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
 import { DialogProvider, ToastProvider } from './components/ui';
 import { RealtimeProvider } from './context/RealtimeContext';
@@ -61,6 +64,7 @@ const AppRoutes = () => {
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="verify-otp" element={<VerifyOtpPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
+          <Route path="help/upgrade-role" element={<UpgradeRoleHelpPage />} />
         </Route>
 
         <Route
@@ -127,6 +131,7 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
@@ -143,6 +148,14 @@ const AppRoutes = () => {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminRoleRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/payments"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPaymentsPage />
               </ProtectedRoute>
             }
           />
@@ -191,6 +204,7 @@ const AppRoutes = () => {
             }
           />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
