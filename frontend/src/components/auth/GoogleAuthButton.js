@@ -1,7 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
+import authService from '../../services/authService';
 
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
+const EMBEDDED_GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
+const GOOGLE_NOT_CONFIGURED_MESSAGE = 'Google sign-in is not configured yet.';
+
+const resolveGoogleClientId = async () => {
+  if (EMBEDDED_GOOGLE_CLIENT_ID) {
+    return EMBEDDED_GOOGLE_CLIENT_ID;
+  }
+
+  const response = await authService.getGoogleAuthConfig();
+  const clientId = String(response.data?.clientId || '').trim();
+
+  if (response.success && response.data?.enabled && clientId) {
+    return clientId;
+  }
+
+  throw new Error(GOOGLE_NOT_CONFIGURED_MESSAGE);
+};
 
 const loadGoogleScript = () =>
   new Promise((resolve, reject) => {
@@ -40,21 +57,25 @@ const GoogleAuthButton = ({ onCredential, onError, disabled = false, text = 'con
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || !buttonRef.current) {
-      if (!GOOGLE_CLIENT_ID) {
-        setLoadError('Google sign-in is not configured yet.');
-      }
+    if (!buttonRef.current) {
+      return;
+    }
+
+    if (initializedRef.current) {
+      setReady(true);
       return;
     }
 
     let active = true;
+    setLoadError('');
+    setReady(false);
 
-    loadGoogleScript()
-      .then((google) => {
+    Promise.all([resolveGoogleClientId(), loadGoogleScript()])
+      .then(([clientId, google]) => {
         if (!active || !google?.accounts?.id || !buttonRef.current || initializedRef.current) return;
 
         google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
+          client_id: clientId,
           callback: (response) => {
             if (response?.credential) {
               onCredential?.(response.credential);

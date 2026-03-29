@@ -33,7 +33,7 @@ import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { EmptyState, Spinner } from '../components/ui';
+import { EmptyState, ScrollReveal, Spinner } from '../components/ui';
 import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 import { APP_CONFIG } from '../config/appConfig';
 
@@ -42,6 +42,11 @@ const HERO_IMAGES = [
   '/Manchester_City_pitch_invasion.JPG',
   'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg',
   '/Wembley_Stadium_interior.jpg'
+];
+const HERO_SEARCH_OPTIONS = [
+  { value: 'field', labelKey: 'landing_hero_search_fields', fallback: 'Fields' },
+  { value: 'captain', labelKey: 'landing_hero_search_captains', fallback: 'Captains' },
+  { value: 'player', labelKey: 'landing_hero_search_players', fallback: 'Players' }
 ];
 
 const FIELD_FALLBACK_IMAGE =
@@ -389,6 +394,17 @@ const getFieldClosureReopenLabel = (field, t) => {
     })
   });
 };
+const getHeroSearchPlaceholder = (type, t) => {
+  if (type === 'captain') {
+    return t('landing_hero_search_placeholder_captains', 'Search captain name, username, or team');
+  }
+
+  if (type === 'player') {
+    return t('landing_hero_search_placeholder_players', 'Search player name or public team');
+  }
+
+  return t('landing_hero_search_placeholder_fields', 'Search field name, city, or surface');
+};
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
 const LandingPage = () => {
@@ -409,6 +425,8 @@ const LandingPage = () => {
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [heroSearchType, setHeroSearchType] = useState('field');
+  const [heroSearchTerm, setHeroSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchLandingData = async () => {
@@ -870,6 +888,25 @@ const LandingPage = () => {
     });
     navigate(`/fields?${params.toString()}`);
   };
+
+  const handleHeroSearchSubmit = (event) => {
+    event.preventDefault();
+
+    const params = new URLSearchParams({ focus: 'search' });
+    const trimmedSearchTerm = heroSearchTerm.trim();
+
+    if (trimmedSearchTerm) {
+      params.set('q', trimmedSearchTerm);
+    }
+
+    if (heroSearchType === 'field') {
+      navigate(`/fields?${params.toString()}`);
+      return;
+    }
+
+    params.set('type', heroSearchType);
+    navigate(`/teams?${params.toString()}`);
+  };
   return (
     <div className="flex flex-col gap-14 bg-gradient-to-b from-emerald-50/70 via-white to-sky-50/40">
       <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-[640px] overflow-hidden text-white shadow-sm ring-1 ring-black/10">
@@ -907,18 +944,81 @@ const LandingPage = () => {
             <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-emerald-200 backdrop-blur-sm">
                 <SparklesIcon className="h-4 w-4" />
-                {t('landing_hero_badge', 'Fast and easy football booking')}
+                {t('landing_hero_badge', 'One search for players, captains, and fields')}
               </span>
               <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-                {t('landing_hero_title', 'Book the right field before the best time slots are gone.')}
+                {t('landing_hero_title', 'Find your favorite players, captains, and fields.')}
               </h1>
               <p className="mt-5 max-w-3xl text-base leading-8 text-white/85 sm:text-xl">
                 {t(
                   'landing_hero_description',
-                  'Find top-rated fields, compare live schedules, and choose the best time for your team in just a few steps.'
+                  'Search public teams, trusted captains, and available football fields before you book or request to join.'
                 )}
               </p>
+              <div className="mt-8 w-full max-w-3xl">
+                <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+                  {HERO_SEARCH_OPTIONS.map((option) => {
+                    const isActive = heroSearchType === option.value;
 
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setHeroSearchType(option.value)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                          isActive
+                            ? 'bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25'
+                            : 'border border-white/20 bg-white/10 text-white/85 hover:bg-white/20'
+                        }`}
+                      >
+                        {t(option.labelKey, option.fallback)}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <form
+                  onSubmit={handleHeroSearchSubmit}
+                  className="overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl shadow-slate-950/30"
+                >
+                  <div className="flex flex-col sm:flex-row">
+                    <input
+                      type="search"
+                      value={heroSearchTerm}
+                      onChange={(event) => setHeroSearchTerm(event.target.value)}
+                      placeholder={getHeroSearchPlaceholder(heroSearchType, t)}
+                      className="h-16 w-full flex-1 border-0 bg-white px-6 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-lg"
+                    />
+                    <button
+                      type="submit"
+                      className="flex h-16 items-center justify-center gap-2 bg-emerald-500 px-8 text-base font-bold text-white transition hover:bg-emerald-600 sm:min-w-[180px] sm:text-lg"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                      {t('landing_hero_search_button', 'Search')}
+                    </button>
+                  </div>
+                </form>
+
+                <p className="mt-4 text-sm font-medium text-white/80 sm:text-base">
+                  {t('landing_hero_search_hint', 'Start with a quick search, then jump straight to live fields or public teams.')}
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-5 text-sm font-semibold text-white">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/fields')}
+                    className="underline decoration-white/60 underline-offset-4 transition hover:text-emerald-200"
+                  >
+                    {t('landing_hero_browse_fields', 'Browse live fields')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/teams')}
+                    className="underline decoration-white/60 underline-offset-4 transition hover:text-emerald-200"
+                  >
+                    {t('landing_hero_browse_teams', 'Explore teams, captains, and players')}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -964,7 +1064,7 @@ const LandingPage = () => {
       )}
 
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/60 py-14">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <ArrowTrendingUpIcon className="h-4 w-4" />
@@ -1025,11 +1125,11 @@ const LandingPage = () => {
             ))}
           </div>
 
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-emerald-50/40 to-white py-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={40}>
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <TrophyIcon className="h-4 w-4" />
@@ -1129,11 +1229,11 @@ const LandingPage = () => {
             )}
           </div>
 
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-sky-50/50 py-14">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={60}>
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
               <BoltIcon className="h-4 w-4" />
@@ -1277,14 +1377,14 @@ const LandingPage = () => {
               <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">{t('landing_more_count', '24 more')}</span>
             </button>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Live Booking Schedule - Only visible to authenticated users */}
       {isAuthenticated && (
         <>
         <section ref={scheduleSectionRef} className="order-4 p-6 sm:p-8">
-          <div>
+          <ScrollReveal as="div" delay={80}>
             <div className="text-center">
               <h2 className="text-2xl font-bold text-slate-900">{t('landing_schedule_title', 'Live booking schedule')}</h2>
               <p className="mt-2 text-base text-slate-600">
@@ -1495,13 +1595,13 @@ const LandingPage = () => {
             })}
             </div>
           </div>
-        </div>
+        </ScrollReveal>
         </section>
         </>
       )}
 
       <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/40 py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" delay={100}>
           <div className="mb-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
             <BuildingOfficeIcon className="h-4 w-4" />
@@ -1647,11 +1747,11 @@ const LandingPage = () => {
               onAction={() => (window.location.href = '/fields')}
             />
           )}
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-sky-50/40 to-white py-10">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10" delay={120}>
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
             <p className="mt-2 text-gray-600">We make football field booking simple, secure, and convenient.</p>
@@ -1670,32 +1770,34 @@ const LandingPage = () => {
               </div>
             ))}
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-9 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm sm:p-8">
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900">How It Works</h2>
-          <p className="mt-2 text-gray-600">Book your football field in four simple steps.</p>
-        </div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step) => (
-            <div key={step.id} className="rounded-xl border border-green-100 bg-white p-5 text-center transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="mx-auto relative mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-green-300 bg-green-50">
-                <step.icon className="h-7 w-7 text-green-700" />
-                <span className="absolute -right-2 -top-2 rounded-full bg-green-600 px-2 py-0.5 text-xs font-semibold text-white">
-                  {step.id}
-                </span>
+        <ScrollReveal as="div" delay={140}>
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-gray-900">How It Works</h2>
+            <p className="mt-2 text-gray-600">Book your football field in four simple steps.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step) => (
+              <div key={step.id} className="rounded-xl border border-green-100 bg-white p-5 text-center transition hover:-translate-y-1 hover:shadow-lg">
+                <div className="mx-auto relative mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-green-300 bg-green-50">
+                  <step.icon className="h-7 w-7 text-green-700" />
+                  <span className="absolute -right-2 -top-2 rounded-full bg-green-600 px-2 py-0.5 text-xs font-semibold text-white">
+                    {step.id}
+                  </span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">{step.title}</h3>
+                <p className="mt-2 text-base text-gray-600">{step.description}</p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">{step.title}</h3>
-              <p className="mt-2 text-base text-gray-600">{step.description}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={160}>
           <div className="mx-auto mb-14 max-w-3xl text-center">
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">World-Class Facilities</h2>
             <p className="mt-4 text-lg leading-8 text-slate-600">
@@ -1720,14 +1822,14 @@ const LandingPage = () => {
               );
             })}
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       <section
         id="account-upgrade"
         className="order-10 scroll-mt-24 py-6"
       >
-        <div className="mx-auto max-w-5xl text-center">
+        <ScrollReveal as="div" className="mx-auto max-w-5xl text-center" delay={180}>
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
               <BoltIcon className="h-4 w-4" />
@@ -1735,7 +1837,7 @@ const LandingPage = () => {
             </span>
             <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Grow From Player To Organizer Or Venue Owner</h2>
           </div>
-        </div>
+        </ScrollReveal>
 
         <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {upgradePrograms.map((program) => {
@@ -1793,7 +1895,7 @@ const LandingPage = () => {
       </section>
 
       <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/50 py-8">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={200}>
           <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
             <h2 className="text-2xl font-bold text-slate-900">{t('landing_premium_experience_title', 'Premium Experience Guaranteed')}</h2>
             <p className="mx-auto mt-3 max-w-4xl text-base text-slate-600">
@@ -1816,7 +1918,7 @@ const LandingPage = () => {
               ))}
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       <footer className="order-last !mt-0 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-950 text-slate-100">

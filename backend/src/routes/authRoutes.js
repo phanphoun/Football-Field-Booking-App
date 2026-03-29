@@ -13,7 +13,7 @@ router.post('/forgot-password/reset', authController.resetPasswordWithOtp);
 router.post('/forgot-password-link', authController.requestPasswordResetLink);
 router.post('/reset-password', authController.resetPasswordWithToken);
 
-router.post('/register', userValidation.register, authController.register);
+router.post('/register', authValidator.register, authController.register);
 router.post('/login', userValidation.login, authController.login);
 router.get('/google/config', authController.getGoogleAuthConfig);
 router.post('/google', authController.googleAuth);

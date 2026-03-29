@@ -19,16 +19,18 @@ const validateRegister = (req, res, next) => {
     errors.push('Valid email is required');
   }
   
-  if (!password || password.length < 6) {
-    errors.push('Password must be at least 6 characters long');
+  if (!password || password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
+  } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter, one lowercase letter, and one number');
   }
-  
-  if (!firstName || firstName.trim().length < 2) {
-    errors.push('First name must be at least 2 characters long');
+
+  if (firstName && firstName.trim().length > 50) {
+    errors.push('First name must be 50 characters or fewer');
   }
-  
-  if (!lastName || lastName.trim().length < 2) {
-    errors.push('Last name must be at least 2 characters long');
+
+  if (lastName && lastName.trim().length > 50) {
+    errors.push('Last name must be 50 characters or fewer');
   }
   
   // Optional fields validation

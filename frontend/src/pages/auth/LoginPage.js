@@ -95,13 +95,12 @@ const LoginPage = () => {
 
   return (
     <AuthModalShell
-      badgeLabel="Account Access"
       title="Sign In"
-      description="Welcome back. Sign in to continue managing your bookings, teams, and football activity."
+      description=""
       maxWidth={520}
       homeLinkState={authRouteState}
     >
-      <p className="mb-6 text-sm text-slate-600 sm:text-base">
+      <p className="mb-4 text-sm text-slate-600 sm:mb-6 sm:text-base">
         Don&apos;t have an account?{' '}
         <Link to="/register" state={authRouteState} className="font-semibold text-green-700 hover:text-green-800">
           Create one here
@@ -109,7 +108,7 @@ const LoginPage = () => {
       </p>
 
       {error && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mb-6">
           <div className="flex items-center">
             <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
               <path
@@ -126,8 +125,8 @@ const LoginPage = () => {
         </div>
       )}
 
-      <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-        <div className="space-y-3">
+      <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit} noValidate>
+        <div className="space-y-2 sm:space-y-3">
           <GoogleAuthButton
             disabled={loading}
             onCredential={handleGoogleSuccess}
@@ -142,7 +141,7 @@ const LoginPage = () => {
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Email Address
           </label>
           <input
@@ -153,7 +152,7 @@ const LoginPage = () => {
             value={formData.email}
             onChange={handleChange}
             aria-invalid={Boolean(validationErrors.email)}
-            className={`block w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
+            className={`block w-full rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 sm:py-3 ${
               validationErrors.email
                 ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
@@ -165,7 +164,7 @@ const LoginPage = () => {
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Password
           </label>
           <div className="relative">
@@ -177,7 +176,7 @@ const LoginPage = () => {
               value={formData.password}
               onChange={handleChange}
               aria-invalid={Boolean(validationErrors.password)}
-              className={`block w-full rounded-2xl bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
+              className={`block w-full rounded-2xl bg-white px-4 py-2.5 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 sm:py-3 ${
                 validationErrors.password
                   ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                   : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
@@ -197,7 +196,7 @@ const LoginPage = () => {
           )}
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input
               id="remember-me"
@@ -217,7 +216,7 @@ const LoginPage = () => {
           </button>
         </div>
 
-        <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700">
+        <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-2.5 text-base font-semibold text-white hover:bg-green-700 sm:py-3">
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -228,7 +227,7 @@ const LoginPage = () => {
           )}
         </Button>
 
-        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center text-sm text-slate-600">
+        <div className="rounded-2xl bg-slate-50 px-4 py-2.5 text-center text-sm text-slate-600 sm:py-3">
           Want to browse first?{' '}
           <Link to="/" state={authRouteState} className="font-medium text-slate-900 hover:text-slate-700">
             Continue as guest

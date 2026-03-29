@@ -3,6 +3,37 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createInAppNotification } = require('../utils/notify');
 
+const toNameTokens = (value = '') =>
+  String(value)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[^a-zA-Z0-9]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const formatFallbackName = (value = '') =>
+  String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+    .slice(0, 50);
+
+const resolveRegistrationNames = ({ username, email, firstName, lastName }) => {
+  const normalizedFirstName = String(firstName || '').trim();
+  const normalizedLastName = String(lastName || '').trim();
+  const sourceValue = String(username || '').trim() || String(email || '').split('@')[0];
+  const nameTokens = toNameTokens(sourceValue);
+  const letterTokens = nameTokens.filter((part) => /[A-Za-z]/.test(part));
+  const fallbackFirstName = formatFallbackName(letterTokens[0] || 'Player');
+  const fallbackLastName = formatFallbackName(letterTokens.slice(1).join(' ') || 'User');
+
+  return {
+    firstName: (normalizedFirstName || fallbackFirstName).slice(0, 50),
+    lastName: (normalizedLastName || fallbackLastName).slice(0, 50)
+  };
+};
+
 /**
  * Authentication Service
  * Handles all authentication business logic
@@ -13,6 +44,7 @@ class AuthService {
    */
   async register(userData) {
     const { username, email, password, firstName, lastName, phone, role } = userData;
+    const resolvedNames = resolveRegistrationNames({ username, email, firstName, lastName });
     
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -36,8 +68,8 @@ class AuthService {
       username,
       email,
       password: hashedPassword,
-      firstName,
-      lastName,
+      firstName: resolvedNames.firstName,
+      lastName: resolvedNames.lastName,
       phone,
       role,
       isActive: true

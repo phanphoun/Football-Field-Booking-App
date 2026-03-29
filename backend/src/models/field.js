@@ -134,6 +134,11 @@ module.exports = (sequelize, DataTypes) => {
       defaultValue: 'available',
       allowNull: false
     },
+    isArchived: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
     closureMessage: {
       type: DataTypes.TEXT,
       allowNull: true

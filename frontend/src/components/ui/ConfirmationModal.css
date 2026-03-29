@@ -254,25 +254,43 @@ html[data-theme='dark'] .confirmation-modal__button--warning {
 
 @media (max-width: 640px) {
   .confirmation-modal__overlay {
-    padding: 16px;
+    padding: 12px;
   }
 
   .confirmation-modal__card {
-    max-height: calc(100vh - 32px);
+    max-height: min(680px, calc(100vh - 24px));
+    border-radius: 22px;
   }
 
   .confirmation-modal__content {
-    max-height: calc(100vh - 32px);
-    padding: 22px;
+    max-height: min(680px, calc(100vh - 24px));
+    padding: 18px;
   }
 
   .confirmation-modal__close {
-    top: 16px;
-    right: 16px;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
   }
 
   .confirmation-modal__title {
-    font-size: 24px;
+    margin-bottom: 10px;
+    font-size: 22px;
+  }
+
+  .confirmation-modal__badge {
+    margin-bottom: 10px;
+    padding: 5px 12px;
+  }
+
+  .confirmation-modal__message {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .confirmation-modal__body {
+    margin-top: 18px;
   }
 
   .confirmation-modal__actions {

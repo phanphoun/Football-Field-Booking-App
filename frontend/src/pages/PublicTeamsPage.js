@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
-import { UsersIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, EmptyState, ImagePreviewModal, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
@@ -25,6 +25,8 @@ const translateSkillLevel = (value, t) => {
   if (normalized === 'advanced') return t('teams_skill_advanced', 'Advanced');
   return value;
 };
+const normalizeSearchValue = (value) => String(value || '').trim().toLowerCase();
+const buildDisplayName = (person) => `${person?.firstName || ''} ${person?.lastName || ''}`.trim();
 
 const hasPendingJoinRequest = (team, userId) => {
   if (!team || !userId) return false;
@@ -44,6 +46,8 @@ const PublicTeamsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchInputRef = useRef(null);
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,6 +56,8 @@ const PublicTeamsPage = () => {
   const [teamToDelete, setTeamToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchScope, setSearchScope] = useState('all');
   const { showSuccess, showError } = useToast();
   const { t } = useLanguage();
   const isAdmin = user?.role === 'admin';
@@ -83,6 +89,23 @@ const PublicTeamsPage = () => {
 
     fetchTeams();
   }, [t]);
+
+  useEffect(() => {
+    const incomingQuery = searchParams.get('q') || '';
+    const incomingScope = searchParams.get('type');
+    const nextScope = ['captain', 'player'].includes(incomingScope) ? incomingScope : 'all';
+
+    setSearchTerm(incomingQuery);
+    setSearchScope(nextScope);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const focusMode = searchParams.get('focus');
+    if (focusMode !== 'search') return;
+
+    searchInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    searchInputRef.current?.focus();
+  }, [searchParams]);
 
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {
@@ -181,6 +204,71 @@ const PublicTeamsPage = () => {
     }
   };
 
+  const syncSearchParams = (nextQuery, nextScope) => {
+    const params = new URLSearchParams();
+    const trimmedQuery = nextQuery.trim();
+
+    if (trimmedQuery) {
+      params.set('q', trimmedQuery);
+    }
+
+    if (nextScope && nextScope !== 'all') {
+      params.set('type', nextScope);
+    }
+
+    setSearchParams(params);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    syncSearchParams(searchTerm, searchScope);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSearchScope('all');
+    setSearchParams({});
+    searchInputRef.current?.focus();
+  };
+
+  const filteredTeams = teams.filter((team) => {
+    const normalizedSearchTerm = normalizeSearchValue(searchTerm);
+    const captainName = buildDisplayName(team.captain);
+    const memberTerms = Array.isArray(team.members)
+      ? team.members.flatMap((member) => {
+          const fullName = buildDisplayName(member);
+          return [member.username, member.firstName, member.lastName, fullName];
+        })
+      : [];
+
+    if (searchScope === 'captain') {
+      const captainTerms = [captainName, team.captain?.username, team.name];
+
+      if (!normalizedSearchTerm) return Boolean(team.captain);
+      return captainTerms.some((term) => normalizeSearchValue(term).includes(normalizedSearchTerm));
+    }
+
+    if (searchScope === 'player') {
+      if (!normalizedSearchTerm) return memberTerms.length > 0;
+      return (
+        memberTerms.some((term) => normalizeSearchValue(term).includes(normalizedSearchTerm)) ||
+        normalizeSearchValue(team.name).includes(normalizedSearchTerm)
+      );
+    }
+
+    if (!normalizedSearchTerm) return true;
+
+    return [
+      team.name,
+      team.description,
+      team.homeField?.name,
+      team.homeField?.city,
+      captainName,
+      team.captain?.username,
+      ...memberTerms
+    ].some((term) => normalizeSearchValue(term).includes(normalizedSearchTerm));
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -198,7 +286,7 @@ const PublicTeamsPage = () => {
             {isAdmin ? t('teams_admin_desc', 'Admin view of all teams. You can open or delete any team.') : t('teams_public_desc', 'Discover football teams and request to join.')}
           </p>
         </div>
-        <Badge tone="gray">{t('teams_results', '{{count}} results', { count: teams.length })}</Badge>
+        <Badge tone="gray">{t('teams_results', '{{count}} results', { count: filteredTeams.length })}</Badge>
       </div>
 
       {error && (
@@ -207,9 +295,50 @@ const PublicTeamsPage = () => {
         </div>
       )}
 
+      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <form onSubmit={handleSearchSubmit} className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto]">
+          <label className="relative block">
+            <span className="sr-only">{t('fields_search', 'Search')}</span>
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t('teams_search_placeholder', 'Search teams, captains, or players...')}
+              className="w-full rounded-xl border border-gray-300 px-11 py-3 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+            />
+          </label>
+
+          <select
+            value={searchScope}
+            onChange={(event) => setSearchScope(event.target.value)}
+            className="rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+          >
+            <option value="all">{t('teams_search_scope_all', 'All teams')}</option>
+            <option value="captain">{t('teams_search_scope_captains', 'Captains')}</option>
+            <option value="player">{t('teams_search_scope_players', 'Players')}</option>
+          </select>
+
+          <div className="flex gap-2">
+            <Button type="submit" className="flex-1 whitespace-nowrap">
+              {t('landing_hero_search_button', 'Search')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClearSearch}
+              className="flex-1 whitespace-nowrap"
+            >
+              {t('fields_clear_filters', 'Clear filters')}
+            </Button>
+          </div>
+        </form>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {teams.length > 0 ? (
-          teams.map((team) => {
+        {filteredTeams.length > 0 ? (
+          filteredTeams.map((team) => {
             const teamLogoUrl = resolveTeamLogoUrl(team.logoUrl || team.logo_url || team.logo);
             const jerseyColors = getTeamJerseyColors(team);
             const joinRequestPending = hasPendingJoinRequest(team, user?.id);
@@ -343,7 +472,15 @@ const PublicTeamsPage = () => {
           )})
         ) : (
           <div className="col-span-full">
-            <EmptyState icon={UsersIcon} title={t('teams_none_found', 'No teams found')} description={t('teams_public_empty_desc', 'Check back later, or register as a captain to create a team.')} />
+            <EmptyState
+              icon={UsersIcon}
+              title={t('teams_none_found', 'No teams found')}
+              description={
+                searchTerm || searchScope !== 'all'
+                  ? t('teams_search_empty_desc', 'Try a different search or clear the filter to browse all public teams.')
+                  : t('teams_public_empty_desc', 'Check back later, or register as a captain to create a team.')
+              }
+            />
           </div>
         )}
       </div>

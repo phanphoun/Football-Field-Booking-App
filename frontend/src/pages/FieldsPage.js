@@ -83,8 +83,17 @@ const FieldsPage = () => {
 
   useEffect(() => {
     const filtered = fields.filter(field => {
-      const matchesSearch = field.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        field.address.toLowerCase().includes(searchTerm.toLowerCase());
+      const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+      const matchesSearch =
+        !normalizedSearchTerm ||
+        [
+          field.name,
+          field.address,
+          field.city,
+          field.province,
+          field.fieldType,
+          String(field.surfaceType || '').replace('_', ' ')
+        ].some((value) => String(value || '').toLowerCase().includes(normalizedSearchTerm));
       const matchesType = !fieldTypeFilter || field.fieldType === fieldTypeFilter;
       const matchesSurface = !surfaceTypeFilter || field.surfaceType === surfaceTypeFilter;
       const matchesPrice = !maxPriceFilter || field.pricePerHour <= parseFloat(maxPriceFilter);
@@ -94,6 +103,11 @@ const FieldsPage = () => {
 
     setFilteredFields(filtered);
   }, [fields, searchTerm, fieldTypeFilter, surfaceTypeFilter, maxPriceFilter]);
+
+  useEffect(() => {
+    const incomingQuery = searchParams.get('q') || '';
+    setSearchTerm(incomingQuery);
+  }, [searchParams]);
 
   useEffect(() => {
     const focusMode = searchParams.get('focus');

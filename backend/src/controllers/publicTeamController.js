@@ -7,6 +7,19 @@ const mapPublicTeam = (teamInstance, ratingSummary = null, currentUserId = null)
     Array.isArray(team?.teamMembers)
       ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
       : [];
+  const members = activeMembers
+    .map((member) => {
+      if (!member?.user) return null;
+
+      return {
+        id: member.user.id,
+        username: member.user.username,
+        firstName: member.user.firstName,
+        lastName: member.user.lastName,
+        role: member.role
+      };
+    })
+    .filter(Boolean);
   const viewerMembership =
     currentUserId && Array.isArray(team?.teamMembers)
       ? team.teamMembers.find((member) => Number(member.userId) === Number(currentUserId)) || null
@@ -50,6 +63,7 @@ const mapPublicTeam = (teamInstance, ratingSummary = null, currentUserId = null)
         }
       : null,
     memberCount: activeMembers.length,
+    members,
     userMembershipStatus,
     joinRequestPending: userMembershipStatus === 'pending',
     rating: Number(ratingSummary?.avgRating || 0),
@@ -133,8 +147,16 @@ const getPublicTeams = async (req, res) => {
         {
           model: TeamMember,
           as: 'teamMembers',
-          attributes: ['userId', 'status', 'isActive'],
-          required: false
+          attributes: ['userId', 'role', 'status', 'isActive'],
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'username', 'firstName', 'lastName'],
+              required: false
+            }
+          ]
         }
       ],
       order: [['createdAt', 'DESC']]
@@ -189,8 +211,16 @@ const getPublicTeamById = async (req, res) => {
         {
           model: TeamMember,
           as: 'teamMembers',
-          attributes: ['userId', 'status', 'isActive'],
-          required: false
+          attributes: ['userId', 'role', 'status', 'isActive'],
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'username', 'firstName', 'lastName'],
+              required: false
+            }
+          ]
         }
       ]
     });

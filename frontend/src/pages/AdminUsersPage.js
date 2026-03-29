@@ -9,6 +9,54 @@ import { formatRoleLabel } from '../utils/formatters';
 
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
 const STATUSES = ['active', 'inactive', 'suspended'];
+const PAGE_SIZE = 10;
+
+const ROLE_PRIORITY = {
+  admin: 4,
+  field_owner: 3,
+  captain: 2,
+  player: 1
+};
+
+const getTimestamp = (value) => {
+  const timestamp = Date.parse(value || '');
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const compareNewestFirst = (leftUser, rightUser) => {
+  const createdAtDiff = getTimestamp(rightUser.createdAt) - getTimestamp(leftUser.createdAt);
+  if (createdAtDiff !== 0) return createdAtDiff;
+  return Number(rightUser.id || 0) - Number(leftUser.id || 0);
+};
+
+const getUserActivityScore = (user) => {
+  const ownedFields = Array.isArray(user?.fields) ? user.fields.length : 0;
+  const teams = Array.isArray(user?.teams) ? user.teams.length : 0;
+  const createdBookings = Array.isArray(user?.createdBookings) ? user.createdBookings.length : 0;
+  const roleWeight = ROLE_PRIORITY[user?.role] || 0;
+
+  return ownedFields * 10 + teams * 6 + createdBookings * 3 + roleWeight;
+};
+
+const sortUsers = (list, sortBy) => {
+  const nextUsers = [...list];
+
+  return nextUsers.sort((leftUser, rightUser) => {
+    if (sortBy === 'oldest') {
+      return compareNewestFirst(rightUser, leftUser);
+    }
+
+    if (sortBy === 'activity') {
+      const activityDiff = getUserActivityScore(rightUser) - getUserActivityScore(leftUser);
+      if (activityDiff !== 0) return activityDiff;
+
+      const lastLoginDiff = getTimestamp(rightUser.lastLogin) - getTimestamp(leftUser.lastLogin);
+      if (lastLoginDiff !== 0) return lastLoginDiff;
+    }
+
+    return compareNewestFirst(leftUser, rightUser);
+  });
+};
 
 const statusBadgeClass = (status) => {
   if (status === 'active') return 'bg-green-100 text-green-700';
@@ -35,6 +83,8 @@ const AdminUsersPage = () => {
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+  const [currentPage, setCurrentPage] = useState(1);
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
   const [editUser, setEditUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
@@ -81,18 +131,45 @@ const AdminUsersPage = () => {
     };
   }, [openMenuUserId]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, roleFilter, statusFilter, sortBy]);
+
   const stats = useMemo(() => {
     return {
       total: users.length,
       active: users.filter((user) => (user.status || 'active') === 'active').length,
+      players: users.filter((user) => user.role === 'player').length,
+      captains: users.filter((user) => user.role === 'captain').length,
+      fieldOwners: users.filter((user) => user.role === 'field_owner').length,
       admins: users.filter((user) => user.role === 'admin').length,
       suspended: users.filter((user) => user.status === 'suspended').length
     };
   }, [users]);
 
+  const roleTabs = useMemo(
+    () => [
+      { key: 'all', label: t('admin_users_tab_all', 'All users'), count: stats.total },
+      { key: 'player', label: t('role_player', 'Player'), count: stats.players },
+      { key: 'captain', label: t('role_captain', 'Captain'), count: stats.captains },
+      { key: 'field_owner', label: t('role_field_owner', 'Field Owner'), count: stats.fieldOwners },
+      { key: 'admin', label: t('role_admin', 'Admin'), count: stats.admins }
+    ],
+    [stats, t]
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'newest', label: t('admin_users_sort_newest', 'Newest first') },
+      { value: 'oldest', label: t('admin_users_sort_oldest', 'Oldest first') },
+      { value: 'activity', label: t('admin_users_sort_activity', 'Most active') }
+    ],
+    [t]
+  );
+
   const filteredUsers = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    return users.filter((user) => {
+    const matchingUsers = users.filter((user) => {
       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase();
       const matchText =
         !keyword ||
@@ -103,7 +180,48 @@ const AdminUsersPage = () => {
       const matchStatus = statusFilter === 'all' || (user.status || 'active') === statusFilter;
       return matchText && matchRole && matchStatus;
     });
-  }, [users, query, roleFilter, statusFilter]);
+    return sortUsers(matchingUsers, sortBy);
+  }, [users, query, roleFilter, statusFilter, sortBy]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE)),
+    [filteredUsers.length]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const effectiveCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (effectiveCurrentPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredUsers, effectiveCurrentPage]);
+
+  const pageSummary = useMemo(() => {
+    if (filteredUsers.length === 0) {
+      return { start: 0, end: 0 };
+    }
+
+    const start = (effectiveCurrentPage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(filteredUsers.length, effectiveCurrentPage * PAGE_SIZE);
+    return { start, end };
+  }, [filteredUsers.length, effectiveCurrentPage]);
+
+  const visiblePageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const startPage = Math.max(1, effectiveCurrentPage - 2);
+    const endPage = Math.min(totalPages, startPage + 4);
+    const adjustedStartPage = Math.max(1, endPage - 4);
+
+    return Array.from({ length: endPage - adjustedStartPage + 1 }, (_, index) => adjustedStartPage + index);
+  }, [totalPages, effectiveCurrentPage]);
 
   const handleDelete = async (userId, username) => {
     setOpenMenuUserId(null);
@@ -241,7 +359,39 @@ const AdminUsersPage = () => {
       </div>
 
       <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="flex flex-wrap gap-2">
+          {roleTabs.map((tab) => {
+            const isActive = roleFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setRoleFilter(tab.key)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`inline-flex min-w-[1.75rem] items-center justify-center rounded-full px-2 py-0.5 text-xs ${
+                    isActive ? 'bg-white text-emerald-700' : 'bg-white text-slate-500'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {t('admin_users_role_hint', 'Filter users by role so admins can review players, captains, and field owners faster.')}
+        </p>
+      </div>
+
+      <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(180px,1fr)_minmax(180px,1fr)]">
           <input
             type="text"
             value={query}
@@ -249,16 +399,6 @@ const AdminUsersPage = () => {
             placeholder={t('admin_users_search_placeholder', 'Search username, email, or name')}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
           />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="all">{t('admin_users_all_roles', 'All roles')}</option>
-            {ROLES.map((role) => (
-              <option key={role} value={role}>{role === 'field_owner' ? t('role_field_owner', 'Field Owner') : role === 'captain' ? t('role_captain', 'Captain') : role === 'admin' ? t('role_admin', 'Admin') : t('role_player', 'Player')}</option>
-            ))}
-          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -268,6 +408,17 @@ const AdminUsersPage = () => {
             {STATUSES.map((status) => (
               <option key={status} value={status}>
                 {status === 'active' ? t('dashboard_admin_active', 'Active') : status === 'suspended' ? t('dashboard_admin_suspended', 'Suspended') : t('admin_users_inactive', 'Inactive')}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -302,7 +453,7 @@ const AdminUsersPage = () => {
                 <td colSpan={5} className="px-5 py-10 text-center text-gray-500">{t('admin_users_none_found', 'No users found with current filters.')}</td>
               </tr>
             ) : (
-              filteredUsers.map((user) => {
+              paginatedUsers.map((user) => {
                 const isSaving = savingUserId === user.id;
                 const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
                 const status = user.status || 'active';
@@ -407,6 +558,52 @@ const AdminUsersPage = () => {
           </tbody>
         </table>
       </div>
+
+      {!loading && filteredUsers.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
+            {t('admin_users_showing', 'Showing {{start}}-{{end}} of {{total}} users', {
+              start: pageSummary.start,
+              end: pageSummary.end,
+              total: filteredUsers.length
+            })}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={effectiveCurrentPage === 1}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('admin_users_prev_page', 'Previous')}
+            </button>
+
+            {visiblePageNumbers.map((pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => setCurrentPage(pageNumber)}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${
+                  effectiveCurrentPage === pageNumber
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {pageNumber}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={effectiveCurrentPage === totalPages}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('admin_users_next_page', 'Next')}
+            </button>
+          </div>
+        </div>
+      )}
 
       <ConfirmationModal
         isOpen={Boolean(editUser)}

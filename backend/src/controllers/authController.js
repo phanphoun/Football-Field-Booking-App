@@ -62,6 +62,37 @@ const sanitizeUsernamePart = (value = '') =>
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 20);
 
+const toNameTokens = (value = '') =>
+  String(value)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[^a-zA-Z0-9]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const formatFallbackName = (value = '') =>
+  String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+    .slice(0, 50);
+
+const resolveRegistrationNames = ({ username, email, firstName, lastName }) => {
+  const normalizedFirstName = String(firstName || '').trim();
+  const normalizedLastName = String(lastName || '').trim();
+  const sourceValue = String(username || '').trim() || String(email || '').split('@')[0];
+  const nameTokens = toNameTokens(sourceValue);
+  const letterTokens = nameTokens.filter((part) => /[A-Za-z]/.test(part));
+  const fallbackFirstName = formatFallbackName(letterTokens[0] || 'Player');
+  const fallbackLastName = formatFallbackName(letterTokens.slice(1).join(' ') || 'User');
+
+  return {
+    firstName: (normalizedFirstName || fallbackFirstName).slice(0, 50),
+    lastName: (normalizedLastName || fallbackLastName).slice(0, 50)
+  };
+};
+
 const buildUniqueGoogleUsername = async ({ email, firstName, lastName }) => {
   const emailPrefix = sanitizeUsernamePart(String(email || '').split('@')[0]);
   const firstPart = sanitizeUsernamePart(firstName);
@@ -141,11 +172,12 @@ const register = async (req, res) => {
   try {
     console.log('Registration request body:', req.body);
     const { username, email, password, firstName, lastName, phone, role } = req.body;
+    const resolvedNames = resolveRegistrationNames({ username, email, firstName, lastName });
     
     // Enhanced validation
-    if (!username || !email || !password || !firstName || !lastName) {
+    if (!username || !email || !password) {
       return res.status(400).json({ 
-        error: 'Please provide all required fields: username, email, password, firstName, lastName.' 
+        error: 'Please provide all required fields: username, email, password.'
       });
     }
 
@@ -156,8 +188,14 @@ const register = async (req, res) => {
     }
 
     // Password strength validation
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return res.status(400).json({
+        error: 'Password must contain at least one uppercase letter, one lowercase letter, and one number.'
+      });
     }
 
     // Username validation
@@ -181,8 +219,8 @@ const register = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      firstName,
-      lastName,
+      firstName: resolvedNames.firstName,
+      lastName: resolvedNames.lastName,
       phone: phone || null,
       role: role || 'player'
     });

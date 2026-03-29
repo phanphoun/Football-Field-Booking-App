@@ -26,6 +26,10 @@ const authService = {
     return response;
   },
 
+  getGoogleAuthConfig: async () => {
+    return apiService.get('/auth/google/config');
+  },
+
   googleAuth: async (credential) => {
     const response = await apiService.post('/auth/google', { credential });
 
