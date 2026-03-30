@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, useDialog, useToast } from '../ui';
 import brandLogo from '../../pages/img/logo.png';
+import { APP_CONFIG } from '../../config/appConfig';
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import ThemeToggle from '../common/ThemeToggle';
 

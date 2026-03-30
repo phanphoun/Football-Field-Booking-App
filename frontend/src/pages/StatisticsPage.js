@@ -14,6 +14,13 @@ import apiService from '../services/api';
 
 const FIELD_COLORS = ['#1fb981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444'];
 
+const AwardBadgeIcon = ({ className = '' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+    <circle cx="12" cy="8" r="4.5" />
+    <path d="M9.4 12.1 8 21l4-2.7 4 2.7-1.4-8.9" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const formatDateInput = (date) => {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
@@ -276,15 +283,11 @@ const buildDisplayTeamPerformance = (teams = []) => {
   });
 };
 
-const hasEnoughTeamPerformanceData = (teams = []) => {
-  if (!Array.isArray(teams) || teams.length < 5) return false;
-
-  const teamsWithResults = teams.filter((team) =>
+const hasEnoughTeamPerformanceData = (teams = []) =>
+  Array.isArray(teams) &&
+  teams.some((team) =>
     castNumber(team?.wins) > 0 || castNumber(team?.draws) > 0 || castNumber(team?.losses) > 0
   );
-
-  return teamsWithResults.length >= 5;
-};
 
 const StatCard = ({ icon: Icon, iconBg, label, value, trend, delay = 0 }) => (
   <div
@@ -307,12 +310,12 @@ const StatCard = ({ icon: Icon, iconBg, label, value, trend, delay = 0 }) => (
 
 const InsightCard = ({ icon: Icon, className, value, label, delay = 0 }) => (
   <div
-    className={`rounded-[20px] p-7 text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] animate-fade-in ${className}`}
+    className={`rounded-[20px] p-6 text-white shadow-[0_12px_30px_rgba(15,23,42,0.14)] animate-fade-in ${className}`}
     style={{ animationDelay: `${delay}s` }}
   >
-    <Icon className="mb-8 h-10 w-10" />
-    <div className="text-[2.25rem] font-extrabold leading-none">{value}</div>
-    <div className="mt-5 max-w-sm text-[0.95rem] leading-8 text-white/95">{label}</div>
+    <Icon className="mb-6 h-8 w-8" />
+    <div className="text-[1.95rem] font-extrabold leading-none">{value}</div>
+    <div className="mt-4 max-w-sm text-[0.95rem] leading-7 text-white/95">{label}</div>
   </div>
 );
 
@@ -365,8 +368,9 @@ const LineTrendChart = ({ data = [] }) => {
 
   const activeItem = activeIndex !== null ? chartData[activeIndex] : null;
   const activePoint = activeItem ? getPoint(activeItem, activeIndex, 'goals') : null;
-  const nonZeroMonths = chartData.filter((item) => castNumber(item.matches) > 0 || castNumber(item.goals) > 0).length;
   const activeMatchesPoint = activeItem ? getPoint(activeItem, activeIndex, 'matches') : null;
+  const activeAnchorY =
+    activePoint && activeMatchesPoint ? Math.min(activePoint.y, activeMatchesPoint.y) : null;
 
   useEffect(() => {
     if (chartData.length === 0) {
@@ -374,18 +378,13 @@ const LineTrendChart = ({ data = [] }) => {
       return;
     }
 
-    if (activeIndex === null || activeIndex >= chartData.length) {
-      setActiveIndex(0);
+    if (activeIndex !== null && activeIndex >= chartData.length) {
+      setActiveIndex(null);
     }
   }, [chartData, activeIndex]);
 
   return (
-    <div className="relative h-full w-full" onMouseLeave={() => setActiveIndex(0)}>
-      {nonZeroMonths <= 1 ? (
-        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Only a small amount of real match data exists in this date range, so the trend line looks flat until activity appears.
-        </div>
-      ) : null}
+    <div className="relative h-full w-full" onMouseLeave={() => setActiveIndex(null)}>
       <div className="h-[300px] w-full">
         <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
           {yTicks.map((tick) => {
@@ -461,22 +460,22 @@ const LineTrendChart = ({ data = [] }) => {
           })}
         </svg>
       </div>
-      {activeItem && activePoint && activeMatchesPoint ? (
+      {activeItem && activePoint && activeMatchesPoint && activeAnchorY !== null ? (
         <div
-          className="absolute rounded-[20px] border border-slate-200 bg-white/98 px-4 py-4 shadow-[0_16px_32px_rgba(15,23,42,0.12)]"
+          className="absolute rounded-[18px] border border-slate-200 bg-white/98 px-4 py-3 shadow-[0_16px_32px_rgba(15,23,42,0.12)] backdrop-blur-sm"
           style={{
-            left: `max(1.5rem, min(calc(100% - 10rem), ${((activePoint.x + 34) / width) * 100}%))`,
-            top: `max(3.75rem, min(calc(100% - 11rem), ${((activePoint.y + 18) / height) * 100}%))`,
-            width: '140px'
+            left: `max(1rem, min(calc(100% - 10.5rem), ${((activePoint.x + 18) / width) * 100}%))`,
+            top: `max(1rem, ${((activeAnchorY - 12) / height) * 100}%)`,
+            transform: 'translateY(-100%)',
+            width: '152px'
           }}
-          onMouseEnter={() => setActiveIndex(activeIndex)}
         >
-          <div className="text-[0.95rem] font-medium text-slate-950">{activeItem.monthLabel}</div>
-          <div className="mt-3 text-[0.95rem] font-medium text-emerald-500">
-            {`Matches : ${castNumber(activeItem.matches)}`}
+          <div className="text-base font-semibold text-slate-950">{activeItem.monthLabel}</div>
+          <div className="mt-3 text-sm font-semibold text-emerald-500">
+            {`Matches: ${castNumber(activeItem.matches)}`}
           </div>
-          <div className="mt-3 text-[0.95rem] font-medium text-blue-500">
-            {`Goals : ${castNumber(activeItem.goals)}`}
+          <div className="mt-2 text-sm font-semibold text-blue-500">
+            {`Goals: ${castNumber(activeItem.goals)}`}
           </div>
         </div>
       ) : null}
@@ -502,11 +501,19 @@ const LineTrendChart = ({ data = [] }) => {
 
 const PieUsageChart = ({ data = [] }) => {
   const total = data.reduce((sum, item) => sum + castNumber(item.value), 0);
-  const centerX = 360;
-  const centerY = 255;
-  const radius = 135;
-  const labelRadius = 215;
+  const width = 720;
+  const height = 420;
+  const centerX = 340;
+  const centerY = 220;
+  const radius = 128;
+  const labelRadius = 188;
+  const [isVisible, setIsVisible] = useState(false);
   let currentAngle = -Math.PI / 2;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsVisible(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const polarToCartesian = (angle, r = radius) => ({
     x: centerX + Math.cos(angle) * r,
@@ -517,6 +524,7 @@ const PieUsageChart = ({ data = [] }) => {
     const start = polarToCartesian(startAngle);
     const end = polarToCartesian(endAngle);
     const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+
     return [
       `M ${centerX} ${centerY}`,
       `L ${start.x} ${start.y}`,
@@ -525,24 +533,30 @@ const PieUsageChart = ({ data = [] }) => {
     ].join(' ');
   };
 
+  const shortenFieldName = (value = '') => {
+    const normalized = String(value).trim();
+    if (!normalized) return 'Unknown Field';
+
+    return normalized
+      .replace(/\b(football field|training field|soccer field|field)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim() || normalized;
+  };
+
   return (
     <div className="flex h-full items-center justify-center">
       <div className="w-full max-w-[720px]">
-        <svg viewBox="0 0 720 520" className="h-full w-full overflow-visible">
-          <defs>
-            <filter id="pie-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="rgba(15,23,42,0.14)" />
-            </filter>
-          </defs>
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
+          <g
+            className={isVisible ? 'stats-pie-enter' : ''}
+            style={{ transformOrigin: `${centerX}px ${centerY}px` }}
+          >
           {data.map((item) => {
             const value = castNumber(item.value);
             const ratio = total > 0 ? value / total : 0;
             const startAngle = currentAngle;
             const endAngle = currentAngle + ratio * Math.PI * 2;
-            const midAngle = startAngle + (endAngle - startAngle) / 2;
-            const labelPoint = polarToCartesian(midAngle, labelRadius);
-            const textAnchor =
-              labelPoint.x > centerX + 18 ? 'start' : labelPoint.x < centerX - 18 ? 'end' : 'middle';
+
             const slice = (
               <g key={item.name}>
                 <path
@@ -550,25 +564,47 @@ const PieUsageChart = ({ data = [] }) => {
                   fill={item.color}
                   stroke="#ffffff"
                   strokeWidth="2"
-                  filter="url(#pie-shadow)"
                 />
-                <text
-                  x={labelPoint.x}
-                  y={labelPoint.y}
-                  textAnchor={textAnchor}
-                  dominantBaseline="middle"
-                  fontSize="18"
-                  fontWeight="500"
-                  fill={item.color}
-                >
-                  {`${item.name}: ${formatPercentage(item.percentage)}`}
-                </text>
               </g>
             );
+
             currentAngle = endAngle;
             return slice;
           })}
           {total === 0 ? <circle cx={centerX} cy={centerY} r={radius} fill="#e2e8f0" /> : null}
+          </g>
+          {(() => {
+            let labelAngle = -Math.PI / 2;
+            return data.map((item) => {
+            const value = castNumber(item.value);
+            const ratio = total > 0 ? value / total : 0;
+            const startAngle = labelAngle;
+            const endAngle = labelAngle + ratio * Math.PI * 2;
+            const midAngle = startAngle + (endAngle - startAngle) / 2;
+            const labelPoint = polarToCartesian(midAngle, labelRadius);
+            const textAnchor =
+              labelPoint.x > centerX + 12 ? 'start' : labelPoint.x < centerX - 12 ? 'end' : 'middle';
+            const label = `${shortenFieldName(item.name)}: ${formatPercentage(item.percentage)}`;
+
+            labelAngle = endAngle;
+
+            return (
+              <text
+                key={`${item.name}-label`}
+                x={labelPoint.x}
+                y={labelPoint.y}
+                textAnchor={textAnchor}
+                dominantBaseline="middle"
+                fontSize="16"
+                fontWeight="500"
+                fill={item.color}
+                className={isVisible ? 'stats-pie-label-enter' : ''}
+              >
+                {label}
+              </text>
+            );
+          });
+          })()}
         </svg>
       </div>
     </div>
@@ -582,15 +618,15 @@ const TeamPerformanceChart = ({ data = [] }) => {
     ...data.flatMap((team) => [castNumber(team.wins), castNumber(team.draws), castNumber(team.losses)])
   );
   const roundedMax = Math.max(6, Math.ceil(maxValue / 6) * 6);
-  const width = 1080;
-  const height = 430;
-  const padding = { top: 24, right: 28, bottom: 92, left: 72 };
+  const width = 1180;
+  const height = 420;
+  const padding = { top: 20, right: 28, bottom: 86, left: 62 };
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
   const clusterWidth = innerWidth / Math.max(data.length, 1);
-  const totalBarArea = Math.min(112, clusterWidth * 0.56);
-  const barGap = Math.max(6, totalBarArea * 0.045);
-  const barWidth = Math.max(22, (totalBarArea - barGap * 2) / 3);
+  const totalBarArea = Math.min(126, clusterWidth * 0.62);
+  const barGap = Math.max(4, totalBarArea * 0.035);
+  const barWidth = Math.max(20, (totalBarArea - barGap * 2) / 3);
   const ticks = Array.from({ length: 5 }, (_, index) => Math.round((roundedMax / 4) * index));
   const activeTeam = activeTeamIndex !== null ? data[activeTeamIndex] : null;
   const clusterVisualWidth = barWidth * 3 + barGap * 2;
@@ -610,15 +646,47 @@ const TeamPerformanceChart = ({ data = [] }) => {
     setActiveTeamIndex((current) => (current === teamIndex ? null : teamIndex));
   };
 
+  const truncateTeamName = (value = '') => {
+    const name = String(value || '').trim();
+    return name.length > 18 ? `${name.slice(0, 16)}...` : name;
+  };
+
+  const legendStats = useMemo(
+    () => [
+      {
+        key: 'wins',
+        label: 'Wins',
+        color: '#10b981',
+        tintClass: 'border-emerald-200 bg-emerald-50/80 text-emerald-700',
+        total: data.reduce((sum, team) => sum + castNumber(team.wins), 0)
+      },
+      {
+        key: 'draws',
+        label: 'Draws',
+        color: '#94a3b8',
+        tintClass: 'border-slate-200 bg-slate-100/90 text-slate-600',
+        total: data.reduce((sum, team) => sum + castNumber(team.draws), 0)
+      },
+      {
+        key: 'losses',
+        label: 'Losses',
+        color: '#ef4444',
+        tintClass: 'border-rose-200 bg-rose-50/80 text-rose-600',
+        total: data.reduce((sum, team) => sum + castNumber(team.losses), 0)
+      }
+    ],
+    [data]
+  );
+
   return (
-    <div className="relative h-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full min-w-[980px] w-full overflow-visible">
+    <div className="relative h-full">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
         {ticks.map((tick) => {
           const y = padding.top + innerHeight - (tick / roundedMax) * innerHeight;
           return (
             <g key={tick}>
-              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#d6e2f1" strokeDasharray="5 6" />
-              <text x={padding.left - 10} y={y + 6} textAnchor="end" fontSize="14" fill="#64748b">
+              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#d9e6f3" strokeDasharray="5 6" />
+              <text x={padding.left - 8} y={y + 6} textAnchor="end" fontSize="13" fill="#64748b">
                 {tick}
               </text>
             </g>
@@ -645,7 +713,7 @@ const TeamPerformanceChart = ({ data = [] }) => {
                 y1={padding.top}
                 x2={centerX}
                 y2={padding.top + innerHeight}
-                stroke="#d6e2f1"
+                stroke="#d9e6f3"
                 strokeDasharray="5 6"
               />
             </g>
@@ -670,31 +738,47 @@ const TeamPerformanceChart = ({ data = [] }) => {
                 const x = clusterStart + barIndex * (barWidth + barGap);
                 const y = padding.top + innerHeight - barHeight;
                 return (
-                  <rect
+                  <g
                     key={bar.key}
-                    x={x}
-                    y={y}
-                    width={barWidth}
-                    height={barHeight}
-                    rx="10"
-                    fill={bar.color}
                     onMouseEnter={() => setActiveTeamIndex(teamIndex)}
                     onClick={() => handleTeamClick(teamIndex)}
                     className="cursor-pointer"
-                  />
+                  >
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={barHeight}
+                      rx="12"
+                      fill={bar.color}
+                      opacity={activeTeamIndex === null || activeTeamIndex === teamIndex ? 1 : 0.72}
+                    />
+                    {activeTeamIndex === teamIndex ? (
+                      <text
+                        x={x + barWidth / 2}
+                        y={y - 8}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="700"
+                        fill={bar.color}
+                      >
+                        {value}
+                      </text>
+                    ) : null}
+                  </g>
                 );
               })}
               <text
                 x={clusterStart + clusterVisualWidth / 2}
                 y={height - 34}
                 textAnchor="middle"
-                fontSize="14"
+                fontSize="13"
                 fill="#64748b"
                 onMouseEnter={() => setActiveTeamIndex(teamIndex)}
                 onClick={() => handleTeamClick(teamIndex)}
                 className="cursor-pointer"
               >
-                {team.teamName}
+                {truncateTeamName(team.teamName)}
               </text>
             </g>
           );
@@ -702,32 +786,35 @@ const TeamPerformanceChart = ({ data = [] }) => {
       </svg>
       {activeTeam && activeClusterStart !== null ? (
         <div
-          className="absolute rounded-[18px] border border-slate-200 bg-white/98 px-4 py-4 shadow-[0_16px_35px_rgba(15,23,42,0.10)]"
+          className="absolute rounded-[18px] border border-slate-200 bg-white/98 px-4 py-4 shadow-[0_16px_35px_rgba(15,23,42,0.10)] backdrop-blur-sm"
           style={{
             left: `max(1rem, min(calc(100% - 12rem), ${((activeClusterStart + 125) / width) * 100}%))`,
-            top: '6rem',
+            top: '3.5rem',
             width: '170px'
           }}
         >
-          <div className="text-[0.95rem] font-medium text-slate-950">{activeTeam.teamName}</div>
-          <div className="mt-3 text-[0.95rem] font-medium text-emerald-500">{`Wins : ${castNumber(activeTeam.wins)}`}</div>
-          <div className="mt-3 text-[0.95rem] font-medium text-slate-400">{`Draws : ${castNumber(activeTeam.draws)}`}</div>
-          <div className="mt-3 text-[0.95rem] font-medium text-red-500">{`Losses : ${castNumber(activeTeam.losses)}`}</div>
+          <div className="text-[0.95rem] font-semibold text-slate-950">{activeTeam.teamName}</div>
+          <div className="mt-3 text-[0.95rem] font-medium text-emerald-500">{`Wins: ${castNumber(activeTeam.wins)}`}</div>
+          <div className="mt-2 text-[0.95rem] font-medium text-slate-400">{`Draws: ${castNumber(activeTeam.draws)}`}</div>
+          <div className="mt-2 text-[0.95rem] font-medium text-red-500">{`Losses: ${castNumber(activeTeam.losses)}`}</div>
         </div>
       ) : null}
-      <div className="mt-4 flex items-center justify-center gap-4 text-[0.95rem] font-medium">
-        <div className="flex items-center gap-1.5 text-emerald-500">
-          <span className="h-3.5 w-3.5 rounded-[2px] bg-emerald-500" />
-          Wins
-        </div>
-        <div className="flex items-center gap-1.5 text-slate-400">
-          <span className="h-3.5 w-3.5 rounded-[2px] bg-slate-400" />
-          Draws
-        </div>
-        <div className="flex items-center gap-1.5 text-red-500">
-          <span className="h-3.5 w-3.5 rounded-[2px] bg-red-500" />
-          Losses
-        </div>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        {legendStats.map((item) => (
+          <div
+            key={item.key}
+            className={`inline-flex items-center gap-3 rounded-full border px-4 py-2 shadow-sm ${item.tintClass}`}
+          >
+            <span
+              className="h-3.5 w-3.5 rounded-[4px]"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-[0.98rem] font-semibold">{item.label}</span>
+            <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-bold text-slate-700">
+              {item.total}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -844,8 +931,8 @@ const StatisticsPage = () => {
       {
         label: 'Total Goals',
         value: castNumber(summary.totalGoals).toLocaleString(),
-        icon: TrophyIcon,
-        iconBg: 'from-blue-500 to-blue-600',
+        icon: AwardBadgeIcon,
+        iconBg: 'from-amber-400 to-orange-500',
         trend: `${castNumber(summary.averageGoalsPerMatch).toFixed(2)} avg`
       },
       {
@@ -941,7 +1028,7 @@ const StatisticsPage = () => {
           className="px-7 py-6"
           delay="0.22s"
         >
-          <div className="mt-6 h-[320px]">
+          <div className="mt-6 min-h-[360px]">
             {fieldUsageData.length === 0 ? (
               <EmptyState title="No field usage yet" description="Bookings are needed before distribution can be shown." />
             ) : (
@@ -956,11 +1043,11 @@ const StatisticsPage = () => {
         className="rounded-[26px] px-8 py-8 shadow-[0_12px_28px_rgba(15,23,42,0.12)]"
         delay="0.3s"
       >
-        <div className="mt-5 h-[430px]">
+        <div className="mt-5 min-h-[520px]">
           {!hasTeamPerformanceChartData ? (
             <EmptyState
-              title="Not enough real data for a Top 5 chart yet"
-              description="This section will appear automatically after at least five teams have completed match results in the selected date range."
+              title="No real team performance data yet"
+              description="This chart will populate automatically once completed match results are recorded."
             />
           ) : (
             <TeamPerformanceChart data={displayedTeamPerformance} />
@@ -977,26 +1064,26 @@ const StatisticsPage = () => {
         className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.10)] animate-fade-in"
         style={{ animationDelay: '0.38s' }}
       >
-        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 px-7 py-7">
-          <h3 className="flex items-center gap-3 text-lg font-bold tracking-tight text-white sm:text-[1.6rem]">
-            <TrophyIcon className="h-6 w-6" />
+        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 px-6 py-5">
+          <h3 className="flex items-center gap-3 text-lg font-bold tracking-tight text-white sm:text-[1.45rem]">
+            <TrophyIcon className="h-5 w-5" />
             Top Scorers
           </h3>
           <p className="mt-1 text-sm text-orange-50">
             Ranked from live recorded match result data.
           </p>
         </div>
-        <div className="space-y-5 p-7">
+        <div className="space-y-4 p-6">
           {topScorers.length === 0 ? (
             <EmptyState title="No MVP data yet" description="Choose MVP players on completed matches to populate this leaderboard." />
           ) : (
             topScorers.map((player, index) => (
               <div
                 key={player.playerId || `${player.name}-${index}`}
-                className="flex items-center gap-4 rounded-[22px] bg-slate-50 px-5 py-5 transition hover:bg-slate-100"
+                className="flex items-center gap-4 rounded-[20px] bg-slate-50 px-5 py-4 transition hover:bg-slate-100"
               >
                 <div
-                  className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-3xl font-bold ${
+                  className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-[2rem] font-bold ${
                     index === 0
                       ? 'bg-amber-500 text-white'
                       : index === 1
@@ -1009,13 +1096,13 @@ const StatisticsPage = () => {
                   {index + 1}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[1.05rem] font-bold text-slate-950">{player.name || 'Unknown Player'}</div>
+                  <div className="truncate text-[1rem] font-bold text-slate-950">{player.name || 'Unknown Player'}</div>
                   <div className="mt-1 truncate text-sm text-slate-500">{player.teamName || player.username || 'Team not available'}</div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-start justify-end gap-2">
-                    <div className="text-[3rem] font-extrabold leading-none text-emerald-600">{castNumber(player.goals)}</div>
-                    <StarIcon className="h-6 w-6 text-amber-500" />
+                    <div className="text-[2.55rem] font-extrabold leading-none text-emerald-600">{castNumber(player.goals)}</div>
+                    <StarIcon className="h-5 w-5 text-amber-500" />
                   </div>
                   <div className="mt-1 text-sm text-slate-500">
                     {player.metricLabel || 'Goals'}
@@ -1027,7 +1114,7 @@ const StatisticsPage = () => {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {insights.map((insight, index) => (
           <InsightCard key={insight.label} {...insight} delay={0.45 + index * 0.08} />
         ))}

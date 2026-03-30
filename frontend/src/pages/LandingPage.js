@@ -35,7 +35,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { EmptyState, ScrollReveal, Spinner } from '../components/ui';
 import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
-import brandLogo from './img/logo.png';
 import { APP_CONFIG } from '../config/appConfig';
 
 const HERO_IMAGES = [
@@ -1064,29 +1063,17 @@ const LandingPage = () => {
         </div>
       )}
 
-<<<<<<< HEAD
-      <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-[13px] font-semibold text-emerald-700">
-=======
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/60 py-14">
         <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
               <ArrowTrendingUpIcon className="h-4 w-4" />
               {t('landing_popular_sessions_badge', 'Popular play times')}
             </span>
-<<<<<<< HEAD
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Popular Playing Sessions</h2>
-            <p className="mt-3 text-[15px] leading-7 text-slate-600">See which parts of the day are most popular and pick the session that fits your team.</p>
-=======
             <h2 className="mt-4 text-2xl font-bold text-slate-900">{t('landing_popular_sessions_title', 'Popular sessions')}</h2>
             <p className="mt-2 text-base text-slate-600">
               {t('landing_popular_sessions_subtitle', 'See which part of the day is busiest and choose the session that suits your team.')}
             </p>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -1141,13 +1128,8 @@ const LandingPage = () => {
         </ScrollReveal>
       </section>
 
-<<<<<<< HEAD
-      <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-=======
       <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-emerald-50/40 to-white py-16">
         <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={40}>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <TrophyIcon className="h-4 w-4" />
@@ -1160,10 +1142,6 @@ const LandingPage = () => {
           <div className="mt-8 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <div>
-<<<<<<< HEAD
-                <h3 className="text-[1.9rem] font-bold tracking-tight">
-                  {featuredDiscountOffer ? `${featuredDiscountOffer.discountLabel} at ${featuredDiscountOffer.field.name}` : 'Discounts Coming Soon'}
-=======
                 <h3 className="text-4xl font-extrabold">
                   {featuredDiscountOffer
                     ? t('landing_discount_headline', '{{discount}} at {{field}}', {
@@ -1171,7 +1149,6 @@ const LandingPage = () => {
                         field: featuredDiscountOffer.field.name
                       })
                     : t('landing_discounts_coming_soon', 'Discounts Coming Soon')}
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                 </h3>
                 <p className="mt-2 text-base text-emerald-50">
                   {featuredDiscountOffer
@@ -1255,29 +1232,17 @@ const LandingPage = () => {
         </ScrollReveal>
       </section>
 
-<<<<<<< HEAD
-      <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-base font-semibold text-emerald-700 shadow-sm">
-=======
       <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-sky-50/50 py-14">
         <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={60}>
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
               <BoltIcon className="h-4 w-4" />
               {t('landing_live_fields_badge', 'Live field list')}
             </span>
-<<<<<<< HEAD
-            <h2 className="mt-5 text-2xl font-bold tracking-tight text-slate-900">Fields You Can Book Today</h2>
-            <p className="mt-3 text-base leading-7 text-slate-600">Browse live football field options with current prices, locations, and open booking windows.</p>
-=======
             <h2 className="mt-4 text-2xl font-bold text-slate-900">{t('landing_live_fields_title', 'Fields you can book today')}</h2>
             <p className="mt-2 text-base text-slate-600">
               {t('landing_live_fields_subtitle', 'Browse live football field options with pricing, location, and open booking times.')}
             </p>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           </div>
 
             <div className="mx-auto mt-10 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
@@ -1285,31 +1250,6 @@ const LandingPage = () => {
                 availableNowCards.map((field, index) => (
                   <div
                     key={`live-${field.id}-${index}`}
-<<<<<<< HEAD
-                    className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition hover:-translate-y-1.5 hover:shadow-[0_24px_52px_rgba(15,23,42,0.12)]"
-                  >
-                    <div className="flex min-h-[340px] h-full flex-col">
-                      <div className="flex flex-wrap items-start gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                              Live availability
-                            </span>
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                                field.isFullyBooked
-                                  ? 'bg-red-100 text-red-700'
-                                  : field.isAvailableNow
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : 'bg-amber-100 text-amber-700'
-                              }`}
-                            >
-                              {field.isFullyBooked
-                                ? 'No slots left'
-                                : field.isAvailableNow
-                                  ? 'Available now'
-                              : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
-=======
                     className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.09)]"
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1332,58 +1272,9 @@ const LandingPage = () => {
                               : field.isAvailableNow
                                 ? t('landing_available_now', 'Available now')
                                 : t('landing_slots_left', '{{count}} slots left', { count: field.slotsLeft })}
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                           </span>
-                          </div>
-
-                          <h3 className="mt-3 text-[1.1rem] font-extrabold leading-[1.2] tracking-tight text-slate-950 break-words sm:text-[1.25rem]">
-                            {field.name}
-                          </h3>
-                          <p className="mt-2 flex items-start gap-1.5 text-[13px] leading-5 text-slate-600">
-                            <MapPinIcon className="mt-0.5 h-4 w-4 flex-none text-slate-400" />
-                            <span>{field.location}</span>
-                          </p>
                         </div>
-<<<<<<< HEAD
 
-                        <div className="ml-auto rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right shadow-sm">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Price</p>
-                          <div className="mt-1 text-[1.45rem] font-black leading-none text-[#0ea765]">
-                            ${field.pricePerHour}
-                            <span className="ml-0.5 text-sm font-bold text-emerald-700">/hr</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">Field Size</p>
-                          <div className="mt-1 flex items-center gap-1.5 text-[15px] font-bold text-slate-950">
-                            <UsersIcon className="h-4 w-4 text-blue-600" />
-                            <span>{field.fieldType}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">Surface Type</p>
-                          <p className="mt-1 text-[15px] font-bold capitalize text-slate-950">{field.surfaceType}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
-                        <div>
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-500">Next Available</p>
-                          <p
-                            className={`mt-1 text-[1rem] font-bold leading-tight ${
-                              field.isFullyBooked
-                                ? 'text-red-700'
-                                : field.isAvailableNow
-                                  ? 'text-emerald-600'
-                                  : 'text-slate-950'
-                            }`}
-                          >
-                            {field.nextLabel}
-                          </p>
-=======
                         <h3 className="mt-5 text-[1.25rem] font-black leading-[1.15] tracking-tight text-slate-950 break-words sm:text-[1.45rem]">
                           {field.name}
                         </h3>
@@ -1400,42 +1291,7 @@ const LandingPage = () => {
                         <div className="mt-1 whitespace-nowrap text-[1.7rem] font-black leading-none text-emerald-600 sm:text-[1.9rem]">
                           ${field.pricePerHour}
                           <span className="text-sm font-bold text-emerald-700 sm:text-base">/{t('field_per_hour_short', 'hr')}</span>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                         </div>
-
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                            field.isFullyBooked
-                              ? 'bg-red-100 text-red-700'
-                              : field.slotsLeft <= 3
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-emerald-100 text-emerald-700'
-                          }`}
-                        >
-                          {field.isFullyBooked
-                            ? 'Sold out'
-                            : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
-                        </span>
-                      </div>
-
-                      <div className="mt-5">
-                        <button
-                          type="button"
-                          disabled={!field.nextTime}
-                          onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                          className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
-                            field.nextTime
-                              ? 'bg-[#1fb455] hover:-translate-y-0.5 hover:bg-[#18984a]'
-                              : 'cursor-not-allowed bg-slate-300'
-                          }`}
-                        >
-                          <BoltIcon className="h-4 w-4" />
-                          {field.nextTime
-                            ? isAuthenticated && !canCreateBooking
-                              ? 'Request Captain Access'
-                              : 'Quick Book'
-                            : 'Sold Out'}
-                        </button>
                       </div>
                     </div>
 
@@ -1518,13 +1374,8 @@ const LandingPage = () => {
               onClick={() => navigate('/fields?focus=search')}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-base font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/60"
             >
-<<<<<<< HEAD
-              View All Available Fields
-              <span className="rounded-full bg-[#1fb455] px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">24 more</span>
-=======
               {t('landing_view_all_fields', 'View all available fields')}
               <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">{t('landing_more_count', '24 more')}</span>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
             </button>
           </div>
         </ScrollReveal>
@@ -1750,29 +1601,17 @@ const LandingPage = () => {
         </>
       )}
 
-<<<<<<< HEAD
-      <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto mb-12 max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
-=======
       <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/40 py-10">
         <ScrollReveal as="div" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" delay={100}>
           <div className="mb-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
             <BuildingOfficeIcon className="h-4 w-4" />
             {t('landing_featured_badge', 'Featured picks')}
           </span>
-<<<<<<< HEAD
-          <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Featured Football Fields</h2>
-          <p className="mt-3 text-base leading-7 text-slate-600">Choose from top-rated football fields and see how other players score each venue.</p>
-=======
           <h2 className="mt-4 text-3xl font-black text-gray-900">{t('landing_featured_title', 'Featured football fields')}</h2>
           <p className="mt-2 text-base text-gray-600">
             {t('landing_featured_subtitle', 'Choose from highly rated football fields and see how other players review each one.')}
           </p>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           </div>
 
           {loading ? (
@@ -1831,21 +1670,12 @@ const LandingPage = () => {
 
                     <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
                       <div className="flex items-center gap-2">
-<<<<<<< HEAD
-                        <UsersIcon className="h-4 w-4 text-emerald-600" />
-                        <span>{players} players</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <ClockIcon className="h-4 w-4 text-emerald-600" />
-                        <span>{duration} min</span>
-=======
                         <UsersIcon className="h-5 w-5" />
                         <span>{t('players_suffix', '{{count}} players', { count: players })}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <ClockIcon className="h-5 w-5" />
                         <span>{duration} {t('landing_minute_unit', 'min')}</span>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                       </div>
                     </div>
 
@@ -1869,13 +1699,6 @@ const LandingPage = () => {
                     <div className="flex items-end justify-between gap-4">
                       <div className="text-4xl font-black leading-none text-[#0ea765]">
                       ${Number.isFinite(price) ? price.toFixed(0) : 0}
-<<<<<<< HEAD
-                      <span className="ml-1 text-lg font-semibold text-emerald-700">/session</span>
-                      </div>
-                      <p className="max-w-[150px] text-right text-sm leading-5 text-slate-600">
-                        <span className="font-semibold text-slate-700">Best for:</span>{' '}
-                        <span className="font-semibold text-emerald-800">{players >= 20 ? 'Full squads' : 'Quick matches'}</span>
-=======
                       <span className="ml-1 text-xl font-semibold text-green-700">/{t('landing_session_unit', 'session')}</span>
                       </div>
                       <p className="text-right text-sm leading-5 text-slate-600">
@@ -1885,7 +1708,6 @@ const LandingPage = () => {
                             ? t('landing_full_squads', 'Full squads')
                             : t('landing_quick_matches', 'Quick matches')}
                         </span>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                       </p>
                     </div>
 
@@ -1929,13 +1751,8 @@ const LandingPage = () => {
         </ScrollReveal>
       </section>
 
-<<<<<<< HEAD
-      <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-10">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10">
-=======
       <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-sky-50/40 to-white py-10">
         <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10" delay={120}>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
             <p className="mt-2 text-gray-600">We make football field booking simple, secure, and convenient.</p>
@@ -2013,11 +1830,7 @@ const LandingPage = () => {
         id="account-upgrade"
         className="order-10 scroll-mt-24 py-6"
       >
-<<<<<<< HEAD
-        <div className="mx-auto max-w-4xl text-center">
-=======
         <ScrollReveal as="div" className="mx-auto max-w-5xl text-center" delay={180}>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
               <BoltIcon className="h-4 w-4" />
@@ -2025,11 +1838,7 @@ const LandingPage = () => {
             </span>
             <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Grow From Player To Organizer Or Venue Owner</h2>
           </div>
-<<<<<<< HEAD
-        </div>
-=======
         </ScrollReveal>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
 
         <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
           {upgradePrograms.map((program) => {
@@ -2038,23 +1847,6 @@ const LandingPage = () => {
             return (
               <div
                 key={program.roleKey}
-<<<<<<< HEAD
-                className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
-              >
-                <div className="text-center">
-                  <div className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                    {program.audience}
-                  </div>
-                  <h3 className="mt-2.5 text-[1.5rem] font-black tracking-tight text-slate-950">{plan.title}</h3>
-                  <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-slate-600">{plan.description}</p>
-
-                  <div className="mt-3">
-                    <div className="text-[2.25rem] font-black leading-none text-[#0ea765]">
-                      ${plan.feeUsd}
-                      <span className="ml-1 text-base font-medium text-slate-600">/one-time</span>
-                    </div>
-                    <p className="mt-2 text-[12px] font-medium text-slate-500">Admin approval included</p>
-=======
                 className="rounded-[28px] border border-slate-200 bg-white p-5 text-center shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
               >
                 <div className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
@@ -2067,49 +1859,19 @@ const LandingPage = () => {
                   <div className="text-[3rem] font-black leading-none text-[#0ea765]">
                     ${plan.feeUsd}
                     <span className="ml-1 text-xl font-semibold text-slate-700">/one-time</span>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                   </div>
                   <p className="mt-2 text-[12px] font-medium text-slate-500">Admin approval included</p>
                 </div>
 
-<<<<<<< HEAD
-                <div className="mt-5 space-y-2.5">
-                  {plan.benefits.map((benefit) => (
-                    <div key={benefit} className="flex items-start gap-2.5 text-[13px] leading-5 text-slate-700">
-                      <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                        <CheckIcon className="h-3.5 w-3.5" />
-=======
                 <div className="mt-7 space-y-3 text-left">
                   {plan.benefits.map((benefit) => (
                     <div key={benefit} className="flex items-start gap-3 text-sm text-slate-700">
                       <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                         <CheckCircleIcon className="h-3.5 w-3.5" />
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                       </span>
                       <span>{benefit}</span>
                     </div>
                   ))}
-<<<<<<< HEAD
-                </div>
-
-                <div className="mt-5 border-t border-slate-100 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => handleUpgradeNow(program.roleKey)}
-                    className="inline-flex w-full items-center justify-center rounded-xl bg-[#1fb455] px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#18984a]"
-                  >
-                    Book Now
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleCallForDemo(program.roleKey)}
-                    className="mt-2 inline-flex w-full items-center justify-center text-[11px] font-medium text-slate-500 transition hover:text-emerald-700"
-                  >
-                    Need help? Call for Demo
-                  </button>
-=======
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                 </div>
 
                 <button
@@ -2133,15 +1895,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-<<<<<<< HEAD
-      <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-8">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
-          <div className="rounded-[28px] border border-emerald-200 bg-white px-6 py-10 text-center shadow-[0_16px_36px_rgba(15,23,42,0.06)]">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Premium Experience Guaranteed</h2>
-            <p className="mx-auto mt-4 max-w-4xl text-base leading-7 text-slate-600">
-              All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and
-              safety for all our customers. Every field is inspected daily and meets professional football standards.
-=======
       <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/50 py-8">
         <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={200}>
           <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
@@ -2151,14 +1904,9 @@ const LandingPage = () => {
                 'landing_premium_experience_subtitle',
                 'All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and safety for all our customers. Every field is inspected daily and meets professional football standards.'
               )}
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               {PREMIUM_GUARANTEE_ITEMS.map((item) => (
-<<<<<<< HEAD
-                <span key={item.label} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${item.className}`}>
-                  {`✓ ${item.label}`}
-=======
                 <span key={item.key} className={`rounded-md px-4 py-2 text-sm font-semibold ${item.className}`}>
                   {item.key === 'daily_maintenance'
                     ? t('landing_premium_daily_maintenance', 'Daily Maintenance')
@@ -2167,7 +1915,6 @@ const LandingPage = () => {
                     : item.key === 'safety_certified'
                     ? t('landing_premium_safety_certified', 'Safety Certified')
                     : t('landing_premium_eco_friendly', 'Eco Friendly')}
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                 </span>
               ))}
             </div>
@@ -2177,19 +1924,6 @@ const LandingPage = () => {
 
       <footer className="order-last !mt-0 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-950 text-slate-100">
         <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
-<<<<<<< HEAD
-          <div className="grid grid-cols-1 gap-8 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <img
-                  src={brandLogo}
-                  alt="Football Field Booking logo"
-                  className="h-12 w-12 rounded-xl object-cover"
-                />
-                <div>
-                  <div className="khmer-brand-font text-3xl font-extrabold tracking-tight text-white">អាណាចក្រភ្នំស្វាយ</div>
-                  <div className="text-sm text-emerald-300">Book football fields faster</div>
-=======
           <div className="grid grid-cols-1 gap-8 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-5">
             <div className="lg:col-span-2">
               <div className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.25)]">
@@ -2200,7 +1934,6 @@ const LandingPage = () => {
                   <div className="khmer-brand-font text-base font-semibold leading-[1.2] text-white sm:text-xl">
                     {APP_CONFIG.brand.displayName}
                   </div>
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                 </div>
               </div>
               <p className="mt-5 max-w-sm text-base leading-7 text-slate-300">
