@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CheckIcon,
@@ -1106,7 +1106,7 @@ const OwnerFieldsPage = () => {
                     className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     <TrashIcon className="h-4 w-4" />
-                    {t('action_delete', 'áž›áž»áž”')}
+                    {t('action_delete', 'Delete')}
                   </button>
                 </div>
               </div>

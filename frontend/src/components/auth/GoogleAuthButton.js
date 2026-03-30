@@ -53,8 +53,15 @@ const loadGoogleScript = () =>
 const GoogleAuthButton = ({ onCredential, onError, disabled = false, text = 'continue_with' }) => {
   const buttonRef = useRef(null);
   const initializedRef = useRef(false);
+  const onCredentialRef = useRef(onCredential);
+  const onErrorRef = useRef(onError);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    onCredentialRef.current = onCredential;
+    onErrorRef.current = onError;
+  }, [onCredential, onError]);
 
   useEffect(() => {
     if (!buttonRef.current) {
@@ -78,10 +85,10 @@ const GoogleAuthButton = ({ onCredential, onError, disabled = false, text = 'con
           client_id: clientId,
           callback: (response) => {
             if (response?.credential) {
-              onCredential?.(response.credential);
+              onCredentialRef.current?.(response.credential);
               return;
             }
-            onError?.('Google sign-in did not return a credential.');
+            onErrorRef.current?.('Google sign-in did not return a credential.');
           }
         });
 
@@ -101,13 +108,13 @@ const GoogleAuthButton = ({ onCredential, onError, disabled = false, text = 'con
         if (!active) return;
         const message = error?.message || 'Failed to load Google sign-in.';
         setLoadError(message);
-        onError?.(message);
+        onErrorRef.current?.(message);
       });
 
     return () => {
       active = false;
     };
-  }, [onCredential, onError, text]);
+  }, [text]);
 
   if (loadError) {
     return (
