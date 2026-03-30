@@ -4,8 +4,8 @@ import axios from 'axios';
 // Configuration
 // =====================================
 // API base URL - can be overridden by environment variable.
-// Default to backend dev server for predictable routing.
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
+// Default to same-origin /api so the current frontend talks to the current backend.
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 // Create axios instance
 const api = axios.create({
