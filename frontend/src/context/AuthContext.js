@@ -220,6 +220,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleAuth = async (credential) => {
+    dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+
+    try {
+      const response = await authService.googleAuth(credential);
+
+      if (response.success) {
+        const user = authService.getCurrentUser();
+        const permissions = authService.getPermissions();
+
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: { user, permissions }
+        });
+
+        return { success: true, data: response.data };
+      }
+
+      throw new Error(response.message || 'Google authentication failed');
+    } catch (error) {
+      const errorMessage = error.error || error.message || 'Google authentication failed';
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_FAILURE,
+        payload: errorMessage
+      });
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // Logout function
   const logout = async () => {
     dispatch({ type: AUTH_ACTIONS.LOGOUT_START });
@@ -348,6 +377,35 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    if (!authService.isAuthenticated()) {
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    try {
+      const profileResponse = await authService.getProfile();
+      const user =
+        (profileResponse.success && (profileResponse.data?.user || profileResponse.data)) ||
+        authService.getCurrentUser();
+      const permissions = authService.getPermissions();
+
+      dispatch({
+        type: AUTH_ACTIONS.LOAD_USER_SUCCESS,
+        payload: { user, permissions }
+      });
+
+      return { success: true, data: user };
+    } catch (error) {
+      const errorMessage = error.error || error.message || 'Failed to refresh user';
+      dispatch({
+        type: AUTH_ACTIONS.LOAD_USER_FAILURE,
+        payload: errorMessage
+      });
+      return { success: false, error: errorMessage };
+    }
+  };
+
   // Clear error function
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -386,12 +444,14 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
-    register,
-    logout,
+      register,
+      googleAuth,
+      logout,
     updateProfile,
     uploadAvatar,
     deleteAvatar,
     changePassword,
+    refreshUser,
     clearError,
     hasPermission,
     hasRole,

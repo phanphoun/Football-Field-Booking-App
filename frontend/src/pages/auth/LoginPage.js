@@ -5,11 +5,16 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LoginPage = () => {
+<<<<<<< HEAD
   const { login, loading, error, clearError } = useAuth();
+=======
+  const { login, googleAuth, loading, error } = useAuth();
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -73,24 +78,85 @@ const LoginPage = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credential) => {
+    setValidationErrors({});
+    const result = await googleAuth(credential);
+    if (result.success) {
+      const role = result.data?.user?.role;
+      const defaultPath = getPreferredStartPath(role === 'field_owner' ? 'owner' : 'app');
+      navigate(from || defaultPath, { replace: true });
+      return;
+    }
+
+    if (result.error) {
+      setValidationErrors({
+        email: result.error,
+        password: result.error
+      });
+    }
+  };
+
+  const handleGoogleError = (message) => {
+    if (!message) return;
+    setValidationErrors({
+      email: message,
+      password: message
+    });
+  };
+
   return (
     <AuthModalShell
-      badgeLabel="Account Access"
       title="Sign In"
-      description="Welcome back. Sign in to continue managing your bookings, teams, and football activity."
+      description=""
       maxWidth={520}
       homeLinkState={authRouteState}
     >
-      <p className="mb-6 text-sm text-slate-600 sm:text-base">
+      <p className="mb-4 text-sm text-slate-600 sm:mb-6 sm:text-base">
         Don&apos;t have an account?{' '}
         <Link to="/register" state={authRouteState} className="font-semibold text-green-700 hover:text-green-800">
           Create one here
         </Link>
       </p>
 
+<<<<<<< HEAD
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+=======
+      {error && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mb-6">
+          <div className="flex items-center">
+            <svg className="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {error}
+          </div>
+          {validationErrors.password && (
+            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
+          )}
+        </div>
+      )}
+
+      <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit} noValidate>
+        <div className="space-y-2 sm:space-y-3">
+          <GoogleAuthButton
+            disabled={loading}
+            onCredential={handleGoogleSuccess}
+            onError={handleGoogleError}
+            text="continue_with"
+          />
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+        </div>
+
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
         <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Email Address
           </label>
           {validationErrors.email && (
@@ -104,7 +170,7 @@ const LoginPage = () => {
             value={formData.email}
             onChange={handleChange}
             aria-invalid={Boolean(validationErrors.email)}
-            className={`block w-full rounded-2xl bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
+            className={`block w-full rounded-2xl bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 sm:py-3 ${
               validationErrors.email
                 ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
@@ -113,7 +179,7 @@ const LoginPage = () => {
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Password
           </label>
           {validationErrors.password && (
@@ -128,7 +194,7 @@ const LoginPage = () => {
               value={formData.password}
               onChange={handleChange}
               aria-invalid={Boolean(validationErrors.password)}
-              className={`block w-full rounded-2xl bg-white px-4 py-3 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 ${
+              className={`block w-full rounded-2xl bg-white px-4 py-2.5 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 sm:py-3 ${
                 validationErrors.password
                   ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
@@ -145,7 +211,7 @@ const LoginPage = () => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input
               id="remember-me"
@@ -165,6 +231,7 @@ const LoginPage = () => {
           </button>
         </div>
 
+<<<<<<< HEAD
         {error && !validationErrors.email && !validationErrors.password && (
           <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
             <svg className="h-4 w-4 flex-none" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
@@ -179,6 +246,9 @@ const LoginPage = () => {
         )}
 
         <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700">
+=======
+        <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-2.5 text-base font-semibold text-white hover:bg-green-700 sm:py-3">
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -189,7 +259,7 @@ const LoginPage = () => {
           )}
         </Button>
 
-        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-center text-sm text-slate-600">
+        <div className="rounded-2xl bg-slate-50 px-4 py-2.5 text-center text-sm text-slate-600 sm:py-3">
           Want to browse first?{' '}
           <Link to="/" state={authRouteState} className="font-medium text-slate-900 hover:text-slate-700">
             Continue as guest

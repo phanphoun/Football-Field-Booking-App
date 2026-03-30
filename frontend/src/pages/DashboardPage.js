@@ -1,31 +1,51 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
+import { useLanguage } from '../context/LanguageContext';
 import apiService from '../services/api';
 import authService from '../services/authService';
 import bookingService from '../services/bookingService';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
+import { formatRoleLabel } from '../utils/formatters';
 import {
   ArrowRightIcon,
+  BanknotesIcon,
   BellAlertIcon,
   BuildingOfficeIcon,
   CalendarIcon,
   CheckIcon,
   ClipboardDocumentCheckIcon,
   UserCircleIcon,
-  UsersIcon,
   XMarkIcon,
   TrophyIcon,
-  FlagIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
+import {
+  buildPaymentRoleBreakdown,
+  buildPaymentSummary,
+  buildPaymentTimeline,
+  formatUsd,
+  getPaymentStatusPercentages
+} from '../utils/adminPayments';
 
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
+};
+
+const statusTranslationKey = (status) => {
+  const map = {
+    pending: 'common_pending',
+    confirmed: 'common_confirmed',
+    cancellation_pending: 'owner_bookings_cancellation_pending',
+    completed: 'common_completed',
+    cancelled: 'common_cancelled'
+  };
+  return map[status] || null;
 };
 
 const roleTheme = {
@@ -58,6 +78,8 @@ const roleTheme = {
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const role = user?.role;
@@ -143,14 +165,14 @@ const DashboardPage = () => {
           setJoinRequestsByTeam([]);
         }
       } catch (err) {
-        setError(err?.error || 'Failed to load dashboard');
+        setError(err?.error || t('dashboard_load_failed', 'Failed to load dashboard'));
       } finally {
         setLoading(false);
       }
     };
 
     load();
-  }, [isCaptain, role]);
+  }, [isCaptain, role, t, version]);
 
   const upcomingBookings = useMemo(() => {
     const now = Date.now();
@@ -168,7 +190,7 @@ const DashboardPage = () => {
 
       return [
         {
-          name: 'Captained Teams',
+          name: t('dashboard_captained_teams', 'Captained Teams'),
           value: captainedTeams.length,
           icon: TrophyIcon,
           iconWrap: 'bg-emerald-600',
@@ -176,7 +198,7 @@ const DashboardPage = () => {
           textClass: 'text-emerald-950'
         },
         {
-          name: 'Pending Requests',
+          name: t('stat_pending_requests', 'Pending Requests'),
           value: pendingJoinRequests,
           icon: ClipboardDocumentCheckIcon,
           iconWrap: 'bg-amber-500',
@@ -184,7 +206,7 @@ const DashboardPage = () => {
           textClass: 'text-amber-950'
         },
         {
-          name: 'My Bookings',
+          name: t('dashboard_my_bookings', 'My Bookings'),
           value: stats?.bookings ?? bookings.length,
           icon: CalendarIcon,
           iconWrap: 'bg-blue-600',
@@ -192,7 +214,7 @@ const DashboardPage = () => {
           textClass: 'text-blue-950'
         },
         {
-          name: 'Fields Available',
+          name: t('dashboard_fields_available', 'Fields Available'),
           value: stats?.fields ?? 0,
           icon: BuildingOfficeIcon,
           iconWrap: 'bg-cyan-600',
@@ -207,7 +229,7 @@ const DashboardPage = () => {
 
       return [
         {
-          name: 'My Teams',
+          name: t('dashboard_player_my_teams', 'My Teams'),
           value: stats?.teams ?? myTeams.length,
           icon: UserGroupIcon,
           iconWrap: 'bg-emerald-600',
@@ -215,7 +237,7 @@ const DashboardPage = () => {
           textClass: 'text-emerald-950'
         },
         {
-          name: 'Invitations',
+          name: t('dashboard_player_invitations', 'Invitations'),
           value: pendingInvites,
           icon: BellAlertIcon,
           iconWrap: 'bg-amber-500',
@@ -223,7 +245,7 @@ const DashboardPage = () => {
           textClass: 'text-amber-950'
         },
         {
-          name: 'Team Bookings',
+          name: t('dashboard_player_team_bookings', 'Team Bookings'),
           value: stats?.bookings ?? bookings.length,
           icon: CalendarIcon,
           iconWrap: 'bg-blue-600',
@@ -231,7 +253,7 @@ const DashboardPage = () => {
           textClass: 'text-blue-950'
         },
         {
-          name: 'Upcoming',
+          name: t('dashboard_player_upcoming', 'Upcoming'),
           value: upcomingBookings.length,
           icon: CheckIcon,
           iconWrap: 'bg-violet-600',
@@ -287,7 +309,8 @@ const DashboardPage = () => {
     myTeams.length,
     notifications,
     upcomingBookings.length,
-    adminRoleRequests
+    adminRoleRequests,
+    t
   ]);
 
   const pendingAdminRoleRequests = useMemo(() => {
@@ -296,6 +319,22 @@ const DashboardPage = () => {
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .slice(0, 5);
   }, [adminRoleRequests]);
+
+  const adminPaymentSummary = useMemo(() => buildPaymentSummary(adminRoleRequests), [adminRoleRequests]);
+  const adminPaymentTimeline = useMemo(() => buildPaymentTimeline(adminRoleRequests, 6), [adminRoleRequests]);
+  const adminPaymentRoleBreakdown = useMemo(() => buildPaymentRoleBreakdown(adminRoleRequests), [adminRoleRequests]);
+  const adminPaymentPercentages = useMemo(
+    () => getPaymentStatusPercentages(adminPaymentSummary),
+    [adminPaymentSummary]
+  );
+
+  const adminPaymentTimelineMax = useMemo(() => {
+    const max = Math.max(
+      ...adminPaymentTimeline.map((item) => item.approvedAmount + item.pendingAmount + item.rejectedAmount),
+      0
+    );
+    return max || 1;
+  }, [adminPaymentTimeline]);
 
   const recentUsers = useMemo(() => {
     return [...users]
@@ -329,19 +368,19 @@ const DashboardPage = () => {
     if (isCaptain) {
       return [
         {
-          label: 'Next booking',
-          value: upcomingBookings[0]?.field?.name || 'Nothing scheduled',
-          note: upcomingBookings[0]?.startTime ? new Date(upcomingBookings[0].startTime).toLocaleString() : 'Create a booking to get started'
+          label: t('dashboard_next_booking', 'Next booking'),
+          value: upcomingBookings[0]?.field?.name || t('dashboard_nothing_scheduled', 'Nothing scheduled'),
+          note: upcomingBookings[0]?.startTime ? new Date(upcomingBookings[0].startTime).toLocaleString() : t('dashboard_create_booking_start', 'Create a booking to get started')
         },
         {
-          label: 'Teams managed',
+          label: t('dashboard_teams_managed', 'Teams managed'),
           value: String(captainedTeams.length),
-          note: captainedTeams.length > 0 ? 'Active captain workspaces' : 'Create or captain a team'
+          note: captainedTeams.length > 0 ? t('dashboard_active_captain_workspaces', 'Active captain workspaces') : t('dashboard_create_or_captain_team', 'Create or captain a team')
         },
         {
-          label: 'Join queue',
+          label: t('dashboard_join_queue', 'Join queue'),
           value: String(joinRequestsByTeam.reduce((sum, item) => sum + item.pendingCount, 0)),
-          note: 'Requests waiting for your review'
+          note: t('dashboard_requests_waiting_review', 'Requests waiting for your review')
         }
       ];
     }
@@ -349,41 +388,38 @@ const DashboardPage = () => {
     if (isPlayerWorkspace) {
       return [
         {
-          label: 'Next match day',
-          value: upcomingBookings[0]?.field?.name || 'No upcoming booking',
-          note: upcomingBookings[0]?.startTime ? new Date(upcomingBookings[0].startTime).toLocaleString() : 'Watch for team activity and invites'
+          label: t('dashboard_player_next_match_day', 'Next match day'),
+          value: upcomingBookings[0]?.field?.name || t('dashboard_player_no_upcoming_booking', 'No upcoming booking'),
+          note: upcomingBookings[0]?.startTime ? new Date(upcomingBookings[0].startTime).toLocaleString() : t('dashboard_player_watch_activity', 'Watch for team activity and invites')
         },
         {
-          label: 'My teams',
+          label: t('dashboard_player_my_teams_small', 'My teams'),
           value: String(myTeams.length),
-          note: myTeams.length > 0 ? 'Teams you currently belong to' : 'Join a team to unlock match activity'
+          note: myTeams.length > 0 ? t('dashboard_player_current_teams', 'Teams you currently belong to') : t('dashboard_player_join_team_unlock', 'Join a team to unlock match activity')
         },
         {
-          label: 'Open invites',
+          label: t('dashboard_player_open_invites', 'Open invites'),
           value: String(inviteNotifications.length),
-          note: 'Unread team invitations'
+          note: t('dashboard_player_unread_invites', 'Unread team invitations')
         }
       ];
     }
 
     return [
       {
+        label: 'Pending amount',
+        value: formatUsd(adminPaymentSummary.pendingAmount),
+        note: t('dashboard_admin_pending_approvals', 'Pending approvals requiring admin action')
+      },
+      {
+        label: 'Verified revenue',
+        value: formatUsd(adminPaymentSummary.approvedAmount),
+        note: 'Approved role-upgrade payments'
+      },
+      {
         label: 'Role queue',
         value: String(pendingAdminRoleRequests.length),
-        note: 'Pending approvals requiring admin action'
-      },
-      {
-        label: 'Newest user',
-        value:
-          (`${recentUsers[0]?.firstName || ''} ${recentUsers[0]?.lastName || ''}`.trim() ||
-            recentUsers[0]?.username ||
-            'No recent users'),
-        note: recentUsers[0]?.createdAt ? new Date(recentUsers[0].createdAt).toLocaleString() : 'New registrations will show here'
-      },
-      {
-        label: 'Recent bookings',
-        value: String(recentBookings.length),
-        note: 'Latest activity across the platform'
+        note: `${adminPaymentSummary.pendingCount} payment requests waiting for review`
       }
     ];
   }, [
@@ -395,41 +431,44 @@ const DashboardPage = () => {
     myTeams.length,
     inviteNotifications.length,
     pendingAdminRoleRequests.length,
-    recentUsers,
-    recentBookings.length
+    adminPaymentSummary.pendingAmount,
+    adminPaymentSummary.approvedAmount,
+    adminPaymentSummary.pendingCount,
+    t
   ]);
 
   const quickActions = useMemo(() => {
     if (isCaptain) {
       return [
-        { label: 'Create booking', helper: 'Reserve a field for your team', to: canCreateBooking ? '/app/bookings/new' : '/app/bookings' },
-        { label: 'Manage teams', helper: 'Review members and requests', to: '/app/teams' },
-        { label: 'Find fields', helper: 'Browse available venues', to: '/app/fields' }
+        { label: t('dashboard_create_booking', 'Create booking'), helper: t('dashboard_reserve_field_team', 'Reserve a field for your team'), to: canCreateBooking ? '/app/bookings/new' : '/app/bookings' },
+        { label: t('dashboard_manage_teams', 'Manage teams'), helper: t('dashboard_review_members_requests', 'Review members and requests'), to: '/app/teams' },
+        { label: t('dashboard_find_fields', 'Find fields'), helper: t('dashboard_browse_venues', 'Browse available venues'), to: '/app/fields' }
       ];
     }
 
     if (isFieldOwner) {
       return [
-        { label: 'Create booking', helper: 'Reserve a field while using the app workspace', to: '/app/bookings/new' },
-        { label: 'Explore teams', helper: 'Join or manage team activity', to: '/app/teams' },
-        { label: 'Browse fields', helper: 'Discover venues near you', to: '/app/fields' }
+        { label: t('dashboard_create_booking', 'Create booking'), helper: t('dashboard_owner_reserve_field', 'Reserve a field while using the app workspace'), to: '/app/bookings/new' },
+        { label: t('dashboard_player_explore_teams', 'Explore teams'), helper: t('dashboard_owner_join_manage_team', 'Join or manage team activity'), to: '/app/teams' },
+        { label: t('dashboard_player_browse_fields', 'Browse fields'), helper: t('dashboard_player_discover_venues', 'Discover venues near you'), to: '/app/fields' }
       ];
     }
 
     if (role === 'player') {
       return [
-        { label: 'View bookings', helper: 'See your upcoming sessions', to: '/app/bookings' },
-        { label: 'Explore teams', helper: 'Join a squad or manage memberships', to: '/app/teams' },
-        { label: 'Browse fields', helper: 'Discover venues near you', to: '/app/fields' }
+        { label: t('dashboard_player_view_bookings', 'View bookings'), helper: t('dashboard_player_see_upcoming_sessions', 'See your upcoming sessions'), to: '/app/bookings' },
+        { label: t('dashboard_player_explore_teams', 'Explore teams'), helper: t('dashboard_player_join_squad', 'Join a squad or manage memberships'), to: '/app/teams' },
+        { label: t('dashboard_player_browse_fields', 'Browse fields'), helper: t('dashboard_player_discover_venues', 'Discover venues near you'), to: '/app/fields' }
       ];
     }
 
     return [
-      { label: 'Review role requests', helper: 'Approve captain and owner access', to: '/app/admin/role-requests' },
-      { label: 'Manage users', helper: 'Inspect platform members', to: '/app/admin/users' },
-      { label: 'Check bookings', helper: 'Monitor booking activity', to: '/app/bookings' }
+      { label: 'Manage payments', helper: 'Review payment proofs and approve or reject upgrade money', to: '/app/admin/payments' },
+      { label: t('dashboard_admin_review_role_requests', 'Review role requests'), helper: t('dashboard_admin_approve_access', 'Approve captain and owner access'), to: '/app/admin/role-requests' },
+      { label: t('dashboard_admin_manage_users', 'Manage users'), helper: t('dashboard_admin_inspect_members', 'Inspect platform members'), to: '/app/admin/users' },
+      { label: t('dashboard_admin_check_bookings', 'Check bookings'), helper: t('dashboard_admin_monitor_bookings', 'Monitor booking activity'), to: '/app/bookings' }
     ];
-  }, [canCreateBooking, isCaptain, isFieldOwner, role]);
+  }, [canCreateBooking, isCaptain, isFieldOwner, role, t]);
 
   const markNotificationRead = async (notificationId) => {
     await apiService.put(`/notifications/${notificationId}`, {
@@ -485,10 +524,24 @@ const DashboardPage = () => {
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
             <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-100">
-              {activeTheme.badge}
+              {isCaptain
+                ? t('dashboard_captain_overview_badge', activeTheme.badge)
+                : role === 'player'
+                  ? t('dashboard_player_overview_badge', activeTheme.badge)
+                  : role === 'field_owner'
+                    ? t('dashboard_owner_app_view_badge', activeTheme.badge)
+                    : activeTheme.badge}
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Dashboard</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{activeTheme.description}</p>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{t('nav_dashboard', 'Dashboard')}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              {isCaptain
+                ? t('dashboard_captain_description', activeTheme.description)
+                : role === 'player'
+                  ? t('dashboard_player_description', activeTheme.description)
+                  : role === 'field_owner'
+                    ? t('dashboard_owner_app_description', activeTheme.description)
+                    : activeTheme.description}
+            </p>
             <div className="mt-5 flex flex-wrap gap-3">
               {quickActions.map((action) => (
                 <Button
@@ -541,27 +594,27 @@ const DashboardPage = () => {
         <CardHeader className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-medium text-gray-900">
-              {role === 'captain' ? 'Pending Join Requests' : role === 'admin' ? 'Pending Role Requests' : 'Upcoming Bookings'}
+              {role === 'captain' ? t('dashboard_pending_join_requests', 'Pending Join Requests') : role === 'admin' ? t('dashboard_admin_pending_role_requests', 'Pending Role Requests') : t('dashboard_player_upcoming_bookings', 'Upcoming Bookings')}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {role === 'captain'
-                ? 'Keep team membership flowing by clearing request queues quickly.'
+                ? t('dashboard_pending_join_requests_desc', 'Keep team membership flowing by clearing request queues quickly.')
                 : role === 'admin'
-                  ? 'Recent access requests that need review from the admin side.'
-                  : 'Your next confirmed or pending sessions in chronological order.'}
+                  ? t('dashboard_admin_recent_access_requests', 'Recent access requests that need review from the admin side.')
+                  : t('dashboard_player_upcoming_bookings_desc', 'Your next confirmed or pending sessions in chronological order.')}
             </p>
           </div>
           {isCaptain ? (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/teams')}>
-              Teams
+              {t('nav_teams', 'Teams')}
             </Button>
           ) : role === 'admin' ? (
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/role-requests')}>
-              Review All
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/payments')}>
+              {t('dashboard_admin_review_all', 'Review All')}
             </Button>
           ) : (
             <Button variant="outline" size="sm" onClick={() => navigate('/app/bookings')}>
-              Bookings
+              {t('nav_bookings', 'Bookings')}
             </Button>
           )}
         </CardHeader>
@@ -573,10 +626,10 @@ const DashboardPage = () => {
                   <div key={team.teamId} className="flex items-center justify-between px-6 py-5 transition hover:bg-slate-50/80">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{team.teamName}</div>
-                      <div className="text-xs text-slate-500">{team.pendingCount} pending</div>
+                      <div className="text-xs text-slate-500">{t('owner_pending_count', '{{count}} pending', { count: team.pendingCount })}</div>
                     </div>
                     <Button as={Link} to={`/app/teams/${team.teamId}/manage`} size="sm">
-                      Review
+                      {t('action_review_requests', 'Review')}
                     </Button>
                   </div>
                 ))}
@@ -585,8 +638,8 @@ const DashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={ClipboardDocumentCheckIcon}
-                  title="No pending requests"
-                  description="When players request to join, they will appear here."
+                  title={t('dashboard_no_pending_requests', 'No pending requests')}
+                  description={t('dashboard_join_requests_appear_here', 'When players request to join, they will appear here.')}
                 />
               </div>
             )
@@ -607,8 +660,8 @@ const DashboardPage = () => {
                         </div>
                         <div className="mt-1 text-xs text-gray-400">{new Date(request.createdAt).toLocaleString()}</div>
                       </div>
-                      <Button as={Link} to="/app/admin/role-requests" size="sm">
-                        Review
+                      <Button as={Link} to="/app/admin/payments" size="sm">
+                        {t('action_review_requests', 'Review')}
                       </Button>
                     </div>
                   );
@@ -618,7 +671,7 @@ const DashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={ClipboardDocumentCheckIcon}
-                  title="No pending role requests"
+                  title={t('dashboard_admin_no_pending_role_requests', 'No pending role requests')}
                   description="New captain and field owner requests will appear here for admin review."
                 />
               </div>
@@ -628,24 +681,24 @@ const DashboardPage = () => {
               {upcomingBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center justify-between px-6 py-5 transition hover:bg-slate-50/80">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{booking.field?.name || 'Field'}</div>
-                    <div className="text-xs text-gray-500">{new Date(booking.startTime).toLocaleString()}</div>
-                  </div>
-                  <Badge tone={statusTone(booking.status)} className="capitalize">
-                    {booking.status}
-                  </Badge>
-                </div>
+                        <div className="text-sm font-medium text-gray-900">{booking.field?.name || 'Field'}</div>
+                        <div className="text-xs text-gray-500">{new Date(booking.startTime).toLocaleString()}</div>
+                      </div>
+                      <Badge tone={statusTone(booking.status)} className="capitalize">
+                        {t(statusTranslationKey(booking.status) || booking.status, booking.status)}
+                      </Badge>
+                    </div>
               ))}
             </div>
           ) : (
             <div className="p-6">
               <EmptyState
                 icon={CalendarIcon}
-                title="No upcoming bookings"
+                title={t('owner_upcoming_empty_title', 'No upcoming bookings')}
                 description={
-                  canCreateBooking ? 'Browse fields and create your next booking.' : 'Please request to become captain in Settings.'
+                  canCreateBooking ? t('dashboard_player_browse_create_booking', 'Browse fields and create your next booking.') : t('booking_empty_request_captain', 'Please request to become captain in Settings.')
                 }
-                actionLabel={canCreateBooking ? 'Book a field' : 'Request Captain Access'}
+                actionLabel={canCreateBooking ? t('dashboard_player_book_field', 'Book a field') : t('booking_request_captain', 'Request Captain Access')}
                 onAction={() =>
                   navigate(
                     canCreateBooking ? '/app/bookings/new' : '/app/settings',
@@ -663,11 +716,11 @@ const DashboardPage = () => {
           <Card className="overflow-hidden">
             <CardHeader className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">Recent Bookings</h3>
-                <p className="mt-1 text-sm text-slate-500">Latest booking activity connected to your account.</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('dashboard_recent_bookings', 'Recent Bookings')}</h3>
+                <p className="mt-1 text-sm text-slate-500">{t('dashboard_recent_bookings_desc', 'Latest booking activity connected to your account.')}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => navigate('/app/bookings')}>
-                View all
+                {t('dashboard_view_all', 'View all')}
               </Button>
             </CardHeader>
             <div className="bg-white">
@@ -676,13 +729,13 @@ const DashboardPage = () => {
                   {recentBookings.slice(0, 5).map((booking) => (
                     <div key={booking.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || 'Field booking'}</div>
+                        <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || t('dashboard_field_booking', 'Field booking')}</div>
                         <div className="mt-1 truncate text-xs text-slate-500">
-                          {booking.team?.name || 'No team'} | {new Date(booking.startTime).toLocaleString()}
+                          {booking.team?.name || t('booking_no_team', 'No team')} | {new Date(booking.startTime).toLocaleString()}
                         </div>
                       </div>
                       <Badge tone={statusTone(booking.status)} className="capitalize">
-                        {booking.status}
+                        {t(statusTranslationKey(booking.status) || booking.status, booking.status)}
                       </Badge>
                     </div>
                   ))}
@@ -691,8 +744,8 @@ const DashboardPage = () => {
                 <div className="p-6">
                   <EmptyState
                     icon={CalendarIcon}
-                    title="No recent bookings"
-                    description="Once bookings are created, the latest activity will appear here."
+                    title={t('dashboard_no_recent_bookings', 'No recent bookings')}
+                    description={t('dashboard_recent_bookings_appear', 'Once bookings are created, the latest activity will appear here.')}
                   />
                 </div>
               )}
@@ -702,33 +755,33 @@ const DashboardPage = () => {
           <Card className="overflow-hidden">
             <CardHeader className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">{isCaptain ? 'Team Snapshot' : 'Team Activity'}</h3>
+                <h3 className="text-lg font-medium text-gray-900">{isCaptain ? t('dashboard_team_snapshot', 'Team Snapshot') : t('dashboard_player_team_activity', 'Team Activity')}</h3>
                 <p className="mt-1 text-sm text-slate-500">
                   {isCaptain
-                    ? 'Quick view of the teams you lead and their pending workload.'
-                    : 'Your current team footprint and invitation activity.'}
+                    ? t('dashboard_team_snapshot_desc', 'Quick view of the teams you lead and their pending workload.')
+                    : t('dashboard_player_team_activity_desc', 'Your current team footprint and invitation activity.')}
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => navigate('/app/teams')}>
-                Open teams
+                {t('dashboard_open_teams', 'Open teams')}
               </Button>
             </CardHeader>
             <div className="bg-white p-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {isCaptain ? 'Captained teams' : 'Joined teams'}
+                    {isCaptain ? t('dashboard_captained_teams_small', 'Captained teams') : t('dashboard_player_joined_teams', 'Joined teams')}
                   </div>
                   <div className="mt-2 text-3xl font-bold text-slate-950">
                     {isCaptain ? captainedTeams.length : myTeams.length}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    {isCaptain ? 'Teams you actively manage' : 'Teams where you are currently a member'}
+                    {isCaptain ? t('dashboard_teams_actively_manage', 'Teams you actively manage') : t('dashboard_player_member_teams', 'Teams where you are currently a member')}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {isCaptain ? 'Pending join requests' : 'Pending invitations'}
+                    {isCaptain ? t('dashboard_pending_join_requests_small', 'Pending join requests') : t('dashboard_player_pending_invitations', 'Pending invitations')}
                   </div>
                   <div className="mt-2 text-3xl font-bold text-slate-950">
                     {isCaptain
@@ -736,14 +789,14 @@ const DashboardPage = () => {
                       : inviteNotifications.length}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    {isCaptain ? 'Players waiting for a decision' : 'Invites waiting for your response'}
+                    {isCaptain ? t('dashboard_players_waiting_decision', 'Players waiting for a decision') : t('dashboard_player_invites_waiting', 'Invites waiting for your response')}
                   </div>
                 </div>
               </div>
               <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">
                 {isCaptain
-                  ? 'Tip: clear join requests quickly to keep your squad ready for bookings and open matches.'
-                  : 'Tip: accepting invitations and tracking bookings here gives you a faster path into upcoming matches.'}
+                  ? t('dashboard_captain_tip', 'Tip: clear join requests quickly to keep your squad ready for bookings and open matches.')
+                  : t('dashboard_player_tip', 'Tip: accepting invitations and tracking bookings here gives you a faster path into upcoming matches.')}
               </div>
             </div>
           </Card>
@@ -751,82 +804,212 @@ const DashboardPage = () => {
       )}
 
       {role === 'admin' && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <Card className="overflow-hidden">
-            <CardHeader className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Newest Users</h3>
-              <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/users')}>
-                Manage Users
-              </Button>
-            </CardHeader>
-            <div className="bg-white">
-              {recentUsers.length > 0 ? (
-                <div className="divide-y divide-slate-200">
-                  {recentUsers.map((member) => {
-                    const displayName =
-                      `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.username || member.email;
+        <>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
+            <Card className="overflow-hidden">
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Payment Visualization</h3>
+                  <p className="mt-1 text-sm text-slate-500">Monitor approved, pending, and rejected upgrade money over the last 6 months.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/payments')}>
+                  Open Payments
+                </Button>
+              </CardHeader>
+              <div className="bg-white p-6">
+                <div className="flex items-end gap-3 overflow-x-auto pb-2">
+                  {adminPaymentTimeline.map((item) => {
+                    const totalAmount = item.approvedAmount + item.pendingAmount + item.rejectedAmount;
+                    const totalHeight = Math.max((totalAmount / adminPaymentTimelineMax) * 170, totalAmount > 0 ? 16 : 8);
+                    const approvedHeight = totalAmount ? (item.approvedAmount / totalAmount) * totalHeight : 0;
+                    const pendingHeight = totalAmount ? (item.pendingAmount / totalAmount) * totalHeight : 0;
+                    const rejectedHeight = totalAmount ? (item.rejectedAmount / totalAmount) * totalHeight : 0;
 
                     return (
-                      <div key={member.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-gray-900">{displayName}</div>
-                          <div className="truncate text-xs text-gray-500">@{member.username || 'user'}</div>
+                      <div key={item.key} className="flex min-w-[78px] flex-1 flex-col items-center">
+                        <div className="mb-2 text-xs font-semibold text-slate-500">{formatUsd(totalAmount)}</div>
+                        <div className="flex h-[180px] w-full items-end justify-center rounded-[24px] border border-slate-200 bg-slate-50/70 px-3 py-3">
+                          <div className="flex w-full max-w-[40px] flex-col justify-end overflow-hidden rounded-full bg-white shadow-inner">
+                            <div style={{ height: `${approvedHeight}px` }} className="bg-emerald-500" />
+                            <div style={{ height: `${pendingHeight}px` }} className="bg-amber-400" />
+                            <div style={{ height: `${rejectedHeight}px` }} className="bg-rose-400" />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge tone="gray" className="capitalize">
-                            {String(member.role || 'player').replace('_', ' ')}
-                          </Badge>
-                          <Badge
-                            tone={member.status === 'active' ? 'green' : member.status === 'suspended' ? 'red' : 'gray'}
-                            className="capitalize"
-                          >
-                            {member.status || 'active'}
-                          </Badge>
-                        </div>
+                        <div className="mt-3 text-sm font-semibold text-slate-900">{item.label}</div>
+                        <div className="text-xs text-slate-500">{item.requestCount} requests</div>
                       </div>
                     );
                   })}
                 </div>
-              ) : (
-                <div className="p-6">
-                  <EmptyState icon={UserCircleIcon} title="No users found" description="User accounts will appear here after registration." />
-                </div>
-              )}
-            </div>
-          </Card>
+              </div>
+            </Card>
 
-          <Card className="overflow-hidden">
-            <CardHeader className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Latest Bookings</h3>
-              <Button variant="outline" size="sm" onClick={() => navigate('/owner/bookings')}>
-                View Bookings
-              </Button>
-            </CardHeader>
-            <div className="bg-white">
-              {recentBookings.length > 0 ? (
-                <div className="divide-y divide-slate-200">
-                  {recentBookings.map((booking) => (
-                    <div key={booking.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || 'Field booking'}</div>
-                        <div className="truncate text-xs text-gray-500">
-                          {booking.team?.name || 'No team'} | {new Date(booking.startTime).toLocaleString()}
-                        </div>
-                      </div>
-                      <Badge tone={statusTone(booking.status)} className="capitalize">
-                        {booking.status}
-                      </Badge>
+            <div className="space-y-6">
+              <Card className="overflow-hidden">
+                <CardHeader className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">Payment Status</h3>
+                  <BanknotesIcon className="h-5 w-5 text-emerald-600" />
+                </CardHeader>
+                <div className="bg-white p-6">
+                  <div className="overflow-hidden rounded-full bg-slate-100">
+                    <div className="flex h-4 w-full">
+                      <div style={{ width: `${adminPaymentPercentages.approved}%` }} className="bg-emerald-500" />
+                      <div style={{ width: `${adminPaymentPercentages.pending}%` }} className="bg-amber-400" />
+                      <div style={{ width: `${adminPaymentPercentages.rejected}%` }} className="bg-rose-400" />
                     </div>
-                  ))}
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    {[
+                      { label: 'Approved', amount: adminPaymentSummary.approvedAmount, helper: `${adminPaymentSummary.approvedCount} payments`, tone: 'text-emerald-700', dot: 'bg-emerald-500' },
+                      { label: 'Pending', amount: adminPaymentSummary.pendingAmount, helper: `${adminPaymentSummary.pendingCount} waiting`, tone: 'text-amber-700', dot: 'bg-amber-400' },
+                      { label: 'Rejected', amount: adminPaymentSummary.rejectedAmount, helper: `${adminPaymentSummary.rejectedCount} failed`, tone: 'text-rose-700', dot: 'bg-rose-400' }
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className={`h-3 w-3 rounded-full ${item.dot}`} />
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">{item.label}</div>
+                            <div className="text-xs text-slate-500">{item.helper}</div>
+                          </div>
+                        </div>
+                        <div className={`text-sm font-semibold ${item.tone}`}>{formatUsd(item.amount)}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <div className="p-6">
-                  <EmptyState icon={CalendarIcon} title="No bookings yet" description="Recent bookings will appear here for quick admin review." />
+              </Card>
+
+              <Card className="overflow-hidden">
+                <CardHeader className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900">Money by Role</h3>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/role-requests')}>
+                    Role Requests
+                  </Button>
+                </CardHeader>
+                <div className="bg-white p-6">
+                  {adminPaymentRoleBreakdown.length > 0 ? (
+                    <div className="space-y-3">
+                      {adminPaymentRoleBreakdown.map((item) => (
+                        <div key={item.role} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900">
+                                {formatRoleLabel(item.role, 'Unknown')}
+                              </div>
+                              <div className="text-xs text-slate-500">{item.count} requests</div>
+                            </div>
+                            <div className="text-sm font-semibold text-slate-900">{formatUsd(item.amount)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={BanknotesIcon}
+                      title="No payment data"
+                      description="Payment totals will appear here when users submit upgrade payments."
+                    />
+                  )}
                 </div>
-              )}
+              </Card>
             </div>
-          </Card>
-        </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card className="overflow-hidden">
+              <CardHeader className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">{t('dashboard_admin_newest_users', 'Newest Users')}</h3>
+                <Button variant="outline" size="sm" onClick={() => navigate('/app/admin/users')}>
+                  {t('dashboard_admin_manage_users', 'Manage users')}
+                </Button>
+              </CardHeader>
+              <div className="bg-white">
+                {recentUsers.length > 0 ? (
+                  <div className="divide-y divide-slate-200">
+                    {recentUsers.map((member) => {
+                      const displayName =
+                        `${member.firstName || ''} ${member.lastName || ''}`.trim() || member.username || member.email;
+
+                      return (
+                        <div key={member.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-gray-900">{displayName}</div>
+                            <div className="truncate text-xs text-gray-500">@{member.username || t('common_unknown', 'user')}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge tone="gray" className="capitalize">
+                              {member.role === 'field_owner'
+                                ? t('role_field_owner', 'Field Owner')
+                                : member.role === 'captain'
+                                ? t('role_captain', 'Captain')
+                                : member.role === 'admin'
+                                  ? t('role_admin', 'Admin')
+                                  : t('role_player', 'Player')}
+                            </Badge>
+                            <Badge
+                              tone={member.status === 'active' ? 'green' : member.status === 'suspended' ? 'red' : 'gray'}
+                              className="capitalize"
+                            >
+                              {member.status === 'active'
+                                ? t('dashboard_admin_active', 'Active')
+                                : member.status === 'suspended'
+                                  ? t('dashboard_admin_suspended', 'Suspended')
+                                  : member.status || t('dashboard_admin_active', 'Active')}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-6">
+                    <EmptyState
+                      icon={UserCircleIcon}
+                      title={t('dashboard_admin_no_users', 'No users found')}
+                      description={t('dashboard_admin_users_appear', 'User accounts will appear here after registration.')}
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <Card className="overflow-hidden">
+              <CardHeader className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">{t('dashboard_admin_latest_bookings', 'Latest Bookings')}</h3>
+                <Button variant="outline" size="sm" onClick={() => navigate('/owner/bookings')}>
+                  {t('dashboard_admin_view_bookings', 'View Bookings')}
+                </Button>
+              </CardHeader>
+              <div className="bg-white">
+                {recentBookings.length > 0 ? (
+                  <div className="divide-y divide-slate-200">
+                    {recentBookings.map((booking) => (
+                      <div key={booking.id} className="flex items-center justify-between gap-4 px-6 py-5 transition hover:bg-slate-50/80">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium text-gray-900">{booking.field?.name || t('dashboard_field_booking', 'Field booking')}</div>
+                          <div className="truncate text-xs text-gray-500">
+                            {booking.team?.name || t('booking_no_team', 'No team')} | {new Date(booking.startTime).toLocaleString()}
+                          </div>
+                        </div>
+                        <Badge tone={statusTone(booking.status)} className="capitalize">
+                          {t(statusTranslationKey(booking.status) || booking.status, booking.status)}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6">
+                    <EmptyState
+                      icon={CalendarIcon}
+                      title={t('dashboard_admin_no_bookings', 'No bookings yet')}
+                      description={t('dashboard_admin_bookings_appear', 'Recent bookings will appear here for quick admin review.')}
+                    />
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        </>
       )}
 
       {isPlayerWorkspace && (
@@ -834,9 +1017,9 @@ const DashboardPage = () => {
           <CardHeader className="flex items-center justify-between">
             <h3 className="inline-flex items-center gap-2 text-lg font-medium text-gray-900">
               <BellAlertIcon className="h-5 w-5 text-amber-500" />
-              Team Invitation Notifications
+              {t('dashboard_player_team_invitation_notifications', 'Team Invitation Notifications')}
             </h3>
-            <Badge tone="yellow">{inviteNotifications.length} pending</Badge>
+            <Badge tone="yellow">{t('owner_pending_count', '{{count}} pending', { count: inviteNotifications.length })}</Badge>
           </CardHeader>
           <div className="bg-white">
             {inviteNotifications.length > 0 ? (
@@ -858,7 +1041,7 @@ const DashboardPage = () => {
                         className="inline-flex items-center gap-1"
                       >
                         <CheckIcon className="h-4 w-4" />
-                        Accept
+                        {t('teams_accept', 'Accept')}
                       </Button>
                       <Button
                         size="sm"
@@ -868,7 +1051,7 @@ const DashboardPage = () => {
                         className="inline-flex items-center gap-1"
                       >
                         <XMarkIcon className="h-4 w-4" />
-                        Decline
+                        {t('teams_decline', 'Decline')}
                       </Button>
                     </div>
                   </div>
@@ -878,8 +1061,8 @@ const DashboardPage = () => {
               <div className="p-6">
                 <EmptyState
                   icon={BellAlertIcon}
-                  title="No invitation notifications"
-                  description="When captains invite you to teams, they will appear here."
+                  title={t('dashboard_player_no_invitation_notifications', 'No invitation notifications')}
+                  description={t('dashboard_player_invitation_notifications_desc', 'When captains invite you to teams, they will appear here.')}
                 />
               </div>
             )}

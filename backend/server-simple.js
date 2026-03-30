@@ -39,9 +39,13 @@ app.use(express.urlencoded({ extended: true }));
 const users = [];
 const bookings = [];
 const fields = [];
+const chatConversations = [];
+const chatMessages = [];
 let userIdCounter = 1;
 let bookingIdCounter = 1;
 let fieldIdCounter = 1;
+let chatConversationIdCounter = 1;
+let chatMessageIdCounter = 1;
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
@@ -54,6 +58,84 @@ const normalizeIdentifier = (value = '') => String(value).trim().toLowerCase();
 const generateOtpCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const generateResetToken = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+const buildMockToken = (userId) => `mock-jwt-token-${Date.now()}-${userId}`;
+const extractTokenUserId = (req) => {
+  const header = String(req.headers.authorization || '');
+  if (!header.startsWith('Bearer ')) return null;
+  const token = header.slice(7).trim();
+  const match = token.match(/-(\d+)$/);
+  const userId = match ? Number(match[1]) : null;
+  return Number.isInteger(userId) && userId > 0 ? userId : null;
+};
+const getCurrentUser = (req) => {
+  const tokenUserId = extractTokenUserId(req);
+  if (tokenUserId) {
+    const matchedUser = users.find((user) => Number(user.id) === tokenUserId);
+    if (matchedUser) return matchedUser;
+  }
+
+  return users[0] || null;
+};
+const buildChatUser = (user) => ({
+  id: user.id,
+  username: user.username || '',
+  email: user.email || '',
+  firstName: user.firstName || '',
+  lastName: user.lastName || '',
+  role: user.role || 'player',
+  status: user.status || 'active',
+  avatarUrl: user.avatarUrl || null
+});
+const buildConversationKey = (leftUserId, rightUserId) =>
+  [Number(leftUserId), Number(rightUserId)].sort((a, b) => a - b).join(':');
+const getOrCreateChatConversation = (currentUserId, otherUserId) => {
+  const directKey = buildConversationKey(currentUserId, otherUserId);
+  let conversation = chatConversations.find((item) => item.directKey === directKey);
+
+  if (!conversation) {
+    const [userOneId, userTwoId] = directKey.split(':').map(Number);
+    const timestamp = new Date().toISOString();
+    conversation = {
+      id: chatConversationIdCounter++,
+      directKey,
+      userOneId,
+      userTwoId,
+      createdBy: currentUserId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastMessageAt: null
+    };
+    chatConversations.push(conversation);
+  }
+
+  return conversation;
+};
+const getConversationMessages = (conversationId) =>
+  chatMessages
+    .filter((message) => Number(message.conversationId) === Number(conversationId))
+    .sort((leftMessage, rightMessage) => new Date(leftMessage.createdAt) - new Date(rightMessage.createdAt));
+const buildConversationSummary = (conversation, currentUserId) => {
+  const otherUserId =
+    Number(conversation.userOneId) === Number(currentUserId)
+      ? Number(conversation.userTwoId)
+      : Number(conversation.userOneId);
+  const otherUser = users.find((user) => Number(user.id) === otherUserId);
+  const conversationMessages = getConversationMessages(conversation.id);
+  const lastMessage = conversationMessages[conversationMessages.length - 1] || null;
+  const unreadCount = conversationMessages.filter(
+    (message) => Number(message.recipientId) === Number(currentUserId) && !message.readAt
+  ).length;
+
+  return {
+    id: conversation.id,
+    createdAt: conversation.createdAt,
+    updatedAt: conversation.updatedAt,
+    lastMessageAt: conversation.lastMessageAt || conversation.updatedAt,
+    otherUser: otherUser ? buildChatUser(otherUser) : null,
+    unreadCount,
+    lastMessage: lastMessage || null
+  };
+};
 
 const handleResetLinkRequest = (req, res) => {
   const identifier = normalizeIdentifier(req.body?.identifier);
@@ -287,7 +369,7 @@ app.post('/api/auth/register', async (req, res) => {
     users.push(newUser);
     
     // Generate mock token
-    const token = 'mock-jwt-token-' + Date.now() + '-' + newUser.id;
+    const token = buildMockToken(newUser.id);
     
     console.log('User registered successfully:', newUser);
     
@@ -336,7 +418,7 @@ app.post('/api/auth/login', (req, res) => {
     }
     
     // Generate mock token
-    const token = 'mock-jwt-token-' + Date.now() + '-' + user.id;
+    const token = buildMockToken(user.id);
     
     console.log('User logged in:', user);
     
@@ -370,8 +452,7 @@ app.post('/api/auth/forgot-password-link', handleResetLinkRequest);
 app.post('/api/auth/reset-password', handleResetWithToken);
 
 app.get('/api/auth/profile', (req, res) => {
-  // Mock profile - in real app this would use token to identify user
-  const mockUser = users[0] || {
+  const mockUser = getCurrentUser(req) || {
     id: 1,
     username: 'testuser',
     email: 'test@example.com',
@@ -381,6 +462,186 @@ app.get('/api/auth/profile', (req, res) => {
   res.json({
     success: true,
     data: mockUser
+  });
+});
+
+// Chat routes
+app.get('/api/chats/users', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const query = String(req.query.q || '').trim().toLowerCase();
+  const limit = Math.min(Math.max(Number(req.query.limit) || 12, 1), 30);
+  const filteredUsers = users
+    .filter((user) => Number(user.id) !== Number(currentUser.id))
+    .filter((user) => {
+      if (!query) return true;
+      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase();
+      return (
+        String(user.username || '').toLowerCase().includes(query) ||
+        String(user.email || '').toLowerCase().includes(query) ||
+        fullName.includes(query)
+      );
+    })
+    .slice(0, limit)
+    .map(buildChatUser);
+
+  res.json({ success: true, data: filteredUsers });
+});
+
+app.get('/api/chats/conversations', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const summaries = chatConversations
+    .filter(
+      (conversation) =>
+        Number(conversation.userOneId) === Number(currentUser.id) ||
+        Number(conversation.userTwoId) === Number(currentUser.id)
+    )
+    .map((conversation) => buildConversationSummary(conversation, currentUser.id))
+    .sort((leftItem, rightItem) => new Date(rightItem.lastMessageAt || 0) - new Date(leftItem.lastMessageAt || 0));
+
+  res.json({ success: true, data: summaries });
+});
+
+app.post('/api/chats/conversations', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const otherUserId = Number(req.body?.userId);
+  if (!Number.isInteger(otherUserId) || otherUserId <= 0 || otherUserId === Number(currentUser.id)) {
+    return res.status(400).json({ success: false, error: 'Valid userId is required' });
+  }
+
+  const otherUser = users.find((user) => Number(user.id) === otherUserId);
+  if (!otherUser) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+
+  const conversation = getOrCreateChatConversation(currentUser.id, otherUserId);
+  res.json({
+    success: true,
+    data: buildConversationSummary(conversation, currentUser.id)
+  });
+});
+
+app.get('/api/chats/conversations/:id/messages', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const conversationId = Number(req.params.id);
+  const conversation = chatConversations.find((item) => Number(item.id) === conversationId);
+  if (!conversation) {
+    return res.status(404).json({ success: false, error: 'Conversation not found' });
+  }
+
+  const isParticipant =
+    Number(conversation.userOneId) === Number(currentUser.id) ||
+    Number(conversation.userTwoId) === Number(currentUser.id);
+  if (!isParticipant) {
+    return res.status(403).json({ success: false, error: 'Access denied' });
+  }
+
+  const messages = getConversationMessages(conversationId).map((message) => ({
+    ...message,
+    isOwn: Number(message.senderId) === Number(currentUser.id)
+  }));
+
+  res.json({
+    success: true,
+    data: {
+      conversation: buildConversationSummary(conversation, currentUser.id),
+      messages
+    }
+  });
+});
+
+app.post('/api/chats/conversations/:id/read', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const conversationId = Number(req.params.id);
+  const readAt = new Date().toISOString();
+  let updatedCount = 0;
+
+  chatMessages.forEach((message) => {
+    if (
+      Number(message.conversationId) === conversationId &&
+      Number(message.recipientId) === Number(currentUser.id) &&
+      !message.readAt
+    ) {
+      message.readAt = readAt;
+      updatedCount += 1;
+    }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      updatedCount,
+      readAt
+    }
+  });
+});
+
+app.post('/api/chats/conversations/:id/messages', (req, res) => {
+  const currentUser = getCurrentUser(req);
+  if (!currentUser) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  const conversationId = Number(req.params.id);
+  const body = String(req.body?.body || '').trim();
+  const conversation = chatConversations.find((item) => Number(item.id) === conversationId);
+
+  if (!conversation) {
+    return res.status(404).json({ success: false, error: 'Conversation not found' });
+  }
+
+  if (!body) {
+    return res.status(400).json({ success: false, error: 'Message text is required' });
+  }
+
+  const recipientId =
+    Number(conversation.userOneId) === Number(currentUser.id)
+      ? Number(conversation.userTwoId)
+      : Number(conversation.userOneId);
+  const timestamp = new Date().toISOString();
+  const message = {
+    id: chatMessageIdCounter++,
+    conversationId,
+    senderId: currentUser.id,
+    recipientId,
+    body,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    readAt: null
+  };
+
+  chatMessages.push(message);
+  conversation.lastMessageAt = timestamp;
+  conversation.updatedAt = timestamp;
+
+  res.status(201).json({
+    success: true,
+    data: {
+      conversation: buildConversationSummary(conversation, currentUser.id),
+      message: {
+        ...message,
+        isOwn: true
+      }
+    }
   });
 });
 

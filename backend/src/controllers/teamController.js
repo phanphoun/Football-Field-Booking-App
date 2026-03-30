@@ -1,6 +1,8 @@
 const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating } = require('../models');
 const { sequelize } = require('../models');
 const { BookingJoinRequest } = require('../models');
+const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating, BookingJoinRequest } = require('../models');
+const { sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const asyncHandler = (fn) => (req, res, next) => {
@@ -415,13 +417,24 @@ const requestJoinTeam = asyncHandler(async (req, res) => {
     if (existing.status === 'pending') {
       return res.status(400).json({ success: false, message: 'Join request is already pending' });
     }
-    // A player who was previously removed/declined cannot self-request again.
-    // Captain must explicitly re-invite this player.
     if (existing.status === 'inactive') {
-      return res.status(403).json({
-        success: false,
-        message: 'You cannot request to join this team again. Wait for a new captain invitation.'
+      await existing.update({
+        role: 'player',
+        status: 'pending',
+        isActive: true,
+        joinedAt: null
       });
+
+      const requesterName = await getUserDisplayName(req.user.id);
+      await Notification.create({
+        userId: team.captainId,
+        title: `Join request for ${team.name}`,
+        message: `${requesterName} requested to join your team "${team.name}".`,
+        type: 'system',
+        metadata: { teamId: team.id, requesterId: req.user.id, event: 'team_join_request' }
+      });
+
+      return res.status(201).json({ success: true, data: existing, message: 'Join request submitted' });
     }
   }
 

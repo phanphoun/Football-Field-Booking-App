@@ -1,15 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRealtime } from '../context/RealtimeContext';
+import { useLanguage } from '../context/LanguageContext';
 import authService from '../services/authService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
 import { buildAssetUrl } from '../config/appConfig';
 import { formatRoleLabel } from '../utils/formatters';
-
-const FILTER_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: '', label: 'All' }
-];
 
 const roleLabel = (role) => {
   return formatRoleLabel(role, 'Player');
@@ -25,7 +20,10 @@ const resolveAvatarUrl = (user) => {
   return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
 };
 
+const resolvePaymentProofUrl = (request) => buildAssetUrl(request?.paymentScreenshotUrl, null);
+
 const AdminRoleRequestsPage = () => {
+  const { version } = useRealtime();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -35,6 +33,14 @@ const AdminRoleRequestsPage = () => {
   const [viewUser, setViewUser] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const { confirm } = useDialog();
+  const { t } = useLanguage();
+
+  const FILTER_OPTIONS = [
+    { value: 'pending', label: t('common_pending', 'Pending') },
+    { value: 'approved', label: t('admin_role_requests_approved', 'Approved') },
+    { value: 'rejected', label: t('admin_role_requests_rejected', 'Rejected') },
+    { value: '', label: t('common_all', 'All') }
+  ];
 
   const loadRequests = useCallback(async () => {
     try {
@@ -42,15 +48,15 @@ const AdminRoleRequestsPage = () => {
       const response = await authService.getAdminRoleRequests(filter);
       setRequests(Array.isArray(response.data?.requests) ? response.data.requests : []);
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to load role requests.' });
+      setFlash({ type: 'error', message: error.error || t('admin_role_requests_load_failed', 'Failed to load role requests.') });
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => {
     loadRequests();
-  }, [loadRequests]);
+  }, [loadRequests, version]);
 
   const stats = useMemo(() => {
     return {
@@ -78,18 +84,20 @@ const AdminRoleRequestsPage = () => {
   }, [requests, search]);
 
   const handleReview = async (requestId, action) => {
-    const confirmed = await confirm(`Are you sure you want to ${action} this request?`, {
-      title: `${action === 'approve' ? 'Approve' : 'Reject'} Request`
+    const confirmed = await confirm(t('admin_role_requests_confirm', 'Are you sure you want to {{action}} this request?', {
+      action: action === 'approve' ? 'verify this payment and approve' : 'mark this payment as failed'
+    }), {
+      title: action === 'approve' ? 'Verify Payment' : 'Reject Payment'
     });
     if (!confirmed) return;
 
     try {
       setSubmittingId(requestId);
       await authService.reviewRoleRequest(requestId, action);
-      setFlash({ type: 'success', message: `Request ${action === 'approve' ? 'approved' : 'rejected'}.` });
+      setFlash({ type: 'success', message: action === 'approve' ? 'Payment verified and role approved.' : 'Payment failed and request rejected.' });
       await loadRequests();
     } catch (error) {
-      setFlash({ type: 'error', message: error.error || 'Failed to review request.' });
+      setFlash({ type: 'error', message: error.error || t('admin_role_requests_review_failed', 'Failed to review request.') });
     } finally {
       setSubmittingId(null);
     }
@@ -109,10 +117,10 @@ const AdminRoleRequestsPage = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700 ring-1 ring-amber-100">
-            Access Review
+            {t('admin_role_requests_badge', 'Access Review')}
           </div>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Role Requests</h1>
-          <p className="mt-2 text-sm text-slate-600">Review captain and field owner access requests with the same dashboard card style.</p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{t('dashboard_admin_pending_role_requests', 'Pending Role Requests')}</h1>
+          <p className="mt-2 text-sm text-slate-600">{t('admin_role_requests_subtitle', 'Review captain and field owner access requests with the same dashboard card style.')}</p>
         </div>
         </div>
       </div>
@@ -125,19 +133,19 @@ const AdminRoleRequestsPage = () => {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Total</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('admin_role_requests_total', 'Total')}</p>
           <AnimatedStatValue value={stats.total} className="mt-1 text-2xl font-bold text-gray-900" />
         </div>
         <div className="rounded-[24px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-amber-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Pending</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('common_pending', 'Pending')}</p>
           <AnimatedStatValue value={stats.pending} className="mt-1 text-2xl font-bold text-yellow-700" />
         </div>
         <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Approved</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('admin_role_requests_approved', 'Approved')}</p>
           <AnimatedStatValue value={stats.approved} className="mt-1 text-2xl font-bold text-green-700" />
         </div>
         <div className="rounded-[24px] border border-red-100 bg-gradient-to-br from-red-50 via-white to-red-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Rejected</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('admin_role_requests_rejected', 'Rejected')}</p>
           <AnimatedStatValue value={stats.rejected} className="mt-1 text-2xl font-bold text-red-700" />
         </div>
       </div>
@@ -148,7 +156,7 @@ const AdminRoleRequestsPage = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search username, email, name, or role"
+            placeholder={t('admin_role_requests_search', 'Search username, email, name, or role')}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
           />
           <select
@@ -165,9 +173,9 @@ const AdminRoleRequestsPage = () => {
 
       <div className="space-y-3">
         {loading ? (
-          <div className="rounded-[28px] border border-slate-200 bg-white px-4 py-8 text-center text-gray-500 shadow-sm">Loading requests...</div>
+          <div className="rounded-[28px] border border-slate-200 bg-white px-4 py-8 text-center text-gray-500 shadow-sm">{t('admin_role_requests_loading', 'Loading requests...')}</div>
         ) : visibleRequests.length === 0 ? (
-          <div className="rounded-[28px] border border-slate-200 bg-white px-4 py-8 text-center text-gray-500 shadow-sm">No role requests found.</div>
+          <div className="rounded-[28px] border border-slate-200 bg-white px-4 py-8 text-center text-gray-500 shadow-sm">{t('admin_role_requests_none_found', 'No role requests found.')}</div>
         ) : (
           visibleRequests.map((request) => {
             const requester = request.requester || {};
@@ -209,16 +217,31 @@ const AdminRoleRequestsPage = () => {
                         </p>
                         <p className="text-xs text-gray-500">{requester.email}</p>
                         <p className="text-sm text-gray-700">
-                          Requested role: <span className="font-semibold">{roleLabel(request.requestedRole)}</span>
+                          {t('admin_role_requests_requested_role', 'Requested role')}: <span className="font-semibold">{roleLabel(request.requestedRole)}</span>
                         </p>
                         <p className="text-sm text-emerald-700">
-                          Upgrade fee: <span className="font-semibold">${Number(request.feeAmountUsd || 0).toFixed(0)}</span>
-                          {' '}| Payment: <span className="font-semibold capitalize">{request.paymentStatus || 'paid'}</span>
+                          {t('admin_role_requests_upgrade_fee', 'Upgrade fee')}: <span className="font-semibold">${Number(request.feeAmountUsd || 0).toFixed(0)}</span>
+                          {' '}| {t('admin_role_requests_payment', 'Payment')}: <span className="font-semibold capitalize">{request.paymentStatus || t('admin_role_requests_paid', 'paid')}</span>
                         </p>
-                        {request.note && <p className="text-sm text-gray-600">Note: {request.note}</p>}
-                        <p className="text-xs text-gray-500">Submitted: {new Date(request.createdAt).toLocaleString()}</p>
+                        {request.paymentAccountName && (
+                          <p className="text-sm text-gray-600">
+                            Payer: <span className="font-semibold text-gray-900">{request.paymentAccountName}</span>
+                            {request.paymentPhone ? ` | ${request.paymentPhone}` : ''}
+                          </p>
+                        )}
+                        {request.paymentReference && (
+                          <p className="text-sm text-gray-600">
+                            Reference details: <span className="font-semibold text-gray-900">{request.paymentReference}</span>
+                          </p>
+                        )}
+                        {request.note && (
+                          <p className="whitespace-pre-line text-sm text-gray-600">
+                            {t('admin_role_requests_note', 'Note')}: {request.note}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">{t('admin_role_requests_submitted', 'Submitted')}: {new Date(request.createdAt).toLocaleString()}</p>
                         {reviewer && request.reviewedAt && (
-                          <p className="text-xs text-gray-500">Reviewed by {reviewer.username} at {new Date(request.reviewedAt).toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">{t('admin_role_requests_reviewed_by', 'Reviewed by {{user}} at {{date}}', { user: reviewer.username, date: new Date(request.reviewedAt).toLocaleString() })}</p>
                         )}
                       </div>
                     </div>
@@ -226,8 +249,23 @@ const AdminRoleRequestsPage = () => {
 
                   <div className="flex w-full flex-col gap-3 lg:w-auto lg:min-w-[220px] lg:items-end">
                     <span className={`inline-flex w-fit rounded-full px-2 py-1 text-xs font-semibold ${statusClass(request.status)}`}>
-                      {request.status}
+                      {request.status === 'pending' ? t('common_pending', 'Pending') : request.status === 'approved' ? t('admin_role_requests_approved', 'Approved') : t('admin_role_requests_rejected', 'Rejected')}
                     </span>
+
+                    {request.paymentScreenshotUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewImage({
+                            url: resolvePaymentProofUrl(request),
+                            title: `${displayName} payment proof`
+                          })
+                        }
+                        className="inline-flex w-fit text-sm font-semibold text-emerald-700 underline underline-offset-4"
+                      >
+                        View payment screenshot
+                      </button>
+                    )}
 
                     {request.status === 'pending' && (
                       <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
@@ -237,7 +275,7 @@ const AdminRoleRequestsPage = () => {
                           onClick={() => handleReview(request.id, 'approve')}
                           className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                         >
-                          {isSubmitting ? 'Processing...' : 'Approve'}
+                          {isSubmitting ? t('admin_role_requests_processing', 'Processing...') : 'Approve Payment'}
                         </button>
                         <button
                           type="button"
@@ -245,7 +283,7 @@ const AdminRoleRequestsPage = () => {
                           onClick={() => handleReview(request.id, 'reject')}
                           className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                         >
-                          {isSubmitting ? 'Processing...' : 'Reject'}
+                          {isSubmitting ? t('admin_role_requests_processing', 'Processing...') : 'Reject Payment'}
                         </button>
                       </div>
                     )}
@@ -259,10 +297,10 @@ const AdminRoleRequestsPage = () => {
 
       <ConfirmationModal
         isOpen={Boolean(viewUser)}
-        title={viewUser ? (`${viewUser.firstName || ''} ${viewUser.lastName || ''}`.trim() || viewUser.username) : 'User Details'}
-        message={viewUser ? `View account information for @${viewUser.username}.` : ''}
-        badgeLabel="User Details"
-        confirmLabel="Close"
+        title={viewUser ? (`${viewUser.firstName || ''} ${viewUser.lastName || ''}`.trim() || viewUser.username) : t('admin_role_requests_user_details', 'User Details')}
+        message={viewUser ? t('admin_role_requests_view_account', 'View account information for @{{username}}.', { username: viewUser.username }) : ''}
+        badgeLabel={t('admin_role_requests_user_details', 'User Details')}
+        confirmLabel={t('owner_bookings_close', 'Close')}
         showCancel={false}
         variant="default"
         onConfirm={closeViewModal}
@@ -298,28 +336,28 @@ const AdminRoleRequestsPage = () => {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Email</p>
-                <p className="mt-2 break-all text-sm text-gray-700">{viewUser.email || 'No email'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('admin_users_email', 'Email')}</p>
+                <p className="mt-2 break-all text-sm text-gray-700">{viewUser.email || t('admin_role_requests_no_email', 'No email')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Role</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('admin_users_role', 'Role')}</p>
                 <p className="mt-2 text-sm font-semibold text-gray-700">{roleLabel(viewUser.role)}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('admin_users_status', 'Status')}</p>
                 <p className="mt-2 text-sm font-semibold text-gray-700">{roleLabel(viewUser.status || 'active')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Phone</p>
-                <p className="mt-2 text-sm text-gray-700">{viewUser.phone || 'No phone number'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('profile_phone_number', 'Phone')}</p>
+                <p className="mt-2 text-sm text-gray-700">{viewUser.phone || t('admin_role_requests_no_phone', 'No phone number')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Date of Birth</p>
-                <p className="mt-2 text-sm text-gray-700">{viewUser.dateOfBirth || viewUser.date_of_birth || 'Not set'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('profile_dob', 'Date of Birth')}</p>
+                <p className="mt-2 text-sm text-gray-700">{viewUser.dateOfBirth || viewUser.date_of_birth || t('team_details_not_set', 'Not set')}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Address</p>
-                <p className="mt-2 text-sm text-gray-700">{viewUser.address || 'No address'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('profile_address', 'Address')}</p>
+                <p className="mt-2 text-sm text-gray-700">{viewUser.address || t('admin_role_requests_no_address', 'No address')}</p>
               </div>
             </div>
           </div>

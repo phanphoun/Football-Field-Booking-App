@@ -114,7 +114,7 @@ const requestFieldOwnerRole = asyncHandler(async (req, res) => {
     }
     
     const requestData = req.body || {};
-    console.log('Field owner request from user:', userId, 'Data:', requestData);
+    console.log('Field owner request submitted by user:', userId);
     
     const result = await authService.requestFieldOwnerRole(userId, requestData);
     

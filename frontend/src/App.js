@@ -3,7 +3,11 @@ import React from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { AuthProvider } from './context/AuthContext';
+<<<<<<< HEAD
 
+=======
+import { LanguageProvider } from './context/LanguageContext';
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
 import ProtectedRoute from './components/common/ProtectedRoute';
 
 import './App.css';
@@ -66,13 +70,24 @@ import OpenMatchesPage from './pages/OpenMatchesPage';
 
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
+<<<<<<< HEAD
 import StatisticsPage from './pages/StatisticsPage';
 
+=======
+import AdminPaymentsPage from './pages/AdminPaymentsPage';
+import ChatPage from './pages/ChatPage';
+import UpgradeRoleHelpPage from './pages/UpgradeRoleHelpPage';
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
 import { getPreferredStartPath } from './utils/navigationPreferences';
 
 import { DialogProvider, ToastProvider } from './components/ui';
+<<<<<<< HEAD
 
 
+=======
+import { RealtimeProvider } from './context/RealtimeContext';
+import { ThemeProvider } from './context/ThemeContext';
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
 
 import AppLayout from './components/layout/AppLayout';
 
@@ -119,7 +134,11 @@ const AppRoutes = () => {
           <Route path="verify-otp" element={<VerifyOtpPage />} />
 
           <Route path="reset-password" element={<ResetPasswordPage />} />
+<<<<<<< HEAD
 
+=======
+          <Route path="help/upgrade-role" element={<UpgradeRoleHelpPage />} />
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
         </Route>
 
 
@@ -260,7 +279,11 @@ const AppRoutes = () => {
             }
 
           />
+<<<<<<< HEAD
 
+=======
+          <Route path="chat" element={<ChatPage />} />
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           <Route path="notifications" element={<NotificationsPage />} />
 
           <Route path="profile" element={<ProfilePage />} />
@@ -298,7 +321,18 @@ const AppRoutes = () => {
             }
 
           />
+<<<<<<< HEAD
 
+=======
+          <Route
+            path="admin/payments"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPaymentsPage />
+              </ProtectedRoute>
+            }
+          />
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           <Route path="admin/settings" element={<Navigate to="/app/settings" replace />} />
 
         </Route>
@@ -348,6 +382,7 @@ const AppRoutes = () => {
           <Route path="league" element={<LeaguePage />} />
 
           <Route path="matches" element={<OwnerMatchesPage />} />
+<<<<<<< HEAD
 
           <Route path="teams" element={<TeamsPage />} />
 
@@ -387,6 +422,28 @@ const AppRoutes = () => {
 
           <Route path="notifications" element={<NotificationsPage />} />
 
+=======
+          <Route path="teams" element={<TeamsPage />} />
+          <Route
+            path="teams/create"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="teams/:id" element={<TeamDetailsPage />} />
+          <Route
+            path="teams/:id/manage"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamManagePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="chat" element={<ChatPage />} />
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           <Route path="profile" element={<ProfilePage />} />
 
           <Route path="settings" element={<SettingsPage />} />
@@ -432,6 +489,7 @@ function App() {
   return (
 
     <AuthProvider>
+<<<<<<< HEAD
 
       <ToastProvider>
 
@@ -451,6 +509,23 @@ function App() {
 
       </ToastProvider>
 
+=======
+      <ThemeProvider>
+        <LanguageProvider>
+          <ToastProvider>
+            <DialogProvider>
+              <RealtimeProvider>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                  <div className="App">
+                    <AppRoutes />
+                  </div>
+                </Router>
+              </RealtimeProvider>
+            </DialogProvider>
+          </ToastProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+>>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
     </AuthProvider>
 
   );

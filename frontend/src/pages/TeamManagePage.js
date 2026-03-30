@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import {
   UserPlusIcon,
@@ -16,7 +16,7 @@ import { useRealtime } from '../context/RealtimeContext';
 import teamService from '../services/teamService';
 import userService from '../services/userService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
-import { ImagePreviewModal, useDialog } from '../components/ui';
+import { ImagePreviewModal, useDialog, useToast } from '../components/ui';
 import { DEFAULT_JERSEY_COLOR, getNextJerseyColor, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
 import JerseyColorEditor from '../components/teams/JerseyColorEditor';
 
@@ -36,8 +36,6 @@ const TeamManagePage = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
 
   // invite form state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -51,6 +49,8 @@ const TeamManagePage = () => {
   const [jerseyColorsDraft, setJerseyColorsDraft] = useState([DEFAULT_JERSEY_COLOR]);
   const [activeColorIndex, setActiveColorIndex] = useState(0);
   const { confirm } = useDialog();
+  const { showToast } = useToast();
+  const isDeletingTeamRef = useRef(false);
 
   const isCaptainOfTeam = useMemo(() => {
     if (!team || !user) return false;
@@ -73,16 +73,18 @@ const TeamManagePage = () => {
     const fetchAll = async () => {
       try {
         setLoading(true);
-        setError(null);
         await refresh();
       } catch (err) {
-        setError(err?.error || 'Failed to load team management data');
+        if (isDeletingTeamRef.current) {
+          return;
+        }
+        showToast(err?.error || 'Failed to load team management data', { type: 'error' });
       } finally {
         setLoading(false);
       }
     };
     fetchAll();
-  }, [id, refresh, version]);
+  }, [id, refresh, showToast, version]);
 
   useEffect(() => {
     setJerseyColorsDraft(getTeamJerseyColors(team));
@@ -156,13 +158,11 @@ const TeamManagePage = () => {
   const handleUpdateRequest = async (requestUserId, nextStatus) => {
     try {
       setActionLoading(true);
-      setError(null);
-      setSuccessMessage(null);
       await teamService.updateMember(id, requestUserId, { status: nextStatus });
-      setSuccessMessage(nextStatus === 'active' ? 'Request approved.' : 'Request denied.');
+      showToast(nextStatus === 'active' ? 'Request approved.' : 'Request denied.', { type: 'success' });
       await refresh();
     } catch (err) {
-      setError(err?.error || 'Failed to update request');
+      showToast(err?.error || 'Failed to update request', { type: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -184,16 +184,14 @@ const TeamManagePage = () => {
 
     try {
       setActionLoading(true);
-      setError(null);
-      setSuccessMessage(null);
       await teamService.removeMember(id, member.userId);
-      setSuccessMessage(`${memberName} was removed from the team.`);
+      showToast(`${memberName} was removed from the team.`, { type: 'success' });
       if (selectedMember?.userId === member.userId) {
         setSelectedMember(null);
       }
       await refresh();
     } catch (err) {
-      setError(err?.error || 'Failed to remove member');
+      showToast(err?.error || 'Failed to remove member', { type: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -314,16 +312,14 @@ const TeamManagePage = () => {
   const handleSaveShirtColor = async () => {
     try {
       setActionLoading(true);
-      setError(null);
-      setSuccessMessage(null);
       const normalizedColors = normalizeJerseyColors(jerseyColorsDraft);
       if (normalizedColors.length < 1) {
-        setError('Please choose at least 1 jersey color.');
+        showToast('Please choose at least 1 jersey color.', { type: 'error' });
         return;
       }
       const response = await teamService.updateTeam(id, { jerseyColors: normalizedColors });
       if (response.success) {
-        setSuccessMessage('Team jersey colors updated successfully.');
+        showToast('Team jersey colors updated successfully.', { type: 'success' });
         setTeam((prev) =>
           prev
             ? { ...prev, jerseyColors: normalizedColors, shirtColor: normalizedColors[0] || DEFAULT_JERSEY_COLOR }
@@ -331,7 +327,7 @@ const TeamManagePage = () => {
         );
       }
     } catch (err) {
-      setError(err?.error || 'Failed to update team jersey colors');
+      showToast(err?.error || 'Failed to update team jersey colors', { type: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -356,14 +352,15 @@ const TeamManagePage = () => {
 
     try {
       setActionLoading(true);
-      setError(null);
+      isDeletingTeamRef.current = true;
       await teamService.deleteTeam(id);
-      setSuccessMessage('Team deleted successfully');
-      setTimeout(() => {
-        navigate(`${basePath}/teams`);
-      }, 1000);
+      navigate(`${basePath}/teams`, {
+        replace: true,
+        state: { successMessage: 'Team deleted successfully' }
+      });
     } catch (err) {
-      setError(err?.error || 'Failed to delete team');
+      isDeletingTeamRef.current = false;
+      showToast(err?.error || 'Failed to delete team', { type: 'error' });
     } finally {
       setActionLoading(false);
     }
@@ -390,17 +387,17 @@ const TeamManagePage = () => {
               </span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Link
               to={`${basePath}/teams/${team.id}`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:w-auto"
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Back
             </Link>
             <Link
               to={`${basePath}/teams/${team.id}?tab=history`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-green-300 text-green-700 hover:bg-green-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-50 sm:w-auto"
             >
               <CalendarIcon className="h-4 w-4" />
               Match History
@@ -409,7 +406,7 @@ const TeamManagePage = () => {
               <button
                 onClick={handleDeleteTeam}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 sm:w-auto"
               >
                 <TrashIcon className="h-4 w-4" />
                 Delete Team
@@ -419,17 +416,6 @@ const TeamManagePage = () => {
         </div>
       </div>
 
-      {successMessage && (
-        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-md text-sm">
-          {successMessage}
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md text-sm">
-          {error}
-        </div>
-      )}
       <JerseyColorEditor
         title="Team Jersey Colors"
         description="Set one or more colors to avoid kit clashes before a match."

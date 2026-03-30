@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import {
@@ -41,8 +42,11 @@ const formatDate = (value) => {
 };
 
 const openNativeDatePicker = (event) => {
+  event.currentTarget.focus();
   if (typeof event.currentTarget.showPicker === 'function') {
-    event.currentTarget.showPicker();
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
   }
 };
 
@@ -53,6 +57,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
 
 const ProfilePage = () => {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading, isLoggingOut } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
   const { confirm } = useDialog();
   const isAdminUser = user?.role === 'admin';
@@ -119,7 +124,7 @@ const ProfilePage = () => {
         URL.revokeObjectURL(avatarPreview);
       }
     };
-  }, [avatarPreview, isAdminUser, isFieldOwner]);
+  }, [avatarPreview, isAdminUser, isFieldOwner, version]);
 
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
@@ -454,7 +459,7 @@ const ProfilePage = () => {
                               <img
                                 src={teamLogoUrl}
                                 alt={`${team.name} logo`}
-                                className="h-full w-full object-cover"
+                                className="h-full w-full object-contain p-1"
                                 onError={(event) => {
                                   event.currentTarget.style.display = 'none';
                                 }}

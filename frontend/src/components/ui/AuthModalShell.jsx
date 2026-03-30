@@ -19,7 +19,6 @@ const AuthModalShell = ({
         className="confirmation-modal__card confirmation-modal__card--enter"
         style={{
           width: `min(100%, ${maxWidth}px)`,
-          maxHeight: 'calc(100vh - 32px)',
           display: 'flex',
           flexDirection: 'column'
         }}
@@ -29,7 +28,7 @@ const AuthModalShell = ({
       >
         <div
           className="confirmation-modal__content"
-          style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 32px)' }}
+          style={{ overflowY: 'auto' }}
         >
           <button
             type="button"
@@ -40,16 +39,15 @@ const AuthModalShell = ({
             <XMarkIcon className="confirmation-modal__close-icon" />
           </button>
 
-          <div className="mb-4 text-center">
+          <div className="mb-3 text-center sm:mb-4">
             <Link
               to="/"
               state={homeLinkState}
-              className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"
+              className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 sm:px-4 sm:py-2"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-600 text-sm font-bold text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-green-600 text-sm font-bold text-white sm:h-9 sm:w-9">
                 FB
               </span>
-              <span className="text-base font-semibold tracking-tight">Football Booking</span>
             </Link>
           </div>
 

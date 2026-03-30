@@ -10,6 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       Field.hasMany(models.Booking, { foreignKey: 'fieldId', as: 'bookings' });
       // Field can have ratings
       Field.hasMany(models.Rating, { foreignKey: 'fieldId', as: 'ratings' });
+      Field.hasMany(models.FieldReview, { foreignKey: 'fieldId', as: 'fieldReviews' });
     }
   }
 
@@ -132,6 +133,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('available', 'unavailable', 'maintenance'),
       defaultValue: 'available',
       allowNull: false
+    },
+    isArchived: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
     },
     closureMessage: {
       type: DataTypes.TEXT,

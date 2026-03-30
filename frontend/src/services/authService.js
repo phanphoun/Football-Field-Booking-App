@@ -26,52 +26,39 @@ const authService = {
     return response;
   },
 
+  getGoogleAuthConfig: async () => {
+    return apiService.get('/auth/google/config');
+  },
+
+  googleAuth: async (credential) => {
+    const response = await apiService.post('/auth/google', { credential });
+
+    if (response.success && response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+
+    return response;
+  },
+
   // Forgot password: request OTP
   requestPasswordOtp: async (identifier) => {
-    try {
-      return await apiService.post('/auth/forgot-password', { identifier });
-    } catch (error) {
-      if (error?.status === 404) {
-        return apiService.post('http://localhost:5000/auth/forgot-password', { identifier });
-      }
-      throw error;
-    }
+    return apiService.post('/auth/forgot-password', { identifier });
   },
 
   // Forgot password: verify OTP
   verifyPasswordOtp: async (identifier, otp) => {
-    try {
-      return await apiService.post('/auth/forgot-password/verify', { identifier, otp });
-    } catch (error) {
-      if (error?.status === 404) {
-        return apiService.post('http://localhost:5000/auth/forgot-password/verify', { identifier, otp });
-      }
-      throw error;
-    }
+    return apiService.post('/auth/forgot-password/verify', { identifier, otp });
   },
 
   // Forgot password: reset password
   resetPasswordWithOtp: async (identifier, otp, newPassword) => {
-    try {
-      return await apiService.post('/auth/forgot-password/reset', { identifier, otp, newPassword });
-    } catch (error) {
-      if (error?.status === 404) {
-        return apiService.post('http://localhost:5000/auth/forgot-password/reset', { identifier, otp, newPassword });
-      }
-      throw error;
-    }
+    return apiService.post('/auth/forgot-password/reset', { identifier, otp, newPassword });
   },
 
   // Email reset: request reset link
   requestPasswordResetLink: async (identifier) => {
-    try {
-      return await apiService.post('/auth/forgot-password-link', { identifier });
-    } catch (error) {
-      if (error?.status === 404) {
-        return apiService.post('http://localhost:5000/auth/forgot-password-link', { identifier });
-      }
-      throw error;
-    }
+    return apiService.post('/auth/forgot-password-link', { identifier });
   },
 
   // Email reset: reset with token
@@ -117,12 +104,28 @@ const authService = {
   },
 
   // Submit a role upgrade request
-  requestRoleUpgrade: async (requestedRole, note = '', paymentReference = '') => {
-    return apiService.post('/auth/role-requests', {
-      requestedRole,
-      note,
-      paymentAcknowledged: true,
-      paymentReference
+  requestRoleUpgrade: async ({
+    requestedRole,
+    note = '',
+    paymentReference = '',
+    paymentAccountName = '',
+    paymentPhone = '',
+    paymentProof = null
+  }) => {
+    const formData = new FormData();
+    formData.append('requestedRole', requestedRole);
+    formData.append('note', note);
+    formData.append('paymentAcknowledged', 'true');
+    formData.append('paymentReference', paymentReference);
+    formData.append('paymentAccountName', paymentAccountName);
+    formData.append('paymentPhone', paymentPhone);
+
+    if (paymentProof) {
+      formData.append('paymentProof', paymentProof);
+    }
+
+    return apiService.upload('/auth/role-requests', formData, {
+      timeout: 30000
     });
   },
 

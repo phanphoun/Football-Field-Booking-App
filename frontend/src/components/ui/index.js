@@ -6,6 +6,6 @@ export { default as ConfirmationModal } from './ConfirmationModal';
 export { DialogProvider, useDialog } from './DialogProvider';
 export { default as EmptyState } from './EmptyState';
 export { default as ImagePreviewModal } from './ImagePreviewModal';
+export { default as ScrollReveal } from './ScrollReveal';
 export { default as Spinner } from './Spinner';
 export { ToastProvider, useToast } from './ToastProvider';
-

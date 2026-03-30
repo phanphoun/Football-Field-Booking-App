@@ -4,9 +4,10 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
+import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
 const RegisterPage = () => {
-  const { register, loading, error } = useAuth();
+  const { register, googleAuth, loading, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -16,8 +17,6 @@ const RegisterPage = () => {
   const [validationErrors, setValidationErrors] = useState({});
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
     username: '',
     email: '',
     phone: '',
@@ -61,8 +60,6 @@ const RegisterPage = () => {
     setClientError(null);
     const nextErrors = {};
 
-    if (!formData.firstName.trim()) nextErrors.firstName = 'Please enter your first name.';
-    if (!formData.lastName.trim()) nextErrors.lastName = 'Please enter your last name.';
     if (!formData.username.trim()) nextErrors.username = 'Please enter your username.';
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
@@ -100,6 +97,23 @@ const RegisterPage = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credential) => {
+    setClientError(null);
+    setValidationErrors({});
+
+    const result = await googleAuth(credential);
+    if (result.success) {
+      const role = result.data?.user?.role;
+      const defaultPath = role === 'field_owner' ? '/owner/dashboard' : '/app/dashboard';
+      navigate(defaultPath);
+      return;
+    }
+
+    if (result.error) {
+      setClientError(result.error);
+    }
+  };
+
   return (
     <AuthModalShell
       badgeLabel="New Account"
@@ -131,44 +145,17 @@ const RegisterPage = () => {
       )}
 
       <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="firstName" className="mb-2 block text-sm font-semibold text-slate-700">
-              First name
-            </label>
-            <input
-              id="firstName"
-              name="firstName"
-              type="text"
-              value={formData.firstName}
-              onChange={handleChange}
-              aria-invalid={Boolean(validationErrors.firstName)}
-              className={`${inputClassName} ${
-                validationErrors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
-              }`}
-            />
-            {validationErrors.firstName && (
-              <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.firstName}</p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="lastName" className="mb-2 block text-sm font-semibold text-slate-700">
-              Last name
-            </label>
-            <input
-              id="lastName"
-              name="lastName"
-              type="text"
-              value={formData.lastName}
-              onChange={handleChange}
-              aria-invalid={Boolean(validationErrors.lastName)}
-              className={`${inputClassName} ${
-                validationErrors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''
-              }`}
-            />
-            {validationErrors.lastName && (
-              <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.lastName}</p>
-            )}
+        <div className="space-y-3">
+          <GoogleAuthButton
+            disabled={loading}
+            onCredential={handleGoogleSuccess}
+            onError={(message) => setClientError(message || 'Google sign-up failed.')}
+            text="signup_with"
+          />
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-slate-200" />
           </div>
         </div>
 

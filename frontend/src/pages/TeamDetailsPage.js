@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
+import { useLanguage } from '../context/LanguageContext';
 import teamService from '../services/teamService';
 import ratingService from '../services/ratingService';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
@@ -21,8 +22,9 @@ import {
   HandThumbUpIcon,
   UserGroupIcon,
   StarIcon,
-  ArrowTopRightOnSquareIcon
-} from '@heroicons/react/24/outline';
+  ArrowTopRightOnSquareIcon,
+} 
+from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
@@ -56,7 +58,7 @@ const TeamMatchLogo = ({ teamName, logoUrl }) => {
         <img
           src={logoUrl}
           alt={`${teamName} logo`}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain p-1"
           onError={() => setImageFailed(true)}
         />
       ) : (
@@ -257,6 +259,7 @@ const TeamDetailsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -398,21 +401,6 @@ const TeamDetailsPage = () => {
 
     fetchTeam();
   }, [id, refreshTeam, version]);
-
-  useEffect(() => {
-    if (!location.state?.successMessage && !location.state?.errorMessage) {
-      return;
-    }
-
-    if (location.state.successMessage) {
-      showToast(location.state.successMessage, { type: 'success', duration: 3200 });
-    }
-    if (location.state.errorMessage) {
-      showToast(location.state.errorMessage, { type: 'error', duration: 3600 });
-    }
-
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: {} });
-  }, [location.pathname, location.search, location.state, navigate, showToast]);
 
   useEffect(() => {
     if (!team) return;
@@ -610,13 +598,13 @@ const TeamDetailsPage = () => {
   ];
   const recentMatches = Array.isArray(history.matches) ? history.matches.slice(0, 5) : [];
   const teamOverviewDetails = [
-    { label: 'Team Name', value: team?.name || 'Unnamed team' },
-    { label: 'Captain', value: captainName },
-    { label: 'Active Members', value: `${activeMembers.length}/${team?.maxPlayers || 0}` },
-    { label: 'Skill Level', value: team?.skillLevel ? team.skillLevel.charAt(0).toUpperCase() + team.skillLevel.slice(1) : 'Not set' },
+    { label: t('team_details_name', 'Team Name'), value: team?.name || t('team_details_unnamed', 'Unnamed team') },
+    { label: t('team_details_captain', 'Captain'), value: captainName },
+    { label: t('team_details_active_members', 'Active Members'), value: `${activeMembers.length}/${team?.maxPlayers || 0}` },
+    { label: t('team_details_skill_level', 'Skill Level'), value: team?.skillLevel ? t(`teams_skill_${team.skillLevel}`, team.skillLevel) : t('team_details_not_set', 'Not set') },
     {
-      label: 'Home Field',
-      value: team?.homeField?.name || 'No home field',
+      label: t('team_details_home_field', 'Home Field'),
+      value: team?.homeField?.name || t('profile_no_home_field', 'No home field assigned'),
       renderValue: team?.homeField ? (
         <div className="mt-2 space-y-2">
           <p className="text-sm font-semibold text-gray-800">{team.homeField?.name}</p>
@@ -629,19 +617,19 @@ const TeamDetailsPage = () => {
               className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
             >
               <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-              Location
+              {t('team_details_location', 'Location')}
             </a>
           )}
         </div>
       ) : null
     },
-    { label: 'Jersey Colors', value: `${teamJerseyColors.length} colors selected` },
-    { label: 'Created', value: createdDate },
-    { label: 'Max Players', value: team?.maxPlayers || 0 },
-    { label: 'Team Status', value: team?.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active' },
+    { label: t('team_details_jersey_colors', 'Jersey Colors'), value: `${teamJerseyColors.length} ${t('team_details_colors_selected', 'colors selected')}` },
+    { label: t('common_created', 'Created'), value: createdDate },
+    { label: t('team_details_max_players', 'Max Players'), value: team?.maxPlayers || 0 },
+    { label: t('team_details_status', 'Team Status'), value: team?.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : t('team_details_active', 'Active') },
     {
-      label: 'Jersey',
-      value: teamJerseyColors.length > 0 ? `${teamJerseyColors.length} color${teamJerseyColors.length === 1 ? '' : 's'}` : 'Not set',
+      label: t('teams_jersey', 'Jersey'),
+      value: teamJerseyColors.length > 0 ? `${teamJerseyColors.length} ${t(teamJerseyColors.length === 1 ? 'team_details_color' : 'team_details_colors', teamJerseyColors.length === 1 ? 'color' : 'colors')}` : t('team_details_not_set', 'Not set'),
       renderValue:
         teamJerseyColors.length > 0 ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -981,8 +969,8 @@ const TeamDetailsPage = () => {
           <div className="group rounded-[30px] border border-white/80 bg-white/90 p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Team Identity</div>
-                <h2 className="mt-2 text-2xl font-bold text-slate-950">Team Logo</h2>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_identity', 'Team Identity')}</div>
+                <h2 className="mt-2 text-2xl font-bold text-slate-950">{t('team_details_logo', 'Team Logo')}</h2>
               </div>
             </div>
             <div className="relative mx-auto mt-5 flex h-[280px] w-[280px] max-w-full items-center justify-center overflow-hidden rounded-[34px] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),rgba(240,249,255,0.9)_55%,rgba(236,253,245,0.92))] shadow-inner transition duration-200 group-hover:scale-[1.02]">
@@ -1000,7 +988,7 @@ const TeamDetailsPage = () => {
                   <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200 transition duration-200 group-hover:scale-105 group-hover:ring-emerald-200">
                     <PhotoIcon className="h-12 w-12 text-slate-400 transition duration-200 group-hover:text-emerald-500" />
                   </div>
-                  <p className="text-base font-medium text-slate-500">No logo</p>
+                  <p className="text-base font-medium text-slate-500">{t('team_details_no_logo', 'No logo')}</p>
                 </div>
               )}
 
@@ -1029,11 +1017,11 @@ const TeamDetailsPage = () => {
           <div className="space-y-5">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Team Name</div>
-                <h1 className="mt-1 break-words text-4xl font-black tracking-tight text-slate-950">{team.name || 'Unnamed team'}</h1>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_name', 'Team Name')}</div>
+                <h1 className="mt-1 break-words text-4xl font-black tracking-tight text-slate-950">{team.name || t('team_details_unnamed', 'Unnamed team')}</h1>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Jersey Colors</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_jersey_colors', 'Jersey Colors')}</div>
                   <div className="inline-flex items-center gap-2">
                     {teamJerseyColors.length > 0 ? (
                       teamJerseyColors.map((color, index) => (
@@ -1044,7 +1032,7 @@ const TeamDetailsPage = () => {
                         />
                       ))
                     ) : (
-                      <span className="text-sm font-medium text-slate-500">No colors selected</span>
+                      <span className="text-sm font-medium text-slate-500">{t('team_details_no_colors', 'No colors selected')}</span>
                     )}
                   </div>
                 </div>
@@ -1065,22 +1053,22 @@ const TeamDetailsPage = () => {
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Captain</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_captain', 'Captain')}</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">{captainName}</div>
               </div>
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Active Members</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_active_members', 'Active Members')}</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">{activeMembers.length}/{team.maxPlayers || 0}</div>
               </div>
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-violet-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Skill Level</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_skill_level', 'Skill Level')}</div>
                 <div className="mt-2 text-base font-semibold text-slate-800">
-                  {team.skillLevel ? team.skillLevel.charAt(0).toUpperCase() + team.skillLevel.slice(1) : 'Not set'}
+                  {team.skillLevel ? t(`teams_skill_${team.skillLevel}`, team.skillLevel) : t('team_details_not_set', 'Not set')}
                 </div>
               </div>
               <div className="rounded-3xl border border-white/70 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-amber-100 hover:shadow-md">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Home Field</div>
-                <div className="mt-2 text-base font-semibold text-slate-800">{team.homeField?.name || 'No home field'}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{t('team_details_home_field', 'Home Field')}</div>
+                <div className="mt-2 text-base font-semibold text-slate-800">{team.homeField?.name || t('profile_no_home_field', 'No home field assigned')}</div>
                 {teamHomeFieldAddress && <div className="mt-1 text-sm leading-5 text-slate-500">{teamHomeFieldAddress}</div>}
                 {teamHomeFieldLocationUrl && (
                   <a
@@ -1090,7 +1078,7 @@ const TeamDetailsPage = () => {
                     className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100"
                   >
                     <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                    Open Location
+                    {t('team_details_open_location', 'Open Location')}
                   </a>
                 )}
               </div>
@@ -1102,49 +1090,51 @@ const TeamDetailsPage = () => {
 
       <div className="bg-white shadow rounded-lg p-6 space-y-6">
         <div className="border-b border-gray-200">
-          <div className="flex items-center gap-8">
+          <div className="-mx-2 overflow-x-auto px-2">
+            <div className="flex min-w-max items-center gap-5 sm:gap-8">
             <button
               type="button"
               onClick={() => setTab('overview')}
-              className={`border-b-2 px-1 py-3 text-base font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition sm:text-base ${
                 activeTab === 'overview'
                   ? 'border-slate-900 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Overview
+              {t('team_details_overview', 'Overview')}
             </button>
             <button
               type="button"
               onClick={() => setTab('members')}
-              className={`border-b-2 px-1 py-3 text-base font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition sm:text-base ${
                 activeTab === 'members'
                   ? 'border-slate-900 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Members
+              {t('team_details_members', 'Members')}
             </button>
             <button
               type="button"
               onClick={() => setTab('history')}
-              className={`border-b-2 px-1 py-3 text-base font-semibold transition ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-semibold transition sm:text-base ${
                 activeTab === 'history'
                   ? 'border-slate-900 text-slate-900'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              Match History
+              {t('team_details_match_history', 'Match History')}
             </button>
             {isCaptainOfTeam && (
                 <button
                   type="button"
                   onClick={() => navigate(`${basePath}/teams/${id}/manage`)}
-                  className="border-b-2 border-transparent px-1 py-3 text-base font-semibold text-slate-500 transition hover:text-slate-700"
+                  className="shrink-0 whitespace-nowrap border-b-2 border-transparent px-1 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-700 sm:text-base"
                 >
-                  Manage Team
-              </button>
-            )}
+                  {t('team_details_manage_team', 'Manage Team')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1153,8 +1143,8 @@ const TeamDetailsPage = () => {
             <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">About This Team</h2>
-                  <p className="mt-1 text-sm text-gray-500">Overview and profile details in one place.</p>
+                  <h2 className="text-lg font-semibold text-gray-900">{t('team_details_about', 'About This Team')}</h2>
+                  <p className="mt-1 text-sm text-gray-500">{t('team_details_about_desc', 'Overview and profile details in one place.')}</p>
                 </div>
               </div>
 
@@ -1166,8 +1156,8 @@ const TeamDetailsPage = () => {
                   </div>
                 ))}
                 <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 md:col-span-2 xl:col-span-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Description</p>
-                  <p className="mt-2 text-sm leading-6 text-gray-700">{team.description || 'No team description yet.'}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t('team_details_description', 'Description')}</p>
+                  <p className="mt-2 text-sm leading-6 text-gray-700">{team.description || t('team_details_no_description', 'No team description yet.')}</p>
                 </div>
               </div>
             </div>
@@ -1176,11 +1166,11 @@ const TeamDetailsPage = () => {
               <div className="rounded-2xl border border-gray-200 bg-white p-5 xl:col-span-2">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">Recent History</h3>
-                    <p className="mt-1 text-sm text-gray-500">Latest results, opponents, and match dates for this team.</p>
+                    <h3 className="text-base font-semibold text-gray-900">{t('team_details_recent_history', 'Recent History')}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{t('team_details_recent_history_desc', 'Latest results, opponents, and match dates for this team.')}</p>
                   </div>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                    {recentMatches.length} shown
+                    {t('team_details_shown', '{{count}} shown', { count: recentMatches.length })}
                   </span>
                 </div>
 
@@ -1291,27 +1281,27 @@ const TeamDetailsPage = () => {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-8 text-center text-sm text-gray-500">
-                      No recent completed matches yet.
+                      {t('team_details_no_recent_matches', 'No recent completed matches yet.')}
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h3 className="text-base font-semibold text-gray-900">Team Notes</h3>
-                <p className="mt-1 text-sm text-gray-500">Supporting details that are not already shown in the top summary card.</p>
+                <h3 className="text-base font-semibold text-gray-900">{t('team_details_notes', 'Team Notes')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{t('team_details_notes_desc', 'Supporting details that are not already shown in the top summary card.')}</p>
                 <div className="mt-5 space-y-4 text-sm text-gray-700">
                   <div className="flex items-center gap-3">
                     <UsersIcon className="h-5 w-5 text-gray-400" />
-                    <span>Squad capacity: {team.maxPlayers || 0} players</span>
+                    <span>{t('team_details_squad_capacity', 'Squad capacity: {{count}} players', { count: team.maxPlayers || 0 })}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
-                    <span>Team status: {team.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : 'Active'}</span>
+                    <span>{t('team_details_status_line', 'Team status: {{status}}', { status: team.status ? team.status.charAt(0).toUpperCase() + team.status.slice(1) : t('team_details_active', 'Active') })}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <MapPinIcon className="h-5 w-5 text-gray-400" />
-                    <span>Created on {createdDate}</span>
+                    <span>{t('team_details_created_on', 'Created on {{date}}', { date: createdDate })}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="inline-flex items-center gap-1.5">
@@ -1319,10 +1309,10 @@ const TeamDetailsPage = () => {
                         <span key={`${color}-${index}`} className="h-5 w-5 rounded-full border border-gray-300" style={{ backgroundColor: color }} />
                       ))}
                     </span>
-                    <span>{teamJerseyColors.length} jersey color{teamJerseyColors.length === 1 ? '' : 's'} selected</span>
+                    <span>{t('team_details_jersey_selected', '{{count}} jersey colors selected', { count: teamJerseyColors.length })}</span>
                   </div>
                   <div className="rounded-2xl bg-gray-50 px-4 py-4 text-sm leading-6 text-gray-600">
-                    The top summary card now holds the main identity details, and this section keeps only the extra context.
+                    {t('team_details_notes_helper', 'The top summary card now holds the main identity details, and this section keeps only the extra context.')}
                   </div>
                 </div>
               </div>
@@ -1330,12 +1320,12 @@ const TeamDetailsPage = () => {
 
             <div className="flex flex-wrap gap-3">
               {isAdminUser ? (
-                <div className="text-sm text-gray-700">Admin view of this team profile, members, and recent history.</div>
+                <div className="text-sm text-gray-700">{t('team_details_admin_view', 'Admin view of this team profile, members, and recent history.')}</div>
               ) : isCaptainOfTeam ? (
-                <div className="text-sm text-gray-700">You are the captain of this team.</div>
+                <div className="text-sm text-gray-700">{t('team_details_you_are_captain', 'You are the captain of this team.')}</div>
               ) : isInvited ? (
                 <div className="flex flex-wrap gap-3">
-                  <div className="text-sm text-gray-700">You have been invited to join this team.</div>
+                  <div className="text-sm text-gray-700">{t('team_details_invited', 'You have been invited to join this team.')}</div>
                   <button
                     onClick={handleAccept}
                     disabled={actionLoading}
@@ -1354,14 +1344,14 @@ const TeamDetailsPage = () => {
                   </button>
                 </div>
               ) : membership?.status === 'pending' ? (
-                <div className="text-sm text-gray-700">Join request pending approval.</div>
+                <div className="text-sm text-gray-700">{t('team_details_join_pending', 'Join request pending approval.')}</div>
               ) : membership?.status === 'active' ? (
                 <button
                   onClick={handleLeave}
                   disabled={actionLoading}
                   className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                 >
-                  {actionLoading ? 'Leaving...' : 'Leave Team'}
+                  {actionLoading ? t('team_details_leaving', 'Leaving...') : t('team_details_leave_team', 'Leave Team')}
                 </button>
               ) : (
                 <button
@@ -1377,8 +1367,8 @@ const TeamDetailsPage = () => {
         ) : activeTab === 'members' ? (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Members</h2>
-              <span className="text-xs text-gray-500">{activeMembers.length}/{team.maxPlayers} players</span>
+              <h2 className="text-sm font-semibold text-gray-900">{t('team_details_members', 'Members')}</h2>
+              <span className="text-xs text-gray-500">{activeMembers.length}/{team.maxPlayers} {t('team_details_players', 'players')}</span>
             </div>
             <div className="mt-3 divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
               {activeMembers.length > 0 ? (
@@ -1434,7 +1424,7 @@ const TeamDetailsPage = () => {
                   </div>
                 ))
               ) : (
-                <div className="px-4 py-6 text-sm text-gray-500 text-center">No active members yet.</div>
+                <div className="px-4 py-6 text-sm text-gray-500 text-center">{t('team_details_no_active_members', 'No active members yet.')}</div>
               )}
             </div>
           </div>
@@ -1607,7 +1597,7 @@ const TeamDetailsPage = () => {
                     <img
                       src={resolveTeamLogoUrl(ratingModalMatch.opponentTeamLogoUrl)}
                       alt={`${ratingModalMatch.opponentTeamName} logo`}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain p-2"
                     />
                   ) : (
                     <span className="text-3xl font-bold text-slate-400">

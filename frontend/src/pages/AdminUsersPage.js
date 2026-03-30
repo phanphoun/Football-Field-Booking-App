@@ -1,12 +1,63 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useRealtime } from '../context/RealtimeContext';
+import { useLanguage } from '../context/LanguageContext';
 import userService from '../services/userService';
 import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog, useToast } from '../components/ui';
-import { EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, EllipsisVerticalIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { buildAssetUrl } from '../config/appConfig';
 import { formatRoleLabel } from '../utils/formatters';
 
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
 const STATUSES = ['active', 'inactive', 'suspended'];
+const PAGE_SIZE = 10;
+
+const ROLE_PRIORITY = {
+  admin: 4,
+  field_owner: 3,
+  captain: 2,
+  player: 1
+};
+
+const getTimestamp = (value) => {
+  const timestamp = Date.parse(value || '');
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const compareNewestFirst = (leftUser, rightUser) => {
+  const createdAtDiff = getTimestamp(rightUser.createdAt) - getTimestamp(leftUser.createdAt);
+  if (createdAtDiff !== 0) return createdAtDiff;
+  return Number(rightUser.id || 0) - Number(leftUser.id || 0);
+};
+
+const getUserActivityScore = (user) => {
+  const ownedFields = Array.isArray(user?.fields) ? user.fields.length : 0;
+  const teams = Array.isArray(user?.teams) ? user.teams.length : 0;
+  const createdBookings = Array.isArray(user?.createdBookings) ? user.createdBookings.length : 0;
+  const roleWeight = ROLE_PRIORITY[user?.role] || 0;
+
+  return ownedFields * 10 + teams * 6 + createdBookings * 3 + roleWeight;
+};
+
+const sortUsers = (list, sortBy) => {
+  const nextUsers = [...list];
+
+  return nextUsers.sort((leftUser, rightUser) => {
+    if (sortBy === 'oldest') {
+      return compareNewestFirst(rightUser, leftUser);
+    }
+
+    if (sortBy === 'activity') {
+      const activityDiff = getUserActivityScore(rightUser) - getUserActivityScore(leftUser);
+      if (activityDiff !== 0) return activityDiff;
+
+      const lastLoginDiff = getTimestamp(rightUser.lastLogin) - getTimestamp(leftUser.lastLogin);
+      if (lastLoginDiff !== 0) return lastLoginDiff;
+    }
+
+    return compareNewestFirst(leftUser, rightUser);
+  });
+};
 
 const statusBadgeClass = (status) => {
   if (status === 'active') return 'bg-green-100 text-green-700';
@@ -26,12 +77,15 @@ const resolveAvatarUrl = (user) => {
 };
 
 const AdminUsersPage = () => {
+  const { version } = useRealtime();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingUserId, setSavingUserId] = useState(null);
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+  const [currentPage, setCurrentPage] = useState(1);
   const [openMenuUserId, setOpenMenuUserId] = useState(null);
   const [editUser, setEditUser] = useState(null);
   const [viewUser, setViewUser] = useState(null);
@@ -41,23 +95,25 @@ const AdminUsersPage = () => {
   const [editForm, setEditForm] = useState({ role: 'player', status: 'active' });
   const { confirm } = useDialog();
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const actionMenuRef = useRef(null);
+  const navigate = useNavigate();
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await userService.getAllUsers();
       setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      showToast(error.error || 'Failed to load users.', { type: 'error' });
+      showToast(error.error || t('admin_users_load_failed', 'Failed to load users.'), { type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast, t]);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers, version]);
 
   useEffect(() => {
     if (!openMenuUserId) return undefined;
@@ -77,18 +133,45 @@ const AdminUsersPage = () => {
     };
   }, [openMenuUserId]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, roleFilter, statusFilter, sortBy]);
+
   const stats = useMemo(() => {
     return {
       total: users.length,
       active: users.filter((user) => (user.status || 'active') === 'active').length,
+      players: users.filter((user) => user.role === 'player').length,
+      captains: users.filter((user) => user.role === 'captain').length,
+      fieldOwners: users.filter((user) => user.role === 'field_owner').length,
       admins: users.filter((user) => user.role === 'admin').length,
       suspended: users.filter((user) => user.status === 'suspended').length
     };
   }, [users]);
 
+  const roleTabs = useMemo(
+    () => [
+      { key: 'all', label: t('admin_users_tab_all', 'All users'), count: stats.total },
+      { key: 'player', label: t('role_player', 'Player'), count: stats.players },
+      { key: 'captain', label: t('role_captain', 'Captain'), count: stats.captains },
+      { key: 'field_owner', label: t('role_field_owner', 'Field Owner'), count: stats.fieldOwners },
+      { key: 'admin', label: t('role_admin', 'Admin'), count: stats.admins }
+    ],
+    [stats, t]
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'newest', label: t('admin_users_sort_newest', 'Newest first') },
+      { value: 'oldest', label: t('admin_users_sort_oldest', 'Oldest first') },
+      { value: 'activity', label: t('admin_users_sort_activity', 'Most active') }
+    ],
+    [t]
+  );
+
   const filteredUsers = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    return users.filter((user) => {
+    const matchingUsers = users.filter((user) => {
       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase();
       const matchText =
         !keyword ||
@@ -99,20 +182,64 @@ const AdminUsersPage = () => {
       const matchStatus = statusFilter === 'all' || (user.status || 'active') === statusFilter;
       return matchText && matchRole && matchStatus;
     });
-  }, [users, query, roleFilter, statusFilter]);
+    return sortUsers(matchingUsers, sortBy);
+  }, [users, query, roleFilter, statusFilter, sortBy]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE)),
+    [filteredUsers.length]
+  );
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const effectiveCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (effectiveCurrentPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredUsers, effectiveCurrentPage]);
+
+  const pageSummary = useMemo(() => {
+    if (filteredUsers.length === 0) {
+      return { start: 0, end: 0 };
+    }
+
+    const start = (effectiveCurrentPage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(filteredUsers.length, effectiveCurrentPage * PAGE_SIZE);
+    return { start, end };
+  }, [filteredUsers.length, effectiveCurrentPage]);
+
+  const visiblePageNumbers = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const startPage = Math.max(1, effectiveCurrentPage - 2);
+    const endPage = Math.min(totalPages, startPage + 4);
+    const adjustedStartPage = Math.max(1, endPage - 4);
+
+    return Array.from({ length: endPage - adjustedStartPage + 1 }, (_, index) => adjustedStartPage + index);
+  }, [totalPages, effectiveCurrentPage]);
 
   const handleDelete = async (userId, username) => {
     setOpenMenuUserId(null);
-    const confirmed = await confirm(`Delete user @${username}? This cannot be undone.`, { title: 'Delete User' });
+    const confirmed = await confirm(
+      t('admin_users_delete_confirm', 'Delete user @{{username}}? This cannot be undone.', { username }),
+      { title: t('admin_users_delete_title', 'Delete User') }
+    );
     if (!confirmed) return;
 
     try {
       setSavingUserId(userId);
       await userService.deleteUser(userId);
       setUsers((prev) => prev.filter((user) => user.id !== userId));
-      showToast('User deleted successfully.', { type: 'success' });
+      showToast(t('admin_users_delete_success', 'User deleted successfully.'), { type: 'success' });
     } catch (error) {
-      showToast(error.error || 'Failed to delete user.', { type: 'error' });
+      showToast(error.error || t('admin_users_delete_failed', 'Failed to delete user.'), { type: 'error' });
     } finally {
       setSavingUserId(null);
     }
@@ -140,7 +267,7 @@ const AdminUsersPage = () => {
       const response = await userService.getUserById(user.id);
       setViewUser(response?.data || user);
     } catch (error) {
-      showToast(error.error || 'Failed to load user details.', { type: 'error' });
+      showToast(error.error || t('admin_users_details_failed', 'Failed to load user details.'), { type: 'error' });
     } finally {
       setViewUserLoading(false);
     }
@@ -191,13 +318,19 @@ const AdminUsersPage = () => {
             : user
         )
       );
-      showToast('User updated successfully.', { type: 'success' });
+      showToast(t('admin_users_update_success', 'User updated successfully.'), { type: 'success' });
       setEditUser(null);
     } catch (error) {
-      showToast(error.error || 'Failed to update user.', { type: 'error' });
+      showToast(error.error || t('admin_users_update_failed', 'Failed to update user.'), { type: 'error' });
     } finally {
       setSavingUserId(null);
     }
+  };
+
+  const openChatForUser = (targetUserId) => {
+    if (!targetUserId) return;
+    setOpenMenuUserId(null);
+    navigate(`/app/chat?user=${targetUserId}`);
   };
 
   return (
@@ -206,60 +339,95 @@ const AdminUsersPage = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="inline-flex items-center rounded-full bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700 ring-1 ring-indigo-100">
-            Admin Users
+            {t('admin_users_badge', 'Admin Users')}
           </div>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">Manage Users</h1>
-          <p className="mt-2 text-sm text-slate-600">Update roles, account status, and remove users with a cleaner overview.</p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{t('dashboard_admin_manage_users', 'Manage users')}</h1>
+          <p className="mt-2 text-sm text-slate-600">{t('admin_users_subtitle', 'Update roles, account status, and remove users with a cleaner overview.')}</p>
         </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Total</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('admin_users_total', 'Total')}</p>
           <AnimatedStatValue value={stats.total} className="mt-1 text-2xl font-bold text-gray-900" />
         </div>
         <div className="rounded-[24px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Active</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('dashboard_admin_active', 'Active')}</p>
           <AnimatedStatValue value={stats.active} className="mt-1 text-2xl font-bold text-green-700" />
         </div>
         <div className="rounded-[24px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Admins</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('admin_users_admins', 'Admins')}</p>
           <AnimatedStatValue value={stats.admins} className="mt-1 text-2xl font-bold text-blue-700" />
         </div>
         <div className="rounded-[24px] border border-red-100 bg-gradient-to-br from-red-50 via-white to-red-100/70 p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-gray-500">Suspended</p>
+          <p className="text-xs font-semibold uppercase text-gray-500">{t('dashboard_admin_suspended', 'Suspended')}</p>
           <AnimatedStatValue value={stats.suspended} className="mt-1 text-2xl font-bold text-red-700" />
         </div>
       </div>
 
       <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="flex flex-wrap gap-2">
+          {roleTabs.map((tab) => {
+            const isActive = roleFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setRoleFilter(tab.key)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  isActive
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`inline-flex min-w-[1.75rem] items-center justify-center rounded-full px-2 py-0.5 text-xs ${
+                    isActive ? 'bg-white text-emerald-700' : 'bg-white text-slate-500'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {t('admin_users_role_hint', 'Filter users by role so admins can review players, captains, and field owners faster.')}
+        </p>
+      </div>
+
+      <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(180px,1fr)_minmax(180px,1fr)]">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search username, email, or name"
+            placeholder={t('admin_users_search_placeholder', 'Search username, email, or name')}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
           />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="all">All roles</option>
-            {ROLES.map((role) => (
-              <option key={role} value={role}>{role}</option>
-            ))}
-          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
-            <option value="all">All statuses</option>
+            <option value="all">{t('admin_users_all_statuses', 'All statuses')}</option>
             {STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>
+                {status === 'active' ? t('dashboard_admin_active', 'Active') : status === 'suspended' ? t('dashboard_admin_suspended', 'Suspended') : t('admin_users_inactive', 'Inactive')}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
@@ -276,24 +444,24 @@ const AdminUsersPage = () => {
           </colgroup>
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-5 py-3.5 text-left text-[13px] font-semibold tracking-wide text-gray-700">User</th>
-              <th className="px-5 py-3.5 text-left text-[13px] font-semibold tracking-wide text-gray-700">Email</th>
-              <th className="px-5 py-3.5 text-center text-[13px] font-semibold tracking-wide text-gray-700">Role</th>
-              <th className="px-5 py-3.5 text-center text-[13px] font-semibold tracking-wide text-gray-700">Status</th>
-              <th className="px-5 py-3.5 text-center text-[13px] font-semibold tracking-wide text-gray-700">Actions</th>
+              <th className="px-5 py-3.5 text-left text-[13px] font-semibold tracking-wide text-gray-700">{t('admin_users_user', 'User')}</th>
+              <th className="px-5 py-3.5 text-left text-[13px] font-semibold tracking-wide text-gray-700">{t('admin_users_email', 'Email')}</th>
+              <th className="px-5 py-3.5 text-center text-[13px] font-semibold tracking-wide text-gray-700">{t('admin_users_role', 'Role')}</th>
+              <th className="px-5 py-3.5 text-center text-[13px] font-semibold tracking-wide text-gray-700">{t('admin_users_status', 'Status')}</th>
+              <th className="px-5 py-3.5 text-center text-[13px] font-semibold tracking-wide text-gray-700">{t('admin_users_actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-gray-500">Loading users...</td>
+                <td colSpan={5} className="px-5 py-10 text-center text-gray-500">{t('admin_users_loading', 'Loading users...')}</td>
               </tr>
             ) : filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-gray-500">No users found with current filters.</td>
+                <td colSpan={5} className="px-5 py-10 text-center text-gray-500">{t('admin_users_none_found', 'No users found with current filters.')}</td>
               </tr>
             ) : (
-              filteredUsers.map((user) => {
+              paginatedUsers.map((user) => {
                 const isSaving = savingUserId === user.id;
                 const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
                 const status = user.status || 'active';
@@ -334,12 +502,12 @@ const AdminUsersPage = () => {
                     </td>
                     <td className="px-5 py-3 text-center">
                       <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold ${roleBadgeClass(user.role)}`}>
-                        {formatRoleLabel(user.role)}
+                        {user.role === 'field_owner' ? t('role_field_owner', 'Field Owner') : user.role === 'captain' ? t('role_captain', 'Captain') : user.role === 'admin' ? t('role_admin', 'Admin') : t('role_player', 'Player')}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-center">
                       <span className={`inline-flex whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold ${statusBadgeClass(status)}`}>
-                        {status}
+                        {status === 'active' ? t('dashboard_admin_active', 'Active') : status === 'suspended' ? t('dashboard_admin_suspended', 'Suspended') : t('admin_users_inactive', 'Inactive')}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-center">
@@ -365,6 +533,17 @@ const AdminUsersPage = () => {
 
                         {openMenuUserId === user.id && (
                           <div className="absolute right-0 top-12 z-20 w-40 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-200/70">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openChatForUser(user.id);
+                              }}
+                              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <ChatBubbleLeftRightIcon className="h-4 w-4 text-emerald-600" />
+                              Chat
+                            </button>
                             <button
                               type="button"
                               onClick={(event) => {
@@ -398,6 +577,52 @@ const AdminUsersPage = () => {
           </tbody>
         </table>
       </div>
+
+      {!loading && filteredUsers.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
+            {t('admin_users_showing', 'Showing {{start}}-{{end}} of {{total}} users', {
+              start: pageSummary.start,
+              end: pageSummary.end,
+              total: filteredUsers.length
+            })}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={effectiveCurrentPage === 1}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('admin_users_prev_page', 'Previous')}
+            </button>
+
+            {visiblePageNumbers.map((pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => setCurrentPage(pageNumber)}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${
+                  effectiveCurrentPage === pageNumber
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {pageNumber}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={effectiveCurrentPage === totalPages}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('admin_users_next_page', 'Next')}
+            </button>
+          </div>
+        </div>
+      )}
 
       <ConfirmationModal
         isOpen={Boolean(editUser)}
@@ -541,6 +766,14 @@ const AdminUsersPage = () => {
                 </p>
                 <p className="truncate text-sm text-gray-500">@{viewUser.username}</p>
               </div>
+              <button
+                type="button"
+                onClick={() => openChatForUser(viewUser.id)}
+                className="ml-auto inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+              >
+                <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                Chat
+              </button>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">

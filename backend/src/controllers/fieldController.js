@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { Field, Booking } = require('../models');
-const { Op } = require('sequelize');
+const { Field, Booking, FieldReview, User } = require('../models');
+const { Op, fn, col } = require('sequelize');
 const serverConfig = require('../config/serverConfig');
 
 // A field is considered "booked" for UI availability only during an active confirmed slot.
@@ -135,6 +135,37 @@ const normalizeOptionalDate = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const getFieldReviewSummary = async (fieldId) => {
+  const aggregates = await FieldReview.findOne({
+    where: { fieldId },
+    attributes: [
+      [fn('AVG', col('rating')), 'averageRating'],
+      [fn('COUNT', col('id')), 'totalReviews']
+    ],
+    raw: true
+  });
+
+  const averageRating = Number(aggregates?.averageRating || 0);
+  const totalReviews = Number(aggregates?.totalReviews || 0);
+
+  return {
+    averageRating: totalReviews > 0 ? Number(averageRating.toFixed(1)) : 0,
+    totalReviews
+  };
+};
+
+const syncFieldReviewSummary = async (fieldId) => {
+  const summary = await getFieldReviewSummary(fieldId);
+  await Field.update(
+    {
+      rating: summary.totalReviews > 0 ? summary.averageRating : 0,
+      totalRatings: summary.totalReviews
+    },
+    { where: { id: fieldId } }
+  );
+  return summary;
+};
+
 const getFields = async (req, res) => {
   try {
     const where = { isArchived: false };
@@ -218,6 +249,175 @@ const getMyFields = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch fields',
+      error: error.message
+    });
+  }
+};
+
+const getFieldRatings = async (req, res) => {
+  try {
+    const field = await Field.findOne({
+      where: {
+        id: req.params.id,
+        isArchived: false
+      },
+      attributes: ['id', 'name', 'rating', 'totalRatings']
+    });
+
+    if (!field) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field not found'
+      });
+    }
+
+    const reviews = await FieldReview.findAll({
+      where: { fieldId: field.id },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const summary = await getFieldReviewSummary(field.id);
+    const payload = reviews.map((review) => {
+      const raw = review.toJSON();
+      return {
+        id: raw.id,
+        fieldId: raw.fieldId,
+        userId: raw.userId,
+        rating: raw.rating,
+        comment: raw.comment || '',
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
+        user: raw.user
+          ? {
+              id: raw.user.id,
+              username: raw.user.username,
+              firstName: raw.user.firstName,
+              lastName: raw.user.lastName,
+              avatarUrl: raw.user.avatarUrl || null
+            }
+          : null
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        field: {
+          id: field.id,
+          name: field.name,
+          rating: summary.averageRating,
+          totalRatings: summary.totalReviews
+        },
+        summary,
+        reviews: payload
+      }
+    });
+  } catch (error) {
+    console.error('Get field ratings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch field ratings',
+      error: error.message
+    });
+  }
+};
+
+const rateField = async (req, res) => {
+  try {
+    const field = await Field.findOne({
+      where: {
+        id: req.params.id,
+        isArchived: false
+      }
+    });
+
+    if (!field) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field not found'
+      });
+    }
+
+    const parsedRating = Number(req.body?.rating);
+    const trimmedComment = String(req.body?.comment || '').trim();
+
+    if (!Number.isInteger(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be an integer between 1 and 5'
+      });
+    }
+
+    if (!trimmedComment) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    if (trimmedComment.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment must be 1000 characters or fewer'
+      });
+    }
+
+    const [review, created] = await FieldReview.findOrCreate({
+      where: {
+        fieldId: field.id,
+        userId: req.user.id
+      },
+      defaults: {
+        fieldId: field.id,
+        userId: req.user.id,
+        rating: parsedRating,
+        comment: trimmedComment || null
+      }
+    });
+
+    if (!created) {
+      await review.update({
+        rating: parsedRating,
+        comment: trimmedComment || null
+      });
+    }
+
+    const summary = await syncFieldReviewSummary(field.id);
+    const hydratedReview = await FieldReview.findByPk(review.id, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'firstName', 'lastName', 'avatarUrl']
+        }
+      ]
+    });
+
+    res.status(created ? 201 : 200).json({
+      success: true,
+      message: created ? 'Field review submitted successfully' : 'Field review updated successfully',
+      data: {
+        review: hydratedReview,
+        summary,
+        field: {
+          id: field.id,
+          rating: summary.averageRating,
+          totalRatings: summary.totalReviews
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Rate field error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit field review',
       error: error.message
     });
   }
@@ -651,6 +851,8 @@ module.exports = {
   deleteField,
   uploadFieldImages,
   deleteFieldImage,
-  setFieldCoverImage
+  setFieldCoverImage,
+  getFieldRatings,
+  rateField
 };
 
