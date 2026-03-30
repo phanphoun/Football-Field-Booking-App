@@ -4,6 +4,7 @@ const multer = require('multer');
 const { Field, Booking, FieldReview, User } = require('../models');
 const { Op, fn, col } = require('sequelize');
 const serverConfig = require('../config/serverConfig');
+const { getUploadDir, resolveManagedUploadPath } = require('../utils/storagePaths');
 
 // A field is considered "booked" for UI availability only during an active confirmed slot.
 const ACTIVE_BOOKING_STATUSES = ['confirmed'];
@@ -76,15 +77,12 @@ const isManagedFieldImagePath = (imagePath) =>
 // Get candidate image paths for the current flow.
 const getCandidateImagePaths = (imagePath) => {
   if (!isManagedFieldImagePath(imagePath)) return [];
-  const relative = imagePath.slice(1);
-  const fileName = path.basename(relative);
+  const fileName = path.basename(String(imagePath || ''));
   return [
-    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', relative),
-    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'uploads', 'field', fileName),
-    path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'uploads', 'fields', fileName),
-    path.resolve(__dirname, '..', '..', 'uploads', 'field', fileName),
-    path.resolve(__dirname, '..', '..', 'uploads', 'fields', fileName)
-  ];
+    resolveManagedUploadPath(imagePath),
+    getUploadDir('field', fileName),
+    getUploadDir('fields', fileName)
+  ].filter(Boolean);
 };
 
 // Support remove field image file for this module.
@@ -667,8 +665,7 @@ const uploadFieldImages = async (req, res) => {
     }
 
     const maxImageSize = serverConfig.upload.maxSize;
-    const projectRoot = path.resolve(__dirname, '..', '..');
-    const uploadDir = path.resolve(projectRoot, '..', 'frontend', 'public', 'uploads', 'field');
+    const uploadDir = getUploadDir('field');
     fs.mkdirSync(uploadDir, { recursive: true });
 
     const storage = multer.diskStorage({

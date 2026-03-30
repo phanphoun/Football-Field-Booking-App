@@ -99,7 +99,7 @@ const getWeekDateItems = () => {
 
 // Render the league page.
 const League = () => {
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
   const [activeTab, setActiveTab] = useState('matches');
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);

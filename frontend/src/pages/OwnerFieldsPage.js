@@ -16,8 +16,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const API_ORIGIN =
+  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
+    ? window.location.origin
+    : API_BASE_URL.replace(/\/api\/?$/, '');
 const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
 const FIELD_STATUS_OPTIONS = [
   {

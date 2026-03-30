@@ -33,8 +33,11 @@ import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleM
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const API_ORIGIN =
+  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
+    ? window.location.origin
+    : API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const resolveTeamLogoUrl = (rawLogo) => {
@@ -331,17 +334,12 @@ const TeamDetailsPage = () => {
     if (!rawTeamLogo) return [];
     if (/^https?:\/\//i.test(rawTeamLogo)) return [rawTeamLogo];
 
-    const localHostApiOrigin = 'http://98.92.235.206';
-    const loopbackApiOrigin = 'http://127.0.0.1:5000';
-    const browserApiOrigin =
-      typeof window !== 'undefined' ? window.location.origin.replace(':3000', ':5000') : API_ORIGIN;
+    const browserOrigin = typeof window !== 'undefined' ? window.location.origin : API_ORIGIN;
 
     return Array.from(
       new Set([
         `${API_ORIGIN}${rawTeamLogo}`,
-        `${browserApiOrigin}${rawTeamLogo}`,
-        `${localHostApiOrigin}${rawTeamLogo}`,
-        `${loopbackApiOrigin}${rawTeamLogo}`
+        `${browserOrigin}${rawTeamLogo}`
       ])
     );
   }, [rawTeamLogo]);

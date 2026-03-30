@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+**/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -110,3 +111,5 @@ jspm_packages/
 /frontend/public/uploads/fields/field-*
 /frontend/public/uploads/profile/user_*
 /frontend/public/uploads/team-logo/team_*
+backend/.env
+frontend/.env.production
