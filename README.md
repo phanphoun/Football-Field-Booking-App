@@ -92,7 +92,9 @@ Football-Field-Booking-App/
 |   |   |-- models/
 |   |   |-- routes/
 |   |   `-- utils/
-|   |-- server.js
+|   |-- server.js              # Full production server
+|   |-- server-simple.js       # Lightweight server with mock data
+|   |-- mock-server.js         # Complete mock server
 |   `-- package.json
 |-- frontend/
 |   |-- public/
@@ -179,8 +181,19 @@ Sample seeded accounts:
 
 From `backend/`:
 
+**Option 1: Full production server (requires database)**
 ```bash
 npm run dev
+```
+
+**Option 2: Simple server with mock data (no database required)**
+```bash
+npm run dev:simple
+```
+
+**Option 3: Mock server for frontend development**
+```bash
+npm run dev:mock
 ```
 
 Backend URLs:
@@ -205,12 +218,21 @@ The frontend defaults to `/api` and uses the local proxy in development, so a fr
 ### Backend
 
 ```bash
-npm start       # start server
-npm run dev     # start with nodemon
-npm run seed    # reset and seed demo data
-npm run db:create
-npm test
+npm start         # start production server (server.js)
+npm run dev       # start with nodemon (server.js)
+npm run start:simple    # start simple server (server-simple.js)
+npm run dev:simple      # start simple server with nodemon
+npm run start:mock    # start mock server (mock-server.js)
+npm run dev:mock      # start mock server with nodemon
+npm run seed       # reset and seed demo data
+npm run db:create  # create database
+npm test          # run tests
 ```
+
+**Server Options:**
+- **server.js** - Full production server with database integration
+- **server-simple.js** - Lightweight server with mock data and basic auth
+- **mock-server.js** - Complete mock server for frontend development
 
 ### Frontend
 
@@ -255,6 +277,28 @@ Uploaded files are served from:
 
 If a field image is missing, the backend falls back to `frontend/public/hero-manu.jpg`.
 
+## Development Options
+
+### Choosing the Right Server
+
+**Use `server.js` (production server) when:**
+- You need full database integration
+- Testing complete application functionality
+- Production-like environment
+- All features including real authentication
+
+**Use `server-simple.js` when:**
+- Quick frontend development without database setup
+- Testing UI components and flows
+- Lightweight development environment
+- Basic authentication with mock data
+
+**Use `mock-server.js` when:**
+- Pure frontend development
+- API contract testing
+- No backend dependencies needed
+- Complete isolation from backend
+
 ## Notes for Development
 
 - The backend validates required environment variables during startup.
@@ -264,8 +308,12 @@ If a field image is missing, the backend falls back to `frontend/public/hero-man
 
 ## Current Scope
 
-This root README documents the app as it is currently wired in `backend/server.js` and `frontend/src/App.js`.
-Some extra backend files exist for future or partial features, but the routes listed above are the ones currently mounted by the main server.
+This root README documents the app with its multiple server options:
+- **server.js**: Full production server with complete database integration
+- **server-simple.js**: Lightweight server with mock data for quick development
+- **mock-server.js**: Complete mock server for isolated frontend development
+
+The main application routes and features are consistent across all server variants, with differences in data persistence and authentication methods. Choose the appropriate server based on your development needs as outlined in the Development Options section.
 
 ## License
 
