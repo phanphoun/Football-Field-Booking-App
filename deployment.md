@@ -2,15 +2,35 @@
 
 ## Overview
 
-This project is a split deployment:
+This project offers multiple deployment options:
 
 - `frontend/`: React app built to static files
-- `backend/`: Express API
-- Database: MySQL
+- `backend/`: Express API with three server variants
+- Database: MySQL (for production server) or in-memory (for simple/mock servers)
 - Realtime: Server-Sent Events at `/api/realtime/stream`
-- File uploads: stored on the server filesystem
+- File uploads: stored on server filesystem (production) or in-memory (mock)
 
-The backend does **not** serve the React build. In production, deploy the frontend and backend as separate services, or place them behind a reverse proxy on the same domain.
+### Server Deployment Options
+
+**Production Server (`server.js`)**
+- Full database integration with MySQL
+- Complete authentication and authorization
+- All features including file uploads, notifications, etc.
+- Recommended for production environments
+
+**Simple Server (`server-simple.js`)**
+- In-memory mock data
+- Basic JWT authentication
+- Lightweight and fast startup
+- Good for staging or demo environments
+
+**Mock Server (`mock-server.js`)**
+- Complete mock API
+- No database required
+- Full frontend isolation
+- Ideal for frontend development and testing
+
+The backend does **not** serve the React build. In production, deploy frontend and backend as separate services, or place them behind a reverse proxy on the same domain.
 
 ## Recommended Topology
 
@@ -46,24 +66,41 @@ These are specific to the current codebase and affect deployment:
 ## Prerequisites
 
 - Node.js 18+ recommended
-- MySQL 8+ recommended
-- A production database already created
+- MySQL 8+ (required only for production server)
+- A production database already created (only for production server)
 - A frontend URL and a backend URL decided before building
-- Writable persistent storage available to the backend process
+- Writable persistent storage available to backend process (production server only)
 
 ## Backend Deployment
 
-### Build and start
+### Choose Your Server
 
+**Production Deployment (Recommended)**
 ```bash
 cd backend
 npm ci
 npm start
 ```
 
+**Simple Server Deployment (Staging/Demo)**
+```bash
+cd backend
+npm ci
+npm run start:simple
+```
+
+**Mock Server Deployment (Development/Testing)**
+```bash
+cd backend
+npm ci
+npm run start:mock
+```
+
+### Environment Configuration
+
 Start from [backend/.env.example](c:/Users/PHOUN.PHAN/Desktop/Football-Field-Booking-App/backend/.env.example) and use production values.
 
-### Required backend environment variables
+**Production Server Required Environment Variables:**
 
 ```env
 NODE_ENV=production
@@ -84,7 +121,35 @@ FRONTEND_URL=https://app.example.com
 APP_TIMEZONE=Asia/Bangkok
 ```
 
-### Optional backend environment variables
+**Simple Server Environment Variables:**
+
+```env
+NODE_ENV=production
+PORT=5000
+
+JWT_SECRET=replace_with_a_secure_minimum_32_character_secret
+JWT_EXPIRES_IN=7d
+
+CORS_ORIGIN=https://app.example.com
+FRONTEND_URL=https://app.example.com
+APP_TIMEZONE=Asia/Bangkok
+```
+
+**Mock Server Environment Variables:**
+
+```env
+NODE_ENV=production
+PORT=5000
+
+JWT_SECRET=replace_with_a_secure_minimum_32_character_secret
+JWT_EXPIRES_IN=7d
+
+CORS_ORIGIN=https://app.example.com
+FRONTEND_URL=https://app.example.com
+APP_TIMEZONE=Asia/Bangkok
+```
+
+**Optional Environment Variables (All Servers):**
 
 ```env
 FOOTBALL_API_KEY=
@@ -186,15 +251,29 @@ Using the same domain simplifies CORS and lets the frontend use `REACT_APP_API_U
 
 After deployment, verify:
 
+### Common Verification (All Servers)
 1. `GET /health` returns `200 OK`
 2. The frontend loads without requests to `localhost`
-3. Login and registration work
-4. Uploaded profile images, team logos, and field images are visible after upload
-5. Password reset links open the production frontend
-6. Public pages load without CORS errors
-7. Realtime notifications work if your proxy supports SSE
-8. League pages only if `FOOTBALL_API_KEY` is configured
-9. Google Sign-In only if `GOOGLE_CLIENT_ID` is configured
+3. Public pages load without CORS errors
+4. Google Sign-In only if `GOOGLE_CLIENT_ID` is configured
+
+### Production Server (`server.js`)
+5. Login and registration work with database
+6. Uploaded profile images, team logos, and field images are visible after upload
+7. Password reset links open production frontend
+8. Realtime notifications work if your proxy supports SSE
+9. League pages only if `FOOTBALL_API_KEY` is configured
+10. Database connections are stable
+
+### Simple Server (`server-simple.js`)
+5. Basic authentication works with mock data
+6. Mock data loads correctly
+7. File uploads simulate properly (if implemented)
+
+### Mock Server (`mock-server.js`)
+5. All API endpoints return mock data
+6. Authentication flow works end-to-end
+7. No backend dependencies required
 
 ## Known Caveats In This Repo
 
