@@ -10,11 +10,7 @@ import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LoginPage = () => {
-<<<<<<< HEAD
-  const { login, loading, error, clearError } = useAuth();
-=======
-  const { login, googleAuth, loading, error } = useAuth();
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
+  const { login, googleAuth, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -118,9 +114,6 @@ const LoginPage = () => {
         </Link>
       </p>
 
-<<<<<<< HEAD
-      <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-=======
       {error && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:mb-6">
           <div className="flex items-center">
@@ -154,7 +147,6 @@ const LoginPage = () => {
           </div>
         </div>
 
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
         <div>
           <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Email Address
@@ -197,7 +189,7 @@ const LoginPage = () => {
               className={`block w-full rounded-2xl bg-white px-4 py-2.5 pr-11 text-sm text-slate-900 placeholder-slate-500 shadow-sm transition focus:outline-none focus:ring-2 sm:py-3 ${
                 validationErrors.password
                   ? 'border border-red-300 focus:border-red-500 focus:ring-red-500/20'
-                : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
+                  : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
               }`}
             />
             <button
@@ -231,7 +223,6 @@ const LoginPage = () => {
           </button>
         </div>
 
-<<<<<<< HEAD
         {error && !validationErrors.email && !validationErrors.password && (
           <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
             <svg className="h-4 w-4 flex-none" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
@@ -245,10 +236,7 @@ const LoginPage = () => {
           </div>
         )}
 
-        <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700">
-=======
         <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-2.5 text-base font-semibold text-white hover:bg-green-700 sm:py-3">
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />

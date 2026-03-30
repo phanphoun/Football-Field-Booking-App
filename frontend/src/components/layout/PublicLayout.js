@@ -14,13 +14,9 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { Button, useDialog, useToast } from '../ui';
-import { APP_CONFIG } from '../../config/appConfig';
-<<<<<<< HEAD
 import brandLogo from '../../pages/img/logo.png';
-=======
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import ThemeToggle from '../common/ThemeToggle';
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
 
 const PublicLayout = () => {
   const { user, isAuthenticated, loading, isLoggingOut, logout } = useAuth();
@@ -97,24 +93,13 @@ const PublicLayout = () => {
               to="/"
               className="group flex shrink-0 items-center gap-3 rounded-[20px] border border-white/80 bg-white/92 px-4 py-1.5 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_14px_30px_rgba(15,23,42,0.08)]"
             >
-<<<<<<< HEAD
               <img
                 src={brandLogo}
                 alt={`${APP_CONFIG.brand.displayName} logo`}
                 className="h-11 w-11 rounded-2xl object-cover shadow-[0_10px_24px_rgba(22,163,74,0.18)]"
               />
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-600">
-                  {APP_CONFIG.brand.englishName}
-                </span>
-                <span className="khmer-brand-font block truncate text-base font-semibold text-slate-900 sm:text-xl">
-=======
-              <span className="flex h-10 w-10 items-center justify-center rounded-[18px] bg-gradient-to-br from-emerald-500 via-green-600 to-lime-500 text-[1.05rem] font-black tracking-wide text-white shadow-[0_12px_28px_rgba(22,163,74,0.28)]">
-                FB
-              </span>
               <span className="min-w-0 py-0.5">
                 <span className="khmer-brand-font block text-[0.95rem] font-semibold leading-[1.05] text-slate-900 sm:text-[1.3rem]">
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
                   {APP_CONFIG.brand.displayName}
                 </span>
               </span>

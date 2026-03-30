@@ -35,11 +35,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { EmptyState, ScrollReveal, Spinner } from '../components/ui';
 import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
-<<<<<<< HEAD
 import brandLogo from './img/logo.png';
-=======
 import { APP_CONFIG } from '../config/appConfig';
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
 
 const HERO_IMAGES = [
   '/hero-manu.jpg',

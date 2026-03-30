@@ -2269,11 +2269,4 @@ export const useLanguage = () => {
     throw new Error('useLanguage must be used within LanguageProvider');
   }
   return context;
-<<<<<<< HEAD
 };
-=======
-};
-
-
-
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb

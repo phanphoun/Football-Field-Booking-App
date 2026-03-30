@@ -108,17 +108,13 @@ const AppLayout = () => {
       current: location.pathname.startsWith('/app/league')
     },
     {
-<<<<<<< HEAD
-      name: 'Statistics',
+      name: t('nav_statistics', 'Statistics'),
       href: '/app/statistics',
       icon: ChartBarIcon,
       current: location.pathname.startsWith('/app/statistics')
     },
     {
-      name: 'Teams',
-=======
       name: t('nav_teams', 'Teams'),
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
       href: '/app/teams',
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
@@ -176,35 +172,18 @@ const AppLayout = () => {
   const pageInfo = useMemo(() => {
     const path = location.pathname;
     const entries = [
-<<<<<<< HEAD
-      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
-      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
-      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
-      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
-      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
-      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
-      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
-      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
-      { match: '/app/statistics', title: 'Statistics', subtitle: 'Real-time usage and booking analytics' },
-      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
-      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
-=======
       { match: '/app/dashboard', title: t('nav_dashboard', 'Dashboard'), subtitle: t('page_dashboard_subtitle', 'Overview of your activity and updates') },
       { match: '/app/fields', title: t('nav_fields', 'Fields'), subtitle: t('page_fields_subtitle', 'Browse and discover available football fields') },
       { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
       { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
       { match: '/app/chat', title: t('nav_chat', 'Chat'), subtitle: t('page_chat_subtitle', 'Talk directly with users across the platform') },
-      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
-      { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
-      { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
-      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
-      { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
+      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'View your upcoming and past bookings') },
+      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Manage your personal information and preferences') },
+      { match: '/app/statistics', title: t('nav_statistics', 'Statistics'), subtitle: t('page_statistics_subtitle', 'Real-time usage and booking analytics') },
       { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
-      { match: '/app/admin/role-requests', title: t('nav_role_requests', 'Role Requests'), subtitle: 'Review captain and field owner access requests' },
-      { match: '/app/admin/payments', title: t('nav_payments', 'Payments'), subtitle: 'Review payment proofs and track upgrade revenue' },
-      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: 'Admin configuration and controls' }
->>>>>>> 1595f01f20c945d9b8e0c065094b81756ef0e4cb
+      { match: '/app/admin/role-requests', title: t('nav_role_requests', 'Role Requests'), subtitle: t('page_role_requests_subtitle', 'Review captain and field owner access requests') },
+      { match: '/app/admin/payments', title: t('nav_payments', 'Payments'), subtitle: t('page_payments_subtitle', 'Review payment proofs and track upgrade revenue') },
+      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Admin configuration and controls') }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
     return current || { title: APP_CONFIG.brand.displayName, subtitle: t('workspace_player', 'Player & Captain Panel') };
