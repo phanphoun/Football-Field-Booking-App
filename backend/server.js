@@ -36,7 +36,7 @@ const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Bangkok";
 
 // Warn if API key is missing
 if (!API_KEY) {
-  console.warn('Ã¢Å¡Â Ã¯Â¸Â  Warning: FOOTBALL_API_KEY not set. League features will be disabled.');
+  console.warn('Warning: FOOTBALL_API_KEY not set. League features will be disabled.');
 }
 
 const leagues = [
@@ -480,7 +480,7 @@ const startServer = async () => {
   try {
     // Database connection check
     await sequelize.authenticate();
-    console.log('Ã¢Å“â€¦ Database connected successfully.');
+    console.log('Database connected successfully.');
     
     // Environment-safe database sync
     const isDevelopment = serverConfig.nodeEnv === 'development';
@@ -490,38 +490,38 @@ const startServer = async () => {
     // Attempt to synchronize schema, but don't crash the server if sync fails.
     if (isDevelopment) {
       if (enableAlterSync) {
-        console.log('Ã°Å¸â€â€ž Development mode: Synchronizing database schema (alter enabled)...');
+        console.log('Development mode: Synchronizing database schema (alter enabled)...');
       } else {
-        console.log('Ã°Å¸â€â€ž Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
+        console.log('Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
       }
       try {
         await sequelize.sync(enableAlterSync ? { alter: true } : {});
         if (enableAlterSync) {
-          console.log('Ã¢Å“â€¦ Database schema synchronized successfully (alter applied).');
+          console.log('Database schema synchronized successfully (alter applied).');
         } else {
-          console.log('Ã¢Å“â€¦ Database schema synchronized safely.');
+          console.log('Database schema synchronized safely.');
         }
       } catch (syncErr) {
-        console.warn('Ã¢Å¡Â Ã¯Â¸Â Schema sync failed:', syncErr.message);
-        console.warn('Ã¢Å¡Â Ã¯Â¸Â Continuing to start server despite sync failure.');
+        console.warn('Schema sync failed:', syncErr.message);
+        console.warn('Continuing to start server despite sync failure.');
       }
     } else if (isTest) {
-      console.log('Ã°Å¸Â§Âª Test mode: Recreating database...');
+      console.log('Test mode: Recreating database...');
       try {
         await sequelize.sync({ force: true });
-        console.log('Ã¢Å“â€¦ Test database recreated successfully.');
+        console.log('Test database recreated successfully.');
       } catch (syncErr) {
-        console.warn('Ã¢Å¡Â Ã¯Â¸Â Test DB sync (force) failed:', syncErr.message);
-        console.warn('Ã¢Å¡Â Ã¯Â¸Â Continuing to start server despite test DB sync failure.');
+        console.warn('Test DB sync (force) failed:', syncErr.message);
+        console.warn('Continuing to start server despite test DB sync failure.');
       }
     } else {
-      console.log('Ã°Å¸Å¡â‚¬ Production mode: Synchronizing database safely...');
+      console.log('Production mode: Synchronizing database safely...');
       try {
         await sequelize.sync();
-        console.log('Ã¢Å“â€¦ Database synchronized safely.');
+        console.log('Database synchronized safely.');
       } catch (syncErr) {
-        console.warn('Ã¢Å¡Â Ã¯Â¸Â Production DB sync failed:', syncErr.message);
-        console.warn('Ã¢Å¡Â Ã¯Â¸Â Continuing to start server despite sync failure.');
+        console.warn('Production DB sync failed:', syncErr.message);
+        console.warn('Continuing to start server despite sync failure.');
       }
     }
     try {
@@ -536,10 +536,10 @@ const startServer = async () => {
       console.warn('Legacy schema fix failed:', schemaFixErr.message);
     }
     app.listen(PORT, () => {
-      console.log(`\nÃ°Å¸Å¡â‚¬ Server is running on port ${PORT}`);
-      console.log(`Ã°Å¸â€œÂ Environment: ${serverConfig.nodeEnv}`);
-      console.log(`Ã°Å¸â€œÅ¡ API Documentation: http://localhost:${PORT}/`);
-      console.log(`Ã¢ÂÂ° Started at: ${new Date().toISOString()}`);
+      console.log(`\nServer is running on port ${PORT}`);
+      console.log(`Environment: ${serverConfig.nodeEnv}`);
+      console.log(`API Documentation: http://localhost:${PORT}/`);
+      console.log(`Started at: ${new Date().toISOString()}`);
     });
   } catch (error) {
     const nestedErrors = error?.original?.errors || error?.errors || [];
@@ -554,52 +554,52 @@ const startServer = async () => {
       nestedMessages ||
       'Unknown database connection error';
 
-    console.error('Ã¢ÂÅ’ Unable to connect to the database.');
-    console.error(`Ã°Å¸â€œâ€º Error details: ${errorMessage}`);
+    console.error('Unable to connect to the database.');
+    console.error(`Error details: ${errorMessage}`);
 
     if (serverConfig.nodeEnv === 'development' && error?.stack) {
       console.error(error.stack);
     }
 
-    console.error('Ã°Å¸â€™Â¡ Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
+    console.error('Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
     process.exit(1);
   }
 };
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nÃ°Å¸â€ºâ€˜ Received SIGINT, shutting down gracefully...');
+  console.log('\nReceived SIGINT, shutting down gracefully...');
   try {
     await sequelize.close();
-    console.log('Ã¢Å“â€¦ Database connection closed.');
+    console.log('Database connection closed.');
     process.exit(0);
   } catch (error) {
-    console.error('Ã¢ÂÅ’ Error during shutdown:', error.message);
+    console.error('Error during shutdown:', error.message);
     process.exit(1);
   }
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\nÃ°Å¸â€ºâ€˜ Received SIGTERM, shutting down gracefully...');
+  console.log('\nReceived SIGTERM, shutting down gracefully...');
   try {
     await sequelize.close();
-    console.log('Ã¢Å“â€¦ Database connection closed.');
+    console.log('Database connection closed.');
     process.exit(0);
   } catch (error) {
-    console.error('Ã¢ÂÅ’ Error during shutdown:', error.message);
+    console.error('Error during shutdown:', error.message);
     process.exit(1);
   }
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Ã°Å¸â€™Â¥ Uncaught Exception:', error);
+  console.error('Uncaught Exception:', error);
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Ã°Å¸â€™Â¥ Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
 
