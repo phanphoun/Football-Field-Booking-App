@@ -39,7 +39,6 @@ const getStatusTranslationKey = (status) => {
   return keys[status] || null;
 };
 
-// Render the owner dashboard page.
 const OwnerDashboardPage = () => {
   const { version } = useRealtime();
   const navigate = useNavigate();

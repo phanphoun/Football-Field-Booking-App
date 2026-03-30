@@ -207,7 +207,6 @@ const AppLayout = () => {
     return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   };
 
-  // Resolve notification sender name into a display-safe value.
   const resolveNotificationSenderName = (notification) => {
     return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
   };

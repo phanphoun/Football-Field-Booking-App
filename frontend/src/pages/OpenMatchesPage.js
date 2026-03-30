@@ -87,7 +87,6 @@ const OpenMatchesPage = () => {
       ? team.teamMembers.filter((member) => member.status === 'active' && member.isActive !== false).length
       : 0;
 
-  // Support has pending request for this page.
   const hasPendingRequest = (match) =>
     Array.isArray(match.myRequests) && match.myRequests.some((request) => request.status === 'pending');
 

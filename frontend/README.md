@@ -97,7 +97,7 @@ npm install
 ### **2. Environment Configuration**
 Create a `.env` file in the root directory:
 ```env
-REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_API_URL=http://98.92.235.206/api
 ```
 
 ### **3. Start Development Server**

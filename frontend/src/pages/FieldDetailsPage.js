@@ -19,7 +19,7 @@ import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useToast } from '../components/ui';
 import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
@@ -218,7 +218,6 @@ const FieldDetailsPage = () => {
     setReviewForm({ rating: 0, comment: '' });
   }, [currentUserReview]);
 
-  // Handle book interactions.
   const handleBook = () => {
     if (field?.status && field.status !== 'available') {
       setError(field.closureMessage || `This field is currently ${field.status}.`);

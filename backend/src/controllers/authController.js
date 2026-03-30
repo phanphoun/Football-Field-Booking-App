@@ -120,7 +120,6 @@ const findUserByIdentifier = async (identifier) => {
     }
   });
 };
-
 const serializeRoleRequest = (roleRequest) => ({
   id: roleRequest.id,
   requestedRole: roleRequest.requestedRole,
@@ -426,7 +425,6 @@ const googleAuth = async (req, res) => {
     });
   }
 };
-
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, { 
@@ -617,7 +615,6 @@ const getProfileStats = async (req, res) => {
     res.status(500).json({ error: 'Internal server error while fetching profile stats.' });
   }
 };
-
 const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -856,7 +853,6 @@ const resetPasswordWithToken = async (req, res) => {
     res.status(500).json({ error: 'Internal server error while resetting password.' });
   }
 };
-
 const uploadProfileAvatar = async (req, res) => {
   try {
     const userId = req.user.id;

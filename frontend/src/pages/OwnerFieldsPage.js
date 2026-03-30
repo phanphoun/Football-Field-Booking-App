@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
 const FIELD_STATUS_OPTIONS = [
@@ -87,7 +87,6 @@ const getFieldStatusLabel = (status, t) => {
   return t('field_status_unavailable', 'Unavailable');
 };
 
-// Normalize images into a consistent shape.
 const normalizeImages = (imagesValue) => {
   if (Array.isArray(imagesValue)) return imagesValue;
   if (typeof imagesValue === 'string') {
@@ -346,7 +345,6 @@ const OwnerFieldsPage = () => {
     Number(form.capacity) > 0 &&
     form.address.trim().length > 0;
 
-  // Handle change interactions.
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
@@ -489,7 +487,6 @@ const OwnerFieldsPage = () => {
     }
   };
 
-  // Handle delete interactions.
   const handleDelete = async (field) => {
     const confirmed = await confirm(`Delete "${field.name}"?`, { title: 'Delete Field' });
     if (!confirmed) return;

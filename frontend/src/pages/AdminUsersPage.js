@@ -78,7 +78,6 @@ const resolveAvatarUrl = (user) => {
   return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
 };
 
-// Render the admin users page.
 const AdminUsersPage = () => {
   const { version } = useRealtime();
   const [users, setUsers] = useState([]);

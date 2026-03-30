@@ -157,7 +157,6 @@ const requireOpenMatchAccess = (req, res) => {
   }
   return true;
 };
-
 const isClosedStatus = (booking) => booking.status === 'cancelled' || booking.status === 'completed';
 // Check whether unavailable for join is true.
 const isUnavailableForJoin = (booking) =>
