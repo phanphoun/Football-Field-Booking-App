@@ -1,0 +1,30 @@
+# Git metadata
+.git
+.gitignore
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Local env files
+backend/.env
+frontend/.env.production
+.env
+.env.*
+
+# Build outputs
+frontend/build
+backend/build
+backend/dist
+frontend/dist
+
+# Coverage and logs
+coverage
+**/coverage
+*.log
+
+# Editor/system noise
+.vscode
+.idea
+.DS_Store
+Thumbs.db
