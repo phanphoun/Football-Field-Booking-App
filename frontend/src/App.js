@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import './App.css';
-import { Analytics } from '@vercel/analytics/react';
 
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
@@ -240,7 +239,6 @@ function App() {
                   <div className="App">
                     <AppRoutes />
                   </div>
-                  <Analytics />
                 </Router>
               </RealtimeProvider>
             </DialogProvider>
