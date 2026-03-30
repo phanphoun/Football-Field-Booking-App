@@ -26,6 +26,46 @@ const authService = {
     return response;
   },
 
+  getGoogleAuthConfig: async () => {
+    return apiService.get('/auth/google/config');
+  },
+
+  googleAuth: async (credential) => {
+    const response = await apiService.post('/auth/google', { credential });
+
+    if (response.success && response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+
+    return response;
+  },
+
+  // Forgot password: request OTP
+  requestPasswordOtp: async (identifier) => {
+    return apiService.post('/auth/forgot-password', { identifier });
+  },
+
+  // Forgot password: verify OTP
+  verifyPasswordOtp: async (identifier, otp) => {
+    return apiService.post('/auth/forgot-password/verify', { identifier, otp });
+  },
+
+  // Forgot password: reset password
+  resetPasswordWithOtp: async (identifier, otp, newPassword) => {
+    return apiService.post('/auth/forgot-password/reset', { identifier, otp, newPassword });
+  },
+
+  // Email reset: request reset link
+  requestPasswordResetLink: async (identifier) => {
+    return apiService.post('/auth/forgot-password-link', { identifier });
+  },
+
+  // Email reset: reset with token
+  resetPasswordWithToken: async (token, newPassword) => {
+    return apiService.post('/auth/reset-password', { token, newPassword });
+  },
+
   // Get user profile
   getProfile: async () => {
     const response = await apiService.get('/auth/profile');
@@ -64,10 +104,28 @@ const authService = {
   },
 
   // Submit a role upgrade request
-  requestRoleUpgrade: async (requestedRole, note = '') => {
-    return apiService.post('/auth/role-requests', {
-      requestedRole,
-      note
+  requestRoleUpgrade: async ({
+    requestedRole,
+    note = '',
+    paymentReference = '',
+    paymentAccountName = '',
+    paymentPhone = '',
+    paymentProof = null
+  }) => {
+    const formData = new FormData();
+    formData.append('requestedRole', requestedRole);
+    formData.append('note', note);
+    formData.append('paymentAcknowledged', 'true');
+    formData.append('paymentReference', paymentReference);
+    formData.append('paymentAccountName', paymentAccountName);
+    formData.append('paymentPhone', paymentPhone);
+
+    if (paymentProof) {
+      formData.append('paymentProof', paymentProof);
+    }
+
+    return apiService.upload('/auth/role-requests', formData, {
+      timeout: 30000
     });
   },
 
@@ -106,10 +164,9 @@ const authService = {
 
   // Change password
   changePassword: async (payload) => {
-    const response = await apiService.put('/auth/profile/password', payload);
+    const response = await apiService.post('/auth/change-password', payload);
     return response;
   },
-
   // Delete profile avatar
   deleteAvatar: async () => {
     const response = await apiService.delete('/auth/profile/avatar');
@@ -179,6 +236,12 @@ const authService = {
   // Check if user is player
   isPlayer: () => {
     return authService.hasRole('player');
+  },
+
+  // Submit a request to upgrade to field owner
+  requestFieldOwnerRole: async (requestData) => {
+    const response = await apiService.post('/auth/request-field-owner', requestData);
+    return response;
   },
 
   // Get user permissions based on role

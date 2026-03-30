@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 
 
@@ -156,6 +157,16 @@ module.exports = (sequelize, DataTypes) => {
 
     },
 
+    ownerRevenueLocked: {
+
+      type: DataTypes.BOOLEAN,
+
+      allowNull: false,
+
+      defaultValue: false
+
+    },
+
     specialRequests: {
 
       type: DataTypes.TEXT,
@@ -230,7 +241,8 @@ module.exports = (sequelize, DataTypes) => {
 
       }
 
-    ]
+    ],
+    hooks: buildRealtimeHooks('booking')
 
   });
 

@@ -177,12 +177,67 @@ const applyLegacySchemaFixes = async (sequelize) => {
   if (await addColumnIfMissing(sequelize, 'bookings', 'isMatchmaking', 'TINYINT(1) NOT NULL DEFAULT 0')) {
     changes.push('bookings.isMatchmaking');
   }
-
+  if (await addColumnIfMissing(sequelize, 'bookings', 'ownerRevenueLocked', 'TINYINT(1) NOT NULL DEFAULT 0')) {
+    changes.push('bookings.ownerRevenueLocked');
+  }
+  await sequelize.query(`
+    UPDATE \`bookings\`
+    SET \`ownerRevenueLocked\` = 1
+    WHERE \`status\` IN ('confirmed', 'completed')
+      AND COALESCE(\`ownerRevenueLocked\`, 0) = 0
+  `);
   if (await addColumnIfMissing(sequelize, 'notifications', 'readAt', 'DATETIME NULL')) {
     changes.push('notifications.readAt');
   }
   if (await addColumnIfMissing(sequelize, 'notifications', 'metadata', 'JSON NULL')) {
     changes.push('notifications.metadata');
+  }
+
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'requesterId', 'INT NOT NULL')) {
+    changes.push('role_requests.requesterId');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'requestedRole', "ENUM('captain','field_owner') NOT NULL DEFAULT 'captain'")) {
+    changes.push('role_requests.requestedRole');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'feeAmountUsd', 'DECIMAL(10,2) NOT NULL DEFAULT 0')) {
+    changes.push('role_requests.feeAmountUsd');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentStatus', "ENUM('paid','waived') NOT NULL DEFAULT 'paid'")) {
+    changes.push('role_requests.paymentStatus');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentReference', 'VARCHAR(255) NULL')) {
+    changes.push('role_requests.paymentReference');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentAccountName', 'VARCHAR(255) NULL')) {
+    changes.push('role_requests.paymentAccountName');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentPhone', 'VARCHAR(50) NULL')) {
+    changes.push('role_requests.paymentPhone');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentScreenshotUrl', 'VARCHAR(255) NULL')) {
+    changes.push('role_requests.paymentScreenshotUrl');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'paymentPaidAt', 'DATETIME NULL')) {
+    changes.push('role_requests.paymentPaidAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'reviewedBy', 'INT NULL')) {
+    changes.push('role_requests.reviewedBy');
+  }
+  if (await addColumnIfMissing(sequelize, 'role_requests', 'reviewedAt', 'DATETIME NULL')) {
+    changes.push('role_requests.reviewedAt');
+  }
+
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureMessage', 'TEXT NULL')) {
+    changes.push('fields.closureMessage');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureStartAt', 'DATETIME NULL')) {
+    changes.push('fields.closureStartAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'closureEndAt', 'DATETIME NULL')) {
+    changes.push('fields.closureEndAt');
+  }
+  if (await addColumnIfMissing(sequelize, 'fields', 'country', 'VARCHAR(100) NULL')) {
+    changes.push('fields.country');
   }
 
   if (await addColumnIfMissing(sequelize, 'users', 'avatarUrl', 'VARCHAR(255) NULL')) {
@@ -218,6 +273,44 @@ const applyLegacySchemaFixes = async (sequelize) => {
   }
   if (await addColumnIfMissing(sequelize, 'fields', 'isArchived', 'TINYINT(1) NOT NULL DEFAULT 0')) {
     changes.push('fields.isArchived');
+  }
+
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamIdRater', 'INT NULL')) {
+    changes.push('ratings.teamIdRater');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamIdRated', 'INT NULL')) {
+    changes.push('ratings.teamIdRated');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'bookingId', 'INT NULL')) {
+    changes.push('ratings.bookingId');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'review', 'TEXT NULL')) {
+    changes.push('ratings.review');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'sportsmanshipScore', 'INT NULL')) {
+    changes.push('ratings.sportsmanshipScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'skillLevelScore', 'INT NULL')) {
+    changes.push('ratings.skillLevelScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'punctualityScore', 'INT NULL')) {
+    changes.push('ratings.punctualityScore');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'teamOrganizationScore', 'INT NULL')) {
+    changes.push('ratings.teamOrganizationScore');
+  }
+  if (
+    await addColumnIfMissing(
+      sequelize,
+      'ratings',
+      'ratingType',
+      "ENUM('sportsmanship','skill_level','punctuality','overall') NOT NULL DEFAULT 'overall'"
+    )
+  ) {
+    changes.push('ratings.ratingType');
+  }
+  if (await addColumnIfMissing(sequelize, 'ratings', 'isRecommended', 'TINYINT(1) NOT NULL DEFAULT 0')) {
+    changes.push('ratings.isRecommended');
   }
 
   if (await normalizeTeamMemberStatuses(sequelize)) {

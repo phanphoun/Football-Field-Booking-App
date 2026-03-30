@@ -79,6 +79,9 @@ DB_NAME=football_booking
 JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters_long
 JWT_EXPIRES_IN=7d
 
+# Google Sign-In
+GOOGLE_CLIENT_ID=your_google_web_client_id.apps.googleusercontent.com
+
 # CORS Configuration
 CORS_ORIGIN=http://localhost:3000
 
@@ -108,6 +111,7 @@ npm run dev
 - `POST /api/auth/login` - User login
 - `GET /api/auth/profile` - Get user profile
 - `PUT /api/auth/profile` - Update profile
+- `POST /api/auth/request-field-owner` - Player submits data (fieldName, location, phone?, description?) to request field-owner role
 
 ### **👥 Users**
 - `GET /api/users` - List users (Admin only)
@@ -199,6 +203,7 @@ npm run dev
 - `DB_NAME` - Database name
 - `DB_USER` - Database username
 - `DB_PASSWORD` - Database password
+- `GOOGLE_CLIENT_ID` - Google OAuth web client ID used to validate Google sign-in tokens
 
 ### **Optional**
 - `DB_PORT` - Database port (default: 3306)

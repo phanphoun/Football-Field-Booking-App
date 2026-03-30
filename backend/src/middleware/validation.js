@@ -1,9 +1,20 @@
+const fs = require('fs');
 const { body, param, query, validationResult } = require('express-validator');
 
 // Handle validation errors interactions.
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    if (req.file?.path) {
+      try {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (cleanupError) {
+        console.error('Failed to clean up uploaded file after validation error:', cleanupError);
+      }
+    }
+
     return res.status(400).json({
       success: false,
       message: 'Validation failed',
@@ -98,12 +109,30 @@ const userValidation = {
     handleValidationErrors
   ],
 
-  requestRoleUpgrade: [
-    body('requestedRole')
-      .notEmpty()
-      .withMessage('Requested role is required')
-      .isIn(['captain', 'field_owner'])
-      .withMessage('Requested role must be captain or field_owner'),
+    requestRoleUpgrade: [
+      body('requestedRole')
+        .notEmpty()
+        .withMessage('Requested role is required')
+        .isIn(['captain', 'field_owner'])
+        .withMessage('Requested role must be captain or field_owner'),
+      body('paymentAcknowledged')
+        .custom((value) => value === true || value === 'true')
+        .withMessage('Payment acknowledgement is required'),
+      body('paymentAccountName')
+        .notEmpty()
+        .withMessage('Payment account name is required')
+        .isLength({ min: 2, max: 80 })
+        .withMessage('Payment account name must be between 2 and 80 characters'),
+      body('paymentPhone')
+        .notEmpty()
+        .withMessage('Payment phone is required')
+        .matches(/^[0-9+\-\s()]{7,20}$/)
+        .withMessage('Please provide a valid payment phone number'),
+      body('paymentReference')
+        .optional()
+        .isString()
+        .isLength({ max: 120 })
+        .withMessage('Payment reference must be a string up to 120 characters'),
     body('note')
       .optional({ checkFalsy: true })
       .isLength({ max: 500 })

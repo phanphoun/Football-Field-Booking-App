@@ -1,6 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 const ToastContext = createContext(null);
+const fallbackToastApi = {
+  showToast: () => null,
+  showSuccess: () => null,
+  showError: () => null,
+  removeToast: () => null
+};
 
 const TOAST_STYLES = {
   success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
@@ -111,6 +117,20 @@ export const ToastProvider = ({ children }) => {
     [removeToast, showToast]
   );
 
+  useEffect(() => {
+    const handleToastEvent = (event) => {
+      const detail = event?.detail || {};
+      showToast(detail.message, {
+        type: detail.type || 'info',
+        title: detail.title || '',
+        duration: Number.isFinite(detail.duration) ? detail.duration : 3200
+      });
+    };
+
+    window.addEventListener('app:toast', handleToastEvent);
+    return () => window.removeEventListener('app:toast', handleToastEvent);
+  }, [showToast]);
+
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
@@ -130,7 +150,10 @@ export const ToastProvider = ({ children }) => {
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('useToast called without ToastProvider. Falling back to no-op toast handlers.');
+    }
+    return fallbackToastApi;
   }
   return context;
 };

@@ -1,20 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowUpTrayIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
-import { DEFAULT_JERSEY_COLOR, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
+import { DEFAULT_JERSEY_COLOR, getNextJerseyColor, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
+import { compressImageForUpload } from '../utils/imageCompression';
+import JerseyColorEditor from '../components/teams/JerseyColorEditor';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
 
 const TeamCreatePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [activeColorIndex, setActiveColorIndex] = useState(0);
   const [selectedLogoFile, setSelectedLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [formData, setFormData] = useState({
@@ -25,12 +30,17 @@ const TeamCreatePage = () => {
     homeFieldId: '',
     jerseyColors: [DEFAULT_JERSEY_COLOR]
   });
+  const trimmedTeamName = formData.name.trim();
+  const normalizedMaxPlayers = Number(formData.maxPlayers) || 0;
+  const isNameValid = trimmedTeamName.length >= 2 && trimmedTeamName.length <= 100;
+  const isMaxPlayersValid = normalizedMaxPlayers >= 5 && normalizedMaxPlayers <= 30;
+  const canSubmit = !submitting && isNameValid && isMaxPlayersValid;
 
   useEffect(() => {
     const fetchFields = async () => {
       try {
         setLoading(true);
-        const response = await fieldService.getAllFields();
+        const response = await fieldService.getAllFields({ status: 'available', limit: 100 });
         const fieldsData = Array.isArray(response.data) ? response.data : [];
         setFields(fieldsData);
       } catch (err) {
@@ -51,6 +61,13 @@ const TeamCreatePage = () => {
     };
   }, [logoPreview]);
 
+  useEffect(() => {
+    setActiveColorIndex((prev) => {
+      const colors = Array.isArray(formData.jerseyColors) ? formData.jerseyColors : [DEFAULT_JERSEY_COLOR];
+      return Math.min(prev, colors.length - 1);
+    });
+  }, [formData.jerseyColors]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -64,7 +81,7 @@ const TeamCreatePage = () => {
     setFormData((prev) => {
       const next = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       next[index] = normalized;
-      return { ...prev, jerseyColors: normalizeJerseyColors(next) };
+      return { ...prev, jerseyColors: next };
     });
   };
 
@@ -72,7 +89,7 @@ const TeamCreatePage = () => {
     setFormData((prev) => {
       const current = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       if (current.length >= 5) return prev;
-      return { ...prev, jerseyColors: [...current, DEFAULT_JERSEY_COLOR] };
+      return { ...prev, jerseyColors: [...current, getNextJerseyColor(current)] };
     });
   };
 
@@ -81,11 +98,11 @@ const TeamCreatePage = () => {
       const current = Array.isArray(prev.jerseyColors) ? [...prev.jerseyColors] : [DEFAULT_JERSEY_COLOR];
       if (current.length <= 1) return prev;
       current.splice(index, 1);
-      return { ...prev, jerseyColors: normalizeJerseyColors(current) };
+      return { ...prev, jerseyColors: current };
     });
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -101,13 +118,30 @@ const TeamCreatePage = () => {
       return;
     }
 
+    const compressedFile = await compressImageForUpload(file, {
+      maxWidth: 900,
+      maxHeight: 900,
+      targetMaxBytes: 450 * 1024,
+      minCompressBytes: 150 * 1024
+    });
+
     setError(null);
-    setSelectedLogoFile(file);
+    setSelectedLogoFile(compressedFile);
     setLogoPreview((prev) => {
       if (prev) {
         URL.revokeObjectURL(prev);
       }
-      return URL.createObjectURL(file);
+      return URL.createObjectURL(compressedFile);
+    });
+  };
+
+  const handleRemoveLogo = () => {
+    setSelectedLogoFile(null);
+    setLogoPreview((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
     });
   };
 
@@ -117,14 +151,42 @@ const TeamCreatePage = () => {
     setSubmitting(true);
 
     try {
+      if (!isNameValid) {
+        setError('Team name must be between 2 and 100 characters.');
+        return;
+      }
+
+      if (!isMaxPlayersValid) {
+        setError('Max players must be between 5 and 30.');
+        return;
+      }
+
+      const normalizedColors = normalizeJerseyColors(formData.jerseyColors);
+      if (normalizedColors.length < 1) {
+        setError('Please choose at least 1 jersey color.');
+        return;
+      }
+
       const payload = {
-        name: formData.name,
+        name: trimmedTeamName,
         description: formData.description || undefined,
         skillLevel: formData.skillLevel,
-        maxPlayers: Number(formData.maxPlayers) || 11,
+        maxPlayers: normalizedMaxPlayers,
         homeFieldId: formData.homeFieldId ? Number(formData.homeFieldId) : undefined,
-        jerseyColors: normalizeJerseyColors(formData.jerseyColors)
+        jerseyColors: normalizedColors
       };
+
+      if (!payload.name || !payload.name.trim()) {
+        setError('Team name is required.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (!Number.isFinite(payload.maxPlayers) || payload.maxPlayers < 1) {
+        setError('Max players must be a valid number.');
+        setSubmitting(false);
+        return;
+      }
 
       const response = await teamService.createTeam(payload);
       if (response.success) {
@@ -156,13 +218,17 @@ const TeamCreatePage = () => {
           }
         }
 
-        navigate(createdTeamId ? `/app/teams/${createdTeamId}` : '/app/teams', {
+        navigate(createdTeamId ? `${basePath}/teams/${createdTeamId}` : `${basePath}/teams`, {
           replace: true,
           state: navigationState
         });
       }
     } catch (err) {
-      setError(err?.error || 'Failed to create team');
+      const validationError =
+        Array.isArray(err?.data?.errors) && err.data.errors.length > 0
+          ? err.data.errors[0]?.message
+          : null;
+      setError(validationError || err?.error || err?.message || 'Failed to create team');
     } finally {
       setSubmitting(false);
     }
@@ -177,10 +243,10 @@ const TeamCreatePage = () => {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-6xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Create Team</h1>
-        <p className="mt-1 text-sm text-gray-600">Create a new team and start managing players.</p>
+        <p className="mt-1 text-sm text-gray-600">Create your squad, choose jersey colors, and get ready to manage players as captain.</p>
       </div>
 
       {error && (
@@ -189,7 +255,15 @@ const TeamCreatePage = () => {
         </div>
       )}
 
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-4">
+        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-cyan-50 px-4 py-4">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Captain Setup</h2>
+          <p className="mt-2 text-sm text-slate-700">
+            Start with your team identity first, then pick an optional home field and jersey colors before creating the squad.
+          </p>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700">Team Name</label>
           <input
@@ -200,6 +274,12 @@ const TeamCreatePage = () => {
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             placeholder="Downtown FC"
           />
+          <div className="mt-1 flex items-center justify-between text-xs">
+            <span className={isNameValid || trimmedTeamName.length === 0 ? 'text-gray-500' : 'text-red-600'}>
+              Use 2 to 100 characters.
+            </span>
+            <span className="text-gray-400">{trimmedTeamName.length}/100</span>
+          </div>
         </div>
 
         <div>
@@ -230,6 +310,15 @@ const TeamCreatePage = () => {
                 />
               </label>
               <p className="text-xs text-gray-500">PNG, JPG, GIF, or WEBP. Best result: square image.</p>
+              {logoPreview && (
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                >
+                  Remove picture
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -261,46 +350,25 @@ const TeamCreatePage = () => {
               onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
             />
+            <p className={`mt-1 text-xs ${isMaxPlayersValid ? 'text-gray-500' : 'text-red-600'}`}>
+              Choose a squad size between 5 and 30 players.
+            </p>
           </div>
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-3">
-            <label className="block text-sm font-medium text-gray-700">Team Jersey Colors</label>
-            <button
-              type="button"
-              onClick={handleAddJerseyColor}
-              disabled={(formData.jerseyColors || []).length >= 5}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Add Color
-            </button>
-          </div>
-          <div className="mt-2 space-y-2">
-            {(formData.jerseyColors || []).map((color, index) => (
-              <div key={`${color}-${index}`} className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(event) => setJerseyColorAt(index, event.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded border border-gray-300 bg-white p-1"
-                  aria-label={`Select jersey color ${index + 1}`}
-                />
-                <span className="inline-flex rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold uppercase text-gray-700">
-                  {color}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveJerseyColor(index)}
-                  disabled={(formData.jerseyColors || []).length <= 1}
-                  className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <p className="mt-1 text-xs text-gray-500">Choose one or more colors (up to 5) to avoid match-day color clashes.</p>
+          <JerseyColorEditor
+            title="Team Jersey Colors"
+            description="Choose one or more colors for your team kit before you create the team."
+            helperText="Click any color card to open the picker. The preview updates while you drag."
+            colors={formData.jerseyColors || [DEFAULT_JERSEY_COLOR]}
+            currentColors={formData.jerseyColors || [DEFAULT_JERSEY_COLOR]}
+            activeColorIndex={activeColorIndex}
+            onActiveColorChange={setActiveColorIndex}
+            onColorChange={setJerseyColorAt}
+            onAddColor={handleAddJerseyColor}
+            onRemoveColor={handleRemoveJerseyColor}
+          />
         </div>
 
         <div>
@@ -318,6 +386,11 @@ const TeamCreatePage = () => {
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {fields.length > 0
+              ? `${fields.length} available field${fields.length === 1 ? '' : 's'} loaded for captain selection.`
+              : 'No available fields found right now. You can still create a team without one.'}
+          </p>
         </div>
 
         <div>
@@ -334,23 +407,80 @@ const TeamCreatePage = () => {
 
         <div className="flex justify-end gap-3 pt-2">
           <Link
-            to="/app/teams"
+            to={`${basePath}/teams`}
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
             Cancel
           </Link>
           <button
             type="submit"
-            disabled={submitting}
-            className="px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+            disabled={!canSubmit}
+            className="px-4 py-2 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? 'Creating...' : 'Create Team'}
           </button>
         </div>
       </form>
+      <aside className="xl:sticky xl:top-6 xl:self-start space-y-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Team Preview</h2>
+          <p className="mt-1 text-sm text-slate-500">A quick view of how your new team setup looks before you create it.</p>
+
+          <div className="mt-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 p-5 text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Team logo preview" className="h-full w-full object-cover" />
+                ) : (
+                  <PhotoIcon className="h-7 w-7 text-white/70" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-lg font-semibold">{trimmedTeamName || 'Your Team Name'}</div>
+                <div className="text-sm text-white/70">{formData.skillLevel.charAt(0).toUpperCase() + formData.skillLevel.slice(1)} squad</div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl bg-white/10 px-3 py-3">
+                <div className="text-white/60">Max Players</div>
+                <div className="mt-1 text-xl font-semibold">{normalizedMaxPlayers || 11}</div>
+              </div>
+              <div className="rounded-xl bg-white/10 px-3 py-3">
+                <div className="text-white/60">Home Field</div>
+                <div className="mt-1 truncate font-semibold">
+                  {fields.find((field) => String(field.id) === String(formData.homeFieldId))?.name || 'Not selected'}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="text-sm text-white/60">Jersey Colors</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(formData.jerseyColors || [DEFAULT_JERSEY_COLOR]).map((color, index) => (
+                  <span
+                    key={`${color}-${index}`}
+                    className="h-9 w-9 rounded-full border-2 border-white/80 shadow-[0_6px_16px_rgba(15,23,42,0.3)]"
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Captain Tips</h3>
+          <div className="mt-3 space-y-3 text-sm text-slate-700">
+            <p>Pick a clear team name that your players can recognize quickly.</p>
+            <p>Use jersey colors that are easy to distinguish during matches.</p>
+            <p>Choose a home field now if your team usually plays in one location.</p>
+          </div>
+        </div>
+      </aside>
+      </div>
     </div>
   );
 };
 
 export default TeamCreatePage;
-

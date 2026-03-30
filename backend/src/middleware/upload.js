@@ -128,9 +128,16 @@ const avatarUpload = multer({
   limits
 });
 
+const roleRequestPaymentUpload = multer({
+  storage: makeStorage((req) => path.join('role-requests', String(req.user?.id || 'unknown'))),
+  fileFilter,
+  limits
+});
+
 module.exports = {
   fieldImagesUpload,
   teamLogoUpload,
   avatarUpload,
+  roleRequestPaymentUpload,
   validateUploadedFile
 };

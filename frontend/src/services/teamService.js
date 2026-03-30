@@ -173,6 +173,11 @@ const teamService = {
     return response;
   },
 
+  deleteTeamLogo: async (teamId) => {
+    const response = await apiService.delete(`/teams/${teamId}/logo`);
+    return response;
+  },
+
   // Get team match history
   getTeamMatchHistory: async (teamId, filters = {}) => {
     const params = {

@@ -1,4 +1,5 @@
-const { MatchResult, Booking, Team, User, Field } = require('../models');
+const { MatchResult, Booking, Team, TeamMember, User, Field } = require('../models');
+const { Op } = require('sequelize');
 
 // Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
@@ -22,6 +23,34 @@ const canManageResultForBooking = (booking, user) => {
   if (booking.team?.captainId === user.id) return true;
   return booking.opponentTeam?.captainId === user.id;
 
+};
+
+const getEligibleMvpPlayerIds = async ({ homeTeamId, awayTeamId, homeCaptainId, awayCaptainId }) => {
+  const validTeamIds = [homeTeamId, awayTeamId].filter((id) => Number.isInteger(Number(id)) && Number(id) > 0);
+  if (validTeamIds.length === 0) return new Set();
+
+  const memberships = await TeamMember.findAll({
+    where: {
+      teamId: { [Op.in]: validTeamIds },
+      status: 'active',
+      isActive: true
+    },
+    attributes: ['userId'],
+    raw: true
+  });
+
+  const eligibleIds = new Set(
+    memberships
+      .map((member) => Number(member.userId))
+      .filter((id) => Number.isInteger(id) && id > 0)
+  );
+
+  const captainIds = [homeCaptainId, awayCaptainId]
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+  for (const captainId of captainIds) eligibleIds.add(captainId);
+
+  return eligibleIds;
 };
 
 const getAllMatchResults = asyncHandler(async (req, res) => {
@@ -89,6 +118,21 @@ const createMatchResult = asyncHandler(async (req, res) => {
     }
     if (!booking.teamId || !booking.opponentTeamId) {
       return res.status(400).json({ success: false, message: 'This booking does not have two matched teams' });
+    }
+
+    if (Number.isInteger(mvpPlayerId) && mvpPlayerId > 0) {
+      const eligibleMvpPlayerIds = await getEligibleMvpPlayerIds({
+        homeTeamId: booking.teamId,
+        awayTeamId: booking.opponentTeamId,
+        homeCaptainId: booking.team?.captainId,
+        awayCaptainId: booking.opponentTeam?.captainId
+      });
+      if (!eligibleMvpPlayerIds.has(mvpPlayerId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected MVP is not eligible for this match'
+        });
+      }
     }
 
     const matchResult = await MatchResult.create({
@@ -161,6 +205,18 @@ const updateMatchResult = asyncHandler(async (req, res) => {
         const mvpId = Number(updatePayload.mvpPlayerId);
         if (!Number.isInteger(mvpId) || mvpId <= 0) {
           return res.status(400).json({ success: false, message: 'mvpPlayerId must be a positive integer or null' });
+        }
+        const eligibleMvpPlayerIds = await getEligibleMvpPlayerIds({
+          homeTeamId: matchResult.homeTeamId,
+          awayTeamId: matchResult.awayTeamId,
+          homeCaptainId: matchResult.booking?.team?.captainId,
+          awayCaptainId: matchResult.booking?.opponentTeam?.captainId
+        });
+        if (!eligibleMvpPlayerIds.has(mvpId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Selected MVP is not eligible for this match'
+          });
         }
         updatePayload.mvpPlayerId = mvpId;
       }

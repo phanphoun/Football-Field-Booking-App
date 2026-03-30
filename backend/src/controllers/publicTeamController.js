@@ -1,11 +1,30 @@
 const { Team, User, Field, TeamMember, Rating, MatchResult, Booking } = require('../models');
 const { Op } = require('sequelize');
 
-// Map public team for the current result.
-const mapPublicTeam = (teamInstance, ratingSummary = null) => {
+const mapPublicTeam = (teamInstance, ratingSummary = null, currentUserId = null) => {
   const team = teamInstance?.toJSON ? teamInstance.toJSON() : teamInstance;
   const activeMembers =
-    Array.isArray(team?.teamMembers) ? team.teamMembers.filter((m) => m.status === 'accepted') : [];
+    Array.isArray(team?.teamMembers)
+      ? team.teamMembers.filter((m) => m.status === 'active' && m.isActive !== false)
+      : [];
+  const members = activeMembers
+    .map((member) => {
+      if (!member?.user) return null;
+
+      return {
+        id: member.user.id,
+        username: member.user.username,
+        firstName: member.user.firstName,
+        lastName: member.user.lastName,
+        role: member.role
+      };
+    })
+    .filter(Boolean);
+  const viewerMembership =
+    currentUserId && Array.isArray(team?.teamMembers)
+      ? team.teamMembers.find((member) => Number(member.userId) === Number(currentUserId)) || null
+      : null;
+  const userMembershipStatus = viewerMembership?.status || (Number(team?.captainId) === Number(currentUserId) ? 'captain' : null);
 
   return {
     id: team.id,
@@ -37,10 +56,16 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
           name: team.homeField.name,
           address: team.homeField.address,
           city: team.homeField.city,
-          province: team.homeField.province
+          province: team.homeField.province,
+          country: team.homeField.country,
+          latitude: team.homeField.latitude,
+          longitude: team.homeField.longitude
         }
       : null,
     memberCount: activeMembers.length,
+    members,
+    userMembershipStatus,
+    joinRequestPending: userMembershipStatus === 'pending',
     rating: Number(ratingSummary?.avgRating || 0),
     totalRatings: Number(ratingSummary?.totalRatings || 0),
     latestReview: ratingSummary?.latestReview || null
@@ -51,27 +76,27 @@ const mapPublicTeam = (teamInstance, ratingSummary = null) => {
 const getRatingSummaries = async (teamIds = []) => {
   if (!teamIds.length) return {};
 
-  const [rows, recentRows] = await Promise.all([
-    Rating.findAll({
-      where: { teamIdRated: { [Op.in]: teamIds } },
-      attributes: [
-        'teamIdRated',
-        [Rating.sequelize.fn('AVG', Rating.sequelize.col('rating')), 'avgRating'],
-        [Rating.sequelize.fn('COUNT', Rating.sequelize.col('id')), 'totalRatings']
-      ],
-      group: ['teamIdRated'],
-      raw: true
-    }),
-    Rating.findAll({
-      where: {
-        teamIdRated: { [Op.in]: teamIds },
-        review: { [Op.ne]: null }
-      },
-      attributes: ['teamIdRated', 'review', 'createdAt'],
-      order: [['createdAt', 'DESC']],
-      raw: true
-    })
-  ]);
+  // use raw query for aggregation to avoid ONLY_FULL_GROUP_BY errors
+  const rows = await Rating.sequelize.query(
+    `SELECT teamIdRated, AVG(rating) AS avgRating, COUNT(id) AS totalRatings
+     FROM ratings
+     WHERE teamIdRated IN (:ids)
+     GROUP BY teamIdRated`,
+    {
+      replacements: { ids: teamIds },
+      type: Rating.sequelize.QueryTypes.SELECT
+    }
+  );
+
+  const recentRows = await Rating.findAll({
+    where: {
+      teamIdRated: { [Op.in]: teamIds },
+      review: { [Op.ne]: null }
+    },
+    attributes: ['teamIdRated', 'review', 'createdAt'],
+    order: [['createdAt', 'DESC']],
+    raw: true
+  });
 
   const byTeam = {};
   for (const row of rows) {
@@ -93,6 +118,7 @@ const getRatingSummaries = async (teamIds = []) => {
 // Get public teams for the current flow.
 const getPublicTeams = async (req, res) => {
   try {
+    const currentUserId = req.user?.id || null;
     const teams = await Team.findAll({
       where: { isActive: true },
       attributes: [
@@ -117,14 +143,22 @@ const getPublicTeams = async (req, res) => {
         {
           model: Field,
           as: 'homeField',
-          attributes: ['id', 'name', 'address', 'city', 'province'],
+          attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
           required: false
         },
         {
           model: TeamMember,
           as: 'teamMembers',
-          attributes: ['userId', 'status'],
-          required: false
+          attributes: ['userId', 'role', 'status', 'isActive'],
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'username', 'firstName', 'lastName'],
+              required: false
+            }
+          ]
         }
       ],
       order: [['createdAt', 'DESC']]
@@ -133,14 +167,16 @@ const getPublicTeams = async (req, res) => {
     const summaries = await getRatingSummaries((teams || []).map((t) => Number(t.id)));
     res.json({
       success: true,
-      data: teams.map((t) => mapPublicTeam(t, summaries[Number(t.id)]))
+      data: teams.map((t) => mapPublicTeam(t, summaries[Number(t.id)], currentUserId))
     });
   } catch (error) {
-    console.error('Get public teams error:', error);
+    console.error('Get public teams error:', error, error.stack);
+    // propagate full error details for debugging
     res.status(500).json({
       success: false,
       message: 'Failed to fetch teams',
-      error: error.message
+      error: error.message || 'Database operation failed',
+      details: error.stack
     });
   }
 };
@@ -148,6 +184,7 @@ const getPublicTeams = async (req, res) => {
 // Get public team by id for the current flow.
 const getPublicTeamById = async (req, res) => {
   try {
+    const currentUserId = req.user?.id || null;
     const team = await Team.findByPk(req.params.id, {
       attributes: [
         'id',
@@ -171,14 +208,22 @@ const getPublicTeamById = async (req, res) => {
         {
           model: Field,
           as: 'homeField',
-          attributes: ['id', 'name', 'address', 'city', 'province'],
+          attributes: ['id', 'name', 'address', 'city', 'province', 'country', 'latitude', 'longitude'],
           required: false
         },
         {
           model: TeamMember,
           as: 'teamMembers',
-          attributes: ['userId', 'status'],
-          required: false
+          attributes: ['userId', 'role', 'status', 'isActive'],
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'username', 'firstName', 'lastName'],
+              required: false
+            }
+          ]
         }
       ]
     });
@@ -191,7 +236,7 @@ const getPublicTeamById = async (req, res) => {
     }
 
     const summaries = await getRatingSummaries([Number(team.id)]);
-    res.json({ success: true, data: mapPublicTeam(team, summaries[Number(team.id)]) });
+    res.json({ success: true, data: mapPublicTeam(team, summaries[Number(team.id)], currentUserId) });
   } catch (error) {
     console.error('Get public team by id error:', error);
     res.status(500).json({

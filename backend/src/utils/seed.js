@@ -140,6 +140,11 @@ const amenitiesPool = [
 ];
 
 const dayOffsets = [-18, -16, -14, -12, -10, -8, -6, -4, -2, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const SESSION_START_HOURS = {
+  morning: [8, 9, 10],
+  afternoon: [12, 14, 16],
+  evening: [18, 19, 20]
+};
 
 // Create date for the current flow.
 const createDate = (dayOffset, hour, durationHours = 2) => {
@@ -272,7 +277,13 @@ const seedDatabase = async () => {
       const team = teams[index % teams.length];
       const field = fields[index % fields.length];
       const opponentTeam = index < 15 ? teams[(index + 5) % teams.length] : null;
-      const { start, end } = createDate(dayOffsets[index % dayOffsets.length], 8 + (index % 8), index % 3 === 0 ? 1 : 2);
+      const rotatingHours = [
+        ...SESSION_START_HOURS.morning,
+        ...SESSION_START_HOURS.afternoon,
+        ...SESSION_START_HOURS.evening
+      ];
+      const startHour = rotatingHours[index % rotatingHours.length];
+      const { start, end } = createDate(dayOffsets[index % dayOffsets.length], startHour, index % 3 === 0 ? 1 : 2);
 
       let status = 'pending';
       if (index < 15) {
@@ -300,6 +311,40 @@ const seedDatabase = async () => {
         notes: `Demo booking ${index + 1}`
       });
     }
+
+    // Add recent booking activity for every field across all three sessions
+    // so landing-page popularity stars can be verified against real bookings.
+    const extraSessionBookings = [];
+    fields.forEach((field, fieldIndex) => {
+      const owningTeam = teams[fieldIndex % teams.length];
+      const opposingTeam = teams[(fieldIndex + 5) % teams.length];
+
+      [
+        { key: 'morning', dayOffset: -3, durationHours: 2, status: 'completed', slots: SESSION_START_HOURS.morning.slice(0, 2) },
+        { key: 'afternoon', dayOffset: -2, durationHours: 2, status: 'completed', slots: SESSION_START_HOURS.afternoon.slice(0, 2) },
+        { key: 'evening', dayOffset: -1, durationHours: 2, status: 'confirmed', slots: SESSION_START_HOURS.evening }
+      ].forEach((session) => {
+        session.slots.forEach((hour, slotIndex) => {
+          const { start, end } = createDate(session.dayOffset - (slotIndex % 2), hour, session.durationHours);
+
+          extraSessionBookings.push({
+            fieldId: field.id,
+            teamId: owningTeam.id,
+            opponentTeamId: slotIndex % 2 === 0 ? opposingTeam.id : null,
+            startTime: start,
+            endTime: end,
+            status: session.status,
+            totalPrice: Number(field.pricePerHour) * ((end - start) / 3600000),
+            specialRequests: session.key === 'evening' ? 'Need lights ready before kickoff.' : null,
+            createdBy: owningTeam.captainId,
+            isMatchmaking: session.key === 'evening' && slotIndex === session.slots.length - 1,
+            notes: `Seeded ${session.key} session booking for ${field.name}`
+          });
+        });
+      });
+    });
+
+    bookings.push(...extraSessionBookings);
 
     const createdBookings = await Booking.bulkCreate(bookings);
 

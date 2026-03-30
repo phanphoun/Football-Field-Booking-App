@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRealtime } from '../../context/RealtimeContext';
 import {
   HomeIcon, 
   BuildingOfficeIcon, 
@@ -16,35 +17,55 @@ import {
   InboxIcon,
   Bars3Icon,
   XMarkIcon,
-  TrophyIcon
+  TrophyIcon,
+  BanknotesIcon,
+  ChatBubbleLeftRightIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon
 } from '@heroicons/react/24/outline';
-import apiService from '../../services/api';
+import notificationService from '../../services/notificationService';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
 import { ImagePreviewModal, useToast } from '../ui';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
+import { useLanguage } from '../../context/LanguageContext';
+import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
+import { formatRoleLabel } from '../../utils/formatters';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
-const BRAND_NAME = 'អាណាចក្រភ្នំស្វាយ';
+const BRAND_NAME = APP_CONFIG.brand.displayName;
+const topControlButtonClass =
+  'group inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/95 text-slate-500 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-[0_14px_28px_rgba(16,185,129,0.14)] active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 focus-visible:ring-offset-2';
+const backButtonClass =
+  'group ml-4 inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/70 hover:text-emerald-700 hover:shadow-[0_14px_28px_rgba(16,185,129,0.14)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 focus-visible:ring-offset-2';
 
-const SidebarBrand = () => (
-  <div className="flex items-center gap-3">
-    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-600 text-lg font-bold text-white shadow-sm">
-      FB
+const SidebarBrand = ({ collapsed = false }) => (
+  <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+    <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-green-600 to-teal-500 text-lg font-black tracking-wide text-white shadow-[0_14px_28px_rgba(22,163,74,0.28)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),_transparent_55%)]" />
+      {APP_CONFIG.brand.shortName}
     </div>
-    <div className="khmer-brand-font min-w-0 text-[18px] font-extrabold leading-none text-slate-900">
-      {BRAND_NAME}
-    </div>
+    {!collapsed && (
+      <div className="min-w-0 py-0.5">
+        <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
+          {BRAND_NAME}
+        </div>
+      </div>
+    )}
   </div>
 );
 
 // Render the app layout for shared page structure.
 const AppLayout = () => {
   const { user } = useAuth();
+  const { version } = useRealtime();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('appDesktopSidebarCollapsed') === 'true';
+  });
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsMenuOpen, setNotificationsMenuOpen] = useState(false);
@@ -53,11 +74,12 @@ const AppLayout = () => {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const notificationsMenuRef = useRef(null);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
   const settingsItem = {
-    name: 'Settings',
+    name: t('nav_settings', 'Settings'),
     href: '/app/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/app/settings' || location.pathname === '/app/admin/settings'
@@ -66,33 +88,39 @@ const AppLayout = () => {
 
   const navigation = [
     {
-      name: 'Dashboard',
+      name: t('nav_dashboard', 'Dashboard'),
       href: '/app/dashboard',
       icon: HomeIcon,
       current: location.pathname === '/app/dashboard'
     },
     {
-      name: 'Fields',
+      name: t('nav_fields', 'Fields'),
       href: '/app/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/app/fields')
     },
     {
-      name: 'Leagues',
+      name: t('nav_leagues', 'Leagues'),
       href: '/app/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/app/league')
     },
     {
-      name: 'Teams',
+      name: t('nav_teams', 'Teams'),
       href: '/app/teams',
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
     },
+    {
+      name: t('nav_chat', 'Chat'),
+      href: '/app/chat',
+      icon: ChatBubbleLeftRightIcon,
+      current: location.pathname.startsWith('/app/chat')
+    },
     ...(['player', 'captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Bookings',
+            name: t('nav_bookings', 'Bookings'),
             href: '/app/bookings',
             icon: CalendarIcon,
             current: location.pathname.startsWith('/app/bookings')
@@ -102,23 +130,29 @@ const AppLayout = () => {
     ...(user?.role === 'admin'
       ? [
           {
-            name: 'Manage Users',
+            name: t('nav_manage_users', 'Manage Users'),
             href: '/app/admin/users',
             icon: UserCircleIcon,
             current: location.pathname.startsWith('/app/admin/users')
           },
           {
-            name: 'Role Requests',
+            name: t('nav_role_requests', 'Role Requests'),
             href: '/app/admin/role-requests',
             icon: ClipboardDocumentCheckIcon,
             current: location.pathname.startsWith('/app/admin/role-requests')
+          },
+          {
+            name: t('nav_payments', 'Payments'),
+            href: '/app/admin/payments',
+            icon: BanknotesIcon,
+            current: location.pathname.startsWith('/app/admin/payments')
           }
         ]
       : []),
     ...(['captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Open Matches',
+            name: t('nav_open_matches', 'Open Matches'),
             href: '/app/open-matches',
             icon: UsersIcon,
             current: location.pathname.startsWith('/app/open-matches')
@@ -130,34 +164,38 @@ const AppLayout = () => {
   const pageInfo = useMemo(() => {
     const path = location.pathname;
     const entries = [
-      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
-      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
-      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
-      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
-      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
-      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
-      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
-      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
-      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
-      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
+      { match: '/app/dashboard', title: t('nav_dashboard', 'Dashboard'), subtitle: t('page_dashboard_subtitle', 'Overview of your activity and updates') },
+      { match: '/app/fields', title: t('nav_fields', 'Fields'), subtitle: t('page_fields_subtitle', 'Browse and discover available football fields') },
+      { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
+      { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
+      { match: '/app/chat', title: t('nav_chat', 'Chat'), subtitle: t('page_chat_subtitle', 'Talk directly with users across the platform') },
+      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
+      { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
+      { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
+      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
+      { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
+      { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
+      { match: '/app/admin/role-requests', title: t('nav_role_requests', 'Role Requests'), subtitle: 'Review captain and field owner access requests' },
+      { match: '/app/admin/payments', title: t('nav_payments', 'Payments'), subtitle: 'Review payment proofs and track upgrade revenue' },
+      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: 'អាណាចក្រភ្នំស្វាយ', subtitle: 'Welcome to your workspace' };
-  }, [location.pathname]);
+    return current || { title: APP_CONFIG.brand.displayName, subtitle: t('workspace_player', 'Player & Captain Panel') };
+  }, [location.pathname, t]);
   const showBackHomeButton = location.pathname.startsWith('/app');
-  const isAppFieldsRoute = location.pathname.startsWith('/app/fields');
+  const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
+  const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
 
   // Format role for display.
   const formatRole = (role) => {
-    return role ? role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Player';
+    return formatRoleLabel(role, 'Player');
   };
 
   // Support render nav icon for this module.
   const renderNavIcon = (item) => {
     return (
       <item.icon
-        className={`mr-3 h-5 w-5 flex-shrink-0 ${
+        className={`${desktopSidebarCollapsed ? '' : 'mr-3'} h-5 w-5 flex-shrink-0 ${
           item.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
         }`}
       />
@@ -166,11 +204,7 @@ const AppLayout = () => {
 
   // Resolve avatar url into a display-safe value.
   const resolveAvatarUrl = () => {
-    const rawAvatar = user?.avatarUrl || user?.avatar_url;
-    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-    return `${API_ORIGIN}${normalizedPath}`;
+    return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   };
 
   // Resolve notification sender name into a display-safe value.
@@ -180,26 +214,7 @@ const AppLayout = () => {
 
   // Resolve notification sender avatar into a display-safe value.
   const resolveNotificationSenderAvatar = (notification) => {
-    const rawAvatar = notification?.sender?.avatarUrl;
-    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
-    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-    return `${API_ORIGIN}${normalizedPath}`;
-  };
-
-  // Parse metadata into a usable value.
-  const parseMetadata = (value) => {
-    if (!value) return {};
-    if (typeof value === 'object') return value;
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch {
-        return {};
-      }
-    }
-    return {};
+    return buildAssetUrl(notification?.sender?.avatarUrl);
   };
 
   const latestNotifications = useMemo(() => {
@@ -211,14 +226,10 @@ const AppLayout = () => {
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
     try {
-      const response = await apiService.get('/notifications');
+      const response = await notificationService.getAll();
       const list = Array.isArray(response.data) ? response.data : [];
-      const normalized = list.map((item) => ({
-        ...item,
-        metadata: parseMetadata(item.metadata)
-      }));
-      setNotifications(normalized);
-      setUnreadNotifications(normalized.filter((item) => !item.isRead).length);
+      setNotifications(list);
+      setUnreadNotifications(list.filter((item) => !item.isRead).length);
     } catch {
       setNotifications([]);
       setUnreadNotifications(0);
@@ -228,17 +239,31 @@ const AppLayout = () => {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = notificationService.subscribe((list) => {
+      setNotifications(list);
+      setUnreadNotifications(list.filter((item) => !item.isRead).length);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
   }, [location.pathname, loadNotifications]);
 
-  // Support mark notification read for this module.
+  useEffect(() => {
+    notificationService.refresh().catch(() => {});
+  }, [version]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      notificationService.refresh().catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const markNotificationRead = async (notificationId) => {
-    await apiService.put(`/notifications/${notificationId}`, {
-      isRead: true,
-      readAt: new Date().toISOString()
-    });
+    await notificationService.markRead(notificationId);
   };
 
   // Check whether respond to invite is allowed.
@@ -526,6 +551,8 @@ const AppLayout = () => {
       await teamService.respondLeaveRequest(teamId, requesterId, action);
       await markNotificationRead(notification.id);
       await loadNotifications();
+    } catch (err) {
+      showToast(err?.error || 'Failed to process leave request', { type: 'error' });
     } finally {
       setNotificationActionLoading(false);
     }
@@ -578,7 +605,6 @@ const AppLayout = () => {
     try {
       setNotificationActionLoading(true);
       await markNotificationRead(notificationId);
-      await loadNotifications();
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
     } finally {
@@ -617,8 +643,7 @@ const AppLayout = () => {
       setNotificationActionLoading(true);
       const unread = latestNotifications.filter((item) => !item.isRead);
       if (unread.length === 0) return;
-      await Promise.allSettled(unread.map((item) => markNotificationRead(item.id)));
-      await loadNotifications();
+      await notificationService.markManyRead(unread.map((item) => item.id));
     } catch (error) {
       console.error('Failed to mark all notifications as read:', error);
     } finally {
@@ -641,6 +666,11 @@ const AppLayout = () => {
       state: {}
     });
   }, [location, navigate, showToast]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('appDesktopSidebarCollapsed', String(desktopSidebarCollapsed));
+  }, [desktopSidebarCollapsed]);
 
   useEffect(() => {
     if (!notificationsMenuOpen) return undefined;
@@ -673,16 +703,20 @@ const AppLayout = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Mobile sidebar */}
-      <div className={`fixed inset-0 z-50 ${sidebarOpen ? 'block' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
+      <div className={`fixed inset-0 z-50 transition-opacity duration-300 ${sidebarOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+        <div
+          className={`fixed inset-0 bg-slate-950/35 backdrop-blur-[2px] transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+        <div className={`fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-[18px_0_42px_rgba(15,23,42,0.16)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex h-16 items-center justify-between px-4">
             <SidebarBrand />
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-500 hover:text-gray-700"
+              className={`${topControlButtonClass} h-10 w-10 rounded-xl border-slate-200 text-slate-500 shadow-sm`}
+              aria-label="Close navigation"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
@@ -691,10 +725,11 @@ const AppLayout = () => {
                 <Link
                   key={item.name}
                   to={item.href}
+                  aria-current={item.current ? 'page' : undefined}
                   className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
                     item.current
-                      ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                      ? 'translate-x-1 rounded-xl bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.14)]'
+                      : 'text-gray-600 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -708,10 +743,10 @@ const AppLayout = () => {
               <Link
                 to="/app/profile"
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-200 ${
                   profileCurrent
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.14)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <img
@@ -724,7 +759,7 @@ const AppLayout = () => {
                     setImagePreviewOpen(true);
                   }}
                   onError={(e) => {
-                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    const fallbackUrl = buildAssetUrl();
                     if (e.currentTarget.src !== fallbackUrl) {
                       e.currentTarget.src = fallbackUrl;
                     }
@@ -738,10 +773,10 @@ const AppLayout = () => {
               <Link
                 to={settingsItem.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
                   settingsItem.current
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.14)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
                 }`}
               >
                 <settingsItem.icon
@@ -757,37 +792,40 @@ const AppLayout = () => {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden md:fixed md:inset-y-0 md:flex md:w-64 md:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
-          <div className="flex h-16 items-center px-4">
-            <SidebarBrand />
+      <div className={`hidden md:fixed md:inset-y-0 md:flex md:flex-col ${desktopSidebarWidthClass}`}>
+        <div className="flex flex-col flex-grow border-r border-emerald-100 bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fffb_100%)] shadow-[8px_0_30px_rgba(15,23,42,0.03)]">
+          <div className={`flex h-20 items-center border-b border-emerald-100/80 ${desktopSidebarCollapsed ? 'justify-center px-3' : 'px-5'}`}>
+            <SidebarBrand collapsed={desktopSidebarCollapsed} />
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
-            <nav className="flex-1 space-y-1 px-2 py-4">
+            <nav className={`flex-1 space-y-1 py-4 ${desktopSidebarCollapsed ? 'px-3' : 'px-2'}`}>
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-150 ${
+                  title={item.name}
+                  aria-current={item.current ? 'page' : undefined}
+                  className={`group flex items-center rounded-md px-2 py-2 text-sm font-medium transition-all duration-200 ${
                     item.current
-                      ? 'bg-green-100 text-green-900'
-                      : 'text-gray-600 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
-                  }`}
+                      ? 'rounded-xl bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.12)]'
+                      : 'text-gray-600 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                  } ${desktopSidebarCollapsed ? 'justify-center' : ''}`}
                 >
                   {renderNavIcon(item)}
-                  {item.name}
+                  {!desktopSidebarCollapsed && item.name}
                 </Link>
               ))}
             </nav>
 
-            <div className="border-t border-gray-200 p-3 space-y-2">
+            <div className={`border-t border-gray-200 space-y-2 ${desktopSidebarCollapsed ? 'p-2' : 'p-3'}`}>
               <Link
                 to="/app/profile"
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-150 ${
+                title={userDisplayName}
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-200 ${
                   profileCurrent
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
-                }`}
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.12)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                } ${desktopSidebarCollapsed ? 'justify-center px-2' : ''}`}
               >
                 <img
                   src={resolveAvatarUrl()}
@@ -799,31 +837,34 @@ const AppLayout = () => {
                     setImagePreviewOpen(true);
                   }}
                   onError={(e) => {
-                    const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                    const fallbackUrl = buildAssetUrl();
                     if (e.currentTarget.src !== fallbackUrl) {
                       e.currentTarget.src = fallbackUrl;
                     }
                   }}
                 />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{userDisplayName}</p>
-                  <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
-                </div>
+                {!desktopSidebarCollapsed && (
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{userDisplayName}</p>
+                    <p className="text-xs text-gray-500 truncate">{formatRole(user?.role)}</p>
+                  </div>
+                )}
               </Link>
               <Link
                 to={settingsItem.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-150 ${
+                title={settingsItem.name}
+                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-200 ${
                   settingsItem.current
-                    ? 'bg-green-100 text-green-900'
-                    : 'text-gray-700 hover:-translate-y-0.5 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
-                }`}
+                    ? 'bg-green-100 text-green-900 shadow-[0_10px_24px_rgba(34,197,94,0.12)]'
+                    : 'text-gray-700 hover:translate-x-1 hover:bg-green-50 hover:text-green-900 hover:shadow-sm'
+                } ${desktopSidebarCollapsed ? 'justify-center px-2' : ''}`}
               >
                 <settingsItem.icon
                   className={`h-5 w-5 flex-shrink-0 ${
                     settingsItem.current ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'
                   }`}
                 />
-                {settingsItem.name}
+                {!desktopSidebarCollapsed && settingsItem.name}
               </Link>
             </div>
           </div>
@@ -831,35 +872,49 @@ const AppLayout = () => {
       </div>
 
       {/* Main content */}
-      <div className="md:pl-64">
+      <div className={desktopContentOffsetClass}>
         {/* Top navigation */}
-        <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
+        <div className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/88 shadow-[0_8px_24px_rgba(15,23,42,0.05)] backdrop-blur-xl">
           <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="text-gray-500 hover:text-gray-700 md:hidden"
+                className={`${topControlButtonClass} md:hidden`}
+                aria-label="Open navigation"
               >
                 <Bars3Icon className="h-6 w-6" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDesktopSidebarCollapsed((prev) => !prev)}
+                className={`hidden md:inline-flex ${topControlButtonClass}`}
+                aria-label={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={desktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                {desktopSidebarCollapsed ? (
+                  <ChevronDoubleRightIcon className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                ) : (
+                  <ChevronDoubleLeftIcon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                )}
               </button>
 
               {showBackHomeButton && (
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className={`inline-flex items-center border bg-white transition ${
-                    isAppFieldsRoute
-                      ? 'gap-2 rounded-full border-slate-200 px-4 py-2 text-sm font-medium text-slate-800 shadow-sm hover:border-emerald-200 hover:bg-emerald-50/60 hover:text-emerald-700'
-                      : 'gap-2 rounded-xl border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  className={backButtonClass}
+                  aria-label="Go back to home"
                 >
-                  <ArrowLeftIcon className={isAppFieldsRoute ? 'h-[18px] w-[18px]' : 'h-4 w-4'} />
+                  <ArrowLeftIcon className="h-[18px] w-[18px] transition-transform duration-200 group-hover:-translate-x-0.5" />
                   <span className="hidden sm:inline">Back</span>
                 </button>
               )}
             </div>
 
-            <div className="ml-auto flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-3">
+              <ThemeToggle className="h-11 w-11" />
+              <LanguageSwitcher className="hidden lg:inline-flex" />
               {/* Notifications dropdown */}
               <div
                 className="relative"
@@ -884,14 +939,14 @@ const AppLayout = () => {
                   <div className="absolute right-0 top-full pt-2 z-30 w-[min(92vw,380px)]">
                     <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                        <p className="text-sm font-semibold text-gray-900">{t('nav_notifications', 'Notifications')}</p>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={handleMarkAllAsRead}
                             disabled={notificationActionLoading || unreadNotifications === 0}
                             className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           >
-                            Mark all read
+                            {t('notifications_mark_all_read', 'Mark all read')}
                           </button>
                           <button
                             onClick={() => {
@@ -900,18 +955,18 @@ const AppLayout = () => {
                             }}
                             className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                           >
-                            View all
+                            {t('dashboard_view_all', 'View all')}
                           </button>
                         </div>
                       </div>
 
                       <div className="max-h-[420px] overflow-y-auto">
                         {notificationsLoading ? (
-                          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading...</div>
+                          <div className="px-4 py-8 text-center text-sm text-gray-500">{t('common_loading', 'Loading...')}</div>
                         ) : latestNotifications.length === 0 ? (
                           <div className="px-4 py-8 text-center">
                             <InboxIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500">No notifications yet.</p>
+                            <p className="text-sm text-gray-500">{t('notifications_empty_title', 'No notifications yet.')}</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-gray-100">
@@ -956,7 +1011,7 @@ const AppLayout = () => {
                                           alt={`${resolveNotificationSenderName(notification)} avatar`}
                                           className="h-4 w-4 rounded-full object-cover border border-gray-200 bg-gray-100"
                                           onError={(e) => {
-                                            const fallbackUrl = `${API_ORIGIN}${DEFAULT_PROFILE_PATH}`;
+                                            const fallbackUrl = buildAssetUrl();
                                             if (e.currentTarget.src !== fallbackUrl) {
                                               e.currentTarget.src = fallbackUrl;
                                             }
@@ -973,7 +1028,7 @@ const AppLayout = () => {
                                   </div>
                                   {!notification.isRead && (
                                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700">
-                                      New
+                                      {t('common_new', 'New')}
                                     </span>
                                   )}
                                 </div>
@@ -987,7 +1042,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Accept
+                                         {t('teams_accept', 'Accept')}
                                       </button>
                                       <button
                                         onClick={() => handleInviteAction(notification, 'decline')}
@@ -995,7 +1050,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1008,7 +1063,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Leave
+                                         {t('notifications_approve_leave', 'Approve Leave')}
                                       </button>
                                       <button
                                         onClick={() => handleLeaveRequestAction(notification, 'decline')}
@@ -1016,7 +1071,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1029,7 +1084,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Join
+                                         {t('booking_approve_join', 'Approve Join')}
                                       </button>
                                       <button
                                         onClick={() => handleJoinRequestAction(notification, 'decline')}
@@ -1037,7 +1092,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1050,7 +1105,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Join
+                                         {t('booking_approve_join', 'Approve Join')}
                                       </button>
                                       <button
                                         onClick={() => handleBookingJoinRequestAction(notification, 'decline')}
@@ -1058,7 +1113,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1069,7 +1124,7 @@ const AppLayout = () => {
                                       className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
                                     >
                                       <EyeIcon className="h-3.5 w-3.5" />
-                                      View Team
+                                      {t('notifications_view_team', 'View Team')}
                                     </button>
                                   )}
 
@@ -1079,7 +1134,7 @@ const AppLayout = () => {
                                       disabled={notificationActionLoading}
                                       className="inline-flex items-center rounded-md border border-emerald-200 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
                                     >
-                                      Mark read
+                                      {t('notifications_mark_read', 'Mark read')}
                                     </button>
                                   )}
                                 </div>
@@ -1121,3 +1176,6 @@ const AppLayout = () => {
 };
 
 export default AppLayout;
+
+
+

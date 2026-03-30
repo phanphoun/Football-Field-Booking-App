@@ -1,4 +1,5 @@
 import apiService from './api';
+import { compressImagesForUpload } from '../utils/imageCompression';
 
 const fieldService = {
   // Get all fields
@@ -11,7 +12,7 @@ const fieldService = {
       city: filters.city,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
-      status: filters.status || 'available'
+      status: filters.status
     };
 
     const response = await apiService.get('/fields', params);
@@ -67,9 +68,17 @@ const fieldService = {
 
   // Upload field images
   uploadFieldImages: async (fieldId, imageFiles, options = {}) => {
+    const compressedFiles = await compressImagesForUpload(imageFiles, {
+      maxWidth: 1920,
+      maxHeight: 1080,
+      targetMaxBytes: 900 * 1024,
+      minCompressBytes: 250 * 1024,
+      maxCount: 5
+    });
+
     const formData = new FormData();
-    
-    imageFiles.forEach((file) => {
+
+    compressedFiles.forEach((file) => {
       formData.append('images', file);
     });
     if (options.replaceExisting) {

@@ -1,11 +1,15 @@
 import React from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import './App.css';
 
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import VerifyOtpPage from './pages/auth/VerifyOtpPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import FieldsPage from './pages/FieldsPage';
 import TeamsPage from './pages/TeamsPage';
@@ -20,7 +24,6 @@ import FieldDetailsPage from './pages/FieldDetailsPage';
 import TeamCreatePage from './pages/TeamCreatePage';
 import TeamDetailsPage from './pages/TeamDetailsPage';
 import TeamManagePage from './pages/TeamManagePage';
-import TeamMatchHistoryPage from './pages/TeamMatchHistoryPage';
 import NotificationsPage from './pages/NotificationsPage';
 import OwnerDashboardPage from './pages/OwnerDashboardPage';
 import OwnerFieldsPage from './pages/OwnerFieldsPage';
@@ -30,8 +33,13 @@ import LeaguePage from './pages/League';
 import OpenMatchesPage from './pages/OpenMatchesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminRoleRequestsPage from './pages/AdminRoleRequestsPage';
+import AdminPaymentsPage from './pages/AdminPaymentsPage';
+import ChatPage from './pages/ChatPage';
+import UpgradeRoleHelpPage from './pages/UpgradeRoleHelpPage';
 import { getPreferredStartPath } from './utils/navigationPreferences';
 import { DialogProvider, ToastProvider } from './components/ui';
+import { RealtimeProvider } from './context/RealtimeContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import AppLayout from './components/layout/AppLayout';
 import PublicLayout from './components/layout/PublicLayout';
@@ -54,6 +62,10 @@ const AppRoutes = () => {
           <Route path="teams/:id" element={<PublicTeamDetailsPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="verify-otp" element={<VerifyOtpPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
+          <Route path="help/upgrade-role" element={<UpgradeRoleHelpPage />} />
         </Route>
 
         <Route
@@ -79,7 +91,6 @@ const AppRoutes = () => {
             }
           />
           <Route path="teams/:id" element={<TeamDetailsPage />} />
-          <Route path="teams/:id/matches" element={<TeamMatchHistoryPage />} />
           <Route
             path="teams/:id/manage"
             element={
@@ -121,6 +132,7 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
@@ -137,6 +149,14 @@ const AppRoutes = () => {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminRoleRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/payments"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminPaymentsPage />
               </ProtectedRoute>
             }
           />
@@ -159,13 +179,33 @@ const AppRoutes = () => {
           <Route
             path="bookings/new"
             element={
-              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/bookings">
+              <ProtectedRoute allowedRoles={['field_owner']} redirectTo="/owner/bookings">
                 <CreateBookingPage />
               </ProtectedRoute>
             }
           />
           <Route path="league" element={<LeaguePage />} />
           <Route path="matches" element={<OwnerMatchesPage />} />
+          <Route path="teams" element={<TeamsPage />} />
+          <Route
+            path="teams/create"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="teams/:id" element={<TeamDetailsPage />} />
+          <Route
+            path="teams/:id/manage"
+            element={
+              <ProtectedRoute allowedRoles={['field_owner', 'admin']} redirectTo="/owner/teams">
+                <TeamManagePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
@@ -177,6 +217,9 @@ const AppRoutes = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
       )}
     </>
@@ -187,15 +230,21 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <ToastProvider>
-        <DialogProvider>
-          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <div className="App">
-              <AppRoutes />
-            </div>
-          </Router>
-        </DialogProvider>
-      </ToastProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <ToastProvider>
+            <DialogProvider>
+              <RealtimeProvider>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                  <div className="App">
+                    <AppRoutes />
+                  </div>
+                </Router>
+              </RealtimeProvider>
+            </DialogProvider>
+          </ToastProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

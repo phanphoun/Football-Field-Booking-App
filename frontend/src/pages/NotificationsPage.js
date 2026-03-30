@@ -7,14 +7,16 @@ import {
   ClipboardDocumentCheckIcon,
   InboxIcon
 } from '@heroicons/react/24/outline';
-import apiService from '../services/api';
+import notificationService from '../services/notificationService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 
 // Render the notifications page.
 const NotificationsPage = () => {
   const navigate = useNavigate();
+  const { version } = useRealtime();
   const { user } = useAuth();
 
   const [notifications, setNotifications] = useState([]);
@@ -25,17 +27,28 @@ const NotificationsPage = () => {
 
   // Support load notifications for this page.
   const loadNotifications = async () => {
-    const response = await apiService.get('/notifications');
+    const response = await notificationService.getAll();
     setNotifications(Array.isArray(response.data) ? response.data : []);
   };
 
   useEffect(() => {
-    // Support load for this page.
+    const unsubscribe = notificationService.subscribe((list) => {
+      setNotifications(list);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
-        await loadNotifications();
+        if (version > 0) {
+          await notificationService.refresh();
+        } else {
+          await loadNotifications();
+        }
       } catch (err) {
         setError(err?.error || 'Failed to load notifications');
       } finally {
@@ -43,7 +56,7 @@ const NotificationsPage = () => {
       }
     };
     load();
-  }, []);
+  }, [version]);
 
   const filteredNotifications = useMemo(() => {
     const byType = {
@@ -53,15 +66,14 @@ const NotificationsPage = () => {
         n.metadata?.event === 'team_join_request' ||
         n.metadata?.event === 'booking_join_request'
     };
-    return notifications.filter(byType[activeFilter] || byType.all);
+    return notifications
+      .filter(byType[activeFilter] || byType.all)
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }, [notifications, activeFilter]);
 
   // Support mark as read for this page.
   const markAsRead = async (notificationId) => {
-    await apiService.put(`/notifications/${notificationId}`, {
-      isRead: true,
-      readAt: new Date().toISOString()
-    });
+    await notificationService.markRead(notificationId);
   };
 
   // Handle invite action interactions.
@@ -77,7 +89,7 @@ const NotificationsPage = () => {
         await teamService.declineInvite(teamId);
       }
       await markAsRead(notification.id);
-      await loadNotifications();
+      await notificationService.refresh();
     } catch (err) {
       setError(err?.error || `Failed to ${action} invitation`);
     } finally {
@@ -91,7 +103,6 @@ const NotificationsPage = () => {
       setActionLoading(true);
       setError(null);
       await markAsRead(notification.id);
-      await loadNotifications();
     } catch (err) {
       setError(err?.error || 'Failed to update notification');
     } finally {
@@ -104,17 +115,7 @@ const NotificationsPage = () => {
     try {
       setActionLoading(true);
       setError(null);
-      const unread = notifications.filter((item) => !item.isRead);
-      if (unread.length === 0) return;
-      await Promise.allSettled(
-        unread.map((item) =>
-          apiService.put(`/notifications/${item.id}`, {
-            isRead: true,
-            readAt: new Date().toISOString()
-          })
-        )
-      );
-      await loadNotifications();
+      await notificationService.markAllRead();
     } catch (err) {
       setError(err?.error || 'Failed to mark all notifications as read');
     } finally {
@@ -208,7 +209,7 @@ const NotificationsPage = () => {
       }
       await bookingService.respondToJoinRequest(bookingId, requestId, action === 'accept' ? 'accept' : 'reject');
       await markAsRead(notification.id);
-      await loadNotifications();
+      await notificationService.refresh();
     } catch (err) {
       setError(err?.error || `Failed to ${action} join request`);
     } finally {

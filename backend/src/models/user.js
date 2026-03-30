@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 
 
@@ -37,6 +38,18 @@ module.exports = (sequelize, DataTypes) => {
       // User can receive notifications
 
       User.hasMany(models.Notification, { foreignKey: 'userId', as: 'notifications' });
+
+      // User can participate in direct chat conversations and messages.
+
+      User.hasMany(models.ChatConversation, { foreignKey: 'userOneId', as: 'chatConversationsOne' });
+      User.hasMany(models.ChatConversation, { foreignKey: 'userTwoId', as: 'chatConversationsTwo' });
+      User.hasMany(models.ChatConversation, { foreignKey: 'createdBy', as: 'createdChatConversations' });
+      User.hasMany(models.ChatMessage, { foreignKey: 'senderId', as: 'sentChatMessages' });
+      User.hasMany(models.ChatMessage, { foreignKey: 'recipientId', as: 'receivedChatMessages' });
+
+      // User can write public field reviews
+
+      User.hasMany(models.FieldReview, { foreignKey: 'userId', as: 'fieldReviews' });
 
       // User can submit role requests and review them as an admin.
 
@@ -245,7 +258,8 @@ module.exports = (sequelize, DataTypes) => {
 
     timestamps: true,
 
-    paranoid: false 
+    paranoid: false,
+    hooks: buildRealtimeHooks('user')
 
   });
 

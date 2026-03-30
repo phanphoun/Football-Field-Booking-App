@@ -48,6 +48,32 @@ const bookingService = {
     return response;
   },
 
+  // Captain: request booking cancellation
+  requestCancellation: async (bookingId, reason = '') => {
+    try {
+      const response = await apiService.post(`/bookings/${bookingId}/cancellation-requests`, { reason });
+      return response;
+    } catch (error) {
+      if (error?.status === 404) {
+        const fallbackResponse = await apiService.put(`/bookings/${bookingId}`, {
+          status: 'cancelled',
+          cancellationReason: reason
+        });
+        return fallbackResponse;
+      }
+      throw error;
+    }
+  },
+
+  // Field owner/admin: approve or reject cancellation
+  decideCancellation: async (bookingId, action, decisionNote = '') => {
+    const response = await apiService.patch(`/bookings/${bookingId}/cancellation-requests/decision`, {
+      action,
+      decisionNote
+    });
+    return response;
+  },
+
   // Delete booking
   deleteBooking: async (bookingId) => {
     const response = await apiService.delete(`/bookings/${bookingId}`);
@@ -107,9 +133,12 @@ const bookingService = {
     return response;
   },
 
-  // Confirm booking
-  confirmBooking: async (bookingId) => {
-    const response = await apiService.put(`/bookings/${bookingId}`, { status: 'confirmed' });
+  // Confirm booking (optionally update start/end time while confirming)
+  confirmBooking: async (bookingId, options = {}) => {
+    const payload = { status: 'confirmed' };
+    if (options.startTime) payload.startTime = options.startTime;
+    if (options.endTime) payload.endTime = options.endTime;
+    const response = await apiService.put(`/bookings/${bookingId}`, payload);
     return response;
   },
 

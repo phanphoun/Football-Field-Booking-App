@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
-const formatNumber = (value) => Math.round(Number(value || 0)).toLocaleString();
+const formatNumber = (value, locale) => Math.round(Number(value || 0)).toLocaleString(locale);
 
-const formatCurrency = (value, currency = 'USD') => {
+const formatCurrency = (value, currency = 'USD', locale) => {
   const amount = Number(value || 0);
-  return amount.toLocaleString(undefined, { style: 'currency', currency });
+  return amount.toLocaleString(locale, { style: 'currency', currency });
 };
 
-const AnimatedStatValue = ({ value, type = 'number', currency = 'USD', className = '' }) => {
+const AnimatedStatValue = ({ value, type = 'number', currency = 'USD', locale, className = '' }) => {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
@@ -33,11 +33,15 @@ const AnimatedStatValue = ({ value, type = 'number', currency = 'USD', className
     return () => {
       if (frameId) window.cancelAnimationFrame(frameId);
     };
-  }, [value]);
+  }, [value, type, currency, locale]);
 
-  const formattedValue = type === 'currency' ? formatCurrency(displayValue, currency) : formatNumber(displayValue);
+  const formattedValue = type === 'currency' ? formatCurrency(displayValue, currency, locale) : formatNumber(displayValue, locale);
 
-  return <div className={className}>{formattedValue}</div>;
+  return (
+    <div className={className} data-i18n-ignore="true">
+      {formattedValue}
+    </div>
+  );
 };
 
 export default AnimatedStatValue;

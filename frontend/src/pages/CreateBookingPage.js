@@ -1,17 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarIcon, BuildingOfficeIcon, UsersIcon, CurrencyDollarIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import fieldService from '../services/fieldService';
 import teamService from '../services/teamService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
-// Render the create booking page.
+const TIME_OPTIONS = Array.from({ length: 15 }, (_, index) => {
+  const hour = index + 8;
+  return `${String(hour).padStart(2, '0')}:00`;
+});
+
+const splitLocalDateTime = (value) => {
+  const raw = String(value || '');
+  if (!raw.includes('T')) return { date: '', time: '' };
+  const [date, time] = raw.split('T');
+  return { date: date || '', time: (time || '').slice(0, 5) };
+};
+
+const combineLocalDateTime = (date, time) => {
+  if (!date || !time) return '';
+  return `${date}T${time}`;
+};
+
 const CreateBookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canCreateBooking = ['captain', 'field_owner', 'admin'].includes(user?.role);
+  const { version } = useRealtime();
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const [searchParams] = useSearchParams();
   const preselectedFieldId = searchParams.get('fieldId');
   const preselectedDay = searchParams.get('day');
@@ -44,6 +62,7 @@ const CreateBookingPage = () => {
     return toLocalInputValue(start);
   };
   const prefilledStartTime = getPrefilledStartTime();
+  const initialStartParts = splitLocalDateTime(prefilledStartTime);
   
   const [fields, setFields] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -58,7 +77,9 @@ const CreateBookingPage = () => {
     durationHours: initialDurationHours,
     notes: ''
   });
-  // Get discount percent for the current view.
+  const [startDateInput, setStartDateInput] = useState(initialStartParts.date);
+  const [startTimeInput, setStartTimeInput] = useState(initialStartParts.time);
+  const startDateInputRef = useRef(null);
   const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
   // Get discounted price for the current view.
   const getDiscountedPrice = (field) => {
@@ -72,14 +93,13 @@ const CreateBookingPage = () => {
     const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
   };
-  // Support sync end time from start and duration for this page.
-  const syncEndTimeFromStartAndDuration = (startTimeValue, durationHoursValue) => {
+  const syncEndTimeFromStartAndDuration = useCallback((startTimeValue, durationHoursValue) => {
     const startTime = new Date(startTimeValue);
     if (!startTimeValue || Number.isNaN(startTime.getTime())) return '';
     const durationHours = Number(durationHoursValue || 2);
     const endTime = new Date(startTime.getTime() + durationHours * 60 * 60 * 1000);
     return toLocalInputValue(endTime);
-  };
+  }, []);
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -87,7 +107,7 @@ const CreateBookingPage = () => {
       endTime: syncEndTimeFromStartAndDuration(prev.startTime, prev.durationHours)
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [version]);
 
   useEffect(() => {
     // Support fetch data for this page.
@@ -95,7 +115,7 @@ const CreateBookingPage = () => {
       try {
         setLoading(true);
         const [fieldsResponse, teamsResponse] = await Promise.all([
-          fieldService.getAllFields(),
+          fieldService.getAllFields({ status: 'available' }),
           teamService.getMyTeams()
         ]);
         
@@ -116,22 +136,31 @@ const CreateBookingPage = () => {
     fetchData();
   }, []);
 
-  // Handle change interactions.
+  useEffect(() => {
+    const nextStartTime = combineLocalDateTime(startDateInput, startTimeInput);
+    setFormData((prev) => ({
+      ...prev,
+      startTime: nextStartTime,
+      endTime: syncEndTimeFromStartAndDuration(nextStartTime, prev.durationHours)
+    }));
+  }, [startDateInput, startTimeInput, syncEndTimeFromStartAndDuration]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'startDate') {
+      setStartDateInput(value);
+      return;
+    }
+
+    if (name === 'startClockTime') {
+      setStartTimeInput(value);
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-
-    // Auto-calculate end time from selected duration.
-    if (name === 'startTime' && value) {
-      setFormData(prev => ({
-        ...prev,
-        startTime: value,
-        endTime: syncEndTimeFromStartAndDuration(value, prev.durationHours)
-      }));
-    }
 
     if (name === 'durationHours') {
       setFormData(prev => ({
@@ -142,7 +171,20 @@ const CreateBookingPage = () => {
     }
   };
 
-  // Calculate price from the current data.
+  const openStartDatePicker = () => {
+    const input = startDateInputRef.current;
+    if (!input) return;
+
+    input.focus();
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+      } catch (error) {
+        // Some browsers require a direct user gesture or do not fully support showPicker.
+      }
+    }
+  };
+
   const calculatePrice = () => {
     const field = Array.isArray(fields) ? fields.find(f => f.id === parseInt(formData.fieldId)) : null;
     if (!field || !formData.startTime || !formData.endTime) return 0;
@@ -156,6 +198,11 @@ const CreateBookingPage = () => {
 
   // Check whether book field is allowed.
   const canBookField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
+  const formatFieldOptionLabel = (field) => {
+    const name = String(field?.name || 'Unnamed field').trim();
+    if (name.length <= 38) return name;
+    return `${name.slice(0, 35).trim()}...`;
+  };
 
   // Handle submit interactions.
   const handleSubmit = async (e) => {
@@ -169,6 +216,11 @@ const CreateBookingPage = () => {
 
       if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
         setError('Please provide a valid date and time');
+        return;
+      }
+
+      if (isSelectedFieldClosedForChosenTime) {
+        setError('This field is closed for the selected date/time. Please choose another slot.');
         return;
       }
 
@@ -204,6 +256,29 @@ const CreateBookingPage = () => {
   const selectedField = Array.isArray(fields) ? fields.find(f => f.id === parseInt(formData.fieldId)) : null;
   const selectedTeam = Array.isArray(teams) ? teams.find(t => t.id === parseInt(formData.teamId)) : null;
   const totalPrice = calculatePrice();
+  const selectedStartDate = formData.startTime ? new Date(formData.startTime) : null;
+  const selectedEndDate = formData.endTime ? new Date(formData.endTime) : null;
+  const closureStartDate = selectedField?.closureStartAt ? new Date(selectedField.closureStartAt) : null;
+  const closureEndDate = selectedField?.closureEndAt ? new Date(selectedField.closureEndAt) : null;
+  const closureStartMs =
+    closureStartDate && !Number.isNaN(closureStartDate.getTime()) ? closureStartDate.getTime() : null;
+  const closureEndMs =
+    closureEndDate && !Number.isNaN(closureEndDate.getTime()) ? closureEndDate.getTime() : null;
+  const selectedStartMs =
+    selectedStartDate && !Number.isNaN(selectedStartDate.getTime()) ? selectedStartDate.getTime() : null;
+  const selectedEndMs =
+    selectedEndDate && !Number.isNaN(selectedEndDate.getTime()) ? selectedEndDate.getTime() : null;
+  const hasClosureWindow = closureStartMs !== null || closureEndMs !== null;
+  const selectedSlotOverlapsClosure =
+    hasClosureWindow &&
+    selectedStartMs !== null &&
+    selectedEndMs !== null &&
+    selectedStartMs < (closureEndMs ?? Number.POSITIVE_INFINITY) &&
+    selectedEndMs > (closureStartMs ?? Number.NEGATIVE_INFINITY);
+  const isSelectedFieldClosedForChosenTime =
+    Boolean(selectedField) &&
+    String(selectedField?.status || 'available').toLowerCase() !== 'available' &&
+    (!hasClosureWindow || selectedSlotOverlapsClosure);
   const rawAmenities = selectedField?.amenities;
   const selectedFieldAmenities = Array.isArray(rawAmenities)
     ? rawAmenities
@@ -224,7 +299,7 @@ const CreateBookingPage = () => {
       <div className="bg-white shadow rounded-lg p-8 text-center">
         <h1 className="text-2xl font-bold text-gray-900">Access Required</h1>
         <p className="mt-3 text-sm text-gray-600">
-          You need captain, field owner, or admin access to book fields.
+          You need captain or field owner access to book fields.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <button
@@ -267,6 +342,20 @@ const CreateBookingPage = () => {
           {error}
         </div>
       )}
+      {isSelectedFieldClosedForChosenTime && (
+        <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3">
+          <p className="text-sm font-semibold text-rose-800">Field is closed for selected time</p>
+          <p className="mt-1 text-xs text-rose-700">
+            {selectedField?.closureMessage || 'Please choose a different date/time or another field.'}
+          </p>
+          {(closureStartMs || closureEndMs) && (
+            <p className="mt-1 text-xs text-rose-700">
+              Closure window: {closureStartMs ? new Date(closureStartMs).toLocaleString() : 'No start'} -{' '}
+              {closureEndMs ? new Date(closureEndMs).toLocaleString() : 'No end'}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Booking Form */}
@@ -284,16 +373,29 @@ const CreateBookingPage = () => {
                   value={formData.fieldId}
                   onChange={handleChange}
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs sm:text-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
                 >
                   <option value="">Choose a field...</option>
                   {Array.isArray(fields) ? fields.map(field => (
                     <option key={field.id} value={field.id} disabled={!canBookField(field)}>
-                      {field.name} - ${getDiscountedPrice(field)}/hour{getDiscountPercent(field) > 0 ? ` (${getDiscountPercent(field)}% off)` : ''}{!canBookField(field) ? ` (${field.status})` : ''}
+                      {formatFieldOptionLabel(field)}
                     </option>
                   )) : null}
                 </select>
-                <p className="mt-2 text-xs text-gray-500">Only fields with status "available" can be booked.</p>
+                {selectedField ? (
+                  <div className="mt-2 rounded-md border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-xs text-gray-700">
+                    <div className="font-medium text-gray-900">{selectedField.name}</div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-gray-600">
+                      <span>${getDiscountedPrice(selectedField)}/hour</span>
+                      {getDiscountPercent(selectedField) > 0 ? (
+                        <span className="font-medium text-emerald-700">{getDiscountPercent(selectedField)}% off</span>
+                      ) : null}
+                      <span className="capitalize">Status: {selectedField.status || 'available'}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500">Only fields with status "available" can be booked.</p>
+                )}
               </div>
 
               {/* Team Selection */}
@@ -307,7 +409,7 @@ const CreateBookingPage = () => {
                   value={formData.teamId}
                   onChange={handleChange}
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs sm:text-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
                 >
                   <option value="">Choose a team...</option>
                   {Array.isArray(teams) ? teams.map(team => (
@@ -341,19 +443,41 @@ const CreateBookingPage = () => {
               {/* Date and Time */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
-                    Start Time *
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                    Date *
                   </label>
                   <input
-                    type="datetime-local"
-                    id="startTime"
-                    name="startTime"
-                    value={formData.startTime}
+                    ref={startDateInputRef}
+                    type="date"
+                    id="startDate"
+                    name="startDate"
+                    value={startDateInput}
                     onChange={handleChange}
-                    min={new Date().toISOString().slice(0, 16)}
+                    onClick={openStartDatePicker}
+                    min={new Date().toISOString().slice(0, 10)}
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    className="mt-1 block w-full cursor-pointer rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
                   />
+                </div>
+                <div>
+                  <label htmlFor="startClockTime" className="block text-sm font-medium text-gray-700">
+                    Start Time *
+                  </label>
+                  <select
+                    id="startClockTime"
+                    name="startClockTime"
+                    value={startTimeInput}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs sm:text-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
+                  >
+                    <option value="">Choose time...</option>
+                    {TIME_OPTIONS.map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label htmlFor="durationHours" className="block text-sm font-medium text-gray-700">
@@ -364,7 +488,7 @@ const CreateBookingPage = () => {
                     name="durationHours"
                     value={formData.durationHours}
                     onChange={handleChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-xs sm:text-sm focus:border-green-500 focus:outline-none focus:ring-green-500"
                   >
                     <option value="1">1 hour</option>
                     <option value="2">2 hours</option>
@@ -376,10 +500,20 @@ const CreateBookingPage = () => {
                     End Time (Auto) *
                   </label>
                   <input
-                    type="datetime-local"
+                    type="text"
                     id="endTime"
                     name="endTime"
-                    value={formData.endTime}
+                    value={
+                      formData.endTime
+                        ? new Date(formData.endTime).toLocaleString([], {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : ''
+                    }
                     readOnly
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-700"
@@ -414,7 +548,7 @@ const CreateBookingPage = () => {
         </button>
                 <button
                   type="submit"
-                  disabled={submitting || !hasTeams}
+                  disabled={submitting || !hasTeams || isSelectedFieldClosedForChosenTime}
                   className="px-4 py-2 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                 >
                   {submitting ? 'Creating...' : 'Create Booking'}

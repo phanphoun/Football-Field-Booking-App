@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import bookingService from '../services/bookingService';
 import teamService from '../services/teamService';
 import {
@@ -18,10 +19,9 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import { ConfirmationModal, ImagePreviewModal, useDialog } from '../components/ui';
+import { compressImageForUpload } from '../utils/imageCompression';
+import { buildAssetUrl } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
-const DEFAULT_AVATAR_PATH = '/uploads/profile/default_profile.jpg';
 const MAX_AVATAR_SIZE_MB = 5;
 const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
 
@@ -45,24 +45,25 @@ const formatDate = (value) => {
 
 // Open native date picker in the UI.
 const openNativeDatePicker = (event) => {
+  event.currentTarget.focus();
   if (typeof event.currentTarget.showPicker === 'function') {
-    event.currentTarget.showPicker();
+    try {
+      event.currentTarget.showPicker();
+    } catch (_) {}
   }
 };
 
 // Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
-  if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
-  const normalizedLogoPath = rawLogo.startsWith('/') ? rawLogo : `/${rawLogo}`;
-  return `${API_ORIGIN}${normalizedLogoPath}`;
+  return buildAssetUrl(rawLogo, null);
 };
 
 // Render the profile page.
 const ProfilePage = () => {
-  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading } = useAuth();
+  const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loading, isLoggingOut } = useAuth();
+  const { version } = useRealtime();
   const navigate = useNavigate();
-  const location = useLocation();
   const { confirm } = useDialog();
   const isAdminUser = user?.role === 'admin';
   const isFieldOwner = user?.role === 'field_owner';
@@ -129,16 +130,12 @@ const ProfilePage = () => {
         URL.revokeObjectURL(avatarPreview);
       }
     };
-  }, [avatarPreview, isAdminUser, isFieldOwner]);
+  }, [avatarPreview, isAdminUser, isFieldOwner, version]);
 
   // Resolve d avatar url into a display-safe value.
   const resolvedAvatarUrl = (() => {
     if (avatarPreview) return avatarPreview;
-    const rawAvatar = user?.avatarUrl || user?.avatar_url;
-    if (!rawAvatar) return `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
-    if (/^https?:\/\//i.test(rawAvatar)) return rawAvatar;
-    const normalizedPath = rawAvatar.startsWith('/') ? rawAvatar : `/${rawAvatar}`;
-    return `${API_ORIGIN}${normalizedPath}`;
+    return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   })();
 
   // Handle change interactions.
@@ -203,13 +200,20 @@ const ProfilePage = () => {
     try {
       setError('');
       setSuccessMessage('');
+      const compressedFile = await compressImageForUpload(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        targetMaxBytes: 350 * 1024,
+        minCompressBytes: 120 * 1024
+      });
+
       if (avatarPreview) {
         URL.revokeObjectURL(avatarPreview);
       }
-      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarPreview(URL.createObjectURL(compressedFile));
 
       const uploadData = new FormData();
-      uploadData.append('avatar', file);
+      uploadData.append('avatar', compressedFile);
       const result = await uploadAvatar(uploadData);
 
       if (!result.success) {
@@ -250,11 +254,12 @@ const ProfilePage = () => {
 
   // Handle logout interactions.
   const handleLogout = async () => {
+    if (isLoggingOut) return;
     const confirmed = await confirm('Are you sure you want to logout?', { title: 'Logout' });
     if (!confirmed) return;
 
-    logout();
-    navigate('/login', { state: { backgroundLocation: location } });
+    await logout();
+    navigate('/', { replace: true });
   };
 
   return (
@@ -274,16 +279,25 @@ const ProfilePage = () => {
                 className="h-24 w-24 cursor-zoom-in rounded-full border-4 border-emerald-100 object-cover"
                 onClick={() => setImagePreviewOpen(true)}
                 onError={(event) => {
-                  const fallbackUrl = `${API_ORIGIN}${DEFAULT_AVATAR_PATH}`;
+                  const fallbackUrl = buildAssetUrl();
                   if (event.currentTarget.src !== fallbackUrl) {
                     event.currentTarget.src = fallbackUrl;
                   }
                 }}
               />
-              <label className="absolute bottom-0 right-0 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+              <label
+                htmlFor="avatar-upload"
+                className="absolute bottom-0 right-0 z-10 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm"
+              >
                 <CameraIcon className="h-4 w-4" />
-                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
               </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleAvatarUpload}
+              />
             </div>
 
             <div>
@@ -318,10 +332,11 @@ const ProfilePage = () => {
             <button
               type="button"
               onClick={handleLogout}
+              disabled={isLoggingOut}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             >
               <ArrowRightOnRectangleIcon className="h-4 w-4" />
-              Logout
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
             </button>
           </div>
         </div>
@@ -458,7 +473,7 @@ const ProfilePage = () => {
                               <img
                                 src={teamLogoUrl}
                                 alt={`${team.name} logo`}
-                                className="h-full w-full object-cover"
+                                className="h-full w-full object-contain p-1"
                                 onError={(event) => {
                                   event.currentTarget.style.display = 'none';
                                 }}
@@ -595,3 +610,4 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+

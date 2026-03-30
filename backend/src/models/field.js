@@ -1,4 +1,5 @@
 const { Model } = require('sequelize');
+const { buildRealtimeHooks } = require('../realtime/modelHooks');
 
 module.exports = (sequelize, DataTypes) => {
   class Field extends Model {
@@ -9,6 +10,7 @@ module.exports = (sequelize, DataTypes) => {
       Field.hasMany(models.Booking, { foreignKey: 'fieldId', as: 'bookings' });
       // Field can have ratings
       Field.hasMany(models.Rating, { foreignKey: 'fieldId', as: 'ratings' });
+      Field.hasMany(models.FieldReview, { foreignKey: 'fieldId', as: 'fieldReviews' });
     }
   }
 
@@ -47,6 +49,13 @@ module.exports = (sequelize, DataTypes) => {
       validate: {
         len: [1, 50],
         notEmpty: true
+      }
+    },
+    country: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        len: [0, 100]
       }
     },
     latitude: {
@@ -130,6 +139,18 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: false
     },
+    closureMessage: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    closureStartAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    closureEndAt: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     amenities: {
       type: DataTypes.JSON,
       allowNull: true,
@@ -176,7 +197,8 @@ module.exports = (sequelize, DataTypes) => {
         // Index for location-based queries (if using geographic queries)
         fields: ['province', 'city']
       }
-    ]
+    ],
+    hooks: buildRealtimeHooks('field')
   });
   return Field;
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BoltIcon,
@@ -12,25 +12,41 @@ import {
   CreditCardIcon,
   EnvelopeIcon,
   GiftIcon,
-  GlobeAltIcon,
   MapPinIcon,
   MagnifyingGlassIcon,
   PhoneIcon,
   SparklesIcon,
   TrophyIcon,
-  UsersIcon
+  UsersIcon,
+  WifiIcon,
+  CheckIcon,
+  ShieldCheckIcon,
+  LightBulbIcon,
+  CameraIcon,
+  CircleStackIcon,
+  CubeIcon,
+  WindowIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { useAuth } from '../context/AuthContext';
-import { EmptyState, Spinner } from '../components/ui';
+import { useLanguage } from '../context/LanguageContext';
+import { EmptyState, ScrollReveal, Spinner } from '../components/ui';
+import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
+import { APP_CONFIG } from '../config/appConfig';
 
 const HERO_IMAGES = [
   '/hero-manu.jpg',
-  'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg',
+  '/Manchester_City_pitch_invasion.JPG',
   'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg',
-  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Wembley_Stadium_interior.jpg/1280px-Wembley_Stadium_interior.jpg'
+  '/Wembley_Stadium_interior.jpg'
+];
+const HERO_SEARCH_OPTIONS = [
+  { value: 'field', labelKey: 'landing_hero_search_fields', fallback: 'Fields' },
+  { value: 'captain', labelKey: 'landing_hero_search_captains', fallback: 'Captains' },
+  { value: 'player', labelKey: 'landing_hero_search_players', fallback: 'Players' }
 ];
 
 const FIELD_FALLBACK_IMAGE =
@@ -42,93 +58,25 @@ const FEATURED_CARD_IMAGES = [
   'https://4kwallpapers.com/images/walls/thumbs_3t/19432.jpeg'
 ];
 const PREMIUM_GUARANTEE_ITEMS = [
-  { label: 'Daily Maintenance', className: 'bg-emerald-100 text-emerald-700' },
-  { label: 'Professional Standards', className: 'bg-blue-100 text-blue-700' },
-  { label: 'Safety Certified', className: 'bg-violet-100 text-violet-700' },
-  { label: 'Eco Friendly', className: 'bg-amber-100 text-amber-700' }
+  { key: 'daily_maintenance', className: 'bg-emerald-100 text-emerald-700' },
+  { key: 'professional_standards', className: 'bg-blue-100 text-blue-700' },
+  { key: 'safety_certified', className: 'bg-violet-100 text-violet-700' },
+  { key: 'eco_friendly', className: 'bg-amber-100 text-amber-700' }
 ];
 
-const FEATURED_FALLBACK_FIELDS = [
-  {
-    id: 'fallback-1',
-    name: 'Premium Outdoor Field',
-    address: 'Downtown Sports Complex',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 80,
-    status: 'available',
-    images: [
-      'https://images.unsplash.com/photo-1509228627152-9cbb192e1400?auto=format&fit=crop&w=900&q=80'
-    ]
-  },
-  {
-    id: 'fallback-2',
-    name: 'Stadium Football Pitch',
-    address: 'City Stadium Arena',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 120,
-    status: 'available',
-    images: [
-      'https://img.freepik.com/premium-photo/soccer-field-background-with-illumination-green-grass-cloudy-sky-european-football-arena-with-white-goal-post-blurred-fans-playground-view-outdoor-sport-championship-match-game-space_497537-4167.jpg'
-    ]
-  },
-  {
-    id: 'fallback-3',
-    name: 'Indoor Football Arena',
-    address: 'Sports Hub Indoor',
-    city: 'Phnom Penh',
-    capacity: 14,
-    sessionDuration: 60,
-    pricePerHour: 100,
-    status: 'booked',
-    images: [
-      'https://4kwallpapers.com/images/walls/thumbs_3t/19436.jpg'
-    ]
-  },
-  {
-    id: 'fallback-4',
-    name: 'City Center Pitch',
-    address: 'Central Sports Park',
-    city: 'Phnom Penh',
-    capacity: 18,
-    sessionDuration: 90,
-    pricePerHour: 95,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/02/b2/71/02b27138f9d525e29e0d22061e7059e5.jpg'
-    ]
-  },
-  
-  {
-    id: 'fallback-5',
-    name: 'Night Lights Field',
-    address: 'North Arena',
-    city: 'Phnom Penh',
-    capacity: 20,
-    sessionDuration: 90,
-    pricePerHour: 110,
-    status: 'available',
-    images: [
-      'https://i.pinimg.com/1200x/ea/2c/a5/ea2ca50f12b26c94d819ff8e9cfb3f00.jpg'
-    ]
-  },
-  {
-    id: 'fallback-6',
-    name: 'Champions Ground',
-    address: 'West Stadium',
-    city: 'Phnom Penh',
-    capacity: 22,
-    sessionDuration: 90,
-    pricePerHour: 130,
-    status: 'booked',
-    images: [
-      'https://i.pinimg.com/736x/c4/01/be/c401be8ee710e375cc1eda174943b546.jpg'
-    ]
-  }
-  
+const WORLD_CLASS_FACILITIES = [
+  { key: 'free_wifi', icon: WifiIcon, title: 'Free WiFi', description: 'High-speed internet available', iconBgColor: 'bg-blue-100', iconColor: 'text-blue-600', accentColor: 'border-blue-100' },
+  { key: 'free_parking', icon: CheckIcon, title: 'Free Parking', description: 'Ample parking space', iconBgColor: 'bg-emerald-100', iconColor: 'text-emerald-600', accentColor: 'border-emerald-100' },
+  { key: 'shower_rooms', icon: HomeIcon, title: 'Shower Rooms', description: 'Clean changing facilities', iconBgColor: 'bg-violet-100', iconColor: 'text-violet-600', accentColor: 'border-violet-100' },
+  { key: 'cctv_security', icon: CameraIcon, title: 'CCTV Security', description: '24/7 surveillance', iconBgColor: 'bg-rose-100', iconColor: 'text-rose-600', accentColor: 'border-rose-100' },
+  { key: 'led_floodlights', icon: LightBulbIcon, title: 'LED Floodlights', description: 'Professional lighting', iconBgColor: 'bg-amber-100', iconColor: 'text-amber-600', accentColor: 'border-amber-100' },
+  { key: 'cafeteria', icon: CubeIcon, title: 'Cafeteria', description: 'Snacks & beverages', iconBgColor: 'bg-orange-100', iconColor: 'text-orange-600', accentColor: 'border-orange-100' },
+  { key: 'first_aid', icon: ShieldCheckIcon, title: 'First Aid', description: 'Medical assistance ready', iconBgColor: 'bg-teal-100', iconColor: 'text-teal-600', accentColor: 'border-teal-100' },
+  { key: 'air_conditioned', icon: WindowIcon, title: 'Air Conditioned', description: 'Climate controlled rooms', iconBgColor: 'bg-cyan-100', iconColor: 'text-cyan-600', accentColor: 'border-cyan-100' },
+  { key: 'water_stations', icon: CircleStackIcon, title: 'Water Stations', description: 'Free drinking water', iconBgColor: 'bg-sky-100', iconColor: 'text-sky-600', accentColor: 'border-sky-100' },
+  { key: 'spectator_area', icon: UsersIcon, title: 'Spectator Area', description: 'Seating for supporters', iconBgColor: 'bg-indigo-100', iconColor: 'text-indigo-600', accentColor: 'border-indigo-100' },
+  { key: 'equipment_rental', icon: BuildingOfficeIcon, title: 'Equipment Rental', description: 'Balls, bibs & gear', iconBgColor: 'bg-pink-100', iconColor: 'text-pink-600', accentColor: 'border-pink-100' },
+  { key: 'lounge_area', icon: HomeIcon, title: 'Lounge Area', description: 'Comfortable waiting space', iconBgColor: 'bg-yellow-100', iconColor: 'text-yellow-600', accentColor: 'border-yellow-100' }
 ];
 
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
@@ -170,7 +118,35 @@ const rateToStatus = (rate) => {
   return 'Open';
 };
 
-// Map to tone for the current UI state.
+const GENERIC_FIELD_NAME_PATTERNS = [
+  /^field\s+\d+$/i,
+  /^premium outdoor field$/i,
+  /^stadium football pitch$/i,
+  /^indoor football arena$/i,
+  /^city center pitch$/i,
+  /^night lights field$/i,
+  /^champions ground$/i
+];
+
+const isGenericFieldName = (value) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) return true;
+  return GENERIC_FIELD_NAME_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+const buildAvailabilityCardTitle = (field, index) => {
+  const name = String(field?.name || '').trim();
+  if (!isGenericFieldName(name)) return name;
+
+  const locationLabel = String(field?.address || field?.city || '').trim();
+  const fieldTypeLabel = String(field?.fieldType || '').trim();
+
+  if (locationLabel && fieldTypeLabel) return `${locationLabel} ${fieldTypeLabel}`.trim();
+  if (locationLabel) return locationLabel;
+  if (fieldTypeLabel) return `${fieldTypeLabel} Field`;
+  return `Field ${index + 1}`;
+};
+
 const rateToTone = (rate) => {
   if (rate >= 80) return 'limited';
   if (rate >= 60) return 'moderate';
@@ -190,18 +166,71 @@ const buildPopularTimeSlotCard = (session, rate, extra = {}) => ({
   ...extra
 });
 
-// Apply star ratings to the current data.
-const applyStarRatings = (slots) => {
-  const rankedRates = [...new Set(slots.map((slot) => Number(slot.rate || 0)))].sort((a, b) => b - a);
+const roundToSingleDecimal = (value) => Math.round(value * 10) / 10;
 
-  return slots.map((slot) => {
-    const rank = rankedRates.indexOf(Number(slot.rate || 0));
-    const stars = Math.max(3, 5 - Math.min(rank, 2));
+const applyStarRatings = (slots) => {
+  const maxBookedMinutes = Math.max(...slots.map((slot) => Number(slot.bookedMinutes || 0)), 0);
+  const maxBookingCount = Math.max(...slots.map((slot) => Number(slot.bookingCount || 0)), 0);
+  const scoredSlots = slots.map((slot) => {
+    const occupancyScore = Math.max(0, Math.min(1, Number(slot.rate || 0) / 100));
+    const bookedMinutesScore =
+      maxBookedMinutes > 0 ? Math.max(0, Math.min(1, Number(slot.bookedMinutes || 0) / maxBookedMinutes)) : 0;
+    const bookingCountScore =
+      maxBookingCount > 0 ? Math.max(0, Math.min(1, Number(slot.bookingCount || 0) / maxBookingCount)) : 0;
+
+    // Popularity score based on real booking activity:
+    // occupancy matters most, then total booked time, then number of bookings.
+    const popularityScore =
+      occupancyScore * 0.5 +
+      bookedMinutesScore * 0.3 +
+      bookingCountScore * 0.2;
 
     return {
       ...slot,
-      stars,
-      rating: `${stars}.0`
+      occupancyScore,
+      popularityScore,
+      hasRealBookings: Number(slot.bookedMinutes || 0) > 0 || Number(slot.bookingCount || 0) > 0
+    };
+  });
+
+  const realScores = scoredSlots
+    .filter((slot) => slot.hasRealBookings)
+    .map((slot) => slot.popularityScore);
+  const minRealScore = realScores.length > 0 ? Math.min(...realScores) : 0;
+  const maxRealScore = realScores.length > 0 ? Math.max(...realScores) : 0;
+  const rankedKeys = [...scoredSlots]
+    .sort((a, b) => {
+      if (b.popularityScore !== a.popularityScore) return b.popularityScore - a.popularityScore;
+      if (b.bookedMinutes !== a.bookedMinutes) return b.bookedMinutes - a.bookedMinutes;
+      if (b.bookingCount !== a.bookingCount) return b.bookingCount - a.bookingCount;
+      return a.label.localeCompare(b.label);
+    })
+    .map((slot) => slot.key);
+
+  return scoredSlots.map((slot) => {
+    let ratingValue = 4.0;
+
+    if (slot.hasRealBookings) {
+      const normalizedScore =
+        maxRealScore > minRealScore
+          ? (slot.popularityScore - minRealScore) / (maxRealScore - minRealScore)
+          : slot.occupancyScore;
+
+      // Keep ratings high because these cards represent already-popular sessions,
+      // while still preserving real differences from booking activity.
+      ratingValue = roundToSingleDecimal(4.2 + normalizedScore * 0.7);
+    } else {
+      ratingValue = roundToSingleDecimal(3.8 + slot.occupancyScore * 0.4);
+    }
+
+    const rankIndex = rankedKeys.indexOf(slot.key);
+    const rankAdjustment = rankIndex >= 0 ? (rankedKeys.length - 1 - rankIndex) * 0.1 : 0;
+    ratingValue = roundToSingleDecimal(Math.min(4.9, ratingValue + rankAdjustment));
+
+    return {
+      ...slot,
+      stars: Math.max(1, Math.round(ratingValue)),
+      rating: ratingValue.toFixed(1)
     };
   });
 };
@@ -291,15 +320,17 @@ const getDiscountedFieldPrice = (field) => {
   const discountPercent = getFieldDiscountPercent(field);
   return Number((price * (1 - discountPercent / 100)).toFixed(2));
 };
-// Build discount offer description for rendering.
-const buildDiscountOfferDescription = (field) => {
+const buildDiscountOfferDescription = (field, t) => {
   const savedAmount = Number((Number(field?.pricePerHour || 0) - getDiscountedFieldPrice(field)).toFixed(2));
-  return `Save $${savedAmount}/hr on this field in ${field.city || field.province || 'your city'}.`;
+  return t(
+    'landing_discount_description',
+    'Save {{amount}}/hour on this field in {{city}}.',
+    { amount: savedAmount, city: field.city || field.province || t('landing_your_city', 'your city') }
+  );
 };
 const SCHEDULE_ROW_HEIGHT_CLASS = 'h-16';
-const SCHEDULE_COLUMN_MIN_WIDTH = 220;
-const SCHEDULE_TIME_COLUMN_WIDTH_CLASS = 'w-28';
-// Support to local date key for this page.
+const SCHEDULE_COLUMN_MIN_WIDTH = 180;
+const SCHEDULE_TIME_COLUMN_WIDTH_CLASS = 'w-36';
 const toLocalDateKey = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -316,7 +347,18 @@ const parseSlotToMinutes = (slot) => {
   if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
   return h * 60 + m;
 };
-// Format slot to12h for display.
+const findEventsForSlot = (events, slot) => {
+  const slotMinutes = parseSlotToMinutes(slot);
+  if (!Number.isFinite(slotMinutes)) return [];
+  const slotEndMinutes = slotMinutes + 60;
+  return events.filter(
+    (event) =>
+      Number.isFinite(event.startMinutes) &&
+      Number.isFinite(event.endMinutes) &&
+      event.startMinutes < slotEndMinutes &&
+      slotMinutes < event.endMinutes
+  );
+};
 const formatSlotTo12h = (slot) => {
   const [h, m] = String(slot || '')
     .split(':')
@@ -326,26 +368,58 @@ const formatSlotTo12h = (slot) => {
   const hour12 = h % 12 || 12;
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
 };
-// Check whether booking active on schedule is true.
+const getFieldClosureTitle = (field, t) => {
+  const status = String(field?.status || '').toLowerCase();
+  if (status === 'maintenance') return t('field_status_maintenance', 'Under maintenance');
+  if (status === 'unavailable') return t('landing_closed_by_owner', 'Closed by owner');
+  return t('landing_closed', 'Closed');
+};
+const getFieldClosureReason = (field, t) => {
+  const reason = String(field?.closureMessage || '').trim();
+  const normalizedReason = reason.toLowerCase();
+  if (reason) {
+    if (normalizedReason === 'temporarily closed by field owner.') {
+      return t('landing_closure_reason_owner', 'The field owner has temporarily closed bookings for this field.');
+    }
+    return reason;
+  }
+
+  const status = String(field?.status || '').toLowerCase();
+  if (status === 'maintenance') return t('landing_closure_reason_maintenance', 'This field is currently under maintenance.');
+  if (status === 'unavailable') return t('landing_closure_reason_unavailable', 'The field owner has marked this field as unavailable.');
+  return t('landing_closure_reason_default', 'Bookings for this field are temporarily unavailable.');
+};
+const getFieldClosureReopenLabel = (field, t) => {
+  if (!field?.closureEndAt) return '';
+  const reopenDate = new Date(field.closureEndAt);
+  if (Number.isNaN(reopenDate.getTime())) return '';
+
+  return t('landing_reopens_on', 'Reopens {{date}}', {
+    date: reopenDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  });
+};
+const getHeroSearchPlaceholder = (type, t) => {
+  if (type === 'captain') {
+    return t('landing_hero_search_placeholder_captains', 'Search captain name, username, or team');
+  }
+
+  if (type === 'player') {
+    return t('landing_hero_search_placeholder_players', 'Search player name or public team');
+  }
+
+  return t('landing_hero_search_placeholder_fields', 'Search field name, city, or surface');
+};
 const isBookingActiveOnSchedule = (booking) =>
   booking?.status !== 'cancelled' && booking?.status !== 'completed';
-// Support find events for slot for this page.
-const findEventsForSlot = (events, slot) => {
-  if (!Array.isArray(events)) return [];
-  const slotMinutes = parseSlotToMinutes(slot);
-  if (slotMinutes === null) return [];
-  return events.filter(
-    (event) =>
-      event.startMinutes <= slotMinutes &&
-      slotMinutes < event.endMinutes
-  );
-};
-// Render the landing page.
 const LandingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const canCreateBooking = user?.role === 'captain';
+  const { t } = useLanguage();
+  const canCreateBooking = ['captain', 'field_owner'].includes(user?.role);
   const scheduleSectionRef = useRef(null);
   const [popularFields, setPopularFields] = useState([]);
   const [landingFields, setLandingFields] = useState([]);
@@ -358,6 +432,8 @@ const LandingPage = () => {
   const [scheduleFieldsData, setScheduleFieldsData] = useState([]);
   const [scheduleBookingsData, setScheduleBookingsData] = useState([]);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [heroSearchType, setHeroSearchType] = useState('field');
+  const [heroSearchTerm, setHeroSearchTerm] = useState('');
 
   useEffect(() => {
     // Support fetch landing data for this page.
@@ -367,7 +443,7 @@ const LandingPage = () => {
         setError(null);
 
         const [fieldsResult, bookingsResult] = await Promise.allSettled([
-          fieldService.getAllFields({ limit: 12 }),
+          fieldService.getAllFields({ limit: 12, status: 'available' }),
           bookingService.getPublicBookingStats({
             lookbackDays: 30,
             top: 7,
@@ -433,32 +509,46 @@ const LandingPage = () => {
 
   const whyChooseUs = useMemo(
     () => [
-      { title: 'Easy Booking', description: 'Reserve your field in a few clicks with clear schedules.', icon: CalendarIcon },
-      { title: 'Secure Payment', description: 'Reliable and secure transactions for every booking.', icon: CreditCardIcon },
-      { title: 'Flexible Hours', description: 'Morning to night slots for casual or competitive matches.', icon: ClockIcon },
-      { title: 'Best Prices', description: 'Transparent pricing with competitive rates from owners.', icon: TrophyIcon },
-      { title: 'Team Friendly', description: 'Build teams, invite players, and organize faster.', icon: UsersIcon },
-      { title: 'Premium Facilities', description: 'Discover fields with quality turf and useful amenities.', icon: BuildingOfficeIcon }
+      { title: t('landing_easy_booking', 'Easy Booking'), description: t('landing_easy_booking_desc', 'Reserve your field in just a few taps with a clear schedule.'), icon: CalendarIcon },
+      { title: t('landing_secure_payment', 'Secure Payment'), description: t('landing_secure_payment_desc', 'Reliable and secure transactions for every booking.'), icon: CreditCardIcon },
+      { title: t('landing_flexible_hours', 'Flexible Hours'), description: t('landing_flexible_hours_desc', 'Choose from morning to night for casual games or competitive matches.'), icon: ClockIcon },
+      { title: t('landing_best_prices', 'Best Prices'), description: t('landing_best_prices_desc', 'Transparent pricing with competitive rates from field owners.'), icon: TrophyIcon },
+      { title: t('landing_team_friendly', 'Team Friendly'), description: t('landing_team_friendly_desc', 'Create a team, invite players, and organize matches faster.'), icon: UsersIcon },
+      { title: t('landing_premium_facilities', 'Premium Facilities'), description: t('landing_premium_facilities_desc', 'Find fields with quality turf and useful amenities.'), icon: BuildingOfficeIcon }
     ],
-    []
+    [t]
   );
 
   const steps = useMemo(
     () => [
-      { id: '01', title: 'Browse Fields', description: 'Explore available football fields and compare options.', icon: MagnifyingGlassIcon },
-      { id: '02', title: 'Select Date & Time', description: 'Pick a slot that fits your team schedule.', icon: CalendarIcon },
-      { id: '03', title: 'Confirm Booking', description: 'Submit and receive booking confirmation quickly.', icon: CheckCircleIcon },
-      { id: '04', title: 'Play Your Game', description: 'Arrive, play, and enjoy your match.', icon: TrophyIcon }
+      { id: '01', title: t('landing_step_browse', 'Browse Fields'), description: t('landing_step_browse_desc', 'View available football fields and compare different options.'), icon: MagnifyingGlassIcon },
+      { id: '02', title: t('landing_step_select', 'Select Date and Time'), description: t('landing_step_select_desc', 'Choose the time that fits your team schedule.'), icon: CalendarIcon },
+      { id: '03', title: t('landing_step_confirm', 'Confirm Booking'), description: t('landing_step_confirm_desc', 'Send your request and get booking confirmation quickly.'), icon: CheckCircleIcon },
+      { id: '04', title: t('landing_step_play', 'Play the Match'), description: t('landing_step_play_desc', 'Show up, play, and enjoy your game.'), icon: TrophyIcon }
     ],
-    []
+    [t]
+  );
+
+  const upgradePrograms = useMemo(
+    () => [
+      {
+        roleKey: 'captain',
+        icon: UsersIcon,
+        audience: t('landing_upgrade_captain_audience', 'For players ready to lead'),
+        accent: 'from-emerald-500 to-green-600'
+      },
+      {
+        roleKey: 'field_owner',
+        icon: BuildingOfficeIcon,
+        audience: t('landing_upgrade_owner_audience', 'For field managers and entrepreneurs'),
+        accent: 'from-sky-500 to-cyan-600'
+      }
+    ],
+    [t]
   );
 
   const featuredFields = useMemo(() => {
-    const merged = [...popularFields];
-    for (let i = merged.length; i < 6; i += 1) {
-      merged.push(FEATURED_FALLBACK_FIELDS[i]);
-    }
-    return merged.slice(0, 6);
+    return popularFields.slice(0, 6);
   }, [popularFields]);
 
   const discountOffers = useMemo(() => {
@@ -475,14 +565,33 @@ const LandingPage = () => {
         field,
         icon: DISCOUNT_OFFER_ICONS[index % DISCOUNT_OFFER_ICONS.length],
         title: field.name,
-        description: buildDiscountOfferDescription(field),
+        description: buildDiscountOfferDescription(field, t),
         discountLabel: `${getFieldDiscountPercent(field)}% OFF`,
-        cityLabel: field.city || field.province || 'Featured field',
+        cityLabel: field.city || field.province || t('landing_featured_field', 'Featured field'),
         time: index === 0 ? '18:00' : index === 1 ? '17:00' : index === 2 ? '19:00' : '20:00'
       }));
-  }, [landingFields]);
+  }, [landingFields, t]);
 
   const featuredDiscountOffer = discountOffers[0] || null;
+
+  const handleUpgradeNow = (roleKey) => {
+    if (!isAuthenticated) {
+      navigate('/register', { state: { focusRoleRequest: roleKey, source: 'landing-upgrade' } });
+      return;
+    }
+
+    const settingsPath = user?.role === 'field_owner' ? '/owner/settings' : '/app/settings';
+    navigate(settingsPath, { state: { focusRoleRequest: roleKey, source: 'landing-upgrade' } });
+  };
+
+  const handleCallForDemo = (roleKey) => {
+    const plan = ROLE_UPGRADE_CONFIG[roleKey];
+    const subject = encodeURIComponent(`${plan?.title || 'Role upgrade'} demo request`);
+    const body = encodeURIComponent(
+      `Hello,\n\nI want a quick demo for ${plan?.title || 'this upgrade'}.\nPlease contact me with the next steps.\n`
+    );
+    window.location.href = `mailto:bookings@fieldbook.app?subject=${subject}&body=${body}`;
+  };
 
   const scheduleDays = useMemo(() => {
     const base = new Date();
@@ -552,6 +661,39 @@ const LandingPage = () => {
     return featuredFields;
   }, [scheduleFieldsData, featuredFields]);
   const scheduleTableMinWidth = `${Math.max(scheduleFields.length, 1) * SCHEDULE_COLUMN_MIN_WIDTH + 112}px`;
+  const getDayBoundsMs = useCallback((dayKey) => {
+    const day = new Date(`${dayKey}T00:00:00`);
+    if (Number.isNaN(day.getTime())) return null;
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(day);
+    end.setHours(23, 59, 59, 999);
+    return { startMs: start.getTime(), endMs: end.getTime() };
+  }, []);
+  const toMsOrNull = useCallback((value) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+  }, []);
+  const isFieldClosedForDay = useCallback((field, dayKey) => {
+    const status = String(field?.status || 'available').toLowerCase();
+    if (status === 'available') return false;
+
+    const bounds = getDayBoundsMs(dayKey);
+    if (!bounds) return true;
+
+    const closureStartMs = toMsOrNull(field?.closureStartAt);
+    const closureEndMs = toMsOrNull(field?.closureEndAt);
+    const hasWindow = closureStartMs !== null || closureEndMs !== null;
+
+    if (!hasWindow) return true;
+
+    const startsBeforeOrOnDay = closureStartMs === null || bounds.endMs >= closureStartMs;
+    const endsAfterDayStart = closureEndMs === null || bounds.startMs < closureEndMs;
+    return startsBeforeOrOnDay && endsAfterDayStart;
+  }, [getDayBoundsMs, toMsOrNull]);
+  const isFieldAvailable = useCallback((field, dayKey) => !isFieldClosedForDay(field, dayKey), [isFieldClosedForDay]);
+  const activeScheduleFieldsCount = scheduleFields.filter((field) => isFieldAvailable(field, selectedDay)).length;
 
   // Format hhmm for display.
   const formatHHMM = (value) =>
@@ -563,6 +705,9 @@ const LandingPage = () => {
       .map((booking) => {
         const start = formatHHMM(booking.startTime);
         const end = formatHHMM(booking.endTime);
+        const homeTeamName = booking.teamName || booking?.team?.name || 'Booked Slot';
+        const opponentTeamName = booking?.opponentTeam?.name || null;
+        const teamDisplay = opponentTeamName ? `${homeTeamName} vs ${opponentTeamName}` : homeTeamName;
         const isOwnBooking =
           Number(booking?.createdBy) === Number(user?.id) ||
           Number(booking?.team?.captainId) === Number(user?.id);
@@ -572,7 +717,7 @@ const LandingPage = () => {
           bookingId: booking.id,
           status: booking.status,
           fieldKey: booking.fieldId,
-          team: booking.teamName || booking?.team?.name || 'Booked Slot',
+          team: teamDisplay,
           start,
           end,
           startMinutes: parseSlotToMinutes(start),
@@ -582,6 +727,8 @@ const LandingPage = () => {
           tone:
             booking.status === 'pending'
               ? 'bg-amber-500'
+              : booking.status === 'cancellation_pending'
+              ? 'bg-orange-500'
               : isOwnBooking
               ? 'bg-emerald-600'
               : 'bg-red-600'
@@ -601,6 +748,7 @@ const LandingPage = () => {
     const thresholdMinutes = isTodaySchedule ? now.getHours() * 60 + now.getMinutes() : -1;
 
     return source.map((field, index) => {
+      const isFieldClosed = !isFieldAvailable(field, dayKey);
       const fieldId = Number(field.id);
       const fieldEvents = scheduleEvents.filter(
         (event) =>
@@ -621,14 +769,14 @@ const LandingPage = () => {
       const isBookedNow =
         isTodaySchedule &&
         fieldEvents.some((event) => event.startMinutes <= thresholdMinutes && thresholdMinutes < event.endMinutes);
-      const isAvailableNow = Boolean(currentSlot) && !isBookedNow;
+      const isAvailableNow = !isFieldClosed && Boolean(currentSlot) && !isBookedNow;
 
       const futureSlots = TIME_SLOTS.filter((slot) => {
         const slotMinutes = parseSlotToMinutes(slot);
         return Number.isFinite(slotMinutes) && slotMinutes > thresholdMinutes;
       });
 
-      const openSlots = futureSlots.filter((slot) => {
+      const openSlots = isFieldClosed ? [] : futureSlots.filter((slot) => {
         const slotMinutes = parseSlotToMinutes(slot);
         return !fieldEvents.some(
           (event) => event.startMinutes <= slotMinutes && slotMinutes < event.endMinutes
@@ -637,27 +785,29 @@ const LandingPage = () => {
 
       const nextAvailableTime = openSlots[0] || null;
       const nextLabel = isAvailableNow
-        ? 'Available now'
+        ? t('landing_available_now', 'Available now')
+        : isFieldClosed
+        ? t('landing_closed', 'Closed')
         : nextAvailableTime
-        ? `${isTodaySchedule ? 'Today' : dayLabel} ${formatSlotTo12h(nextAvailableTime)}`
-        : `${isTodaySchedule ? 'Today' : dayLabel} Fully booked`;
+        ? `${isTodaySchedule ? t('league_today', 'Today') : dayLabel} ${formatSlotTo12h(nextAvailableTime)}`
+        : `${isTodaySchedule ? t('league_today', 'Today') : dayLabel} ${t('landing_fully_booked', 'Fully booked')}`;
       const openSlotCount = openSlots.length + (isAvailableNow ? 1 : 0);
 
       return {
         id: field.id,
-        name: field.name || `Field ${index + 1}`,
-        location: field.address || field.city || 'Sports Complex',
+        name: buildAvailabilityCardTitle(field, index),
+        location: field.address || field.city || t('landing_sports_complex', 'Sports complex'),
         fieldType: field.fieldType || '11v11',
-        surfaceType: String(field.surfaceType || 'artificial_turf').replace('_', ' '),
+        surfaceType: String(field.surfaceType || t('landing_artificial_turf', 'artificial_turf')).replace('_', ' '),
         pricePerHour: Number(field.pricePerHour || 0),
         nextTime: nextAvailableTime,
         nextLabel,
         slotsLeft: openSlotCount,
         isAvailableNow,
-        isFullyBooked: !isAvailableNow && !nextAvailableTime
+        isFullyBooked: !isFieldClosed && !isAvailableNow && !nextAvailableTime
       };
     });
-  }, [scheduleDays, scheduleEvents, scheduleFields, selectedDay]);
+  }, [isFieldAvailable, scheduleDays, scheduleEvents, scheduleFields, selectedDay, t]);
 
   // Get day index for the current view.
   const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
@@ -665,7 +815,7 @@ const LandingPage = () => {
   // Support to field route for this page.
   const toFieldRoute = (field) => {
     if (!field) return '/fields';
-    return String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`;
+    return `/fields/${field.id}`;
   };
 
   // Handle prev day interactions.
@@ -697,7 +847,7 @@ const LandingPage = () => {
 
   // Handle book now interactions.
   const handleBookNow = (field, day = null, time = null) => {
-    if (!field || String(field.id).startsWith('fallback-')) {
+    if (!field) {
       navigate('/fields');
       return;
     }
@@ -713,6 +863,11 @@ const LandingPage = () => {
       navigate('/app/settings', {
         state: { focusRoleRequest: 'captain' }
       });
+      return;
+    }
+
+    if (!isFieldAvailable(field, day || selectedDay)) {
+      navigate(toFieldRoute(field));
       return;
     }
 
@@ -739,7 +894,7 @@ const LandingPage = () => {
     const preferredField =
       scheduleFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
       landingFields.find((f) => Number(f?.id) === Number(requestedFieldId)) ||
-      scheduleFields.find((f) => !String(f?.id || '').startsWith('fallback-'));
+      scheduleFields[0];
 
     if (preferredField) {
       handleBookNow(preferredField, day, preferredTime);
@@ -753,6 +908,25 @@ const LandingPage = () => {
       time: preferredTime
     });
     navigate(`/fields?${params.toString()}`);
+  };
+
+  const handleHeroSearchSubmit = (event) => {
+    event.preventDefault();
+
+    const params = new URLSearchParams({ focus: 'search' });
+    const trimmedSearchTerm = heroSearchTerm.trim();
+
+    if (trimmedSearchTerm) {
+      params.set('q', trimmedSearchTerm);
+    }
+
+    if (heroSearchType === 'field') {
+      navigate(`/fields?${params.toString()}`);
+      return;
+    }
+
+    params.set('type', heroSearchType);
+    navigate(`/teams?${params.toString()}`);
   };
   return (
     <div className="flex flex-col gap-14 bg-gradient-to-b from-emerald-50/70 via-white to-sky-50/40">
@@ -791,15 +965,81 @@ const LandingPage = () => {
             <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-emerald-200 backdrop-blur-sm">
                 <SparklesIcon className="h-4 w-4" />
-                Football booking, styled for speed
+                {t('landing_hero_badge', 'One search for players, captains, and fields')}
               </span>
               <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
-                Book the right field before the good slots disappear.
+                {t('landing_hero_title', 'Find your favorite players, captains, and fields.')}
               </h1>
               <p className="mt-5 max-w-3xl text-base leading-8 text-white/85 sm:text-xl">
-                Discover highly rated pitches, compare live schedules, and lock in the best session for your team in a few clicks.
+                {t(
+                  'landing_hero_description',
+                  'Search public teams, trusted captains, and available football fields before you book or request to join.'
+                )}
               </p>
+              <div className="mt-8 w-full max-w-3xl">
+                <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+                  {HERO_SEARCH_OPTIONS.map((option) => {
+                    const isActive = heroSearchType === option.value;
 
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setHeroSearchType(option.value)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                          isActive
+                            ? 'bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25'
+                            : 'border border-white/20 bg-white/10 text-white/85 hover:bg-white/20'
+                        }`}
+                      >
+                        {t(option.labelKey, option.fallback)}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <form
+                  onSubmit={handleHeroSearchSubmit}
+                  className="overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl shadow-slate-950/30"
+                >
+                  <div className="flex flex-col sm:flex-row">
+                    <input
+                      type="search"
+                      value={heroSearchTerm}
+                      onChange={(event) => setHeroSearchTerm(event.target.value)}
+                      placeholder={getHeroSearchPlaceholder(heroSearchType, t)}
+                      className="h-16 w-full flex-1 border-0 bg-white px-6 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none sm:text-lg"
+                    />
+                    <button
+                      type="submit"
+                      className="flex h-16 items-center justify-center gap-2 bg-emerald-500 px-8 text-base font-bold text-white transition hover:bg-emerald-600 sm:min-w-[180px] sm:text-lg"
+                    >
+                      <MagnifyingGlassIcon className="h-5 w-5" />
+                      {t('landing_hero_search_button', 'Search')}
+                    </button>
+                  </div>
+                </form>
+
+                <p className="mt-4 text-sm font-medium text-white/80 sm:text-base">
+                  {t('landing_hero_search_hint', 'Start with a quick search, then jump straight to live fields or public teams.')}
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-5 text-sm font-semibold text-white">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/fields')}
+                    className="underline decoration-white/60 underline-offset-4 transition hover:text-emerald-200"
+                  >
+                    {t('landing_hero_browse_fields', 'Browse live fields')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/teams')}
+                    className="underline decoration-white/60 underline-offset-4 transition hover:text-emerald-200"
+                  >
+                    {t('landing_hero_browse_teams', 'Explore teams, captains, and players')}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -845,14 +1085,16 @@ const LandingPage = () => {
       )}
 
       <section className="order-5 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/60 py-14">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <ArrowTrendingUpIcon className="h-4 w-4" />
-              Popular Sessions
+              {t('landing_popular_sessions_badge', 'Popular play times')}
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Popular Playing Sessions</h2>
-            <p className="mt-2 text-base text-slate-600">See which parts of the day are most popular and pick the session that fits your team</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">{t('landing_popular_sessions_title', 'Popular sessions')}</h2>
+            <p className="mt-2 text-base text-slate-600">
+              {t('landing_popular_sessions_subtitle', 'See which part of the day is busiest and choose the session that suits your team.')}
+            </p>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -861,17 +1103,35 @@ const LandingPage = () => {
                 <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70 blur-2xl transition group-hover:bg-emerald-200/80" />
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900">{slot.label}</h3>
+                    <h3 className="text-2xl font-bold text-slate-900">
+                      {slot.key === 'morning'
+                        ? t('landing_session_morning', 'Morning session')
+                        : slot.key === 'afternoon'
+                        ? t('landing_session_afternoon', 'Afternoon session')
+                        : t('landing_session_evening', 'Evening session')}
+                    </h3>
                     <div className="mt-3 flex items-center gap-2 text-base font-medium text-slate-500">
                       <ClockIcon className="h-5 w-5 text-emerald-600" />
                       <span>{slot.time}</span>
                     </div>
                   </div>
                   <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${slotToneClass(slot.tone)}`}>
-                    {slot.status}
+                    {slot.status === 'High Demand'
+                      ? t('landing_status_high_demand', 'High demand')
+                      : slot.status === 'Popular'
+                      ? t('landing_status_popular', 'Popular')
+                      : slot.status === 'Steady'
+                      ? t('landing_status_steady', 'Steady')
+                      : t('landing_status_open', 'Open')}
                   </span>
                 </div>
-                <p className="mt-4 text-sm leading-6 text-slate-600">{slot.description}</p>
+                <p className="mt-4 text-sm leading-6 text-slate-600">
+                  {slot.key === 'morning'
+                    ? t('landing_session_morning_desc', 'Cooler hours for teams that want an early start.')
+                    : slot.key === 'afternoon'
+                    ? t('landing_session_afternoon_desc', 'Balanced daytime and after-work demand for flexible match schedules.')
+                    : t('landing_session_evening_desc', 'Prime-time hours for busy matches under the lights.')}
+                </p>
 
                 <div className="mt-6 flex items-center gap-1">
                   {Array.from({ length: 5 }).map((_, index) => (
@@ -886,40 +1146,49 @@ const LandingPage = () => {
             ))}
           </div>
 
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-7 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-emerald-50/40 to-white py-16">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={40}>
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               <TrophyIcon className="h-4 w-4" />
               Live Field Discounts
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Special Deals & Discounts</h2>
-            <p className="mt-2 text-base text-slate-600">Real discounts from field owners, updated from the current fields on the platform.</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">{t('landing_discounts_title', 'Special Deals & Discounts')}</h2>
+            <p className="mt-2 text-base text-slate-600">{t('landing_discounts_subtitle', 'Real discounts from field owners, updated from the current fields on the platform.')}</p>
           </div>
 
           <div className="mt-8 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 p-6 text-white shadow-lg">
             <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <h3 className="text-4xl font-extrabold">
-                  {featuredDiscountOffer ? `${featuredDiscountOffer.discountLabel} at ${featuredDiscountOffer.field.name}` : 'Discounts Coming Soon'}
+                  {featuredDiscountOffer
+                    ? t('landing_discount_headline', '{{discount}} at {{field}}', {
+                        discount: featuredDiscountOffer.discountLabel,
+                        field: featuredDiscountOffer.field.name
+                      })
+                    : t('landing_discounts_coming_soon', 'Discounts Coming Soon')}
                 </h3>
                 <p className="mt-2 text-base text-emerald-50">
                   {featuredDiscountOffer
-                    ? `${featuredDiscountOffer.description} Book now before discounted slots fill up.`
-                    : 'Field owners can add discounts and they will appear here automatically.'}
+                    ? `${featuredDiscountOffer.description} ${t('landing_discount_summary_suffix', 'Book now before discounted slots fill up.')}`
+                    : t('landing_discounts_empty_description', 'Field owners can add discounts and they will appear here automatically.')}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2 text-sm font-semibold">
                   <span className="rounded-full bg-white/20 px-3 py-1">
-                    {featuredDiscountOffer ? `$${getDiscountedFieldPrice(featuredDiscountOffer.field).toFixed(2)}/hr` : 'No live offers'}
+                    {featuredDiscountOffer ? `$${getDiscountedFieldPrice(featuredDiscountOffer.field).toFixed(2)}/hr` : t('landing_no_live_offers', 'No live offers')}
                   </span>
                   <span className="rounded-full bg-white/20 px-3 py-1">
-                    {featuredDiscountOffer ? `Was $${Number(featuredDiscountOffer.field.pricePerHour || 0).toFixed(2)}/hr` : 'Check back later'}
+                    {featuredDiscountOffer
+                      ? `${t('landing_original_price', 'Original Price')} $${Number(featuredDiscountOffer.field.pricePerHour || 0).toFixed(2)}/hr`
+                      : t('landing_check_back_later', 'Check back later')}
                   </span>
                   <span className="rounded-full bg-white/20 px-3 py-1">
-                    {featuredDiscountOffer ? `${featuredDiscountOffer.field.city || featuredDiscountOffer.field.province || 'Featured city'}` : 'Check back later'}
+                    {featuredDiscountOffer
+                      ? `${featuredDiscountOffer.field.city || featuredDiscountOffer.field.province || t('landing_featured_city', 'Featured city')}`
+                      : t('landing_check_back_later', 'Check back later')}
                   </span>
                 </div>
               </div>
@@ -929,7 +1198,7 @@ const LandingPage = () => {
                 disabled={!featuredDiscountOffer}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700"
               >
-                {featuredDiscountOffer ? 'Book This Discount' : 'No Offer Yet'}
+                {featuredDiscountOffer ? t('landing_book_this_discount', 'Book This Discount') : t('landing_no_offer_yet', 'No Offer Yet')}
               </button>
             </div>
           </div>
@@ -948,20 +1217,20 @@ const LandingPage = () => {
                 <p className="mt-2 text-base text-slate-600">{offer.description}</p>
 
                 <div className="mt-4 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Field:</span>
+                  <span className="text-slate-500">{t('landing_discount_field_label', 'Field:')}</span>
                   <span className="font-semibold text-slate-800">{offer.field.name}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Location:</span>
+                  <span className="text-slate-500">{t('landing_discount_location_label', 'Location:')}</span>
                   <span className="font-semibold text-slate-800">{offer.cityLabel}</span>
                 </div>
                 <div className="mt-3 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-3 py-2">
                   <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>Original Price</span>
+                    <span>{t('landing_original_price', 'Original Price')}</span>
                     <span className="font-semibold text-slate-800">${Number(offer.field.pricePerHour || 0).toFixed(2)}/hr</span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
-                    <span>Discounted Price</span>
+                    <span>{t('landing_discounted_price', 'Discounted Price')}</span>
                     <span className="font-bold text-emerald-700">${getDiscountedFieldPrice(offer.field).toFixed(2)}/hr</span>
                   </div>
                 </div>
@@ -971,115 +1240,150 @@ const LandingPage = () => {
                   onClick={() => handleClaimOffer(offer, offer.time)}
                   className="mt-4 w-full rounded-xl bg-emerald-600 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
-                  Book Discounted Field
+                  {t('landing_book_discounted_field', 'Book Discounted Field')}
                 </button>
               </div>
             )) : (
               <div className="col-span-full rounded-2xl border border-dashed border-emerald-200 bg-white px-6 py-10 text-center text-slate-600">
-                No field discounts are active yet. When owners add discounts, this section will update automatically.
+                {t('landing_no_active_discounts', 'No field discounts are active yet. When owners add discounts, this section will update automatically.')}
               </div>
             )}
           </div>
 
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-6 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-sky-50/50 py-14">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={60}>
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-base font-semibold text-emerald-700">
               <BoltIcon className="h-4 w-4" />
-              Live Updates
+              {t('landing_live_fields_badge', 'Live field list')}
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-slate-900">Available Right Now</h2>
-            <p className="mt-2 text-base text-slate-600">Real-time availability - book instantly before slots fill up!</p>
+            <h2 className="mt-4 text-2xl font-bold text-slate-900">{t('landing_live_fields_title', 'Fields you can book today')}</h2>
+            <p className="mt-2 text-base text-slate-600">
+              {t('landing_live_fields_subtitle', 'Browse live football field options with pricing, location, and open booking times.')}
+            </p>
           </div>
 
-          <div className="mx-auto mt-8 grid max-w-6xl grid-cols-1 gap-4">
+            <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-5 lg:grid-cols-2">
             {availableNowCards.length > 0 ? (
-              availableNowCards.map((field, index) => (
-                <div
-                  key={`live-${field.id}-${index}`}
-                  className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-lg md:p-5"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0">
-                      <h3 className="truncate text-2xl font-bold text-slate-900">{field.name}</h3>
-                      <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                        <MapPinIcon className="h-4 w-4" />
-                        {field.location}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-                          <UsersIcon className="h-3.5 w-3.5 text-blue-600" />
-                          {field.fieldType}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
-                          {field.surfaceType}
-                        </span>
-                        <span
-                          className={`rounded-full px-2.5 py-1 font-semibold ${
-                            field.isFullyBooked
-                              ? 'bg-red-100 text-red-700'
+                availableNowCards.map((field, index) => (
+                  <div
+                    key={`live-${field.id}-${index}`}
+                    className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_22px_48px_rgba(15,23,42,0.09)]"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                            {t('landing_live_availability', 'Live availability')}
+                          </span>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                              field.isFullyBooked
+                                ? 'bg-red-100 text-red-700'
+                                : field.isAvailableNow
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {field.isFullyBooked
+                              ? t('landing_no_slots_left', 'No slots left')
                               : field.isAvailableNow
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-amber-100 text-amber-700'
+                                ? t('landing_available_now', 'Available now')
+                                : t('landing_slots_left', '{{count}} slots left', { count: field.slotsLeft })}
+                          </span>
+                        </div>
+                        <h3 className="mt-5 text-[1.25rem] font-black leading-[1.15] tracking-tight text-slate-950 break-words sm:text-[1.45rem]">
+                          {field.name}
+                        </h3>
+                        <p className="mt-2 flex items-start gap-2 text-sm leading-5 text-slate-500">
+                          <MapPinIcon className="mt-0.5 h-4 w-4 flex-none" />
+                          <span>{field.location}</span>
+                        </p>
+                      </div>
+
+                      <div className="w-fit rounded-2xl bg-emerald-50 px-4 py-3 text-right sm:min-w-[120px]">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {t('landing_price_label', 'Price')}
+                        </p>
+                        <div className="mt-1 whitespace-nowrap text-[1.7rem] font-black leading-none text-emerald-600 sm:text-[1.9rem]">
+                          ${field.pricePerHour}
+                          <span className="text-sm font-bold text-emerald-700 sm:text-base">/{t('field_per_hour_short', 'hr')}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-1 gap-4 rounded-[24px] border border-slate-200 bg-slate-50 px-5 py-5 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {t('landing_field_size', 'Field size')}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
+                          <UsersIcon className="h-5 w-5 text-blue-600" />
+                          <span>{field.fieldType}</span>
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          {t('landing_surface_type', 'Surface type')}
+                        </p>
+                        <div className="mt-2 break-words text-base font-bold text-slate-900 sm:text-lg">{field.surfaceType}</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 border-t border-slate-200 pt-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            {t('landing_next_available_label', 'Next available')}
+                          </p>
+                          <p
+                            className={`mt-2 break-words text-[1.1rem] font-black leading-tight sm:text-[1.3rem] ${
+                              field.isFullyBooked
+                                ? 'text-red-600'
+                                : field.isAvailableNow
+                                  ? 'text-emerald-600'
+                                  : 'text-amber-600'
+                            }`}
+                          >
+                            {field.nextLabel}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${
+                            field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'
                           }`}
                         >
-                          {field.isFullyBooked
-                            ? 'No slots left'
-                            : field.isAvailableNow
-                            ? 'Available now'
-                            : `${field.slotsLeft} slot${field.slotsLeft === 1 ? '' : 's'} left`}
+                          {t('landing_slots_left', '{{count}} slots left', { count: field.slotsLeft })}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex min-w-[150px] flex-col items-start gap-2 md:items-end">
-                      <div className="text-3xl font-extrabold text-emerald-600">${field.pricePerHour}/hr</div>
-                      <p
-                        className={`text-sm font-semibold ${
-                          field.isFullyBooked
-                            ? 'text-red-700'
-                            : field.isAvailableNow
-                            ? 'text-emerald-700'
-                            : 'text-amber-700'
-                        }`}
-                      >
-                        {field.nextLabel}
-                      </p>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          field.isFullyBooked || field.slotsLeft <= 1 ? 'bg-red-100 text-red-600' : 'invisible'
-                        }`}
-                      >
-                        {field.isFullyBooked ? 'Sold Out' : 'Filling Fast'}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={!field.nextTime}
-                        onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
-                        className={`mt-1 rounded-lg px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition ${
-                          field.nextTime
-                            ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700'
-                            : 'cursor-not-allowed bg-slate-300'
-                        }`}
-                      >
-                        {field.nextTime
-                          ? isAuthenticated && !canCreateBooking
-                            ? 'Request Captain Access'
-                            : 'Quick Book'
-                          : 'Sold Out'}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={!field.nextTime}
+                      onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
+                      className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
+                        field.nextTime
+                          ? 'bg-[#1fb455] hover:bg-[#18984a]'
+                          : 'cursor-not-allowed border border-slate-600 bg-slate-700 text-slate-300 shadow-none'
+                      }`}
+                    >
+                      {field.nextTime
+                        ? isAuthenticated && !canCreateBooking
+                          ? t('booking_request_captain', 'Request Captain Access')
+                          : t('landing_quick_book', 'Book Now')
+                        : t('landing_sold_out', 'Sold out')}
+                    </button>
                   </div>
-                </div>
               ))
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-white px-5 py-6 text-center text-sm text-slate-600 shadow-sm">
                 {scheduleLoading
-                  ? 'Loading live availability...'
-                  : 'No live availability data found for the selected day.'}
+                  ? t('landing_loading_live_availability', 'Loading live availability...')
+                  : t('landing_no_live_availability', 'No live availability data for the selected day.')}
               </div>
             )}
           </div>
@@ -1090,21 +1394,23 @@ const LandingPage = () => {
               onClick={() => navigate('/fields?focus=search')}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
             >
-              View All Available Fields
-              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">24 more</span>
+              {t('landing_view_all_fields', 'View all available fields')}
+              <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">{t('landing_more_count', '24 more')}</span>
             </button>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Live Booking Schedule - Only visible to authenticated users */}
       {isAuthenticated && (
         <>
         <section ref={scheduleSectionRef} className="order-4 p-6 sm:p-8">
-          <div>
+          <ScrollReveal as="div" delay={80}>
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-slate-900">Live Booking Schedule</h2>
-              <p className="mt-2 text-base text-slate-600">Visual timeline of all field bookings - see who&apos;s playing when</p>
+              <h2 className="text-2xl font-bold text-slate-900">{t('landing_schedule_title', 'Live booking schedule')}</h2>
+              <p className="mt-2 text-base text-slate-600">
+                {t('landing_schedule_subtitle', 'See every field booking time at a glance to know who is playing when.')}
+              </p>
             </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
@@ -1140,15 +1446,15 @@ const LandingPage = () => {
                   className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
                 >
                   <div className="text-3xl font-bold text-emerald-600">{scheduleLoading ? '...' : scheduleEvents.length}</div>
-                  <div className="text-base text-slate-600">Total Bookings</div>
+                  <div className="text-base text-slate-600">{t('landing_total_bookings', 'Total bookings')}</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate('/fields')}
                   className="rounded-xl bg-white px-5 py-3 text-center shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
                 >
-                  <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : scheduleFields.length}</div>
-                  <div className="text-base text-slate-600">Active Fields</div>
+                  <div className="text-3xl font-bold text-blue-600">{scheduleLoading ? '...' : activeScheduleFieldsCount}</div>
+                  <div className="text-base text-slate-600">{t('landing_active_fields', 'Active fields')}</div>
                 </button>
               </div>
             </div>
@@ -1157,22 +1463,25 @@ const LandingPage = () => {
             <div style={{ minWidth: scheduleTableMinWidth }}>
             <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-700">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="font-semibold text-slate-800">Color guide:</span>
+                <span className="font-semibold text-slate-800">{t('landing_color_guide', 'Color guide')}:</span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-emerald-600" /> Your booking
+                  <span className="h-3 w-3 rounded-sm bg-emerald-600" /> {t('landing_your_booking', 'Your booking')}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-red-600" /> Other team (booked)
+                  <span className="h-3 w-3 rounded-sm bg-red-600" /> {t('landing_other_team_booked', 'Other team (booked)')}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-3 w-3 rounded-sm bg-amber-500" /> Pending (still bookable)
+                  <span className="h-3 w-3 rounded-sm bg-amber-500" /> {t('landing_pending_bookable', 'Pending (still bookable)')}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-3 w-3 rounded-sm bg-rose-600" /> {t('landing_field_closed', 'Field closed')}
                 </span>
               </div>
             </div>
               <div className="flex border-b border-slate-200 bg-blue-600 text-white">
-               <div className={`sticky left-0 z-10 ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} border-r border-white/20 bg-blue-700 p-4 font-semibold`}>
-                 Time
-               </div>
+               <div className={`sticky left-0 z-10 ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} whitespace-nowrap border-r border-white/20 bg-blue-700 p-4 font-semibold`}>
+                  {t('landing_time_field', 'Time / Field')}
+                </div>
                <div
                 className="grid flex-1"
                 style={{ gridTemplateColumns: `repeat(${scheduleFields.length}, minmax(${SCHEDULE_COLUMN_MIN_WIDTH}px, 1fr))` }}
@@ -1182,10 +1491,16 @@ const LandingPage = () => {
                     key={field.id}
                     type="button"
                     onClick={() => handleOpenFieldFromSchedule(field)}
-                    className="flex min-h-[86px] flex-col items-center justify-center border-l border-white/20 px-3 py-3 text-center text-sm font-semibold hover:bg-white/10"
+                    className={`flex min-h-[86px] flex-col items-center justify-center border-l px-3 py-3 text-center text-sm font-semibold ${
+                      isFieldAvailable(field, selectedDay)
+                        ? 'border-white/20 hover:bg-white/10'
+                        : 'border-rose-200/40 bg-rose-600/85'
+                    }`}
                   >
                     <div className="max-w-[180px] text-balance text-base font-semibold leading-tight">{field.name}</div>
-                    <div className="mt-1 text-xs font-medium opacity-90">{field.fieldType || 'Outdoor'}</div>
+                    <div className="mt-1 text-xs font-medium opacity-90">
+                      {isFieldAvailable(field, selectedDay) ? field.fieldType || t('landing_outdoor', 'Outdoor') : t('landing_closed', 'Closed')}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1196,7 +1511,7 @@ const LandingPage = () => {
               return (
                 <div key={slot} className="flex border-b border-slate-200 last:border-b-0">
                   <div
-                    className={`sticky left-0 z-[1] ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} border-r border-slate-200 bg-white p-2.5 text-left font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
+                    className={`sticky left-0 z-[1] ${SCHEDULE_TIME_COLUMN_WIDTH_CLASS} flex items-center justify-center border-r border-slate-200 bg-white p-2.5 text-center font-semibold text-slate-900 ${SCHEDULE_ROW_HEIGHT_CLASS}`}
                   >
                     <div className="text-sm leading-tight">{slot}</div>
                   </div>
@@ -1217,6 +1532,7 @@ const LandingPage = () => {
                         const slotTakenByOther = Boolean(slotOtherConfirmedEvent);
                         const slotTakenByMe = Boolean(slotOwnEvent);
                         const slotHasOtherPending = Boolean(slotOtherPendingEvent);
+                        const isFieldClosed = !isFieldAvailable(field, selectedDay);
 
                         // If there's a booking, show a colored block
                         if (slotTakenByMe || slotTakenByOther || slotHasOtherPending) {
@@ -1232,10 +1548,10 @@ const LandingPage = () => {
                               }`}
                               onClick={() => slotTakenByMe ? navigate('/app/bookings') : handleOpenFieldFromSchedule(field)}
                               title={slotTakenByMe
-                                ? 'Your booking - click to track'
+                                ? t('landing_your_booking_track', 'Your booking - click to track')
                                 : slotTakenByOther
-                                ? `${slotOtherConfirmedEvent.team} - Click to view field`
-                                : `${slotOtherPendingEvent.team} - Pending request`
+                                ? `${slotOtherConfirmedEvent.team} - ${t('landing_click_to_view_field', 'Click to view field')}`
+                                : `${slotOtherPendingEvent.team} - ${t('landing_pending_request', 'Pending request')}`
                               }
                             >
                               <div className="truncate font-bold">
@@ -1252,13 +1568,42 @@ const LandingPage = () => {
                           );
                         }
 
+                        // Closed fields should always show closed cells for empty slots.
+                        if (isFieldClosed) {
+                          const closureTitle = getFieldClosureTitle(field, t);
+                          const closureReason = getFieldClosureReason(field, t);
+                          const closureReopenLabel = getFieldClosureReopenLabel(field, t);
+                          return (
+                            <div
+                              key={`${field.id}-${slot}`}
+                              className="m-1 flex h-[56px] min-w-0 flex-col justify-center rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-rose-100 px-3 py-2 text-left shadow-sm"
+                              title={`${closureTitle}: ${closureReason}`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-500">
+                                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                  <span className="truncate">{closureTitle}</span>
+                                </div>
+                                {closureReopenLabel ? (
+                                  <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">
+                                    {closureReopenLabel}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="mt-1 line-clamp-2 text-xs font-medium leading-4 text-slate-900">
+                                <span className="font-semibold text-rose-700">{t('landing_reason', 'Reason')}:</span> {closureReason}
+                              </div>
+                            </div>
+                          );
+                        }
+
                         // If no booking, show empty cell
                         return (
                           <div
                             key={`${field.id}-${slot}`}
                             className="m-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors"
                             onClick={() => handleTimeSlotClick(field, slot)}
-                            title="Available - click to book"
+                            title={t('field_available_slot', 'Available - click to book')}
                           >
                             {/* Empty cell - just shows the time slot background */}
                           </div>
@@ -1271,20 +1616,22 @@ const LandingPage = () => {
             })}
             </div>
           </div>
-        </div>
+        </ScrollReveal>
         </section>
         </>
       )}
 
       <section className="order-3 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/40 py-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" delay={100}>
           <div className="mb-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1.5 text-sm font-semibold text-emerald-700">
             <BuildingOfficeIcon className="h-4 w-4" />
-            Editor&apos;s Picks
+            {t('landing_featured_badge', 'Featured picks')}
           </span>
-          <h2 className="mt-4 text-3xl font-black text-gray-900">Featured Football Fields</h2>
-          <p className="mt-2 text-base text-gray-600">Choose from top-rated football fields and see how other players score each venue</p>
+          <h2 className="mt-4 text-3xl font-black text-gray-900">{t('landing_featured_title', 'Featured football fields')}</h2>
+          <p className="mt-2 text-base text-gray-600">
+            {t('landing_featured_subtitle', 'Choose from highly rated football fields and see how other players review each one.')}
+          </p>
           </div>
 
           {loading ? (
@@ -1306,7 +1653,7 @@ const LandingPage = () => {
               return (
                 <Link
                   key={field.id}
-                  to={String(field.id).startsWith('fallback-') ? '/fields' : `/fields/${field.id}`}
+                  to={`/fields/${field.id}`}
                   className="group overflow-hidden rounded-[1.9rem] bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-2xl"
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
@@ -1328,7 +1675,7 @@ const LandingPage = () => {
                         isAvailable ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                       }`}
                     >
-                      {isAvailable ? 'Available' : 'Booked'}
+                      {isAvailable ? t('field_available', 'Available') : t('field_booked', 'Booked')}
                     </span>
                     <div className="absolute inset-x-0 bottom-0 p-4 text-white">
                       <div className="text-2xl font-black">{field.name}</div>
@@ -1344,11 +1691,11 @@ const LandingPage = () => {
                     <div className="flex items-center justify-between text-base text-gray-700">
                       <div className="flex items-center gap-2">
                         <UsersIcon className="h-5 w-5" />
-                        <span>{players} players</span>
+                        <span>{t('players_suffix', '{{count}} players', { count: players })}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <ClockIcon className="h-5 w-5" />
-                        <span>{duration} min</span>
+                        <span>{duration} {t('landing_minute_unit', 'min')}</span>
                       </div>
                     </div>
 
@@ -1360,21 +1707,27 @@ const LandingPage = () => {
                         />
                       ))}
                       <span className="ml-2 font-semibold text-slate-800">
-                        {rating > 0 ? rating.toFixed(1) : 'New'}
+                        {rating > 0 ? rating.toFixed(1) : t('landing_rating_new', 'New')}
                       </span>
                       <span className="text-slate-500">
-                        {totalRatings > 0 ? `(${totalRatings} ratings)` : '(No ratings yet)'}
+                        {totalRatings > 0
+                          ? `(${t('landing_ratings_count', '{{count}} ratings', { count: totalRatings })})`
+                          : `(${t('fields_no_rating_yet', 'No ratings yet')})`}
                       </span>
                     </p>
 
                     <div className="flex items-end justify-between gap-4">
                       <div className="text-4xl font-bold leading-none text-green-600">
                       ${Number.isFinite(price) ? price.toFixed(0) : 0}
-                      <span className="ml-1 text-xl font-semibold text-green-700">/session</span>
+                      <span className="ml-1 text-xl font-semibold text-green-700">/{t('landing_session_unit', 'session')}</span>
                       </div>
                       <p className="text-right text-sm leading-5 text-slate-600">
-                        <span className="font-semibold text-slate-700">Best for:</span>{' '}
-                        <span className="font-semibold text-emerald-800">{players >= 20 ? 'Full squads' : 'Quick matches'}</span>
+                        <span className="font-semibold text-slate-700">{t('landing_best_for', 'Best for')}:</span>{' '}
+                        <span className="font-semibold text-emerald-800">
+                          {players >= 20
+                            ? t('landing_full_squads', 'Full squads')
+                            : t('landing_quick_matches', 'Quick matches')}
+                        </span>
                       </p>
                     </div>
 
@@ -1386,9 +1739,11 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                        className="w-full rounded-xl bg-[#1dbf5f] py-2 text-base font-semibold text-white shadow-sm transition hover:bg-[#18aa52]"
                       >
-                        {isAuthenticated && !canCreateBooking ? 'Request Captain Access' : 'Book Now'}
+                        {isAuthenticated && !canCreateBooking
+                          ? t('booking_request_captain', 'Request captain access')
+                          : t('action_book_now', 'Book now')}
                       </button>
                     ) : (
                       <button
@@ -1396,7 +1751,7 @@ const LandingPage = () => {
                         disabled
                         className="w-full cursor-not-allowed rounded-xl bg-emerald-500 py-2 text-base font-semibold text-white"
                       >
-                        Fully Booked
+                        {t('landing_fully_booked', 'Fully booked')}
                       </button>
                     )}
                   </div>
@@ -1407,17 +1762,17 @@ const LandingPage = () => {
           ) : (
             <EmptyState
               icon={BuildingOfficeIcon}
-              title="No fields yet"
-              description="Once owners add fields, they will appear here for guests."
-              actionLabel="Browse Fields"
+              title={t('owner_no_fields_title', 'No fields yet')}
+              description={t('landing_no_fields_guest', 'When field owners add venues, they will appear here for guests.')}
+              actionLabel={t('landing_browse_fields', 'Browse fields')}
               onAction={() => (window.location.href = '/fields')}
             />
           )}
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-8 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-sky-50/40 to-white py-10">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10" delay={120}>
           <div className="mb-8 text-center">
             <h2 className="text-2xl font-bold text-gray-900">Why Choose Us</h2>
             <p className="mt-2 text-gray-600">We make football field booking simple, secure, and convenient.</p>
@@ -1436,88 +1791,197 @@ const LandingPage = () => {
               </div>
             ))}
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="order-9 rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm sm:p-8">
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900">How It Works</h2>
-          <p className="mt-2 text-gray-600">Book your football field in four simple steps.</p>
-        </div>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step) => (
-            <div key={step.id} className="rounded-xl border border-green-100 bg-white p-5 text-center transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="mx-auto relative mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-green-300 bg-green-50">
-                <step.icon className="h-7 w-7 text-green-700" />
-                <span className="absolute -right-2 -top-2 rounded-full bg-green-600 px-2 py-0.5 text-xs font-semibold text-white">
-                  {step.id}
-                </span>
+        <ScrollReveal as="div" delay={140}>
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl font-bold text-gray-900">How It Works</h2>
+            <p className="mt-2 text-gray-600">Book your football field in four simple steps.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step) => (
+              <div key={step.id} className="rounded-xl border border-green-100 bg-white p-5 text-center transition hover:-translate-y-1 hover:shadow-lg">
+                <div className="mx-auto relative mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-green-300 bg-green-50">
+                  <step.icon className="h-7 w-7 text-green-700" />
+                  <span className="absolute -right-2 -top-2 rounded-full bg-green-600 px-2 py-0.5 text-xs font-semibold text-white">
+                    {step.id}
+                  </span>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">{step.title}</h3>
+                <p className="mt-2 text-base text-gray-600">{step.description}</p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">{step.title}</h3>
-              <p className="mt-2 text-base text-gray-600">{step.description}</p>
-            </div>
-          ))}
+            ))}
+          </div>
+        </ScrollReveal>
+      </section>
+
+      <section className="order-11 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-white py-16 sm:py-20">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={160}>
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">World-Class Facilities</h2>
+            <p className="mt-4 text-lg leading-8 text-slate-600">
+              Every field comes equipped with premium amenities to enhance your playing experience
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            {WORLD_CLASS_FACILITIES.map((facility) => {
+              const IconComponent = facility.icon;
+              return (
+                <div
+                  key={facility.title}
+                  className={`flex min-h-[180px] flex-col items-center justify-center rounded-[24px] border bg-white px-6 py-8 text-center shadow-[0_10px_30px_rgba(148,163,184,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(148,163,184,0.16)] ${facility.accentColor}`}
+                >
+                  <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${facility.iconBgColor}`}>
+                    <IconComponent className={`h-8 w-8 ${facility.iconColor}`} />
+                  </div>
+                  <h3 className="text-2xl font-semibold tracking-tight text-slate-900">{facility.title}</h3>
+                  <p className="mt-3 max-w-[220px] text-base leading-7 text-slate-500">{facility.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollReveal>
+      </section>
+
+      <section
+        id="account-upgrade"
+        className="order-10 scroll-mt-24 py-6"
+      >
+        <ScrollReveal as="div" className="mx-auto max-w-5xl text-center" delay={180}>
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-1.5 text-sm font-semibold text-emerald-700 shadow-sm">
+              <BoltIcon className="h-4 w-4" />
+              Upgrade Your Account
+            </span>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Grow From Player To Organizer Or Venue Owner</h2>
+          </div>
+        </ScrollReveal>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {upgradePrograms.map((program) => {
+            const plan = ROLE_UPGRADE_CONFIG[program.roleKey];
+
+            return (
+              <div
+                key={program.roleKey}
+                className="rounded-[28px] border border-slate-200 bg-white p-5 text-center shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
+              >
+                <div className="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  {program.audience}
+                </div>
+                <h3 className="mt-3 text-[1.9rem] font-black tracking-tight text-slate-950">{plan.title}</h3>
+                <p className="mx-auto mt-3 max-w-xl text-[13px] leading-6 text-slate-600">{plan.description}</p>
+
+                <div className="mt-5">
+                  <div className="text-[3rem] font-black leading-none text-[#0ea765]">
+                    ${plan.feeUsd}
+                    <span className="ml-1 text-xl font-semibold text-slate-700">/one-time</span>
+                  </div>
+                  <p className="mt-2 text-[12px] font-medium text-slate-500">Admin approval included</p>
+                </div>
+
+                <div className="mt-7 space-y-3 text-left">
+                  {plan.benefits.map((benefit) => (
+                    <div key={benefit} className="flex items-start gap-3 text-sm text-slate-700">
+                      <span className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        <CheckCircleIcon className="h-3.5 w-3.5" />
+                      </span>
+                      <span>{benefit}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleUpgradeNow(program.roleKey)}
+                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-[#1fb455] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#18984a]"
+                >
+                  Book Now
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleCallForDemo(program.roleKey)}
+                  className="mt-3 inline-flex w-full items-center justify-center text-[11px] font-medium text-slate-500 transition hover:text-emerald-700"
+                >
+                  Need help? Call for Demo
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       <section className="order-12 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-gradient-to-b from-white to-emerald-50/50 py-8">
-        <div className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16">
+        <ScrollReveal as="div" className="mx-auto max-w-7xl px-6 sm:px-10 lg:px-16" delay={200}>
           <div className="rounded-2xl border border-emerald-200 bg-white px-6 py-8 text-center shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-900">Premium Experience Guaranteed</h2>
+            <h2 className="text-2xl font-bold text-slate-900">{t('landing_premium_experience_title', 'Premium Experience Guaranteed')}</h2>
             <p className="mx-auto mt-3 max-w-4xl text-base text-slate-600">
-              All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and
-              safety for all our customers. Every field is inspected daily and meets professional football standards.
+              {t(
+                'landing_premium_experience_subtitle',
+                'All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and safety for all our customers. Every field is inspected daily and meets professional football standards.'
+              )}
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               {PREMIUM_GUARANTEE_ITEMS.map((item) => (
-                <span key={item.label} className={`rounded-md px-4 py-2 text-sm font-semibold ${item.className}`}>
-                  {`✓ ${item.label}`}
+                <span key={item.key} className={`rounded-md px-4 py-2 text-sm font-semibold ${item.className}`}>
+                  {item.key === 'daily_maintenance'
+                    ? t('landing_premium_daily_maintenance', 'Daily Maintenance')
+                    : item.key === 'professional_standards'
+                    ? t('landing_premium_professional_standards', 'Professional Standards')
+                    : item.key === 'safety_certified'
+                    ? t('landing_premium_safety_certified', 'Safety Certified')
+                    : t('landing_premium_eco_friendly', 'Eco Friendly')}
                 </span>
               ))}
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       <footer className="order-last !mt-0 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen bg-slate-950 text-slate-100">
         <div className="mx-auto max-w-7xl px-6 py-12 sm:px-10">
-          <div className="grid grid-cols-1 gap-8 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500">
-                  <GlobeAltIcon className="h-6 w-6 text-slate-950" />
+          <div className="grid grid-cols-1 gap-8 border-b border-white/10 pb-10 md:grid-cols-2 lg:grid-cols-5">
+            <div className="lg:col-span-2">
+              <div className="inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.25)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-green-600 to-lime-500 text-sm font-black tracking-wide text-white shadow-[0_10px_24px_rgba(22,163,74,0.3)]">
+                  FB
                 </div>
-                <div>
-                  <div className="khmer-brand-font text-3xl font-extrabold tracking-tight text-white">អាណាចក្រភ្នំស្វាយ</div>
-                  <div className="text-sm text-emerald-300">Book football fields faster</div>
+                <div className="min-w-0">
+                  <div className="khmer-brand-font text-base font-semibold leading-[1.2] text-white sm:text-xl">
+                    {APP_CONFIG.brand.displayName}
+                  </div>
                 </div>
               </div>
               <p className="mt-5 max-w-sm text-base leading-7 text-slate-300">
-                A simple platform for discovering football venues, checking live availability, and booking the best session for your team.
+                {t('landing_footer_about', 'A simple platform for discovering football venues, checking live availability, and booking the best session for your team.')}
               </p>
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-white">Quick Links</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing_quick_links', 'Quick Links')}</h3>
               <div className="mt-4 space-y-3 text-sm text-slate-300">
-                <Link to="/fields" className="block transition hover:text-white">Browse Fields</Link>
-                <Link to="/teams" className="block transition hover:text-white">Teams</Link>
-                <Link to="/register" className="block transition hover:text-white">Register</Link>
-                <Link to="/login" className="block transition hover:text-white">Login</Link>
+                <Link to="/fields" className="block transition hover:text-white">{t('nav_fields', 'Fields')}</Link>
+                <Link to="/teams" className="block transition hover:text-white">{t('nav_teams', 'Teams')}</Link>
+                <Link to="/register" className="block transition hover:text-white">{t('nav_register', 'Register')}</Link>
+                <Link to="/login" className="block transition hover:text-white">{t('nav_login', 'Login')}</Link>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-white">Booking Info</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing_booking_info', 'Booking Info')}</h3>
               <div className="mt-4 space-y-3 text-sm text-slate-300">
-                <p>Open daily for football sessions from 08:00 to 22:00.</p>
-                <p>Compare field ratings, prices, and available slots in one place.</p>
-                <p>Best for quick matches, team training, and full-squad games.</p>
+                <p>{t('landing_booking_info_1', 'Open daily for football sessions from 08:00 to 22:00.')}</p>
+                <p>{t('landing_booking_info_2', 'Compare field ratings, prices, and available slots in one place.')}</p>
+                <p>{t('landing_booking_info_3', 'Best for quick matches, team training, and full-squad games.')}</p>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-white">Contact</h3>
+              <h3 className="text-lg font-bold text-white">{t('landing_contact', 'Contact')}</h3>
               <div className="mt-4 space-y-4 text-sm text-slate-300">
                 <div className="flex items-center gap-3">
                   <PhoneIcon className="h-4 w-4 text-emerald-300" />
@@ -1529,14 +1993,14 @@ const LandingPage = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPinIcon className="h-4 w-4 text-emerald-300" />
-                  <span>Phnom Penh, Cambodia</span>
+                  <span>{t('landing_contact_location', 'Phnom Penh, Cambodia')}</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-4 pt-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-            <p>អាណាចក្រភ្នំស្វាយ helps players and teams book football fields with less hassle.</p>
+            <p>{t('landing_footer_bottom', 'Football Field Booking helps players and teams book football fields with less hassle.')}</p>
             <div className="flex items-center gap-3">
               <a href="https://facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white transition hover:bg-white/10">
                 <span className="text-base font-semibold leading-none">f</span>

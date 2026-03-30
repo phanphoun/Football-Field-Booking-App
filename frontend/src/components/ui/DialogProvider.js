@@ -27,12 +27,22 @@ export const DialogProvider = ({ children }) => {
   const resolverRef = useRef(null);
 
   const closeDialog = useCallback((result) => {
+    const currentDialog = resolverRef.current ? dialogState : null;
+
     if (resolverRef.current) {
       resolverRef.current(result);
       resolverRef.current = null;
     }
+
     setDialogState(null);
-  }, []);
+
+    if (result) {
+      currentDialog?.onConfirm?.();
+      return;
+    }
+
+    currentDialog?.onClose?.();
+  }, [dialogState]);
 
   const confirm = useCallback((message, options = {}) => {
     return new Promise((resolve) => {
@@ -45,7 +55,9 @@ export const DialogProvider = ({ children }) => {
         cancelText: options.cancelText || DIALOG_STYLES.confirm.cancelText,
         badgeLabel: options.badgeLabel || DIALOG_STYLES.confirm.badgeLabel,
         variant: options.variant || DIALOG_STYLES.confirm.variant,
-        showCancel: true
+        showCancel: true,
+        onConfirm: options.onConfirm,
+        onClose: options.onClose
       });
     });
   }, []);
@@ -61,7 +73,9 @@ export const DialogProvider = ({ children }) => {
         cancelText: options.cancelText || DIALOG_STYLES.alert.cancelText,
         badgeLabel: options.badgeLabel || DIALOG_STYLES.alert.badgeLabel,
         variant: options.variant || DIALOG_STYLES.alert.variant,
-        showCancel: false
+        showCancel: false,
+        onConfirm: options.onConfirm,
+        onClose: options.onClose
       });
     });
   }, []);
@@ -81,7 +95,7 @@ export const DialogProvider = ({ children }) => {
         variant={dialogState?.variant || 'default'}
         showCancel={dialogState?.showCancel}
         onConfirm={() => closeDialog(true)}
-        onClose={() => closeDialog(dialogState?.type === 'confirm' ? false : true)}
+        onClose={() => closeDialog(false)}
       />
     </DialogContext.Provider>
   );

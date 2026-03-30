@@ -14,8 +14,11 @@ const formatMoney = (value) => {
 const AnalyticsPage = () => {
   // Open native date picker in the UI.
   const openNativeDatePicker = (event) => {
+    event.currentTarget.focus();
     if (typeof event.currentTarget.showPicker === 'function') {
-      event.currentTarget.showPicker();
+      try {
+        event.currentTarget.showPicker();
+      } catch (_) {}
     }
   };
 

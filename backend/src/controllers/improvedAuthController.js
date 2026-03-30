@@ -104,8 +104,19 @@ const updateProfile = asyncHandler(async (req, res) => {
  */
 const requestFieldOwnerRole = asyncHandler(async (req, res) => {
   try {
-    const userId = req.user.id;
-    const result = await authService.requestFieldOwnerRole(userId);
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+    }
+    
+    const requestData = req.body || {};
+    console.log('Field owner request submitted by user:', userId);
+    
+    const result = await authService.requestFieldOwnerRole(userId, requestData);
     
     res.status(201).json({
       success: true,
@@ -113,9 +124,11 @@ const requestFieldOwnerRole = asyncHandler(async (req, res) => {
       message: 'Field owner role request submitted successfully'
     });
   } catch (error) {
+    console.error('Field owner request error:', error.message);
     res.status(400).json({
       success: false,
-      message: error.message || 'Request failed'
+      message: error.message || 'Request failed',
+      error: error.message
     });
   }
 });

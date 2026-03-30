@@ -13,7 +13,7 @@ router.get('/captained', auth, checkRole(['player', 'captain', 'field_owner', 'a
 router.get('/', auth, teamController.getAllTeams);
 router.get('/:id', auth, ...idValidation, teamController.getTeamById);
 router.get('/:id/matches', auth, ...idValidation, teamController.getTeamMatchHistory);
-router.post('/', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...teamValidation.create, teamController.createTeam);
+router.post('/', auth, checkRole(['player', 'captain', 'field_owner']), ...teamValidation.create, teamController.createTeam);
 router.put('/:id', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.updateTeam);
 router.delete('/:id', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.deleteTeam);
 
@@ -29,6 +29,7 @@ router.delete('/:id/members/:userId', auth, checkRole(['player', 'captain', 'fie
 
 // Upload team logo
 router.post('/:id/logo', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.uploadTeamLogo);
+router.delete('/:id/logo', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, teamController.deleteTeamLogo);
 
 // Invitation endpoints
 router.post('/:id/invite', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), ...idValidation, ...require('../middleware/validation').teamValidation.invite, teamController.invitePlayer);
