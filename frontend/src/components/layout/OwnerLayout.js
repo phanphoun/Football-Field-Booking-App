@@ -20,6 +20,9 @@ import {
 } from '@heroicons/react/24/outline';
 import notificationService from '../../services/notificationService';
 import { ImagePreviewModal, useToast } from '../ui';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
+import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
 
@@ -37,7 +40,6 @@ const SidebarBrand = ({ collapsed = false }) => (
     </div>
     {!collapsed && (
       <div className="min-w-0 py-0.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-600">Football Arena</div>
         <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
           {BRAND_NAME}
         </div>
@@ -64,11 +66,12 @@ const OwnerLayout = () => {
   const [notificationActionLoading, setNotificationActionLoading] = useState(false);
   const notificationsMenuRef = useRef(null);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
   const settingsItem = {
-    name: 'Settings',
+    name: t('nav_settings', 'Settings'),
     href: '/owner/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/owner/settings'
@@ -77,31 +80,31 @@ const OwnerLayout = () => {
 
   const navigation = [
     {
-      name: 'Dashboard',
+      name: t('nav_dashboard', 'Dashboard'),
       href: '/owner/dashboard',
       icon: HomeIcon,
       current: location.pathname === '/owner/dashboard'
     },
     {
-      name: 'My Fields',
+      name: t('nav_my_fields', 'My Fields'),
       href: '/owner/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/owner/fields')
     },
     {
-      name: 'Leagues',
+      name: t('nav_leagues', 'Leagues'),
       href: '/owner/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/league')
     },
     {
-      name: 'Bookings',
+      name: t('nav_bookings', 'Bookings'),
       href: '/owner/bookings',
       icon: CalendarIcon,
       current: location.pathname.startsWith('/owner/bookings')
     },
     {
-      name: 'Matches',
+      name: t('nav_matches', 'Matches'),
       href: '/owner/matches',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/owner/matches')
@@ -487,7 +490,9 @@ const OwnerLayout = () => {
               </Link>
             </div>
 
-            <div className="ml-auto flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-3">
+              <ThemeToggle className="h-11 w-11" />
+              <LanguageSwitcher className="hidden lg:inline-flex" />
               <div className="relative" ref={notificationsMenuRef}>
                 <button
                   onClick={() => setNotificationsMenuOpen((prev) => !prev)}

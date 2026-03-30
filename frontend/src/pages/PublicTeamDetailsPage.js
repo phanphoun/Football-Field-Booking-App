@@ -34,7 +34,7 @@ const PublicTeamDetailsPage = () => {
   const canRequestJoin = () => {
     if (!isAuthenticated) return false;
     if (!user) return false;
-    if (!['player', 'captain', 'admin'].includes(user?.role || '')) return false;
+    if (!['player', 'captain', 'field_owner', 'admin'].includes(user?.role || '')) return false;
     // Prevent captains from joining their own teams
     if (team?.captainId === user?.id) return false;
     return true;
@@ -150,7 +150,7 @@ const PublicTeamDetailsPage = () => {
             <img
               src={teamLogoUrl}
               alt={`${team.name} logo`}
-              className="relative z-10 h-full w-full cursor-zoom-in object-cover"
+              className="relative z-10 h-full w-full cursor-zoom-in object-contain p-4"
               onClick={() => setImagePreviewOpen(true)}
               onError={(e) => {
                 e.currentTarget.style.display = 'none';

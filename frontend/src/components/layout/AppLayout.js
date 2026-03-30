@@ -25,6 +25,9 @@ import notificationService from '../../services/notificationService';
 import teamService from '../../services/teamService';
 import bookingService from '../../services/bookingService';
 import { ImagePreviewModal, useToast } from '../ui';
+import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
+import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
 
@@ -42,7 +45,6 @@ const SidebarBrand = ({ collapsed = false }) => (
     </div>
     {!collapsed && (
       <div className="min-w-0 py-0.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-600">Football Arena</div>
         <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
           {BRAND_NAME}
         </div>
@@ -69,11 +71,12 @@ const AppLayout = () => {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const notificationsMenuRef = useRef(null);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const userDisplayName =
     `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.username || 'User';
   const settingsItem = {
-    name: 'Settings',
+    name: t('nav_settings', 'Settings'),
     href: '/app/settings',
     icon: Cog6ToothIcon,
     current: location.pathname === '/app/settings' || location.pathname === '/app/admin/settings'
@@ -82,25 +85,25 @@ const AppLayout = () => {
 
   const navigation = [
     {
-      name: 'Dashboard',
+      name: t('nav_dashboard', 'Dashboard'),
       href: '/app/dashboard',
       icon: HomeIcon,
       current: location.pathname === '/app/dashboard'
     },
     {
-      name: 'Fields',
+      name: t('nav_fields', 'Fields'),
       href: '/app/fields',
       icon: BuildingOfficeIcon,
       current: location.pathname.startsWith('/app/fields')
     },
     {
-      name: 'Leagues',
+      name: t('nav_leagues', 'Leagues'),
       href: '/app/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/app/league')
     },
     {
-      name: 'Teams',
+      name: t('nav_teams', 'Teams'),
       href: '/app/teams',
       icon: UsersIcon,
       current: location.pathname.startsWith('/app/teams')
@@ -108,7 +111,7 @@ const AppLayout = () => {
     ...(['player', 'captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Bookings',
+            name: t('nav_bookings', 'Bookings'),
             href: '/app/bookings',
             icon: CalendarIcon,
             current: location.pathname.startsWith('/app/bookings')
@@ -118,13 +121,13 @@ const AppLayout = () => {
     ...(user?.role === 'admin'
       ? [
           {
-            name: 'Manage Users',
+            name: t('nav_manage_users', 'Manage Users'),
             href: '/app/admin/users',
             icon: UserCircleIcon,
             current: location.pathname.startsWith('/app/admin/users')
           },
           {
-            name: 'Role Requests',
+            name: t('nav_role_requests', 'Role Requests'),
             href: '/app/admin/role-requests',
             icon: ClipboardDocumentCheckIcon,
             current: location.pathname.startsWith('/app/admin/role-requests')
@@ -134,7 +137,7 @@ const AppLayout = () => {
     ...(['captain', 'field_owner'].includes(user?.role)
       ? [
           {
-            name: 'Open Matches',
+            name: t('nav_open_matches', 'Open Matches'),
             href: '/app/open-matches',
             icon: UsersIcon,
             current: location.pathname.startsWith('/app/open-matches')
@@ -146,21 +149,21 @@ const AppLayout = () => {
   const pageInfo = useMemo(() => {
     const path = location.pathname;
     const entries = [
-      { match: '/app/dashboard', title: 'Dashboard', subtitle: 'Overview of your activity and updates' },
-      { match: '/app/fields', title: 'Fields', subtitle: 'Browse and discover available football fields' },
-      { match: '/app/league', title: 'League', subtitle: 'Track fixtures, results, and standings' },
-      { match: '/app/teams', title: 'Teams', subtitle: 'Manage your team and membership requests' },
-      { match: '/app/bookings', title: 'Bookings', subtitle: 'Create and manage your field bookings' },
-      { match: '/app/open-matches', title: 'Open Matches', subtitle: 'Find and respond to open opponent matches' },
-      { match: '/app/notifications', title: 'Notifications', subtitle: 'Review invitations and request updates' },
-      { match: '/app/profile', title: 'Profile', subtitle: 'Update your account and preferences' },
-      { match: '/app/settings', title: 'Settings', subtitle: 'Manage account preferences and role requests' },
-      { match: '/app/admin/users', title: 'Manage Users', subtitle: 'Admin user management area' },
-      { match: '/app/admin/settings', title: 'Settings', subtitle: 'Admin configuration and controls' }
+      { match: '/app/dashboard', title: t('nav_dashboard', 'Dashboard'), subtitle: t('page_dashboard_subtitle', 'Overview of your activity and updates') },
+      { match: '/app/fields', title: t('nav_fields', 'Fields'), subtitle: t('page_fields_subtitle', 'Browse and discover available football fields') },
+      { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
+      { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
+      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
+      { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
+      { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
+      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
+      { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
+      { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
+      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: 'Admin configuration and controls' }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
-    return current || { title: APP_CONFIG.brand.displayName, subtitle: 'Welcome to your workspace' };
-  }, [location.pathname]);
+    return current || { title: APP_CONFIG.brand.displayName, subtitle: t('workspace_player', 'Player & Captain Panel') };
+  }, [location.pathname, t]);
   const showBackHomeButton = location.pathname.startsWith('/app');
   const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
   const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
@@ -862,7 +865,9 @@ const AppLayout = () => {
               )}
             </div>
 
-            <div className="ml-auto flex items-center space-x-4">
+            <div className="ml-auto flex items-center space-x-3">
+              <ThemeToggle className="h-11 w-11" />
+              <LanguageSwitcher className="hidden lg:inline-flex" />
               {/* Notifications dropdown */}
               <div
                 className="relative"
@@ -887,14 +892,14 @@ const AppLayout = () => {
                   <div className="absolute right-0 top-full pt-2 z-30 w-[min(92vw,380px)]">
                     <div className="rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                        <p className="text-sm font-semibold text-gray-900">{t('nav_notifications', 'Notifications')}</p>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={handleMarkAllAsRead}
                             disabled={notificationActionLoading || unreadNotifications === 0}
                             className="text-xs font-medium text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           >
-                            Mark all read
+                            {t('notifications_mark_all_read', 'Mark all read')}
                           </button>
                           <button
                             onClick={() => {
@@ -903,18 +908,18 @@ const AppLayout = () => {
                             }}
                             className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
                           >
-                            View all
+                            {t('dashboard_view_all', 'View all')}
                           </button>
                         </div>
                       </div>
 
                       <div className="max-h-[420px] overflow-y-auto">
                         {notificationsLoading ? (
-                          <div className="px-4 py-8 text-center text-sm text-gray-500">Loading...</div>
+                          <div className="px-4 py-8 text-center text-sm text-gray-500">{t('common_loading', 'Loading...')}</div>
                         ) : latestNotifications.length === 0 ? (
                           <div className="px-4 py-8 text-center">
                             <InboxIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500">No notifications yet.</p>
+                            <p className="text-sm text-gray-500">{t('notifications_empty_title', 'No notifications yet.')}</p>
                           </div>
                         ) : (
                           <div className="divide-y divide-gray-100">
@@ -976,7 +981,7 @@ const AppLayout = () => {
                                   </div>
                                   {!notification.isRead && (
                                     <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700">
-                                      New
+                                      {t('common_new', 'New')}
                                     </span>
                                   )}
                                 </div>
@@ -990,7 +995,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Accept
+                                         {t('teams_accept', 'Accept')}
                                       </button>
                                       <button
                                         onClick={() => handleInviteAction(notification, 'decline')}
@@ -998,7 +1003,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1011,7 +1016,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Leave
+                                         {t('notifications_approve_leave', 'Approve Leave')}
                                       </button>
                                       <button
                                         onClick={() => handleLeaveRequestAction(notification, 'decline')}
@@ -1019,7 +1024,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1032,7 +1037,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Join
+                                         {t('booking_approve_join', 'Approve Join')}
                                       </button>
                                       <button
                                         onClick={() => handleJoinRequestAction(notification, 'decline')}
@@ -1040,7 +1045,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1053,7 +1058,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                       >
                                         <CheckIcon className="h-3.5 w-3.5" />
-                                        Approve Join
+                                         {t('booking_approve_join', 'Approve Join')}
                                       </button>
                                       <button
                                         onClick={() => handleBookingJoinRequestAction(notification, 'decline')}
@@ -1061,7 +1066,7 @@ const AppLayout = () => {
                                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-red-700 disabled:opacity-50"
                                       >
                                         <XMarkIcon className="h-3.5 w-3.5" />
-                                        Decline
+                                         {t('teams_decline', 'Decline')}
                                       </button>
                                     </>
                                   )}
@@ -1072,7 +1077,7 @@ const AppLayout = () => {
                                       className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
                                     >
                                       <EyeIcon className="h-3.5 w-3.5" />
-                                      View Team
+                                      {t('notifications_view_team', 'View Team')}
                                     </button>
                                   )}
 
@@ -1082,7 +1087,7 @@ const AppLayout = () => {
                                       disabled={notificationActionLoading}
                                       className="inline-flex items-center rounded-md border border-emerald-200 px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
                                     >
-                                      Mark read
+                                      {t('notifications_mark_read', 'Mark read')}
                                     </button>
                                   )}
                                 </div>

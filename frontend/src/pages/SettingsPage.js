@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
 import authService from '../services/authService';
 import { useDialog, useToast } from '../components/ui';
+import LanguageSwitcher from '../components/common/LanguageSwitcher';
 import { ROLE_UPGRADE_CONFIG } from '../config/roleUpgradeConfig';
 
 const SETTINGS_DEVICE_PREFS_KEY = 'app_settings_device_preferences';
@@ -429,6 +430,16 @@ const SettingsPage = () => {
             </div>
 
             <div className="mt-6 space-y-4">
+              <div className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Language</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    Change the app language for this device.
+                  </p>
+                </div>
+                <LanguageSwitcher />
+              </div>
+
               <PreferenceToggle
                 title="Email updates"
                 description="Keep important account updates and approval decisions enabled."

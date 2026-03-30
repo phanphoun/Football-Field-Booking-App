@@ -7,6 +7,7 @@ import teamService from '../services/teamService';
 import notificationService from '../services/notificationService';
 import { ImagePreviewModal } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { useLanguage } from '../context/LanguageContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
@@ -30,6 +31,7 @@ const getCaptainName = (team) => team.captain?.firstName || team.captain?.userna
 const TeamsPage = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [teams, setTeams] = useState([]);
@@ -58,14 +60,14 @@ const TeamsPage = () => {
         setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
       } catch (err) {
         console.error('Failed to fetch teams:', err);
-        setError(err?.error || 'Failed to load teams');
+        setError(err?.error || t('teams_load_failed'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchTeamsAndInvitations();
-  }, [user?.id, isAdmin, version]);
+  }, [t, user?.id, isAdmin, version]);
 
   const handleCreateTeam = () => {
     navigate(`${basePath}/teams/create`);
@@ -81,7 +83,7 @@ const TeamsPage = () => {
       setTeams(teamsData);
     } catch (err) {
       console.error('Failed to join team:', err);
-      setError('Failed to join team');
+      setError(t('teams_join_failed'));
     }
   };
 
@@ -105,7 +107,7 @@ const TeamsPage = () => {
     if (!teamToDelete?.id) return;
     const message = deleteMessage.trim();
     if (!message) {
-      setError('Please enter a message to captain before deleting.');
+      setError(t('teams_delete_message_required'));
       return;
     }
 
@@ -134,7 +136,7 @@ const TeamsPage = () => {
       setTeams((prev) => prev.filter((item) => item.id !== teamId));
       closeDeleteDialog();
     } catch (err) {
-      setError(err?.error || 'Failed to delete team');
+      setError(err?.error || t('teams_delete_failed'));
     } finally {
       setDeletingTeamId(null);
     }
@@ -152,7 +154,7 @@ const TeamsPage = () => {
       setTeams(normalizeTeamsResponse(teamsRes.data));
       setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
     } catch (err) {
-      setError(err?.error || 'Failed to accept invitation');
+      setError(err?.error || t('teams_accept_invite_failed'));
     } finally {
       setActionLoading(false);
     }
@@ -166,7 +168,7 @@ const TeamsPage = () => {
       const invitationsRes = await teamService.getMyInvitations();
       setInvitations(Array.isArray(invitationsRes.data) ? invitationsRes.data : []);
     } catch (err) {
-      setError(err?.error || 'Failed to decline invitation');
+      setError(err?.error || t('teams_decline_invite_failed'));
     } finally {
       setActionLoading(false);
     }
@@ -201,33 +203,33 @@ const TeamsPage = () => {
     );
   };
 
-  const pageTitle = isAdmin ? 'All Teams' : 'My Teams';
+  const pageTitle = isAdmin ? t('teams_all') : t('teams_my');
   const pageDescription = isAdmin
-    ? 'Monitor every club on the platform, review activity, and step in when a team needs admin support.'
-    : 'Track your squads, review pending invitations, and jump into team management without bouncing between pages.';
+    ? t('teams_hub_admin_desc')
+    : t('teams_hub_desc');
   const summaryCards = [
     {
-      label: 'Active teams',
+      label: t('teams_hub_active_teams'),
       value: teams.length,
-      description: teams.length === 1 ? 'Team in your workspace' : 'Teams in your workspace',
+      description: teams.length === 1 ? t('teams_hub_workspace_single') : t('teams_hub_workspace_plural'),
       icon: UsersIcon,
       accent: 'from-emerald-500/15 via-emerald-500/5 to-transparent',
       iconClassName: 'text-emerald-600'
     },
     {
-      label: 'Pending invites',
+      label: t('teams_hub_pending_invites'),
       value: invitations.length,
-      description: invitations.length > 0 ? 'Need your response' : 'Nothing waiting right now',
+      description: invitations.length > 0 ? t('teams_hub_need_response') : t('teams_hub_nothing_waiting'),
       icon: BellAlertIcon,
       accent: 'from-amber-500/15 via-amber-500/5 to-transparent',
       iconClassName: 'text-amber-600'
     },
     {
-      label: isAdmin ? 'Admin access' : 'Team creation',
-      value: isAdmin ? 'Enabled' : (canCreateTeam ? 'Ready' : 'Locked'),
+      label: isAdmin ? t('teams_hub_admin_access') : t('teams_hub_creation'),
+      value: isAdmin ? t('teams_hub_enabled') : (canCreateTeam ? t('teams_hub_ready') : t('teams_hub_locked')),
       description: isAdmin
-        ? 'You can open or remove any team'
-        : (canCreateTeam ? 'You can create a new squad' : 'Captains and owners can create teams'),
+        ? t('teams_hub_admin_manage_desc')
+        : (canCreateTeam ? t('teams_hub_create_desc') : t('teams_hub_locked_desc')),
       icon: isAdmin ? ShieldCheckIcon : SparklesIcon,
       accent: 'from-sky-500/15 via-sky-500/5 to-transparent',
       iconClassName: 'text-sky-600'
@@ -253,7 +255,7 @@ const TeamsPage = () => {
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 shadow-sm">
                 <ShieldCheckIcon className="h-4 w-4" />
-                Team Hub
+                {t('teams_hub_badge')}
               </div>
               <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{pageTitle}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
@@ -263,13 +265,13 @@ const TeamsPage = () => {
 
             <div className="flex flex-wrap items-center gap-3 xl:justify-end">
               <span className="inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                {teams.length} {teams.length === 1 ? 'result' : 'results'}
+                {t('teams_results', '{{count}} results', { count: teams.length })}
               </span>
               <button
                 onClick={() => navigate('/teams')}
                 className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
               >
-                Browse Teams
+                {t('teams_browse')}
               </button>
               {canCreateTeam && (
                 <button
@@ -277,7 +279,7 @@ const TeamsPage = () => {
                   className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                 >
                   <PlusIcon className="mr-2 h-4 w-4" />
-                  Create Team
+                  {t('action_create_team')}
                 </button>
               )}
             </div>
@@ -321,9 +323,9 @@ const TeamsPage = () => {
           <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/70 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-amber-900 inline-flex items-center gap-2">
               <BellAlertIcon className="h-4 w-4" />
-              Team Invitations
+              {t('teams_invitations')}
             </h2>
-            <span className="text-xs text-amber-700">{invitations.length} pending</span>
+            <span className="text-xs text-amber-700">{t('teams_pending_count', '{{count}} pending', { count: invitations.length })}</span>
           </div>
           <div className="p-4 space-y-3">
             {invitations.map((team) => (
@@ -331,7 +333,7 @@ const TeamsPage = () => {
                 <div>
                   <div className="text-sm font-semibold text-gray-900">{team.name}</div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Invited by: {team.captain?.firstName || team.captain?.username || 'Captain'}
+                    {t('teams_invited_by', { name: team.captain?.firstName || team.captain?.username || t('teams_captain') })}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -341,7 +343,7 @@ const TeamsPage = () => {
                     className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
                   >
                     <CheckIcon className="h-4 w-4" />
-                    Accept
+                    {t('teams_accept')}
                   </button>
                   <button
                     onClick={() => handleDeclineInvite(team.id)}
@@ -349,13 +351,13 @@ const TeamsPage = () => {
                     className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                   >
                     <XMarkIcon className="h-4 w-4" />
-                    Decline
+                    {t('teams_decline')}
                   </button>
                   <button
                     onClick={() => handleViewTeam(team.id)}
                     className="px-3 py-2 rounded-md text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
                   >
-                    View Team
+                    {t('notifications_view_team')}
                   </button>
                 </div>
               </div>
@@ -389,15 +391,15 @@ const TeamsPage = () => {
                   <div className="absolute inset-0 flex items-center justify-center bg-gray-100/60">
                     <UsersIcon className="h-12 w-12 text-gray-300" />
                   </div>
-                  {teamLogoUrl && (
-                    <img
-                      src={teamLogoUrl}
-                      alt={`${team.name} logo`}
-                      className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain p-4"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
-                      }}
+                {teamLogoUrl && (
+                  <img
+                    src={teamLogoUrl}
+                    alt={`${team.name} logo`}
+                    className="absolute inset-0 z-10 h-full w-full cursor-zoom-in object-contain object-center p-4"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPreviewImage({ url: teamLogoUrl, title: `${team.name} image` });
+                    }}
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                       }}
@@ -409,25 +411,25 @@ const TeamsPage = () => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-lg font-semibold text-gray-900 truncate">{team.name}</h3>
-                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || 'No description available.'}</p>
+                      <p className="mt-1 text-sm text-gray-600 line-clamp-2">{team.description || t('teams_no_description')}</p>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 shrink-0">
-                      {getMemberCount(team)} members
+                      {t('profile_members_count', '{{count}} members', { count: getMemberCount(team) })}
                     </span>
                   </div>
 
                   <div className="mt-5 text-sm text-gray-600 space-y-1">
-                    <div>Captain: {captainName}</div>
+                    <div>{t('teams_captain_label', 'Captain: {{name}}', { name: captainName })}</div>
                     {team.skillLevel && (
                       <div className="flex items-center gap-2">
-                        <span>Skill:</span>
+                        <span>{t('teams_skill')}</span>
                         <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 capitalize">
-                          {team.skillLevel}
+                          {t(`teams_skill_${team.skillLevel}`, team.skillLevel)}
                         </span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <span>Jersey:</span>
+                      <span>{t('teams_jersey')}</span>
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1">
                           {jerseyColors.map((color, index) => (
@@ -444,9 +446,9 @@ const TeamsPage = () => {
                         event.stopPropagation();
                         handleViewTeam(team.id);
                       }}
-                      className="flex-1 border border-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-semibold"
-                    >
-                      View Details
+                    className="flex-1 border border-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-sm font-semibold"
+                  >
+                      {t('teams_view_details')}
                     </button>
                     {isAdmin && (
                       <button
@@ -457,7 +459,7 @@ const TeamsPage = () => {
                         disabled={deletingTeamId === team.id}
                         className="flex-1 border border-red-200 text-red-700 px-4 py-2 rounded-md hover:bg-red-50 transition-colors text-sm font-semibold disabled:opacity-60"
                       >
-                        {deletingTeamId === team.id ? 'Deleting...' : 'Delete'}
+                        {deletingTeamId === team.id ? t('common_deleting') : t('teams_delete')}
                       </button>
                     )}
                   </div>
@@ -468,16 +470,16 @@ const TeamsPage = () => {
         ) : (
           <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/80 px-6 py-14 text-center shadow-sm">
             <UsersIcon className="mx-auto h-12 w-12 text-slate-400" />
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">No teams found</h3>
+            <h3 className="mt-4 text-lg font-semibold text-slate-900">{t('teams_none_found')}</h3>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              Browse teams to request to join, or create your own team if you are a captain.
+              {t('teams_none_found_desc')}
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
               <button
                 onClick={() => navigate('/teams')}
                 className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                Browse Teams
+                {t('teams_browse')}
               </button>
               {canCreateTeam && (
                 <button
@@ -485,7 +487,7 @@ const TeamsPage = () => {
                   className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                 >
                   <PlusIcon className="mr-2 h-4 w-4" />
-                  Create Team
+                  {t('action_create_team')}
                 </button>
               )}
             </div>
@@ -497,18 +499,18 @@ const TeamsPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
             <div className="border-b border-gray-200 px-5 py-4">
-              <h2 className="text-lg font-semibold text-gray-900">Delete Team</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t('teams_delete_modal_title')}</h2>
               <p className="mt-1 text-sm text-gray-600">
-                Send a message to captain before deleting <span className="font-semibold">{teamToDelete.name}</span>.
+                {t('teams_delete_modal_desc', 'Send a message to captain before deleting {{team}}.', { team: teamToDelete.name })}
               </p>
             </div>
             <div className="px-5 py-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">Message to captain</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">{t('teams_message_to_captain')}</label>
               <textarea
                 value={deleteMessage}
                 onChange={(e) => setDeleteMessage(e.target.value)}
                 rows={4}
-                placeholder="Explain why this team is being deleted..."
+                placeholder={t('teams_delete_reason_placeholder')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
               />
             </div>
@@ -519,7 +521,7 @@ const TeamsPage = () => {
                 disabled={deletingTeamId === teamToDelete.id}
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {t('action_cancel')}
               </button>
               <button
                 type="button"
@@ -527,7 +529,7 @@ const TeamsPage = () => {
                 disabled={deletingTeamId === teamToDelete.id}
                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {deletingTeamId === teamToDelete.id ? 'Deleting...' : 'Send & Delete'}
+                {deletingTeamId === teamToDelete.id ? t('common_deleting') : t('teams_send_delete')}
               </button>
             </div>
           </div>
@@ -536,7 +538,7 @@ const TeamsPage = () => {
       <ImagePreviewModal
         open={Boolean(previewImage)}
         imageUrl={previewImage?.url}
-        title={previewImage?.title || 'Team image'}
+        title={previewImage?.title || t('teams_image')}
         onClose={() => setPreviewImage(null)}
       />
     </div>
