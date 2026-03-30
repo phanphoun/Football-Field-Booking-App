@@ -256,6 +256,36 @@ const formatPercentage = (value) => {
   return `${numeric.toFixed(1)}%`;
 };
 
+const buildDisplayTeamPerformance = (teams = []) => {
+  if (!Array.isArray(teams)) return [];
+
+  const nameCounts = teams.reduce((acc, team) => {
+    const name = (team?.teamName || 'Unknown Team').trim();
+    acc.set(name, (acc.get(name) || 0) + 1);
+    return acc;
+  }, new Map());
+
+  return teams.map((team) => {
+    const baseName = (team?.teamName || 'Unknown Team').trim();
+    const hasDuplicateName = (nameCounts.get(baseName) || 0) > 1;
+
+    return {
+      ...team,
+      teamName: hasDuplicateName ? `${baseName} #${team.teamId}` : baseName
+    };
+  });
+};
+
+const hasEnoughTeamPerformanceData = (teams = []) => {
+  if (!Array.isArray(teams) || teams.length < 5) return false;
+
+  const teamsWithResults = teams.filter((team) =>
+    castNumber(team?.wins) > 0 || castNumber(team?.draws) > 0 || castNumber(team?.losses) > 0
+  );
+
+  return teamsWithResults.length >= 5;
+};
+
 const StatCard = ({ icon: Icon, iconBg, label, value, trend, delay = 0 }) => (
   <div
     className="rounded-[24px] border border-slate-200 bg-white p-7 shadow-[0_10px_26px_rgba(15,23,42,0.10)] animate-fade-in"
@@ -307,8 +337,8 @@ const LineTrendChart = ({ data = [] }) => {
   const [activeIndex, setActiveIndex] = useState(null);
   const chartData = data.slice(-6);
   const width = 780;
-  const height = 390;
-  const padding = { top: 18, right: 22, bottom: 68, left: 74 };
+  const height = 420;
+  const padding = { top: 18, right: 22, bottom: 82, left: 74 };
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
   const maxValue = Math.max(
@@ -356,79 +386,81 @@ const LineTrendChart = ({ data = [] }) => {
           Only a small amount of real match data exists in this date range, so the trend line looks flat until activity appears.
         </div>
       ) : null}
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
-        {yTicks.map((tick) => {
-          const y = padding.top + innerHeight - (tick / roundedMax) * innerHeight;
-          return (
-            <g key={tick}>
-              <line
-                x1={padding.left}
-                y1={y}
-                x2={width - padding.right}
-                y2={y}
-                stroke="#d9e4f2"
-                strokeDasharray="4 6"
-              />
-              <text x={padding.left - 16} y={y + 5} textAnchor="end" fontSize="12" fill="#64748b">
-                {tick}
-              </text>
-            </g>
-          );
-        })}
-        {chartData.map((item, index) => {
-          const { x } = getPoint(item, index, 'matches');
-          return (
-            <g key={item.monthKey || index}>
-              <line
-                x1={x}
-                y1={padding.top}
-                x2={x}
-                y2={padding.top + innerHeight}
-                stroke={activeIndex === index ? '#cbd5e1' : '#d9e4f2'}
-                strokeDasharray={activeIndex === index ? undefined : '4 6'}
-                strokeWidth={activeIndex === index ? '1.5' : '1'}
-              />
-            </g>
-          );
-        })}
-        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + innerHeight} stroke="#94a3b8" strokeWidth="1.5" />
-        <line x1={padding.left} y1={padding.top + innerHeight} x2={width - padding.right} y2={padding.top + innerHeight} stroke="#94a3b8" strokeWidth="1.5" />
-        <polyline fill="none" stroke="#10b981" strokeWidth="4" points={pointsForKey('matches')} strokeLinecap="round" strokeLinejoin="round" />
-        <polyline fill="none" stroke="#3b82f6" strokeWidth="4" points={pointsForKey('goals')} strokeLinecap="round" strokeLinejoin="round" />
-        {chartData.map((item, index) => {
-          const { x, y: matchY } = getPoint(item, index, 'matches');
-          const { y: goalY } = getPoint(item, index, 'goals');
-          return (
-            <g
-              key={item.monthKey || item.monthLabel || index}
-              onMouseEnter={() => setActiveIndex(index)}
-              className="cursor-pointer"
-            >
-              <circle
-                cx={x}
-                cy={matchY}
-                r={activeIndex === index ? '5.5' : '5'}
-                fill="#ffffff"
-                stroke="#10b981"
-                strokeWidth={activeIndex === index ? '3.5' : '3'}
-              />
-              <circle
-                cx={x}
-                cy={goalY}
-                r={activeIndex === index ? '5.5' : '5'}
-                fill="#ffffff"
-                stroke="#3b82f6"
-                strokeWidth={activeIndex === index ? '3.5' : '3'}
-              />
-              <circle cx={x} cy={matchY} r="12" fill="transparent" />
-              <circle cx={x} cy={goalY} r="12" fill="transparent" />
-              <text x={x} y={height - 18} textAnchor="middle" fontSize="12" fill="#64748b">
-                {item.monthLabel}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+      <div className="h-[300px] w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
+          {yTicks.map((tick) => {
+            const y = padding.top + innerHeight - (tick / roundedMax) * innerHeight;
+            return (
+              <g key={tick}>
+                <line
+                  x1={padding.left}
+                  y1={y}
+                  x2={width - padding.right}
+                  y2={y}
+                  stroke="#d9e4f2"
+                  strokeDasharray="4 6"
+                />
+                <text x={padding.left - 16} y={y + 5} textAnchor="end" fontSize="12" fill="#64748b">
+                  {tick}
+                </text>
+              </g>
+            );
+          })}
+          {chartData.map((item, index) => {
+            const { x } = getPoint(item, index, 'matches');
+            return (
+              <g key={item.monthKey || index}>
+                <line
+                  x1={x}
+                  y1={padding.top}
+                  x2={x}
+                  y2={padding.top + innerHeight}
+                  stroke={activeIndex === index ? '#cbd5e1' : '#d9e4f2'}
+                  strokeDasharray={activeIndex === index ? undefined : '4 6'}
+                  strokeWidth={activeIndex === index ? '1.5' : '1'}
+                />
+              </g>
+            );
+          })}
+          <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + innerHeight} stroke="#94a3b8" strokeWidth="1.5" />
+          <line x1={padding.left} y1={padding.top + innerHeight} x2={width - padding.right} y2={padding.top + innerHeight} stroke="#94a3b8" strokeWidth="1.5" />
+          <polyline fill="none" stroke="#10b981" strokeWidth="4" points={pointsForKey('matches')} strokeLinecap="round" strokeLinejoin="round" />
+          <polyline fill="none" stroke="#3b82f6" strokeWidth="4" points={pointsForKey('goals')} strokeLinecap="round" strokeLinejoin="round" />
+          {chartData.map((item, index) => {
+            const { x, y: matchY } = getPoint(item, index, 'matches');
+            const { y: goalY } = getPoint(item, index, 'goals');
+            return (
+              <g
+                key={item.monthKey || item.monthLabel || index}
+                onMouseEnter={() => setActiveIndex(index)}
+                className="cursor-pointer"
+              >
+                <circle
+                  cx={x}
+                  cy={matchY}
+                  r={activeIndex === index ? '5.5' : '5'}
+                  fill="#ffffff"
+                  stroke="#10b981"
+                  strokeWidth={activeIndex === index ? '3.5' : '3'}
+                />
+                <circle
+                  cx={x}
+                  cy={goalY}
+                  r={activeIndex === index ? '5.5' : '5'}
+                  fill="#ffffff"
+                  stroke="#3b82f6"
+                  strokeWidth={activeIndex === index ? '3.5' : '3'}
+                />
+                <circle cx={x} cy={matchY} r="12" fill="transparent" />
+                <circle cx={x} cy={goalY} r="12" fill="transparent" />
+                <text x={x} y={height - 46} textAnchor="middle" fontSize="13" fontWeight="500" fill="#64748b">
+                  {item.monthLabel}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
       {activeItem && activePoint && activeMatchesPoint ? (
         <div
           className="absolute rounded-[20px] border border-slate-200 bg-white/98 px-4 py-4 shadow-[0_16px_32px_rgba(15,23,42,0.12)]"
@@ -448,16 +480,16 @@ const LineTrendChart = ({ data = [] }) => {
           </div>
         </div>
       ) : null}
-      <div className="mt-3 flex items-center justify-center gap-4 text-[0.95rem] font-medium">
-        <div className="flex items-center gap-1.5 text-emerald-500">
-          <span className="relative h-2 w-4">
+      <div className="mt-5 flex items-center justify-center gap-3 text-[0.9rem] font-medium">
+        <div className="flex items-center gap-1 text-emerald-500">
+          <span className="relative h-2 w-3.5">
             <span className="absolute left-0 top-1/2 h-[1.5px] w-4 -translate-y-1/2 bg-emerald-500" />
             <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-emerald-500 bg-white" />
           </span>
           Matches
         </div>
-        <div className="flex items-center gap-1.5 text-blue-500">
-          <span className="relative h-2 w-4">
+        <div className="flex items-center gap-1 text-blue-500">
+          <span className="relative h-2 w-3.5">
             <span className="absolute left-0 top-1/2 h-[1.5px] w-4 -translate-y-1/2 bg-blue-500" />
             <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-blue-500 bg-white" />
           </span>
@@ -550,15 +582,15 @@ const TeamPerformanceChart = ({ data = [] }) => {
     ...data.flatMap((team) => [castNumber(team.wins), castNumber(team.draws), castNumber(team.losses)])
   );
   const roundedMax = Math.max(6, Math.ceil(maxValue / 6) * 6);
-  const width = 980;
-  const height = 360;
-  const padding = { top: 20, right: 24, bottom: 72, left: 56 };
+  const width = 1080;
+  const height = 430;
+  const padding = { top: 24, right: 28, bottom: 92, left: 72 };
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
   const clusterWidth = innerWidth / Math.max(data.length, 1);
-  const totalBarArea = Math.min(96, clusterWidth * 0.54);
-  const barGap = Math.max(10, totalBarArea * 0.1);
-  const barWidth = Math.max(18, (totalBarArea - barGap * 2) / 3);
+  const totalBarArea = Math.min(112, clusterWidth * 0.56);
+  const barGap = Math.max(6, totalBarArea * 0.045);
+  const barWidth = Math.max(22, (totalBarArea - barGap * 2) / 3);
   const ticks = Array.from({ length: 5 }, (_, index) => Math.round((roundedMax / 4) * index));
   const activeTeam = activeTeamIndex !== null ? data[activeTeamIndex] : null;
   const clusterVisualWidth = barWidth * 3 + barGap * 2;
@@ -567,24 +599,34 @@ const TeamPerformanceChart = ({ data = [] }) => {
       ? padding.left + activeTeamIndex * clusterWidth + (clusterWidth - clusterVisualWidth) / 2
       : null;
 
+  useEffect(() => {
+    if (data.length === 0) {
+      setActiveTeamIndex(null);
+      return;
+    }
+  }, [data, activeTeamIndex]);
+
+  const handleTeamClick = (teamIndex) => {
+    setActiveTeamIndex((current) => (current === teamIndex ? null : teamIndex));
+  };
+
   return (
-    <div className="relative h-full overflow-x-auto" onMouseLeave={() => setActiveTeamIndex(null)}>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-full min-w-[860px] w-full overflow-visible">
+    <div className="relative h-full overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-full min-w-[980px] w-full overflow-visible">
         {ticks.map((tick) => {
           const y = padding.top + innerHeight - (tick / roundedMax) * innerHeight;
           return (
             <g key={tick}>
-              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#d9e4f2" strokeDasharray="4 6" />
-              <text x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="12" fill="#64748b">
+              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#d6e2f1" strokeDasharray="5 6" />
+              <text x={padding.left - 10} y={y + 6} textAnchor="end" fontSize="14" fill="#64748b">
                 {tick}
               </text>
             </g>
           );
         })}
         {data.map((team, teamIndex) => {
-          const clusterStart = padding.left + teamIndex * clusterWidth + (clusterWidth - clusterVisualWidth) / 2;
-          const hoverWidth = clusterVisualWidth + 42;
-          const hoverX = clusterStart - 17;
+          const hoverWidth = clusterWidth * 0.92;
+          const hoverX = padding.left + teamIndex * clusterWidth + (clusterWidth - hoverWidth) / 2;
           const centerX = padding.left + teamIndex * clusterWidth + clusterWidth / 2;
           return (
             <g key={`grid-${team.teamId || teamIndex}`}>
@@ -594,7 +636,8 @@ const TeamPerformanceChart = ({ data = [] }) => {
                   y={padding.top}
                   width={hoverWidth}
                   height={innerHeight}
-                  fill="rgba(15,23,42,0.20)"
+                  fill="rgba(148,163,184,0.16)"
+                  rx="20"
                 />
               ) : null}
               <line
@@ -602,14 +645,14 @@ const TeamPerformanceChart = ({ data = [] }) => {
                 y1={padding.top}
                 x2={centerX}
                 y2={padding.top + innerHeight}
-                stroke="#d9e4f2"
-                strokeDasharray="4 6"
+                stroke="#d6e2f1"
+                strokeDasharray="5 6"
               />
             </g>
           );
         })}
-        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + innerHeight} stroke="#94a3b8" strokeWidth="1.5" />
-        <line x1={padding.left} y1={padding.top + innerHeight} x2={width - padding.right} y2={padding.top + innerHeight} stroke="#94a3b8" strokeWidth="1.5" />
+        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={padding.top + innerHeight} stroke="#7b93b1" strokeWidth="1.5" />
+        <line x1={padding.left} y1={padding.top + innerHeight} x2={width - padding.right} y2={padding.top + innerHeight} stroke="#7b93b1" strokeWidth="1.5" />
         {data.map((team, teamIndex) => {
           const clusterStart = padding.left + teamIndex * clusterWidth + (clusterWidth - clusterVisualWidth) / 2;
           const bars = [
@@ -633,20 +676,22 @@ const TeamPerformanceChart = ({ data = [] }) => {
                     y={y}
                     width={barWidth}
                     height={barHeight}
-                    rx="7"
+                    rx="10"
                     fill={bar.color}
                     onMouseEnter={() => setActiveTeamIndex(teamIndex)}
+                    onClick={() => handleTeamClick(teamIndex)}
                     className="cursor-pointer"
                   />
                 );
               })}
               <text
                 x={clusterStart + clusterVisualWidth / 2}
-                y={height - 22}
+                y={height - 34}
                 textAnchor="middle"
-                fontSize="12"
+                fontSize="14"
                 fill="#64748b"
                 onMouseEnter={() => setActiveTeamIndex(teamIndex)}
+                onClick={() => handleTeamClick(teamIndex)}
                 className="cursor-pointer"
               >
                 {team.teamName}
@@ -657,30 +702,30 @@ const TeamPerformanceChart = ({ data = [] }) => {
       </svg>
       {activeTeam && activeClusterStart !== null ? (
         <div
-          className="pointer-events-none absolute rounded-[18px] border border-slate-200 bg-white/97 px-4 py-4 shadow-[0_16px_35px_rgba(15,23,42,0.10)]"
+          className="absolute rounded-[18px] border border-slate-200 bg-white/98 px-4 py-4 shadow-[0_16px_35px_rgba(15,23,42,0.10)]"
           style={{
-            left: `max(1rem, min(calc(100% - 12rem), ${((activeClusterStart + 80) / width) * 100}%))`,
-            top: '8.2rem',
-            width: '150px'
+            left: `max(1rem, min(calc(100% - 12rem), ${((activeClusterStart + 125) / width) * 100}%))`,
+            top: '6rem',
+            width: '170px'
           }}
         >
-          <div className="text-[1.05rem] font-medium text-slate-950">{activeTeam.teamName}</div>
+          <div className="text-[0.95rem] font-medium text-slate-950">{activeTeam.teamName}</div>
           <div className="mt-3 text-[0.95rem] font-medium text-emerald-500">{`Wins : ${castNumber(activeTeam.wins)}`}</div>
-          <div className="mt-3 text-[0.95rem] font-medium text-slate-500">{`Draws : ${castNumber(activeTeam.draws)}`}</div>
+          <div className="mt-3 text-[0.95rem] font-medium text-slate-400">{`Draws : ${castNumber(activeTeam.draws)}`}</div>
           <div className="mt-3 text-[0.95rem] font-medium text-red-500">{`Losses : ${castNumber(activeTeam.losses)}`}</div>
         </div>
       ) : null}
-      <div className="mt-4 flex items-center justify-center gap-5 text-sm font-medium text-slate-600">
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm bg-emerald-500" />
+      <div className="mt-4 flex items-center justify-center gap-4 text-[0.95rem] font-medium">
+        <div className="flex items-center gap-1.5 text-emerald-500">
+          <span className="h-3.5 w-3.5 rounded-[2px] bg-emerald-500" />
           Wins
         </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm bg-slate-400" />
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <span className="h-3.5 w-3.5 rounded-[2px] bg-slate-400" />
           Draws
         </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm bg-red-500" />
+        <div className="flex items-center gap-1.5 text-red-500">
+          <span className="h-3.5 w-3.5 rounded-[2px] bg-red-500" />
           Losses
         </div>
       </div>
@@ -759,6 +804,14 @@ const StatisticsPage = () => {
   const teamPerformance = useMemo(
     () => (Array.isArray(stats?.teamPerformance) ? stats.teamPerformance : []),
     [stats?.teamPerformance]
+  );
+  const displayedTeamPerformance = useMemo(
+    () => buildDisplayTeamPerformance(teamPerformance.slice(0, 5)),
+    [teamPerformance]
+  );
+  const hasTeamPerformanceChartData = useMemo(
+    () => hasEnoughTeamPerformanceData(teamPerformance),
+    [teamPerformance]
   );
   const topScorers = useMemo(
     () => (Array.isArray(stats?.topScorers) ? stats.topScorers : []),
@@ -874,7 +927,7 @@ const StatisticsPage = () => {
           className="px-7 py-6"
           delay="0.15s"
         >
-          <div className="mt-6 h-[320px]">
+          <div className="mt-6 h-[360px]">
             {monthlyMatchTrends.length === 0 ? (
               <EmptyState title="No completed matches yet" description="Completed match results will appear here once scores are recorded." />
             ) : (
@@ -899,18 +952,25 @@ const StatisticsPage = () => {
       </section>
 
       <SectionShell
-        eyebrow="Leaderboard"
         title="Top 5 Team Performance"
-        description="Wins, draws, and losses from recorded match results."
+        className="rounded-[26px] px-8 py-8 shadow-[0_12px_28px_rgba(15,23,42,0.12)]"
         delay="0.3s"
       >
-        <div className="mt-6 h-[360px]">
-          {teamPerformance.length === 0 ? (
-            <EmptyState title="No team results yet" description="Record match results to unlock team performance analytics." />
+        <div className="mt-5 h-[430px]">
+          {!hasTeamPerformanceChartData ? (
+            <EmptyState
+              title="Not enough real data for a Top 5 chart yet"
+              description="This section will appear automatically after at least five teams have completed match results in the selected date range."
+            />
           ) : (
-            <TeamPerformanceChart data={teamPerformance} />
+            <TeamPerformanceChart data={displayedTeamPerformance} />
           )}
         </div>
+        {!hasTeamPerformanceChartData ? (
+          <p className="mt-3 text-sm text-slate-500">
+            Current real-data summary: {displayedTeamPerformance.length} ranked team record{displayedTeamPerformance.length === 1 ? '' : 's'} found in this date range.
+          </p>
+        ) : null}
       </SectionShell>
 
       <section
