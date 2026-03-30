@@ -4,12 +4,15 @@ import apiService, { getToken } from '../services/api';
 import { Badge, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
 
+// Format money for display.
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
+// Render the analytics page.
 const AnalyticsPage = () => {
+  // Open native date picker in the UI.
   const openNativeDatePicker = (event) => {
     event.currentTarget.focus();
     if (typeof event.currentTarget.showPicker === 'function') {
@@ -61,11 +64,12 @@ const AnalyticsPage = () => {
 
   const topFields = Array.isArray(data?.fieldPerformance) ? data.fieldPerformance : data?.topFields || [];
 
+  // Support download report for this page.
   const downloadReport = async () => {
     try {
       const token = getToken();
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/analytics/report.csv?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
+        `${process.env.REACT_APP_API_URL || 'http://98.92.235.206/api'}/analytics/report.csv?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!response.ok) throw new Error('Unable to download report');

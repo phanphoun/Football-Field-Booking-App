@@ -50,11 +50,13 @@ const STATUS_STYLES = {
 const passwordInputClass =
   'mt-1 block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100';
 
+// Toggle class in the UI.
 const toggleClass = (enabled) =>
   `relative inline-flex h-7 w-12 items-center rounded-full transition ${
     enabled ? 'bg-emerald-500' : 'bg-slate-300'
   }`;
 
+// Get status icon for the current view.
 const getStatusIcon = (status) => {
   switch (status) {
     case 'approved':
@@ -66,11 +68,13 @@ const getStatusIcon = (status) => {
   }
 };
 
+// Format role label for display.
 const formatRoleLabel = (role) => {
   if (!role) return 'Unknown';
   return role.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
+// Format date time for display.
 const formatDateTime = (value) => {
   if (!value) return 'Unknown';
   const date = new Date(value);
@@ -78,6 +82,7 @@ const formatDateTime = (value) => {
   return date.toLocaleString();
 };
 
+// Format date for display.
 const formatDate = (value) => {
   if (!value) return 'Unknown';
   const date = new Date(value);
@@ -85,6 +90,7 @@ const formatDate = (value) => {
   return date.toLocaleDateString();
 };
 
+// Get default preferences for the current view.
 const getDefaultPreferences = () => ({
   emailUpdates: true,
   bookingReminders: true,
@@ -93,6 +99,7 @@ const getDefaultPreferences = () => ({
   startPage: 'dashboard'
 });
 
+// Get stored preferences for the current view.
 const getStoredPreferences = () => {
   if (typeof window === 'undefined') {
     return getDefaultPreferences();
@@ -111,6 +118,7 @@ const getStoredPreferences = () => {
   }
 };
 
+// Support preference toggle for this page.
 const PreferenceToggle = ({ title, description, enabled, onChange }) => (
   <div className="flex items-start justify-between gap-4 rounded-2xl bg-slate-50 px-4 py-4">
     <div>
@@ -132,6 +140,7 @@ const PreferenceToggle = ({ title, description, enabled, onChange }) => (
   </div>
 );
 
+// Render the settings page.
 const SettingsPage = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
@@ -230,12 +239,14 @@ const SettingsPage = () => {
     [roleRequests]
   );
 
+  // Support save preferences for this page.
   const savePreferences = (nextPreferences) => {
     setPreferences(nextPreferences);
     window.localStorage.setItem(SETTINGS_DEVICE_PREFS_KEY, JSON.stringify(nextPreferences));
     showSuccess('Settings preferences saved on this device.');
   };
 
+  // Update preference in local state.
   const updatePreference = (key, value) => {
     savePreferences({
       ...preferences,
@@ -243,6 +254,7 @@ const SettingsPage = () => {
     });
   };
 
+  // Handle role request interactions.
   const handleRoleRequest = async (requestedRole) => {
     const option = ROLE_OPTIONS[requestedRole];
     const upgradePlan = ROLE_UPGRADE_CONFIG[requestedRole];
@@ -273,6 +285,7 @@ const SettingsPage = () => {
     }
   };
 
+  // Handle cancel role request interactions.
   const handleCancelRoleRequest = async (request) => {
     const confirmed = await confirm(
       `Delete your pending ${formatRoleLabel(request.requestedRole).toLowerCase()} request? Admins will be notified that you cancelled it.`,
@@ -299,6 +312,7 @@ const SettingsPage = () => {
     }
   };
 
+  // Reset password form to its default state.
   const resetPasswordForm = () => {
     setPasswordForm({
       currentPassword: '',
@@ -313,12 +327,14 @@ const SettingsPage = () => {
     });
   };
 
+  // Close password modal in the UI.
   const closePasswordModal = () => {
     if (changingPassword) return;
     setIsPasswordModalOpen(false);
     resetPasswordForm();
   };
 
+  // Handle password form change interactions.
   const handlePasswordFormChange = (event) => {
     const { name, value } = event.target;
     setPasswordForm((current) => ({
@@ -327,6 +343,7 @@ const SettingsPage = () => {
     }));
   };
 
+  // Handle password submit interactions.
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setPasswordError('');
@@ -354,6 +371,7 @@ const SettingsPage = () => {
     }
   };
 
+  // Toggle password visibility in the UI.
   const togglePasswordVisibility = (field) => {
     setShowPassword((current) => ({
       ...current,

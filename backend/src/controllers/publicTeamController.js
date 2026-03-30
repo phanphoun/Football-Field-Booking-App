@@ -58,6 +58,7 @@ const mapPublicTeam = (teamInstance, ratingSummary = null, currentUserId = null)
   };
 };
 
+// Get rating summaries for the current flow.
 const getRatingSummaries = async (teamIds = []) => {
   if (!teamIds.length) return {};
 
@@ -100,6 +101,7 @@ const getRatingSummaries = async (teamIds = []) => {
   return byTeam;
 };
 
+// Get public teams for the current flow.
 const getPublicTeams = async (req, res) => {
   try {
     const currentUserId = req.user?.id || null;
@@ -157,6 +159,7 @@ const getPublicTeams = async (req, res) => {
   }
 };
 
+// Get public team by id for the current flow.
 const getPublicTeamById = async (req, res) => {
   try {
     const currentUserId = req.user?.id || null;
@@ -214,6 +217,7 @@ const getPublicTeamById = async (req, res) => {
   }
 };
 
+// Get public team match history for the current flow.
 const getPublicTeamMatchHistory = async (req, res) => {
   try {
     const teamId = Number(req.params.id);

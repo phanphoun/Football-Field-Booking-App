@@ -20,10 +20,12 @@ const TOAST_PROGRESS_STYLES = {
   info: 'bg-slate-500/60'
 };
 
+// Support toast item for this module.
 const ToastItem = ({ toast, onClose }) => {
   const [remainingMs, setRemainingMs] = useState(() => Math.max(0, toast.expiresAt - Date.now()));
 
   useEffect(() => {
+    // Update remaining in local state.
     const updateRemaining = () => {
       setRemainingMs(Math.max(0, toast.expiresAt - Date.now()));
     };

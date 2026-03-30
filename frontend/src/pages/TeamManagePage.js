@@ -20,7 +20,7 @@ import { ImagePreviewModal, useDialog, useToast } from '../components/ui';
 import { DEFAULT_JERSEY_COLOR, getNextJerseyColor, getTeamJerseyColors, normalizeHexColor, normalizeJerseyColors } from '../utils/teamColors';
 import JerseyColorEditor from '../components/teams/JerseyColorEditor';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 const TeamManagePage = () => {

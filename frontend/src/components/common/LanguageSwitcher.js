@@ -30,7 +30,7 @@ const LanguageFlag = ({ option, imageVisible, onError, className = '' }) => {
   }
 
   return (
-    <span className="inline-flex h-7 w-10 items-center justify-center rounded-sm border border-slate-200 bg-emerald-50 text-[10px] font-bold tracking-[0.18em] text-emerald-700 shadow-sm">
+    <span className="inline-flex h-6 w-9 items-center justify-center rounded-sm border border-slate-200 bg-emerald-50 text-[10px] font-bold tracking-[0.18em] text-emerald-700 shadow-sm">
       {option.shortLabel}
     </span>
   );
@@ -85,15 +85,15 @@ const LanguageSwitcher = ({ className = '' }) => {
         aria-label={t('label_language', 'Language')}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="inline-flex h-11 w-[92px] items-center rounded-2xl border border-emerald-300 bg-white pl-3 pr-10 shadow-sm transition hover:border-emerald-400 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+        className="inline-flex h-10 w-[84px] items-center rounded-2xl border border-emerald-300 bg-white pl-2.5 pr-8 shadow-sm transition hover:border-emerald-400 focus:outline-none focus:ring-4 focus:ring-emerald-100"
       >
         <LanguageFlag
           option={activeLanguage}
           imageVisible={imageVisible[activeLanguage.value]}
           onError={() => handleImageError(activeLanguage.value)}
-          className="h-7 w-10 rounded-sm border border-slate-200 object-cover shadow-sm"
+          className="h-6 w-9 rounded-sm border border-slate-200 object-cover shadow-sm"
         />
-        <span className="pointer-events-none absolute right-3 text-slate-500">
+        <span className="pointer-events-none absolute right-2.5 text-slate-500">
           <ChevronDownIcon className={`h-4 w-4 transition ${open ? 'rotate-180' : ''}`} />
         </span>
       </button>

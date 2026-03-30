@@ -54,6 +54,7 @@ const FieldLocationMap = ({ latitude, longitude, locationUrl = '' }) => {
   useEffect(() => {
     let active = true;
 
+    // Support init map for this module.
     const initMap = async () => {
       try {
         const lat = Number(latitude);

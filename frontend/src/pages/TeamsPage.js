@@ -9,9 +9,10 @@ import { ImagePreviewModal } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { useLanguage } from '../context/LanguageContext';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
+// Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
   if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
@@ -19,6 +20,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+// Normalize teams response into a consistent shape.
 const normalizeTeamsResponse = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.rows)) return payload.rows;
@@ -49,6 +51,7 @@ const TeamsPage = () => {
   const basePath = location.pathname.startsWith('/owner') ? '/owner' : '/app';
 
   useEffect(() => {
+    // Support fetch teams and invitations for this page.
     const fetchTeamsAndInvitations = async () => {
       try {
         setLoading(true);
@@ -69,6 +72,7 @@ const TeamsPage = () => {
     fetchTeamsAndInvitations();
   }, [t, user?.id, isAdmin, version]);
 
+  // Handle create team interactions.
   const handleCreateTeam = () => {
     navigate(`${basePath}/teams/create`);
   };
@@ -87,22 +91,26 @@ const TeamsPage = () => {
     }
   };
 
+  // Handle view team interactions.
   const handleViewTeam = (teamId) => {
     navigate(`${basePath}/teams/${teamId}`);
   };
 
+  // Open delete dialog in the UI.
   const openDeleteDialog = (team) => {
     setTeamToDelete(team);
     setDeleteMessage('');
     setDeleteDialogOpen(true);
   };
 
+  // Close delete dialog in the UI.
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setTeamToDelete(null);
     setDeleteMessage('');
   };
 
+  // Handle delete team interactions.
   const handleDeleteTeam = async () => {
     if (!teamToDelete?.id) return;
     const message = deleteMessage.trim();
@@ -142,6 +150,7 @@ const TeamsPage = () => {
     }
   };
 
+  // Handle accept invite interactions.
   const handleAcceptInvite = async (teamId) => {
     try {
       setActionLoading(true);
@@ -160,6 +169,7 @@ const TeamsPage = () => {
     }
   };
 
+  // Handle decline invite interactions.
   const handleDeclineInvite = async (teamId) => {
     try {
       setActionLoading(true);

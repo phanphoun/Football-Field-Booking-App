@@ -6,6 +6,7 @@ import { Badge, Button } from '../../components/ui';
 import AuthModalShell from '../../components/ui/AuthModalShell';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
+// Render the register page.
 const RegisterPage = () => {
   const { register, googleAuth, loading, error } = useAuth();
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ const RegisterPage = () => {
     []
   );
 
+  // Handle change interactions.
   const handleChange = (e) => {
     const { name, value } = e.target;
     setClientError(null);
@@ -57,6 +59,7 @@ const RegisterPage = () => {
     /[A-Z]/.test(formData.password) &&
     /\d/.test(formData.password);
 
+  // Handle submit interactions.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setClientError(null);

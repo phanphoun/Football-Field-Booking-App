@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 
+// Support strip dangerous keys for this module.
 const stripDangerousKeys = (value) => {
   if (Array.isArray(value)) {
     return value.map(stripDangerousKeys);
@@ -21,6 +22,7 @@ const stripDangerousKeys = (value) => {
   return value;
 };
 
+// Support attach request id for this module.
 const attachRequestId = (req, res, next) => {
   const incomingId = req.headers['x-request-id'];
   const generatedId =
@@ -33,6 +35,7 @@ const attachRequestId = (req, res, next) => {
   next();
 };
 
+// Support sanitize request payload for this module.
 const sanitizeRequestPayload = (req, _res, next) => {
   if (req.body && typeof req.body === 'object') {
     req.body = stripDangerousKeys(req.body);

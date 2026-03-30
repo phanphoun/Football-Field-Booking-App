@@ -8,9 +8,10 @@ import { UsersIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, EmptyState, ImagePreviewModal, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
+// Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
   if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
@@ -56,6 +57,7 @@ const PublicTeamsPage = () => {
   const { t } = useLanguage();
   const isAdmin = user?.role === 'admin';
 
+  // Check whether request join is allowed.
   const canRequestJoin = (team) => {
     if (!isAuthenticated) return false;
     if (!user) return false;
@@ -66,6 +68,7 @@ const PublicTeamsPage = () => {
   };
 
   useEffect(() => {
+    // Support fetch teams for this page.
     const fetchTeams = async () => {
       try {
         setLoading(true);
@@ -84,6 +87,7 @@ const PublicTeamsPage = () => {
     fetchTeams();
   }, [t]);
 
+  // Handle request join interactions.
   const handleRequestJoin = async (teamId) => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/teams/${teamId}`, backgroundLocation: location } });
@@ -128,18 +132,21 @@ const PublicTeamsPage = () => {
     }
   };
 
+  // Open delete dialog in the UI.
   const openDeleteDialog = (team) => {
     setTeamToDelete(team);
     setDeleteMessage('');
     setDeleteDialogOpen(true);
   };
 
+  // Close delete dialog in the UI.
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setTeamToDelete(null);
     setDeleteMessage('');
   };
 
+  // Handle delete team interactions.
   const handleDeleteTeam = async () => {
     if (!teamToDelete?.id) return;
     const message = deleteMessage.trim();

@@ -1,6 +1,7 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Create database for the current flow.
 const createDatabase = async () => {
   let connection;
 

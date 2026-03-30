@@ -2,10 +2,12 @@ const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Ratin
 const { sequelize } = require('../models');
 const { Op } = require('sequelize');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Get team base includes for the current flow.
 const getTeamBaseIncludes = () => [
   {
     model: User,
@@ -20,6 +22,7 @@ const getTeamBaseIncludes = () => [
   }
 ];
 
+// Get team details includes for the current flow.
 const getTeamDetailsIncludes = () => [
   ...getTeamBaseIncludes(),
   {
@@ -42,6 +45,7 @@ const getTeamDetailsIncludes = () => [
   }
 ];
 
+// Get user display name for the current flow.
 const getUserDisplayName = async (userId) => {
   const actor = await User.findByPk(userId, {
     attributes: ['username', 'firstName', 'lastName']

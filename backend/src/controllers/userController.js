@@ -14,6 +14,7 @@ const {
 } = require('../models');
 const bcrypt = require('bcryptjs');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };

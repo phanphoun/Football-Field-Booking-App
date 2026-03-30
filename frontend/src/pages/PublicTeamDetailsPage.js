@@ -7,9 +7,10 @@ import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 
+// Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
   if (!rawLogo) return null;
   if (/^https?:\/\//i.test(rawLogo)) return rawLogo;
@@ -17,6 +18,7 @@ const resolveTeamLogoUrl = (rawLogo) => {
   return `${API_ORIGIN}${normalizedLogoPath}`;
 };
 
+// Render the public team details page.
 const PublicTeamDetailsPage = () => {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
@@ -31,6 +33,7 @@ const PublicTeamDetailsPage = () => {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const { showSuccess, showError } = useToast();
 
+  // Check whether request join is allowed.
   const canRequestJoin = () => {
     if (!isAuthenticated) return false;
     if (!user) return false;
@@ -42,6 +45,7 @@ const PublicTeamDetailsPage = () => {
   const joinRequestPending = team?.joinRequestPending || team?.userMembershipStatus === 'pending';
 
   useEffect(() => {
+    // Support fetch team and history for this page.
     const fetchTeamAndHistory = async () => {
       try {
         setLoading(true);
@@ -74,6 +78,7 @@ const PublicTeamDetailsPage = () => {
     fetchTeamAndHistory();
   }, [id]);
 
+  // Handle request join interactions.
   const handleRequestJoin = async () => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/teams/${id}`, backgroundLocation: location } });

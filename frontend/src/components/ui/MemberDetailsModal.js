@@ -4,6 +4,7 @@ import ImagePreviewModal from './ImagePreviewModal';
 import { buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
 
+// Format date for display.
 const formatDate = (value) => {
   if (!value) return 'Not available';
   const parsed = new Date(value);
@@ -11,6 +12,7 @@ const formatDate = (value) => {
   return parsed.toLocaleString();
 };
 
+// Format date only for display.
 const formatDateOnly = (value) => {
   if (!value) return 'Not set';
   const parsed = new Date(value);
@@ -18,6 +20,7 @@ const formatDateOnly = (value) => {
   return parsed.toLocaleDateString();
 };
 
+// Render the member details modal modal.
 const MemberDetailsModal = ({ member, onClose }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   if (!member) return null;

@@ -20,6 +20,7 @@ const ConfirmationModal = ({
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    // Handle key down interactions.
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         onClose?.();
@@ -37,6 +38,7 @@ const ConfirmationModal = ({
 
   if (!isOpen) return null;
 
+  // Handle confirm interactions.
   const handleConfirm = () => {
     onConfirm?.();
   };

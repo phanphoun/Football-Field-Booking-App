@@ -9,6 +9,7 @@ const { Op, fn, col, literal } = require('sequelize');
  * Wrapper to handle async errors gracefully
  * Prevents unhandled promise rejections
  */
+// Support async handler for this module.
 const asyncHandler = (fnHandler) => (req, res, next) => {
   Promise.resolve(fnHandler(req, res, next)).catch(next);
 };
@@ -17,6 +18,7 @@ const asyncHandler = (fnHandler) => (req, res, next) => {
  * Parse date range from query parameters
  * Returns formatted from and to dates with time boundaries
  */
+// Parse date range into a usable value.
 const parseDateRange = (query) => {
   // Default to last 30 days if no dates provided
   const to = query.to ? new Date(query.to) : new Date();
@@ -33,6 +35,7 @@ const parseDateRange = (query) => {
  * Determine data access scope based on user role
  * Admins see all data, field owners see their fields, users see their own bookings
  */
+// Resolve scope into a display-safe value.
 const resolveScope = async (req) => {
   const userRole = req.user.role;
   const userId = req.user.id;
@@ -62,6 +65,7 @@ const resolveScope = async (req) => {
  * Normalize booking status counts with default values
  * Ensures all statuses are present even with zero counts
  */
+// Normalize status counts into a consistent shape.
 const normalizeStatusCounts = (rows) => {
   const defaultStatuses = { pending: 0, confirmed: 0, cancelled: 0, completed: 0 };
   
@@ -74,6 +78,7 @@ const normalizeStatusCounts = (rows) => {
 /**
  * Calculate booking completion rate percentage
  */
+// Calculate completion rate from the current data.
 const calculateCompletionRate = (statusCounts) => {
   const totalBookings = Object.values(statusCounts).reduce((sum, count) => sum + Number(count || 0), 0);
   

@@ -6,19 +6,24 @@ import { AnimatedStatValue, ConfirmationModal, ImagePreviewModal, useDialog } fr
 import { buildAssetUrl } from '../config/appConfig';
 import { formatRoleLabel } from '../utils/formatters';
 
+// Support role label for this page.
 const roleLabel = (role) => {
   return formatRoleLabel(role, 'Player');
 };
 
+// Support status class for this page.
 const statusClass = (status) => {
   if (status === 'approved') return 'bg-green-100 text-green-700';
   if (status === 'rejected') return 'bg-red-100 text-red-700';
   return 'bg-yellow-100 text-yellow-700';
 };
+
+// Resolve avatar url into a display-safe value.
 const resolveAvatarUrl = (user) => {
   return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
 };
 
+// Render the admin role requests page.
 const AdminRoleRequestsPage = () => {
   const { version } = useRealtime();
   const [requests, setRequests] = useState([]);
@@ -80,6 +85,7 @@ const AdminRoleRequestsPage = () => {
     });
   }, [requests, search]);
 
+  // Handle review interactions.
   const handleReview = async (requestId, action) => {
     const confirmed = await confirm(t('admin_role_requests_confirm', 'Are you sure you want to {{action}} this request?', {
       action: action === 'approve' ? t('admin_role_requests_approve', 'approve') : t('admin_role_requests_reject', 'reject')
@@ -100,10 +106,12 @@ const AdminRoleRequestsPage = () => {
     }
   };
 
+  // Open view modal in the UI.
   const openViewModal = (user) => {
     setViewUser(user || null);
   };
 
+  // Close view modal in the UI.
   const closeViewModal = () => {
     setViewUser(null);
   };

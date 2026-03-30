@@ -146,6 +146,7 @@ const SESSION_START_HOURS = {
   evening: [18, 19, 20]
 };
 
+// Create date for the current flow.
 const createDate = (dayOffset, hour, durationHours = 2) => {
   const start = new Date();
   start.setDate(start.getDate() + dayOffset);
@@ -165,6 +166,7 @@ const operatingHours = {
   sunday: { open: '08:00', close: '22:00' }
 };
 
+// Support seed database for this module.
 const seedDatabase = async () => {
   try {
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');

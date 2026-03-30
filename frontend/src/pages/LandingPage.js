@@ -105,6 +105,7 @@ const POPULAR_TIME_SLOT_SESSIONS = [
   }
 ];
 
+// Map to status for the current UI state.
 const rateToStatus = (rate) => {
   if (rate >= 80) return 'High Demand';
   if (rate >= 60) return 'Popular';
@@ -148,6 +149,7 @@ const rateToTone = (rate) => {
   return 'cool';
 };
 
+// Build popular time slot card for rendering.
 const buildPopularTimeSlotCard = (session, rate, extra = {}) => ({
   key: session.key,
   label: session.label,
@@ -232,6 +234,7 @@ const POPULAR_TIME_SLOTS = applyStarRatings(
   POPULAR_TIME_SLOT_SESSIONS.map((session) => buildPopularTimeSlotCard(session, session.fallbackRate))
 );
 
+// Get slot start hour for the current view.
 const getSlotStartHour = (slot) => {
   if (Number.isFinite(Number(slot?.startHour))) return Number(slot.startHour);
 
@@ -240,6 +243,7 @@ const getSlotStartHour = (slot) => {
   return Number.isFinite(hours) ? hours : null;
 };
 
+// Build popular time slots from stats for rendering.
 const buildPopularTimeSlotsFromStats = (slotStats) => {
   if (!Array.isArray(slotStats) || slotStats.length === 0) {
     return POPULAR_TIME_SLOTS;
@@ -303,7 +307,9 @@ const calculatePopularTimeSlots = (bookings) => {
   return applyStarRatings(cards);
 };
 const DISCOUNT_OFFER_ICONS = [GiftIcon, SparklesIcon, ClockIcon, UsersIcon];
+// Get field discount percent for the current view.
 const getFieldDiscountPercent = (field) => Math.max(0, Math.min(100, Number(field?.discountPercent || 0)));
+// Get discounted field price for the current view.
 const getDiscountedFieldPrice = (field) => {
   const price = Number(field?.pricePerHour || 0);
   const discountPercent = getFieldDiscountPercent(field);
@@ -328,6 +334,7 @@ const toLocalDateKey = (value) => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+// Parse slot to minutes into a usable value.
 const parseSlotToMinutes = (slot) => {
   const [h, m] = String(slot || '')
     .split(':')
@@ -411,6 +418,7 @@ const LandingPage = () => {
   const [heroIndex, setHeroIndex] = useState(0);
 
   useEffect(() => {
+    // Support fetch landing data for this page.
     const fetchLandingData = async () => {
       try {
         setLoading(true);
@@ -586,6 +594,7 @@ const LandingPage = () => {
     });
   }, []);
 
+  // Resolve field image into a display-safe value.
   const resolveFieldImage = (images) => {
     if (Array.isArray(images) && images.length > 0) return images[0];
 
@@ -607,6 +616,7 @@ const LandingPage = () => {
   };
 
   useEffect(() => {
+    // Support fetch schedule for this page.
     const fetchSchedule = async () => {
       try {
         setScheduleLoading(true);
@@ -780,29 +790,35 @@ const LandingPage = () => {
     });
   }, [isFieldAvailable, scheduleDays, scheduleEvents, scheduleFields, selectedDay, t]);
 
+  // Get day index for the current view.
   const getDayIndex = (dayKey) => scheduleDays.findIndex((day) => day.key === dayKey);
 
+  // Support to field route for this page.
   const toFieldRoute = (field) => {
     if (!field) return '/fields';
     return `/fields/${field.id}`;
   };
 
+  // Handle prev day interactions.
   const handlePrevDay = () => {
     const currentIndex = getDayIndex(selectedDay);
     const nextIndex = currentIndex <= 0 ? scheduleDays.length - 1 : currentIndex - 1;
     setSelectedDay(scheduleDays[nextIndex].key);
   };
 
+  // Handle next day interactions.
   const handleNextDay = () => {
     const currentIndex = getDayIndex(selectedDay);
     const nextIndex = currentIndex >= scheduleDays.length - 1 ? 0 : currentIndex + 1;
     setSelectedDay(scheduleDays[nextIndex].key);
   };
 
+  // Handle open field from schedule interactions.
   const handleOpenFieldFromSchedule = (field) => {
     navigate(toFieldRoute(field));
   };
 
+  // Build booking path for rendering.
   const buildBookingPath = (field, day = null, time = null) => {
     const params = new URLSearchParams({ fieldId: String(field.id) });
     if (day) params.set('day', day);
@@ -810,6 +826,7 @@ const LandingPage = () => {
     return `/app/bookings/new?${params.toString()}`;
   };
 
+  // Handle book now interactions.
   const handleBookNow = (field, day = null, time = null) => {
     if (!field) {
       navigate('/fields');
@@ -838,10 +855,12 @@ const LandingPage = () => {
     navigate(bookingPath);
   };
 
+  // Handle time slot click interactions.
   const handleTimeSlotClick = (field, slot) => {
     handleBookNow(field, selectedDay, slot);
   };
 
+  // Support slot tone class for this page.
   const slotToneClass = (tone) => {
     if (tone === 'limited') return 'border-red-300 bg-red-50 text-red-600';
     if (tone === 'available') return 'border-emerald-300 bg-emerald-50 text-emerald-600';
@@ -849,6 +868,7 @@ const LandingPage = () => {
     return 'border-blue-300 bg-blue-50 text-blue-600';
   };
 
+  // Handle claim offer interactions.
   const handleClaimOffer = (offer, preferredTime = '18:00') => {
     const day = quickDate || selectedDay || toLocalDateKey(new Date());
     const requestedFieldId = typeof offer === 'object' ? offer?.field?.id || offer?.id : null;
@@ -1245,7 +1265,9 @@ const LandingPage = () => {
                       disabled={!field.nextTime}
                       onClick={() => field.nextTime && handleBookNow(field, quickDate || selectedDay, field.nextTime)}
                       className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition ${
-                        field.nextTime ? 'bg-[#1fb455] hover:bg-[#18984a]' : 'cursor-not-allowed bg-slate-300'
+                        field.nextTime
+                          ? 'bg-[#1fb455] hover:bg-[#18984a]'
+                          : 'cursor-not-allowed border border-slate-600 bg-slate-700 text-slate-300 shadow-none'
                       }`}
                     >
                       {field.nextTime

@@ -5,6 +5,7 @@ const { TeamMember, Team, User } = require('../models');
  * Get team members with optional filtering
  * Working version with Promise-based approach
  */
+// Get all team members for the current flow.
 const getAllTeamMembers = (req, res) => {
   console.log('✅ Team Members Controller called successfully');
   
@@ -85,6 +86,7 @@ const getAllTeamMembers = (req, res) => {
  * GET /api/team-members/:id
  * Get team member by ID
  */
+// Get team member by id for the current flow.
 const getTeamMemberById = (req, res) => {
   const { id } = req.params;
   
@@ -159,6 +161,7 @@ const getTeamMemberById = (req, res) => {
  * POST /api/team-members
  * Create team member (captain/admin only)
  */
+// Create team member for the current flow.
 const createTeamMember = (req, res) => {
   const { teamId, userId, role } = req.body;
   
@@ -197,6 +200,7 @@ const createTeamMember = (req, res) => {
  * PUT /api/team-members/:id
  * Update team member (captain/admin only)
  */
+// Update team member in local state.
 const updateTeamMember = (req, res) => {
   const { id } = req.params;
   const { role, status, isActive } = req.body;
@@ -237,6 +241,7 @@ const updateTeamMember = (req, res) => {
  * DELETE /api/team-members/:id
  * Delete team member (captain/admin only)
  */
+// Support delete team member for this module.
 const deleteTeamMember = (req, res) => {
   const { id } = req.params;
   

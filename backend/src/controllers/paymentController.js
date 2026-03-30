@@ -1,5 +1,6 @@
 const { Booking, Field, Team } = require('../models');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
@@ -7,6 +8,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 /**
  * Check if Stripe is properly configured
  */
+// Check stripe configuration before continuing.
 const checkStripeConfiguration = () => {
   if (!process.env.STRIPE_SECRET_KEY) {
     console.warn('Stripe secret key is not configured - payment features will be limited');
@@ -24,6 +26,7 @@ const checkStripeConfiguration = () => {
 /**
  * Check if user is authorized to pay for a specific booking
  */
+// Check payment authorization before continuing.
 const checkPaymentAuthorization = async (booking, user) => {
   const isBooker = booking.createdBy === user.id;
   const isAdmin = user.role === 'admin';
@@ -34,6 +37,7 @@ const checkPaymentAuthorization = async (booking, user) => {
 /**
  * Validate booking payment eligibility
  */
+// Validate booking for payment before continuing.
 const validateBookingForPayment = (booking) => {
   const errors = [];
   
@@ -59,6 +63,7 @@ const validateBookingForPayment = (booking) => {
 /**
  * Create Stripe checkout session for booking payment
  */
+// Create stripe checkout session for the current flow.
 const createStripeCheckoutSession = async (booking, successUrl, cancelUrl) => {
   const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
   
@@ -238,6 +243,7 @@ const handleStripeWebhook = asyncHandler(async (req, res) => {
 /**
  * Handle successful payment completion
  */
+// Handle payment success interactions.
 const handlePaymentSuccess = async (session) => {
   try {
     const bookingId = session.metadata?.bookingId;
@@ -261,6 +267,7 @@ const handlePaymentSuccess = async (session) => {
 /**
  * Handle expired payment session
  */
+// Handle payment expired interactions.
 const handlePaymentExpired = async (session) => {
   try {
     const bookingId = session.metadata?.bookingId;
@@ -279,6 +286,7 @@ const handlePaymentExpired = async (session) => {
 /**
  * Handle payment failure
  */
+// Handle payment failure interactions.
 const handlePaymentFailure = async (paymentIntent) => {
   try {
     console.log(`Payment failed: ${paymentIntent.id}`);

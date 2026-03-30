@@ -8,17 +8,21 @@ import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import notificationService from '../services/notificationService';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
+// Check whether placeholder image is true.
 const isPlaceholderImage = (rawImage) => String(rawImage || '').toLowerCase().includes('no field image');
+// Get discount percent for the current view.
 const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+// Get discounted price for the current view.
 const getDiscountedPrice = (field) => {
   const basePrice = Number(field?.pricePerHour || 0);
   const discountPercent = getDiscountPercent(field);
   return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
 };
+// Get status tone classes for the current view.
 const getStatusToneClasses = (status) => {
   const normalizedStatus = String(status || 'available').toLowerCase();
   if (normalizedStatus === 'available') return 'bg-blue-50 text-blue-700';
@@ -26,6 +30,7 @@ const getStatusToneClasses = (status) => {
   if (normalizedStatus === 'maintenance') return 'bg-amber-100 text-amber-700';
   return 'bg-slate-200 text-slate-700';
 };
+// Check whether bookable field is true.
 const isBookableField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
 const getOwnerDisplayName = (field) => {
   const owner = field?.owner;
@@ -60,6 +65,7 @@ const FieldsPage = () => {
   const [maxPriceFilter, setMaxPriceFilter] = useState('');
 
   useEffect(() => {
+    // Support fetch fields for this page.
     const fetchFields = async () => {
       try {
         setLoading(true);
@@ -103,6 +109,7 @@ const FieldsPage = () => {
     searchInputRef.current?.focus();
   }, [searchParams]);
 
+  // Handle book field interactions.
   const handleBookField = async (fieldId) => {
     const bookingPath = `/app/bookings/new?fieldId=${fieldId}`;
 
@@ -122,22 +129,26 @@ const FieldsPage = () => {
     navigate(bookingPath);
   };
 
+  // Handle view details interactions.
   const handleViewDetails = (fieldId) => {
     navigate(`/fields/${fieldId}`);
   };
 
+  // Open delete dialog in the UI.
   const openDeleteDialog = (field) => {
     setFieldToDelete(field);
     setDeleteMessage('');
     setDeleteDialogOpen(true);
   };
 
+  // Close delete dialog in the UI.
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setFieldToDelete(null);
     setDeleteMessage('');
   };
 
+  // Handle delete field interactions.
   const handleDeleteField = async () => {
     if (!fieldToDelete?.id) return;
     const message = deleteMessage.trim();
@@ -178,6 +189,7 @@ const FieldsPage = () => {
     }
   };
 
+  // Get rating display for the current view.
   const getRatingDisplay = (rating, totalRatings) => {
     const numericRating = Number(rating);
     const numericTotalRatings = Number(totalRatings) || 0;
@@ -201,6 +213,7 @@ const FieldsPage = () => {
     return rawImage;
   };
 
+  // Normalize images into a consistent shape.
   const normalizeImages = (imagesValue) => {
     if (Array.isArray(imagesValue)) return imagesValue.filter((image) => !isPlaceholderImage(image));
     if (typeof imagesValue === 'string') {

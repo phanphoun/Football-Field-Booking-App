@@ -21,6 +21,7 @@ import {
 import notificationService from '../../services/notificationService';
 import { ImagePreviewModal, useToast } from '../ui';
 import LanguageSwitcher from '../common/LanguageSwitcher';
+import ThemeToggle from '../common/ThemeToggle';
 import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
@@ -47,6 +48,7 @@ const SidebarBrand = ({ collapsed = false }) => (
   </div>
 );
 
+// Render the owner layout for shared page structure.
 const OwnerLayout = () => {
   const { user } = useAuth();
   const { version } = useRealtime();
@@ -112,18 +114,22 @@ const OwnerLayout = () => {
   const desktopSidebarWidthClass = desktopSidebarCollapsed ? 'md:w-20' : 'md:w-64';
   const desktopContentOffsetClass = desktopSidebarCollapsed ? 'md:pl-20' : 'md:pl-64';
 
+  // Format role for display.
   const formatRole = (role) => {
     return formatRoleLabel(role, 'Field Owner');
   };
 
+  // Resolve avatar url into a display-safe value.
   const resolveAvatarUrl = () => {
     return buildAssetUrl(user?.avatarUrl || user?.avatar_url);
   };
 
+  // Resolve notification sender name into a display-safe value.
   const resolveNotificationSenderName = (notification) => {
     return notification?.sender?.name || notification?.sender?.username || 'Unknown user';
   };
 
+  // Resolve notification sender avatar into a display-safe value.
   const resolveNotificationSenderAvatar = (notification) => {
     return buildAssetUrl(notification?.sender?.avatarUrl);
   };
@@ -149,10 +155,12 @@ const OwnerLayout = () => {
     }
   }, []);
 
+  // Support mark notification read for this module.
   const markNotificationRead = async (notificationId) => {
     await notificationService.markRead(notificationId);
   };
 
+  // Handle mark as read interactions.
   const handleMarkAsRead = async (notificationId) => {
     try {
       setNotificationActionLoading(true);
@@ -164,6 +172,7 @@ const OwnerLayout = () => {
     }
   };
 
+  // Handle mark all as read interactions.
   const handleMarkAllAsRead = async () => {
     try {
       setNotificationActionLoading(true);
@@ -177,6 +186,7 @@ const OwnerLayout = () => {
     }
   };
 
+  // Handle notification click interactions.
   const handleNotificationClick = async (notification) => {
     if (!notification || notificationActionLoading) return;
 
@@ -228,12 +238,14 @@ const OwnerLayout = () => {
   useEffect(() => {
     if (!notificationsMenuOpen) return undefined;
 
+    // Handle pointer down interactions.
     const handlePointerDown = (event) => {
       if (!notificationsMenuRef.current?.contains(event.target)) {
         setNotificationsMenuOpen(false);
       }
     };
 
+    // Handle escape interactions.
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setNotificationsMenuOpen(false);
@@ -490,6 +502,7 @@ const OwnerLayout = () => {
             </div>
 
             <div className="ml-auto flex items-center space-x-3">
+              <ThemeToggle className="h-11 w-11" />
               <LanguageSwitcher className="hidden lg:inline-flex" />
               <div className="relative" ref={notificationsMenuRef}>
                 <button

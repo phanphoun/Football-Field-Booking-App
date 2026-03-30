@@ -1,11 +1,14 @@
 const { TeamMember, Team, User, Notification } = require('../models');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Build invitation id for rendering.
 const buildInvitationId = (teamId, userId) => `${teamId}:${userId}`;
 
+// Resolve team member from identifier into a display-safe value.
 const resolveTeamMemberFromIdentifier = async (identifier) => {
   if (!identifier) return null;
 
@@ -22,11 +25,13 @@ const resolveTeamMemberFromIdentifier = async (identifier) => {
   return TeamMember.findByPk(numericId);
 };
 
+// Get invitation expiry hours for the current flow.
 const getInvitationExpiryHours = () => {
   const parsed = Number(process.env.INVITATION_EXPIRE_HOURS);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 168; // default 7 days
 };
 
+// Check whether invitation expired is true.
 const isInvitationExpired = (teamMember) => {
   const expiryHours = getInvitationExpiryHours();
   const createdAt = teamMember?.createdAt ? new Date(teamMember.createdAt) : null;
@@ -35,6 +40,7 @@ const isInvitationExpired = (teamMember) => {
   return Date.now() > expiresAt.getTime();
 };
 
+// Get captain id for the current flow.
 const getCaptainId = (team) => {
   if (!team) return null;
   if (team.captainId !== undefined && team.captainId !== null) return Number(team.captainId);

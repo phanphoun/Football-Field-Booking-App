@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { Field, Booking, Team } = require('../models');
 
+// Support to date range for this module.
 const toDateRange = (dateInput) => {
   const base = dateInput ? new Date(`${dateInput}T00:00:00`) : new Date();
   if (Number.isNaN(base.getTime())) return null;
@@ -14,6 +15,7 @@ const toDateRange = (dateInput) => {
   return { start, end };
 };
 
+// Get public schedule for the current flow.
 const getPublicSchedule = async (req, res) => {
   try {
     const range = toDateRange(req.query.date);

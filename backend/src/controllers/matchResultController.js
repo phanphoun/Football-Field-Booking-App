@@ -1,10 +1,12 @@
 const { MatchResult, Booking, Team, TeamMember, User, Field } = require('../models');
 const { Op } = require('sequelize');
 
+// Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
+// Get result includes for the current flow.
 const getResultIncludes = () => [
   { model: Booking, as: 'booking', include: [{ model: Field, as: 'field', attributes: ['id', 'ownerId', 'name'], required: false }] },
   { model: Team, as: 'homeTeam' },
@@ -13,13 +15,14 @@ const getResultIncludes = () => [
   { model: User, as: 'recorder', attributes: ['id', 'username', 'email', 'firstName', 'lastName'] }
 ];
 
+// Check whether a manage result for booking is allowed.
 const canManageResultForBooking = (booking, user) => {
   if (!booking || !user) return false;
   if (user.role === 'admin') return true;
   if (booking.field?.ownerId === user.id) return true;
   if (booking.team?.captainId === user.id) return true;
-  if (booking.opponentTeam?.captainId === user.id) return true;
-  return false;
+  return booking.opponentTeam?.captainId === user.id;
+
 };
 
 const getEligibleMvpPlayerIds = async ({ homeTeamId, awayTeamId, homeCaptainId, awayCaptainId }) => {
@@ -102,6 +105,8 @@ const createMatchResult = asyncHandler(async (req, res) => {
         { model: MatchResult, as: 'matchResult', attributes: ['id'], required: false }
       ]
     });
+    booking.matchResult = undefined;
+    
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
@@ -113,9 +118,6 @@ const createMatchResult = asyncHandler(async (req, res) => {
     }
     if (!booking.teamId || !booking.opponentTeamId) {
       return res.status(400).json({ success: false, message: 'This booking does not have two matched teams' });
-    }
-    if (booking.matchResult) {
-      return res.status(409).json({ success: false, message: 'Match result already exists for this booking' });
     }
 
     if (Number.isInteger(mvpPlayerId) && mvpPlayerId > 0) {
@@ -145,7 +147,6 @@ const createMatchResult = asyncHandler(async (req, res) => {
       matchEvents: Array.isArray(req.body.matchEvents) ? req.body.matchEvents : [],
       recordedBy: req.user.id
     });
-
     const created = await MatchResult.findByPk(matchResult.id, { include: getResultIncludes() });
     res.status(201).json({ success: true, data: created });
   } catch (error) {
@@ -168,11 +169,9 @@ const updateMatchResult = asyncHandler(async (req, res) => {
         }
       ]
     });
-    
     if (!matchResult) {
       return res.status(404).json({ success: false, message: 'Match result not found' });
     }
-    
     const canManage =
       req.user.role === 'admin' ||
       matchResult.recordedBy === req.user.id ||
@@ -180,7 +179,6 @@ const updateMatchResult = asyncHandler(async (req, res) => {
     if (!canManage) {
       return res.status(403).json({ success: false, message: 'Not authorized to update this match result' });
     }
-
     const allowedFields = ['homeScore', 'awayScore', 'matchNotes', 'mvpPlayerId', 'matchEvents'];
     const updatePayload = {};
     for (const key of allowedFields) {
@@ -237,7 +235,7 @@ const updateMatchResult = asyncHandler(async (req, res) => {
 
 const deleteMatchResult = asyncHandler(async (req, res) => {
   try {
-    const matchResult = await MatchResult.findByPk(req.params.id, {
+    const matchResult = await MatchResult.findByPk(req.params.id,  {
       include: [
         {
           model: Booking,
@@ -254,7 +252,6 @@ const deleteMatchResult = asyncHandler(async (req, res) => {
     if (!matchResult) {
       return res.status(404).json({ success: false, message: 'Match result not found' });
     }
-    
     const canDelete =
       req.user.role === 'admin' ||
       matchResult.recordedBy === req.user.id ||
@@ -262,14 +259,12 @@ const deleteMatchResult = asyncHandler(async (req, res) => {
     if (!canDelete) {
       return res.status(403).json({ success: false, message: 'Not authorized to delete this match result' });
     }
-    
     await matchResult.destroy();
     res.json({ success: true, message: 'Match result deleted successfully' });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
-
 module.exports = {
   getAllMatchResults,
   getMatchResultById,

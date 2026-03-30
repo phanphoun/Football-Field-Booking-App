@@ -17,6 +17,7 @@ const START_PAGE_PATHS = {
   }
 };
 
+// Render the get stored start page.
 const getStoredStartPage = () => {
   if (typeof window === 'undefined') return DEFAULT_START_PAGE;
 

@@ -10,12 +10,14 @@ import { formatRoleLabel } from '../utils/formatters';
 const ROLES = ['player', 'captain', 'field_owner', 'admin'];
 const STATUSES = ['active', 'inactive', 'suspended'];
 
+// Support status badge class for this page.
 const statusBadgeClass = (status) => {
   if (status === 'active') return 'bg-green-100 text-green-700';
   if (status === 'suspended') return 'bg-red-100 text-red-700';
   return 'bg-gray-200 text-gray-700';
 };
 
+// Support role badge class for this page.
 const roleBadgeClass = (role) => {
   if (role === 'admin') return 'bg-blue-100 text-blue-700';
   if (role === 'field_owner') return 'bg-amber-100 text-amber-700';
@@ -66,6 +68,7 @@ const AdminUsersPage = () => {
   useEffect(() => {
     if (!openMenuUserId) return undefined;
 
+    // Handle pointer down interactions.
     const handlePointerDown = (event) => {
       if (!actionMenuRef.current?.contains(event.target)) {
         setOpenMenuUserId(null);
@@ -105,6 +108,7 @@ const AdminUsersPage = () => {
     });
   }, [users, query, roleFilter, statusFilter]);
 
+  // Handle delete interactions.
   const handleDelete = async (userId, username) => {
     setOpenMenuUserId(null);
     const confirmed = await confirm(
@@ -125,6 +129,7 @@ const AdminUsersPage = () => {
     }
   };
 
+  // Open edit modal in the UI.
   const openEditModal = (user) => {
     setOpenMenuUserId(null);
     setEditUser(user);
@@ -134,6 +139,7 @@ const AdminUsersPage = () => {
     });
   };
 
+  // Close edit modal in the UI.
   const closeEditModal = () => {
     if (savingUserId) return;
     setEditUser(null);
@@ -153,6 +159,7 @@ const AdminUsersPage = () => {
     }
   };
 
+  // Close view modal in the UI.
   const closeViewModal = () => {
     setViewUserLoading(false);
     setViewUser(null);
@@ -180,6 +187,7 @@ const AdminUsersPage = () => {
     setEditForm((current) => ({ ...current, [name]: value }));
   };
 
+  // Handle save edit interactions.
   const handleSaveEdit = async () => {
     if (!editUser?.id) return;
 

@@ -42,6 +42,7 @@ const CreateBookingPage = () => {
     ? '1'
     : '2';
 
+  // Get prefilled start time for the current view.
   const getPrefilledStartTime = () => {
     if (!preselectedDay || !preselectedTime) {
       return '';
@@ -52,6 +53,7 @@ const CreateBookingPage = () => {
       return '';
     }
 
+    // Support to local input value for this page.
     const toLocalInputValue = (value) => {
       const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
       return local.toISOString().slice(0, 16);
@@ -79,12 +81,14 @@ const CreateBookingPage = () => {
   const [startTimeInput, setStartTimeInput] = useState(initialStartParts.time);
   const startDateInputRef = useRef(null);
   const getDiscountPercent = (field) => Math.min(100, Math.max(0, Number(field?.discountPercent || 0)));
+  // Get discounted price for the current view.
   const getDiscountedPrice = (field) => {
     const basePrice = Number(field?.pricePerHour || 0);
     const discountPercent = getDiscountPercent(field);
     return Number((basePrice * (1 - discountPercent / 100)).toFixed(2));
   };
   const hasTeams = Array.isArray(teams) && teams.length > 0;
+  // Support to local input value for this page.
   const toLocalInputValue = (value) => {
     const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
@@ -106,6 +110,7 @@ const CreateBookingPage = () => {
   }, [version]);
 
   useEffect(() => {
+    // Support fetch data for this page.
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -191,6 +196,7 @@ const CreateBookingPage = () => {
     return duration * getDiscountedPrice(field);
   };
 
+  // Check whether book field is allowed.
   const canBookField = (field) => String(field?.status || 'available').toLowerCase() === 'available';
   const formatFieldOptionLabel = (field) => {
     const name = String(field?.name || 'Unnamed field').trim();
@@ -198,6 +204,7 @@ const CreateBookingPage = () => {
     return `${name.slice(0, 35).trim()}...`;
   };
 
+  // Handle submit interactions.
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);

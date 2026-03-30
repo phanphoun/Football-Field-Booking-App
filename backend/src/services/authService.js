@@ -47,6 +47,7 @@ class AuthService {
     const { password: _, ...userWithoutPassword } = user.toJSON();
     
     return userWithoutPassword;
+    
   }
   
   /**
@@ -54,7 +55,8 @@ class AuthService {
    */
   async login(email, password, ip) {
     // Find user
-    const user = await User.findOne({
+    /** @type {import('sequelize').FindOptions<typeof User>} */
+    const findOptions = {
       where: { email, isActive: true },
       include: [
         {
@@ -63,7 +65,8 @@ class AuthService {
           attributes: ['id', 'name']
         }
       ]
-    });
+    };
+    const user = await User.findOne(findOptions);
     
     if (!user) {
       throw new Error('Invalid credentials');
@@ -99,7 +102,8 @@ class AuthService {
    * Get user profile
    */
   async getProfile(userId) {
-    const user = await User.findByPk(userId, {
+    /** @type {import('sequelize').FindOptions<typeof User>} */
+    const findOptions = {
       attributes: { exclude: ['password'] },
       include: [
         {
@@ -108,7 +112,8 @@ class AuthService {
           attributes: ['id', 'name', 'skillLevel']
         }
       ]
-    });
+    };
+    const user = await User.findByPk(userId, findOptions);
     
     if (!user) {
       throw new Error('User not found');
@@ -204,7 +209,8 @@ class AuthService {
    * Get public profile
    */
   async getPublicProfile(userId) {
-    const user = await User.findByPk(userId, {
+    /** @type {import('sequelize').FindOptions<typeof User>} */
+    const findOptions = {
       attributes: ['id', 'username', 'firstName', 'lastName', 'email', 'role', 'createdAt'],
       include: [
         {
@@ -214,7 +220,8 @@ class AuthService {
           required: false
         }
       ]
-    });
+    };
+    const user = await User.findByPk(userId, findOptions);
     
     if (!user) {
       throw new Error('User not found');

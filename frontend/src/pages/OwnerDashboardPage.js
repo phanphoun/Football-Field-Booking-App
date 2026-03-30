@@ -15,6 +15,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { AnimatedStatValue, Badge, Button, Card, CardBody, CardHeader, EmptyState, Spinner, useDialog } from '../components/ui';
 import { useRealtime } from '../context/RealtimeContext';
 
+// Support status tone for this page.
 const statusTone = (status) => {
   const tones = { pending: 'yellow', confirmed: 'green', cancellation_pending: 'orange', completed: 'blue', cancelled: 'red' };
   return tones[status] || 'gray';
@@ -153,6 +154,7 @@ const OwnerDashboardPage = () => {
     [fields.length, pendingBookings.length, confirmedBookings.length, revenueEstimate, t]
   );
 
+  // Handle status interactions.
   const handleStatus = async (bookingId, nextStatus) => {
     try {
       setUpdatingId(bookingId);
