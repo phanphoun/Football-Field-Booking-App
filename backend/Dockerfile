@@ -17,8 +17,8 @@ WORKDIR /app
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create runtime directories
+RUN mkdir -p uploads/profile public
 
 # Copy node_modules from builder
 COPY --from=builder /app/node_modules ./node_modules
@@ -26,6 +26,7 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copy application files
 COPY package*.json ./
 COPY server.js ./
+COPY public/ ./public/
 COPY src/ ./src/
 
 # Create non-root user for security
@@ -40,7 +41,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:5000/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+    CMD node -e "require('http').get('http://localhost:5000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

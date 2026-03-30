@@ -69,7 +69,7 @@ const AnalyticsPage = () => {
     try {
       const token = getToken();
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://98.92.235.206/api'}/analytics/report.csv?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
+        `${process.env.REACT_APP_API_URL || '/api'}/analytics/report.csv?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!response.ok) throw new Error('Unable to download report');

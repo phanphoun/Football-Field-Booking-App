@@ -1,6 +1,7 @@
 const { Team, User, Field, Booking, TeamMember, MatchResult, Notification, Rating, BookingJoinRequest } = require('../models');
 const { sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { getUploadDir, resolveManagedUploadPath } = require('../utils/storagePaths');
 
 // Support async handler for this module.
 const asyncHandler = (fn) => (req, res, next) => {
@@ -1021,8 +1022,7 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Not authorized to update team logo' });
   }
 
-  const projectRoot = path.resolve(__dirname, '..', '..', '..');
-  const uploadDir = path.resolve(projectRoot, 'frontend', 'public', 'uploads', 'team-logo');
+  const uploadDir = getUploadDir('team-logo');
   fs.mkdirSync(uploadDir, { recursive: true });
 
   const storage = multer.diskStorage({
@@ -1058,16 +1058,9 @@ const uploadTeamLogo = asyncHandler(async (req, res) => {
     // delete previous logo file if exists (optional)
     try {
       if (team.logoUrl && typeof team.logoUrl === 'string' && team.logoUrl.startsWith('/uploads')) {
-        let previousLogoAbsolutePath = null;
+        const previousLogoAbsolutePath = resolveManagedUploadPath(team.logoUrl);
 
-        if (team.logoUrl.startsWith('/uploads/team-logo/')) {
-          previousLogoAbsolutePath = path.resolve(projectRoot, 'frontend', 'public', team.logoUrl.replace(/^\//, ''));
-        } else {
-          // Backward compatibility for previously uploaded files in backend/uploads/*
-          previousLogoAbsolutePath = path.resolve(__dirname, '..', '..', team.logoUrl.replace(/^\//, ''));
-        }
-
-        if (fs.existsSync(previousLogoAbsolutePath)) {
+        if (previousLogoAbsolutePath && fs.existsSync(previousLogoAbsolutePath)) {
           fs.unlinkSync(previousLogoAbsolutePath);
         }
       }
@@ -1099,17 +1092,9 @@ const deleteTeamLogo = asyncHandler(async (req, res) => {
     return res.json({ success: true, data: { logoUrl: null }, message: 'Team logo already removed' });
   }
 
-  const projectRoot = path.resolve(__dirname, '..', '..', '..');
-
   try {
     if (typeof currentLogo === 'string' && currentLogo.startsWith('/uploads')) {
-      let absolutePath = null;
-
-      if (currentLogo.startsWith('/uploads/team-logo/')) {
-        absolutePath = path.resolve(projectRoot, 'frontend', 'public', currentLogo.replace(/^\//, ''));
-      } else {
-        absolutePath = path.resolve(__dirname, '..', '..', currentLogo.replace(/^\//, ''));
-      }
+      const absolutePath = resolveManagedUploadPath(currentLogo);
 
       if (absolutePath && fs.existsSync(absolutePath)) {
         fs.unlinkSync(absolutePath);

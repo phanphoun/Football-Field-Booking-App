@@ -7,8 +7,11 @@ import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const API_ORIGIN =
+  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
+    ? window.location.origin
+    : API_BASE_URL.replace(/\/api\/?$/, '');
 
 // Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {

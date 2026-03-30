@@ -9,6 +9,7 @@ const axios = require("axios");
 const { sequelize, Field } = require('./src/models');
 const serverConfig = require('./src/config/serverConfig');
 const { applyLegacySchemaFixes } = require('./src/utils/legacySchemaFix');
+const { getPublicRoot, getPublicAssetPath, getUploadRoot } = require('./src/utils/storagePaths');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
 const { generalLimiter, authLimiter, searchLimiter, createLimiter } = require('./src/middleware/rateLimiter');
 
@@ -35,7 +36,7 @@ const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Bangkok";
 
 // Warn if API key is missing
 if (!API_KEY) {
-  console.warn('⚠️  Warning: FOOTBALL_API_KEY not set. League features will be disabled.');
+  console.warn('Ã¢Å¡Â Ã¯Â¸Â  Warning: FOOTBALL_API_KEY not set. League features will be disabled.');
 }
 
 const leagues = [
@@ -116,6 +117,39 @@ const getTodayAnchorInTimezone = (timeZone) => {
 
 const app = express();
 const PORT = serverConfig.port;
+const publicRoot = getPublicRoot();
+const uploadRoot = getUploadRoot();
+const frontendIndexPath = path.join(publicRoot, 'index.html');
+
+const hasFrontendBundle = () => fs.existsSync(frontendIndexPath);
+
+const getApiOverview = () => ({
+  message: 'Football Field Booking API',
+  version: '2.0.0',
+  environment: serverConfig.nodeEnv,
+  endpoints: {
+    health: 'GET /health',
+    auth: {
+      register: 'POST /api/auth/register',
+      login: 'POST /api/auth/login',
+      profile: 'GET /api/auth/profile',
+      updateProfile: 'PUT /api/auth/profile'
+    },
+    users: '/api/users',
+    fields: '/api/fields',
+    bookings: '/api/bookings',
+    teams: '/api/teams',
+    publicTeams: '/api/public/teams',
+    teamMembers: '/api/team-members',
+    matchResults: '/api/match-results',
+    notifications: '/api/notifications',
+    ratings: '/api/ratings',
+    dashboard: {
+      stats: 'GET /api/dashboard/stats',
+      search: 'GET /api/dashboard/search'
+    }
+  }
+});
 
 const isMissingOrBrokenTableError = (error, tableName) => {
   const errno = error?.original?.errno ?? error?.parent?.errno;
@@ -198,9 +232,8 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 });
-app.use('/uploads', express.static(path.join(__dirname, '..', 'frontend', 'public', 'uploads')));
-// Backward compatibility for previously uploaded files in backend/uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadRoot));
+app.use(express.static(publicRoot, { index: false, redirect: false }));
 const sendMissingFieldImageFallback = (req, res, next) => {
   const requestedPath = decodeURIComponent(req.path || '').replace(/^\/+/, '');
   if (!requestedPath) {
@@ -208,10 +241,8 @@ const sendMissingFieldImageFallback = (req, res, next) => {
   }
 
   const candidateFiles = [
-    path.join(__dirname, '..', 'frontend', 'public', 'uploads', 'field', requestedPath),
-    path.join(__dirname, '..', 'frontend', 'public', 'uploads', 'fields', requestedPath),
-    path.join(__dirname, 'uploads', 'field', requestedPath),
-    path.join(__dirname, 'uploads', 'fields', requestedPath)
+    path.join(uploadRoot, 'field', requestedPath),
+    path.join(uploadRoot, 'fields', requestedPath)
   ];
   const hasAnyCandidate = candidateFiles.some((absolutePath) => fs.existsSync(absolutePath));
 
@@ -219,7 +250,7 @@ const sendMissingFieldImageFallback = (req, res, next) => {
     return next();
   }
 
-  const fallbackImage = path.join(__dirname, '..', 'frontend', 'public', 'hero-manu.jpg');
+  const fallbackImage = getPublicAssetPath('hero-manu.jpg');
   res.setHeader('Cache-Control', 'public, max-age=300');
   return res.sendFile(fallbackImage);
 };
@@ -246,36 +277,18 @@ app.get('/favicon.ico', (req, res) => {
 });
 
 // API Documentation endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Football Field Booking API',
-    version: '2.0.0',
-    environment: serverConfig.nodeEnv,
-    endpoints: {
-      health: 'GET /health',
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        profile: 'GET /api/auth/profile',
-        updateProfile: 'PUT /api/auth/profile'
-      },
-      users: '/api/users',
-      fields: '/api/fields',
-      bookings: '/api/bookings',
-      teams: '/api/teams',
-      publicTeams: '/api/public/teams',
-      teamMembers: '/api/team-members',
-      matchResults: '/api/match-results',
-      notifications: '/api/notifications',
-      ratings: '/api/ratings',
-      dashboard: {
-        stats: 'GET /api/dashboard/stats',
-        search: 'GET /api/dashboard/search'
-      }
-    }
-  });
+app.get('/api', (req, res) => {
+  res.json(getApiOverview());
 });
 
+// Serve the frontend when a built SPA is available.
+app.get('/', (req, res) => {
+  if (hasFrontendBundle()) {
+    return res.sendFile(frontendIndexPath);
+  }
+
+  return res.json(getApiOverview());
+});
 // Apply authentication rate limiting
 app.use('/api/auth', authLimiter);
 
@@ -443,6 +456,21 @@ app.get("/api/leagues/standings", async (req, res) => {
   }
 });
 
+app.get(/.*/, (req, res, next) => {
+  const isReservedRoute =
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/auth') ||
+    req.path.startsWith('/uploads') ||
+    req.path === '/health' ||
+    req.path === '/favicon.ico';
+
+  if (isReservedRoute || path.extname(req.path) || !req.accepts('html') || !hasFrontendBundle()) {
+    return next();
+  }
+
+  return res.sendFile(frontendIndexPath);
+});
+
 // Error handling middleware (must be after routes)
 app.use(notFound);
 app.use(errorHandler);
@@ -452,7 +480,7 @@ const startServer = async () => {
   try {
     // Database connection check
     await sequelize.authenticate();
-    console.log('✅ Database connected successfully.');
+    console.log('Ã¢Å“â€¦ Database connected successfully.');
     
     // Environment-safe database sync
     const isDevelopment = serverConfig.nodeEnv === 'development';
@@ -462,38 +490,38 @@ const startServer = async () => {
     // Attempt to synchronize schema, but don't crash the server if sync fails.
     if (isDevelopment) {
       if (enableAlterSync) {
-        console.log('🔄 Development mode: Synchronizing database schema (alter enabled)...');
+        console.log('Ã°Å¸â€â€ž Development mode: Synchronizing database schema (alter enabled)...');
       } else {
-        console.log('🔄 Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
+        console.log('Ã°Å¸â€â€ž Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
       }
       try {
         await sequelize.sync(enableAlterSync ? { alter: true } : {});
         if (enableAlterSync) {
-          console.log('✅ Database schema synchronized successfully (alter applied).');
+          console.log('Ã¢Å“â€¦ Database schema synchronized successfully (alter applied).');
         } else {
-          console.log('✅ Database schema synchronized safely.');
+          console.log('Ã¢Å“â€¦ Database schema synchronized safely.');
         }
       } catch (syncErr) {
-        console.warn('⚠️ Schema sync failed:', syncErr.message);
-        console.warn('⚠️ Continuing to start server despite sync failure.');
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Schema sync failed:', syncErr.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Continuing to start server despite sync failure.');
       }
     } else if (isTest) {
-      console.log('🧪 Test mode: Recreating database...');
+      console.log('Ã°Å¸Â§Âª Test mode: Recreating database...');
       try {
         await sequelize.sync({ force: true });
-        console.log('✅ Test database recreated successfully.');
+        console.log('Ã¢Å“â€¦ Test database recreated successfully.');
       } catch (syncErr) {
-        console.warn('⚠️ Test DB sync (force) failed:', syncErr.message);
-        console.warn('⚠️ Continuing to start server despite test DB sync failure.');
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Test DB sync (force) failed:', syncErr.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Continuing to start server despite test DB sync failure.');
       }
     } else {
-      console.log('🚀 Production mode: Synchronizing database safely...');
+      console.log('Ã°Å¸Å¡â‚¬ Production mode: Synchronizing database safely...');
       try {
         await sequelize.sync();
-        console.log('✅ Database synchronized safely.');
+        console.log('Ã¢Å“â€¦ Database synchronized safely.');
       } catch (syncErr) {
-        console.warn('⚠️ Production DB sync failed:', syncErr.message);
-        console.warn('⚠️ Continuing to start server despite sync failure.');
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Production DB sync failed:', syncErr.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Continuing to start server despite sync failure.');
       }
     }
     try {
@@ -508,10 +536,10 @@ const startServer = async () => {
       console.warn('Legacy schema fix failed:', schemaFixErr.message);
     }
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server is running on port ${PORT}`);
-      console.log(`📝 Environment: ${serverConfig.nodeEnv}`);
-      console.log(`📚 API Documentation: http://localhost:${PORT}/`);
-      console.log(`⏰ Started at: ${new Date().toISOString()}`);
+      console.log(`\nÃ°Å¸Å¡â‚¬ Server is running on port ${PORT}`);
+      console.log(`Ã°Å¸â€œÂ Environment: ${serverConfig.nodeEnv}`);
+      console.log(`Ã°Å¸â€œÅ¡ API Documentation: http://localhost:${PORT}/`);
+      console.log(`Ã¢ÂÂ° Started at: ${new Date().toISOString()}`);
     });
   } catch (error) {
     const nestedErrors = error?.original?.errors || error?.errors || [];
@@ -526,52 +554,52 @@ const startServer = async () => {
       nestedMessages ||
       'Unknown database connection error';
 
-    console.error('❌ Unable to connect to the database.');
-    console.error(`📛 Error details: ${errorMessage}`);
+    console.error('Ã¢ÂÅ’ Unable to connect to the database.');
+    console.error(`Ã°Å¸â€œâ€º Error details: ${errorMessage}`);
 
     if (serverConfig.nodeEnv === 'development' && error?.stack) {
       console.error(error.stack);
     }
 
-    console.error('💡 Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
+    console.error('Ã°Å¸â€™Â¡ Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
     process.exit(1);
   }
 };
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  console.log('\nÃ°Å¸â€ºâ€˜ Received SIGINT, shutting down gracefully...');
   try {
     await sequelize.close();
-    console.log('✅ Database connection closed.');
+    console.log('Ã¢Å“â€¦ Database connection closed.');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error during shutdown:', error.message);
+    console.error('Ã¢ÂÅ’ Error during shutdown:', error.message);
     process.exit(1);
   }
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  console.log('\nÃ°Å¸â€ºâ€˜ Received SIGTERM, shutting down gracefully...');
   try {
     await sequelize.close();
-    console.log('✅ Database connection closed.');
+    console.log('Ã¢Å“â€¦ Database connection closed.');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error during shutdown:', error.message);
+    console.error('Ã¢ÂÅ’ Error during shutdown:', error.message);
     process.exit(1);
   }
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught Exception:', error);
+  console.error('Ã°Å¸â€™Â¥ Uncaught Exception:', error);
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Ã°Å¸â€™Â¥ Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
 

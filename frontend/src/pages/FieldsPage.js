@@ -8,8 +8,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import notificationService from '../services/notificationService';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const API_ORIGIN =
+  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
+    ? window.location.origin
+    : API_BASE_URL.replace(/\/api\/?$/, '');
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 // Check whether placeholder image is true.
@@ -418,7 +421,7 @@ const FieldsPage = () => {
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <BuildingOfficeIcon className="h-4 w-4 mr-1" />
-                    {field.fieldType} • {String(field.surfaceType || '').replace('_', ' ')}
+                    {field.fieldType} â€¢ {String(field.surfaceType || '').replace('_', ' ')}
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <CurrencyDollarIcon className="h-4 w-4 mr-1" />

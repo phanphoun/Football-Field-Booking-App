@@ -26,6 +26,7 @@ const serverConfig = require('../config/serverConfig');
 const { getRoleUpgradeConfig } = require('../config/roleUpgradeConfig');
 const { createInAppNotification } = require('../utils/notify');
 const { sendEmail } = require('../utils/emailService');
+const { getUploadDir, resolveManagedUploadPath } = require('../utils/storagePaths');
 const crypto = require('crypto');
 const axios = require('axios');
 
@@ -863,8 +864,7 @@ const uploadProfileAvatar = async (req, res) => {
     }
 
     const maxAvatarSize = serverConfig.upload.maxSize;
-    const projectRoot = path.resolve(__dirname, '..', '..', '..');
-    const uploadDir = path.resolve(projectRoot, 'frontend', 'public', 'uploads', 'profile');
+    const uploadDir = getUploadDir('profile');
     fs.mkdirSync(uploadDir, { recursive: true });
 
     const storage = multer.diskStorage({
@@ -929,16 +929,10 @@ const uploadProfileAvatar = async (req, res) => {
           user.avatarUrl !== DEFAULT_AVATAR_PATH &&
           user.avatarUrl !== LEGACY_DEFAULT_AVATAR_PATH
         ) {
-          const previousPath = user.avatarUrl.replace(/^\//, '');
-          let previousAbsolutePath = null;
+          const previousAbsolutePath =
+            resolveUploadedAssetAbsolutePath(user.avatarUrl) || resolveManagedUploadPath(user.avatarUrl);
 
-          if (user.avatarUrl.startsWith('/uploads/profile/')) {
-            previousAbsolutePath = path.resolve(projectRoot, 'frontend', 'public', previousPath);
-          } else {
-            previousAbsolutePath = path.resolve(__dirname, '..', '..', previousPath);
-          }
-
-          if (fs.existsSync(previousAbsolutePath)) {
+          if (previousAbsolutePath && fs.existsSync(previousAbsolutePath)) {
             fs.unlinkSync(previousAbsolutePath);
           }
         }
@@ -990,8 +984,6 @@ const deleteProfileAvatar = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    const projectRoot = path.resolve(__dirname, '..', '..', '..');
-
     try {
       if (
         user.avatarUrl &&
@@ -1000,16 +992,10 @@ const deleteProfileAvatar = async (req, res) => {
         user.avatarUrl !== DEFAULT_AVATAR_PATH &&
         user.avatarUrl !== LEGACY_DEFAULT_AVATAR_PATH
       ) {
-        const previousPath = user.avatarUrl.replace(/^\//, '');
-        let previousAbsolutePath = null;
+        const previousAbsolutePath =
+          resolveUploadedAssetAbsolutePath(user.avatarUrl) || resolveManagedUploadPath(user.avatarUrl);
 
-        if (user.avatarUrl.startsWith('/uploads/profile/')) {
-          previousAbsolutePath = path.resolve(projectRoot, 'frontend', 'public', previousPath);
-        } else {
-          previousAbsolutePath = path.resolve(__dirname, '..', '..', previousPath);
-        }
-
-        if (fs.existsSync(previousAbsolutePath)) {
+        if (previousAbsolutePath && fs.existsSync(previousAbsolutePath)) {
           fs.unlinkSync(previousAbsolutePath);
         }
       }

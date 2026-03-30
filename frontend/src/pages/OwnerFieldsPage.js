@@ -16,8 +16,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://98.92.235.206/api';
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const API_ORIGIN =
+  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
+    ? window.location.origin
+    : API_BASE_URL.replace(/\/api\/?$/, '');
 const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
 const FIELD_STATUS_OPTIONS = [
   {
@@ -571,8 +574,8 @@ const OwnerFieldsPage = () => {
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900">{t('owner_my_fields_title', 'ទីលានរបស់ខ្ញុំ')}</h1>
-          <p className="mt-1 text-sm text-gray-600">{t('owner_fields_subtitle', 'បង្កើត កែប្រែ និងគ្រប់គ្រងបញ្ជីទីលានរបស់អ្នក។')}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('owner_my_fields_title', 'áž‘áž¸áž›áž¶áž“ážšáž”ážŸáŸ‹ážáŸ’áž‰áž»áŸ†')}</h1>
+          <p className="mt-1 text-sm text-gray-600">{t('owner_fields_subtitle', 'áž”áž„áŸ’áž€áž¾áž áž€áŸ‚áž”áŸ’ážšáŸ‚ áž“áž·áž„áž‚áŸ’ážšáž”áŸ‹áž‚áŸ’ážšáž„áž”áž‰áŸ’áž‡áž¸áž‘áž¸áž›áž¶áž“ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€áŸ”')}</p>
         </div>
         <button
           type="button"
@@ -580,7 +583,7 @@ const OwnerFieldsPage = () => {
           className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto"
         >
           <PlusIcon className="h-4 w-4" />
-          {t('action_add_field', 'បន្ថែមទីលាន')}
+          {t('action_add_field', 'áž”áž“áŸ’ážáŸ‚áž˜áž‘áž¸áž›áž¶áž“')}
         </button>
       </div>
       {isOpen && renderPortal(
@@ -1034,8 +1037,8 @@ const OwnerFieldsPage = () => {
                     </div>
                     <span>
                       {totalRatings > 0
-                        ? t('field_ratings_count', '{{count}} ការវាយតម្លៃ', { count: totalRatings })
-                        : t('fields_no_rating_yet', 'មិនទាន់មានការវាយតម្លៃ')}
+                        ? t('field_ratings_count', '{{count}} áž€áž¶ážšážœáž¶áž™ážáž˜áŸ’áž›áŸƒ', { count: totalRatings })
+                        : t('fields_no_rating_yet', 'áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž€áž¶ážšážœáž¶áž™ážáž˜áŸ’áž›áŸƒ')}
                     </span>
                   </div>
                 </div>
@@ -1043,14 +1046,14 @@ const OwnerFieldsPage = () => {
                   <div className="flex flex-col">
                     {discountPercent > 0 ? (
                       <>
-                        <span className="text-base font-semibold text-emerald-600">${discountedPrice}/{t('field_per_hour_short', 'ម៉ោង')}</span>
-                        <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/{t('field_per_hour_short', 'ម៉ោង')}</span>
+                        <span className="text-base font-semibold text-emerald-600">${discountedPrice}/{t('field_per_hour_short', 'áž˜áŸ‰áŸ„áž„')}</span>
+                        <span className="text-xs text-gray-400 line-through">${field.pricePerHour}/{t('field_per_hour_short', 'áž˜áŸ‰áŸ„áž„')}</span>
                       </>
                     ) : (
-                      <span>${field.pricePerHour}/{t('field_per_hour_short', 'ម៉ោង')}</span>
+                      <span>${field.pricePerHour}/{t('field_per_hour_short', 'áž˜áŸ‰áŸ„áž„')}</span>
                     )}
                   </div>
-                  <span>{t('players_suffix', '{{count}} នាក់', { count: field.capacity })}</span>
+                  <span>{t('players_suffix', '{{count}} áž“áž¶áž€áŸ‹', { count: field.capacity })}</span>
                 </div>
                 {field.closureMessage && field.status !== 'available' && (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -1078,8 +1081,8 @@ const OwnerFieldsPage = () => {
                     }`}
                   >
                     {field.status === 'available'
-                      ? t('action_close_field', 'បិទទីលាន')
-                      : t('action_open_field', 'បើកទីលាន')}
+                      ? t('action_close_field', 'áž”áž·áž‘áž‘áž¸áž›áž¶áž“')
+                      : t('action_open_field', 'áž”áž¾áž€áž‘áž¸áž›áž¶áž“')}
                   </button>
                   <button
                     type="button"
@@ -1091,7 +1094,7 @@ const OwnerFieldsPage = () => {
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     <PencilSquareIcon className="h-4 w-4" />
-                    {t('action_edit', 'កែប្រែ')}
+                    {t('action_edit', 'áž€áŸ‚áž”áŸ’ážšáŸ‚')}
                   </button>
                   <button
                     type="button"
@@ -1103,7 +1106,7 @@ const OwnerFieldsPage = () => {
                     className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     <TrashIcon className="h-4 w-4" />
-                    {t('action_delete', 'លុប')}
+                    {t('action_delete', 'áž›áž»áž”')}
                   </button>
                 </div>
               </div>
@@ -1113,8 +1116,8 @@ const OwnerFieldsPage = () => {
         ) : (
           <div className="col-span-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center">
             <PhotoIcon className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-4 text-lg font-semibold text-gray-900">{t('owner_no_fields_title', 'មិនទាន់មានទីលាន')}</h3>
-            <p className="mt-2 text-sm text-gray-500">{t('owner_fields_empty_description', 'បង្កើតទីលានដំបូងរបស់អ្នកដើម្បីចាប់ផ្តើមទទួលការកក់។')}</p>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">{t('owner_no_fields_title', 'áž˜áž·áž“áž‘áž¶áž“áŸ‹áž˜áž¶áž“áž‘áž¸áž›áž¶áž“')}</h3>
+            <p className="mt-2 text-sm text-gray-500">{t('owner_fields_empty_description', 'áž”áž„áŸ’áž€áž¾ážáž‘áž¸áž›áž¶áž“ážŠáŸ†áž”áž¼áž„ážšáž”ážŸáŸ‹áž¢áŸ’áž“áž€ážŠáž¾áž˜áŸ’áž”áž¸áž…áž¶áž”áŸ‹áž•áŸ’ážáž¾áž˜áž‘áž‘áž½áž›áž€áž¶ážšáž€áž€áŸ‹áŸ”')}</p>
           </div>
         )}
       </div>
