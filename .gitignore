@@ -103,3 +103,10 @@ jspm_packages/
 
 .cursor/hooks.json
 .cursor/hooks/after-agent-response.js
+
+# Generated uploads
+/backend/uploads/role-requests/
+/frontend/public/uploads/field/field-*
+/frontend/public/uploads/fields/field-*
+/frontend/public/uploads/profile/user_*
+/frontend/public/uploads/team-logo/team_*

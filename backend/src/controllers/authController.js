@@ -179,7 +179,6 @@ const getAllowedRequestedRoles = (currentRole) => REQUESTABLE_ROLES_BY_USER_ROLE
 
 const register = async (req, res) => {
   try {
-    console.log('Registration request body:', req.body);
     const { username, email, password, firstName, lastName, phone, role } = req.body;
     
     // Enhanced validation
@@ -688,7 +687,7 @@ const requestPasswordOtp = async (req, res) => {
         html: `<p>Your OTP code is <strong>${otp}</strong>. It expires in 5 minutes.</p>`
       });
     } else {
-      console.log(`[otp] Send SMS to ${identifier}: ${otp}`);
+      console.log(`[otp] SMS OTP issued for ${identifier}`);
     }
 
     res.json({ message: 'OTP sent successfully.' });
