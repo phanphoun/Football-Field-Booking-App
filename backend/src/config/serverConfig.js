@@ -90,7 +90,14 @@ const serverConfig = {
           dialectOptions: {
             ssl: process.env.DB_SSL === 'true' ? {
               require: true,
-              rejectUnauthorized: false
+              rejectUnauthorized: true,  // ✅ FIXED: Now enforces certificate validation
+              ca: process.env.DB_SSL_CA_CERT ? [process.env.DB_SSL_CA_CERT] : undefined,
+              // Verify certificate hostname matches RDS endpoint
+              checkServerIdentity: (servername, cert) => {
+                if (!cert.subjectaltname?.includes(servername)) {
+                  throw new Error(`Certificate CN mismatch: expected ${servername}, got ${cert.subjectaltname}`);
+                }
+              }
             } : false
           }
         };

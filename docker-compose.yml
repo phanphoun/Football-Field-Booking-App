@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: football_booking_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: football_booking
+      MYSQL_USER: football_user
+      MYSQL_PASSWORD: secure_password_123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - football-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: football_booking_backend
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: football_booking
+      DB_USER: football_user
+      DB_PASSWORD: secure_password_123
+      DB_DIALECT: mysql
+      DB_SSL: "false"
+      JWT_SECRET: development_secret_min_32_chars_required_for_jwt_token_generation_key
+      CORS_ORIGIN: http://localhost:3000
+      LOG_LEVEL: info
+      HTTP_LOGGING: "true"
+      DB_LOGGING: "false"
+      FOOTBALL_API_KEY: ${FOOTBALL_API_KEY:-88aaa20e57db47deb4847097dcf9c6a4}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-701904949241-en5jqqnbq2ig9nusd1c4jme5f25nrru4.apps.googleusercontent.com}
+    ports:
+      - "5000:5000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - football-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: football_booking_frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+      API_BACKEND: backend
+      API_PORT: 5000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - football-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  football-network:
+    driver: bridge

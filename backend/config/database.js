@@ -8,7 +8,7 @@ const getDatabaseConfig = () => {
       dialect: 'postgres',
       ssl: process.env.NODE_ENV === 'production' ? {
         require: true,
-        rejectUnauthorized: false
+        rejectUnauthorized: true  // ✅ FIXED: Enforce certificate validation
       } : false,
       logging: process.env.NODE_ENV === 'development' ? console.log : false,
       pool: {
@@ -30,7 +30,7 @@ const getDatabaseConfig = () => {
     dialect: process.env.DB_DIALECT || 'mysql',
     ssl: process.env.NODE_ENV === 'production' && process.env.DB_DIALECT === 'postgres' ? {
       require: true,
-      rejectUnauthorized: false
+      rejectUnauthorized: true  // ✅ FIXED: Enforce certificate validation
     } : false,
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {

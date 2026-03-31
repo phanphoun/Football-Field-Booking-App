@@ -8,6 +8,7 @@ const compression = require('compression');
 const axios = require("axios");
 const { sequelize, Field } = require('./src/models');
 const serverConfig = require('./src/config/serverConfig');
+const logger = require('./src/utils/logger');  // ✅ Add logger
 const { applyLegacySchemaFixes } = require('./src/utils/legacySchemaFix');
 const { getPublicRoot, getPublicAssetPath, getUploadRoot } = require('./src/utils/storagePaths');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
@@ -36,7 +37,7 @@ const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Bangkok";
 
 // Warn if API key is missing
 if (!API_KEY) {
-  console.warn('Warning: FOOTBALL_API_KEY not set. League features will be disabled.');
+  logger.warn('FOOTBALL_API_KEY not set. League features will be disabled.');
 }
 
 const leagues = [
@@ -480,7 +481,7 @@ const startServer = async () => {
   try {
     // Database connection check
     await sequelize.authenticate();
-    console.log('Database connected successfully.');
+    logger.info('Database connected successfully.');
     
     // Environment-safe database sync
     const isDevelopment = serverConfig.nodeEnv === 'development';
@@ -490,56 +491,56 @@ const startServer = async () => {
     // Attempt to synchronize schema, but don't crash the server if sync fails.
     if (isDevelopment) {
       if (enableAlterSync) {
-        console.log('Development mode: Synchronizing database schema (alter enabled)...');
+        logger.info('Development mode: Synchronizing database schema (alter enabled)...');
       } else {
-        console.log('Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
+        logger.info('Development mode: Safe sync (set DB_SYNC_ALTER=true to enable alter sync).');
       }
       try {
         await sequelize.sync(enableAlterSync ? { alter: true } : {});
         if (enableAlterSync) {
-          console.log('Database schema synchronized successfully (alter applied).');
+          logger.info('Database schema synchronized successfully (alter applied).');
         } else {
-          console.log('Database schema synchronized safely.');
+          logger.info('Database schema synchronized safely.');
         }
       } catch (syncErr) {
-        console.warn('Schema sync failed:', syncErr.message);
-        console.warn('Continuing to start server despite sync failure.');
+        logger.warn('Schema sync failed: ' + syncErr.message);
+        logger.warn('Continuing to start server despite sync failure.');
       }
     } else if (isTest) {
-      console.log('Test mode: Recreating database...');
+      logger.info('Test mode: Recreating database...');
       try {
         await sequelize.sync({ force: true });
-        console.log('Test database recreated successfully.');
+        logger.info('Test database recreated successfully.');
       } catch (syncErr) {
-        console.warn('Test DB sync (force) failed:', syncErr.message);
-        console.warn('Continuing to start server despite test DB sync failure.');
+        logger.warn('Test DB sync (force) failed: ' + syncErr.message);
+        logger.warn('Continuing to start server despite test DB sync failure.');
       }
     } else {
-      console.log('Production mode: Synchronizing database safely...');
+      logger.info('Production mode: Synchronizing database safely...');
       try {
         await sequelize.sync();
-        console.log('Database synchronized safely.');
+        logger.info('Database synchronized safely.');
       } catch (syncErr) {
-        console.warn('Production DB sync failed:', syncErr.message);
-        console.warn('Continuing to start server despite sync failure.');
+        logger.warn('Production DB sync failed: ' + syncErr.message);
+        logger.warn('Continuing to start server despite sync failure.');
       }
     }
     try {
       await ensureFieldTableHealthy();
     } catch (repairErr) {
-      console.warn('Field table health check failed:', repairErr.message);
+      logger.warn('Field table health check failed: ' + repairErr.message);
     }
 
     try {
       await applyLegacySchemaFixes(sequelize);
     } catch (schemaFixErr) {
-      console.warn('Legacy schema fix failed:', schemaFixErr.message);
+      logger.warn('Legacy schema fix failed: ' + schemaFixErr.message);
     }
     app.listen(PORT, () => {
-      console.log(`\nServer is running on port ${PORT}`);
-      console.log(`Environment: ${serverConfig.nodeEnv}`);
-      console.log(`API Documentation: http://localhost:${PORT}/`);
-      console.log(`Started at: ${new Date().toISOString()}`);
+      logger.info(`Server is running on port ${PORT}`);
+      logger.info(`Environment: ${serverConfig.nodeEnv}`);
+      logger.info(`API Documentation: http://localhost:${PORT}/`);
+      logger.info(`Started at: ${new Date().toISOString()}`);
     });
   } catch (error) {
     const nestedErrors = error?.original?.errors || error?.errors || [];
@@ -554,52 +555,52 @@ const startServer = async () => {
       nestedMessages ||
       'Unknown database connection error';
 
-    console.error('Unable to connect to the database.');
-    console.error(`Error details: ${errorMessage}`);
+    logger.error('Unable to connect to the database.');
+    logger.error(`Error details: ${errorMessage}`);
 
     if (serverConfig.nodeEnv === 'development' && error?.stack) {
-      console.error(error.stack);
+      logger.error(error.stack);
     }
 
-    console.error('Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
+    logger.error('Please check your DB_HOST/DB_PORT credentials and ensure MySQL is running.');
     process.exit(1);
   }
 };
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nReceived SIGINT, shutting down gracefully...');
+  logger.info('Received SIGINT, shutting down gracefully...');
   try {
     await sequelize.close();
-    console.log('Database connection closed.');
+    logger.info('Database connection closed');
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error.message);
+    logger.error('Error during shutdown: ' + error.message);
     process.exit(1);
   }
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\nReceived SIGTERM, shutting down gracefully...');
+  logger.info('Received SIGTERM, shutting down gracefully...');
   try {
     await sequelize.close();
-    console.log('Database connection closed.');
+    logger.info('Database connection closed');
     process.exit(0);
   } catch (error) {
-    console.error('Error during shutdown:', error.message);
+    logger.error('Error during shutdown: ' + error.message);
     process.exit(1);
   }
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection', { reason: reason?.message || reason, promise: promise?.toString?.() });
   process.exit(1);
 });
 
