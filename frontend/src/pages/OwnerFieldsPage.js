@@ -15,12 +15,9 @@ import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
+import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
-const API_ORIGIN =
-  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
-    ? window.location.origin
-    : API_BASE_URL.replace(/\/api\/?$/, '');
+const API_ORIGIN = API_ORIGIN_URL;
 const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];
 const FIELD_STATUS_OPTIONS = [
   {

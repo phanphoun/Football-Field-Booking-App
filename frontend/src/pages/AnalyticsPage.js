@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import apiService, { getToken } from '../services/api';
 import { Badge, Card, CardBody, CardHeader, EmptyState, Spinner } from '../components/ui';
 import { ChartBarIcon } from '@heroicons/react/24/outline';
+import { API_BASE_URL } from '../config/appConfig';
 
 // Format money for display.
 const formatMoney = (value) => {
@@ -69,7 +70,7 @@ const AnalyticsPage = () => {
     try {
       const token = getToken();
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || '/api'}/analytics/report.csv?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
+        `${API_BASE_URL}/analytics/report.csv?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!response.ok) throw new Error('Unable to download report');

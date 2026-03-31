@@ -30,14 +30,11 @@ import { ImagePreviewModal, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
 import { compressImageForUpload } from '../utils/imageCompression';
 import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
+import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
 
 const MAX_TEAM_LOGO_SIZE_MB = 5;
 const MAX_TEAM_LOGO_SIZE_BYTES = MAX_TEAM_LOGO_SIZE_MB * 1024 * 1024;
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
-const API_ORIGIN =
-  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
-    ? window.location.origin
-    : API_BASE_URL.replace(/\/api\/?$/, '');
+const API_ORIGIN = API_ORIGIN_URL;
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const resolveTeamLogoUrl = (rawLogo) => {

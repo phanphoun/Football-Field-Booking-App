@@ -7,6 +7,7 @@ import {
   ArrowTrendingDownIcon,
   MinusIcon
 } from '@heroicons/react/24/outline';
+import { API_BASE_URL } from '../config/appConfig';
 
 const APP_TIMEZONE = process.env.REACT_APP_TIMEZONE || 'Asia/Bangkok';
 const PUBLIC_URL = process.env.PUBLIC_URL || '';
@@ -99,7 +100,6 @@ const getWeekDateItems = () => {
 
 // Render the league page.
 const League = () => {
-  const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
   const [activeTab, setActiveTab] = useState('matches');
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
@@ -145,7 +145,7 @@ const League = () => {
     } finally {
       setLoading(false);
     }
-  }, [API_BASE_URL, selectedLeague]);
+  }, [selectedLeague]);
 
   useEffect(() => {
     fetchLeagueData();

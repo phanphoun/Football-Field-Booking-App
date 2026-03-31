@@ -7,12 +7,9 @@ import { useRealtime } from '../context/RealtimeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useDialog } from '../components/ui';
 import notificationService from '../services/notificationService';
+import { API_ORIGIN_URL } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
-const API_ORIGIN =
-  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
-    ? window.location.origin
-    : API_BASE_URL.replace(/\/api\/?$/, '');
+const API_ORIGIN = API_ORIGIN_URL;
 const DEFAULT_FIELD_IMAGE =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%25" height="100%25" fill="%23e5e7eb"/></svg>';
 // Check whether placeholder image is true.

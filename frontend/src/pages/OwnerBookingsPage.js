@@ -14,12 +14,9 @@ import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
-const API_ORIGIN =
-  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
-    ? window.location.origin
-    : API_BASE_URL.replace(/\/api\/?$/, '');
+const API_ORIGIN = API_ORIGIN_URL;
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';
 
 const statusTone = (status) => {

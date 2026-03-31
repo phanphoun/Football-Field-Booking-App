@@ -7,12 +7,9 @@ import notificationService from '../services/notificationService';
 import { MagnifyingGlassIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, EmptyState, ImagePreviewModal, Spinner, useToast } from '../components/ui';
 import { getTeamJerseyColors } from '../utils/teamColors';
+import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
-const API_ORIGIN =
-  typeof window !== 'undefined' && API_BASE_URL.startsWith('/')
-    ? window.location.origin
-    : API_BASE_URL.replace(/\/api\/?$/, '');
+const API_ORIGIN = API_ORIGIN_URL;
 
 // Resolve team logo url into a display-safe value.
 const resolveTeamLogoUrl = (rawLogo) => {
