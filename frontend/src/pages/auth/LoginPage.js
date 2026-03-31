@@ -7,9 +7,11 @@ import AuthModalShell from '../../components/ui/AuthModalShell';
 import { getPreferredStartPath } from '../../utils/navigationPreferences';
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Render the login page.
 const LoginPage = () => {
-  const { login, googleAuth, loading, error } = useAuth();
+  const { login, googleAuth, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -30,7 +32,10 @@ const LoginPage = () => {
   // Keep form state in sync and clear field-level errors as the user fixes them.
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (error) {
+      clearError();
+    }
     setValidationErrors((prev) => {
       if (!prev[name]) return prev;
       const next = { ...prev };
@@ -47,11 +52,17 @@ const LoginPage = () => {
     const nextErrors = {};
 
     if (!formData.email.trim()) nextErrors.email = 'Please enter your email address.';
+    else if (!EMAIL_REGEX.test(formData.email.trim())) nextErrors.email = 'Please enter a valid email address.';
+
     if (!formData.password.trim()) nextErrors.password = 'Please enter your password.';
 
     if (Object.keys(nextErrors).length > 0) {
       setValidationErrors(nextErrors);
       return;
+    }
+
+    if (error) {
+      clearError();
     }
 
     // Route users to the correct area based on role after login.
@@ -63,12 +74,8 @@ const LoginPage = () => {
       return;
     }
 
-    if (result.error) {
-      setValidationErrors((prev) => ({
-        ...prev,
-        email: result.error || 'Invalid email or password.',
-        password: result.error || 'Invalid email or password.'
-      }));
+    if (result.field) {
+      setValidationErrors({ [result.field]: result.error });
     }
   };
 
@@ -149,6 +156,9 @@ const LoginPage = () => {
           <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Email Address
           </label>
+          {validationErrors.email && (
+            <p className="mb-2 text-sm font-semibold text-red-500">{validationErrors.email}</p>
+          )}
           <input
             id="email"
             name="email"
@@ -163,15 +173,15 @@ const LoginPage = () => {
                 : 'border border-slate-200 focus:border-green-500 focus:ring-green-500/20'
             }`}
           />
-          {validationErrors.email && (
-            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.email}</p>
-          )}
         </div>
 
         <div>
           <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700 sm:mb-2">
             Password
           </label>
+          {validationErrors.password && (
+            <p className="mb-2 text-sm font-semibold text-red-500">{validationErrors.password}</p>
+          )}
           <div className="relative">
             <input
               id="password"
@@ -196,9 +206,6 @@ const LoginPage = () => {
               {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
             </button>
           </div>
-          {validationErrors.password && (
-            <p className="mt-2 text-sm font-medium text-red-600">{validationErrors.password}</p>
-          )}
         </div>
 
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -220,6 +227,19 @@ const LoginPage = () => {
             Forgot password?
           </button>
         </div>
+
+        {error && !validationErrors.email && !validationErrors.password && (
+          <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm text-rose-700">
+            <svg className="h-4 w-4 flex-none" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.993.883L9 8v3a1 1 0 001.993.117L11 11V8a1 1 0 00-1-1zm.002 7a1.125 1.125 0 100-2.25 1.125 1.125 0 000 2.25z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <p>We couldn&apos;t sign you in with those details.</p>
+          </div>
+        )}
 
         <Button type="submit" disabled={loading} className="w-full rounded-2xl bg-green-600 py-2.5 text-base font-semibold text-white hover:bg-green-700 sm:py-3">
           {loading ? (

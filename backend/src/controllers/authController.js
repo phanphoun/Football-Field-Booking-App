@@ -272,22 +272,28 @@ const login = async (req, res) => {
       });
     }
 
-    // Find user by email
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
-    }
+      // Find user by email
+      const user = await User.findOne({ where: { email } });
+      if (!user) {
+        return res.status(400).json({
+          error: 'Email address was not found.',
+          field: 'email'
+        });
+      }
 
     // Check if user is active
     if (user.status !== 'active') {
       return res.status(400).json({ error: 'Account is not active. Please contact support.' });
     }
 
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid email or password.' });
-    }
+      // Compare password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({
+          error: 'Incorrect password.',
+          field: 'password'
+        });
+      }
 
     // Update last login
     await user.update({ lastLogin: new Date() });

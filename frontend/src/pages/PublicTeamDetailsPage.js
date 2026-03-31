@@ -336,4 +336,3 @@ const PublicTeamDetailsPage = () => {
 };
 
 export default PublicTeamDetailsPage;
-

@@ -181,7 +181,8 @@ describe('Auth API', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Invalid email or password.');
+      expect(response.body.error).toBe('Incorrect password.');
+      expect(response.body.field).toBe('password');
     });
 
     it('rejects an inactive account', async () => {

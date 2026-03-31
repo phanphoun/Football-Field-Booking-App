@@ -432,10 +432,57 @@ html[data-theme='dark'] .bg-\[radial-gradient\(circle_at_top\,_rgba\(255\,255\,2
   }
 }
 
-.scroll-reveal {
-  --scroll-reveal-delay: 0ms;
-  opacity: 0;
-  filter: blur(10px);
+/* Fade-in animation for statistics page */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes statsPieSpinIn {
+  0% {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.86);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes statsPieLabelFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer components {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out forwards;
+    opacity: 0;
+  }
+
+  .stats-pie-enter {
+    animation: statsPieSpinIn 950ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform-box: fill-box;
+  }
+
+  .stats-pie-label-enter {
+    animation: statsPieLabelFadeIn 450ms ease-out 320ms both;
+  }
+  
+  .scroll-reveal {
+    --scroll-reveal-delay: 0ms;
+    opacity: 0;
+    filter: blur(10px);
   transform: translate3d(0, 28px, 0);
   transition:
     opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -470,4 +517,5 @@ html[data-theme='dark'] .bg-\[radial-gradient\(circle_at_top\,_rgba\(255\,255\,2
     transform: none !important;
     transition: none !important;
   }
+}
 }

@@ -928,7 +928,7 @@ const LandingPage = () => {
     navigate(`/teams?${params.toString()}`);
   };
   return (
-    <div className="flex flex-col gap-14 bg-gradient-to-b from-emerald-50/70 via-white to-sky-50/40">
+    <div className="flex flex-col gap-14 bg-white">
       <section className="order-1 relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen min-h-[640px] overflow-hidden text-white shadow-sm ring-1 ring-black/10">
         <div className="absolute inset-0 overflow-hidden">
           <div
@@ -1265,7 +1265,7 @@ const LandingPage = () => {
             </p>
           </div>
 
-            <div className="mx-auto mt-8 grid max-w-7xl grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="mx-auto mt-10 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
             {availableNowCards.length > 0 ? (
                 availableNowCards.map((field, index) => (
                   <div
@@ -1294,6 +1294,7 @@ const LandingPage = () => {
                                 : t('landing_slots_left', '{{count}} slots left', { count: field.slotsLeft })}
                           </span>
                         </div>
+
                         <h3 className="mt-5 text-[1.25rem] font-black leading-[1.15] tracking-tight text-slate-950 break-words sm:text-[1.45rem]">
                           {field.name}
                         </h3>
@@ -1387,11 +1388,11 @@ const LandingPage = () => {
             )}
           </div>
 
-          <div className="mt-8 text-center">
+          <div className="mt-10 text-center">
             <button
               type="button"
               onClick={() => navigate('/fields?focus=search')}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-base font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/60"
             >
               {t('landing_view_all_fields', 'View all available fields')}
               <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">{t('landing_more_count', '24 more')}</span>
@@ -1653,7 +1654,7 @@ const LandingPage = () => {
                 <Link
                   key={field.id}
                   to={`/fields/${field.id}`}
-                  className="group overflow-hidden rounded-[1.9rem] bg-white ring-1 ring-emerald-100 transition hover:-translate-y-1 hover:shadow-2xl"
+                  className="group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)] transition hover:-translate-y-1.5 hover:shadow-[0_24px_52px_rgba(15,23,42,0.12)]"
                 >
                   <div className="relative h-56 overflow-hidden bg-gray-200">
                     <img
@@ -1666,18 +1667,18 @@ const LandingPage = () => {
                       }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/10 to-transparent opacity-80" />
-                    <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                    <div className="absolute left-4 top-4 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
                       {field.fieldType || '11v11'}
                     </div>
                     <span
-                      className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        isAvailable ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                      className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ${
+                        isAvailable ? 'bg-[#1fb455] text-white' : 'bg-red-500 text-white'
                       }`}
                     >
                       {isAvailable ? t('field_available', 'Available') : t('field_booked', 'Booked')}
                     </span>
                     <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                      <div className="text-2xl font-black">{field.name}</div>
+                      <div className="text-[1.65rem] font-black leading-tight">{field.name}</div>
                       <div className="mt-1 flex items-center gap-2 text-sm text-white/85">
                         <MapPinIcon className="h-4 w-4" />
                         <span>{field.city || field.address || 'City Stadium Arena'}</span>
@@ -1685,9 +1686,9 @@ const LandingPage = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-4 p-6">
+                  <div className="space-y-5 p-6">
 
-                    <div className="flex items-center justify-between text-base text-gray-700">
+                    <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
                       <div className="flex items-center gap-2">
                         <UsersIcon className="h-5 w-5" />
                         <span>{t('players_suffix', '{{count}} players', { count: players })}</span>
@@ -1716,7 +1717,7 @@ const LandingPage = () => {
                     </p>
 
                     <div className="flex items-end justify-between gap-4">
-                      <div className="text-4xl font-bold leading-none text-green-600">
+                      <div className="text-4xl font-black leading-none text-[#0ea765]">
                       ${Number.isFinite(price) ? price.toFixed(0) : 0}
                       <span className="ml-1 text-xl font-semibold text-green-700">/{t('landing_session_unit', 'session')}</span>
                       </div>
@@ -1738,7 +1739,7 @@ const LandingPage = () => {
                           e.stopPropagation();
                           handleBookNow(field);
                         }}
-                        className="w-full rounded-xl bg-[#1dbf5f] py-2 text-base font-semibold text-white shadow-sm transition hover:bg-[#18aa52]"
+                        className="w-full rounded-xl bg-[#1fb455] py-3 text-base font-semibold text-white shadow-sm transition hover:bg-[#18984a]"
                       >
                         {isAuthenticated && !canCreateBooking
                           ? t('booking_request_captain', 'Request captain access')
@@ -1924,7 +1925,7 @@ const LandingPage = () => {
                 'All our facilities are regularly maintained and sanitized. We ensure the highest standards of cleanliness and safety for all our customers. Every field is inspected daily and meets professional football standards.'
               )}
             </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               {PREMIUM_GUARANTEE_ITEMS.map((item) => (
                 <span key={item.key} className={`rounded-md px-4 py-2 text-sm font-semibold ${item.className}`}>
                   {item.key === 'daily_maintenance'

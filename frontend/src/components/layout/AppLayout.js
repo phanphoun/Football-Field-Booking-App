@@ -7,6 +7,7 @@ import {
   BuildingOfficeIcon, 
   UsersIcon, 
   CalendarIcon, 
+  ChartBarIcon,
   UserCircleIcon,
   Cog6ToothIcon,
   BellAlertIcon,
@@ -32,6 +33,7 @@ import ThemeToggle from '../common/ThemeToggle';
 import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
+import brandLogo from '../../pages/img/logo.png';
 
 const BRAND_NAME = APP_CONFIG.brand.displayName;
 const topControlButtonClass =
@@ -41,10 +43,11 @@ const backButtonClass =
 
 const SidebarBrand = ({ collapsed = false }) => (
   <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
-    <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-green-600 to-teal-500 text-lg font-black tracking-wide text-white shadow-[0_14px_28px_rgba(22,163,74,0.28)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),_transparent_55%)]" />
-      {APP_CONFIG.brand.shortName}
-    </div>
+    <img
+      src={brandLogo}
+      alt={`${APP_CONFIG.brand.displayName} logo`}
+      className="h-12 w-12 rounded-2xl object-cover shadow-[0_14px_28px_rgba(22,163,74,0.22)]"
+    />
     {!collapsed && (
       <div className="min-w-0 py-0.5">
         <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
@@ -104,6 +107,12 @@ const AppLayout = () => {
       href: '/app/league',
       icon: TrophyIcon,
       current: location.pathname.startsWith('/app/league')
+    },
+    {
+      name: t('nav_statistics', 'Statistics'),
+      href: '/app/statistics',
+      icon: ChartBarIcon,
+      current: location.pathname.startsWith('/app/statistics')
     },
     {
       name: t('nav_teams', 'Teams'),
@@ -169,15 +178,13 @@ const AppLayout = () => {
       { match: '/app/league', title: t('nav_league', 'League'), subtitle: t('page_league_subtitle', 'Track fixtures, results, and standings') },
       { match: '/app/teams', title: t('nav_teams', 'Teams'), subtitle: t('page_teams_subtitle', 'Manage your team and membership requests') },
       { match: '/app/chat', title: t('nav_chat', 'Chat'), subtitle: t('page_chat_subtitle', 'Talk directly with users across the platform') },
-      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'Create and manage your field bookings') },
-      { match: '/app/open-matches', title: t('nav_open_matches', 'Open Matches'), subtitle: t('page_open_matches_subtitle', 'Find and respond to open opponent matches') },
-      { match: '/app/notifications', title: t('nav_notifications', 'Notifications'), subtitle: t('page_notifications_subtitle', 'Review invitations and request updates') },
-      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Update your account and preferences') },
-      { match: '/app/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Manage account preferences and role requests') },
+      { match: '/app/bookings', title: t('nav_bookings', 'Bookings'), subtitle: t('page_bookings_subtitle', 'View your upcoming and past bookings') },
+      { match: '/app/profile', title: t('nav_profile', 'Profile'), subtitle: t('page_profile_subtitle', 'Manage your personal information and preferences') },
+      { match: '/app/statistics', title: t('nav_statistics', 'Statistics'), subtitle: t('page_statistics_subtitle', 'Real-time usage and booking analytics') },
       { match: '/app/admin/users', title: t('nav_manage_users', 'Manage Users'), subtitle: t('page_manage_users_subtitle', 'Admin user management area') },
-      { match: '/app/admin/role-requests', title: t('nav_role_requests', 'Role Requests'), subtitle: 'Review captain and field owner access requests' },
-      { match: '/app/admin/payments', title: t('nav_payments', 'Payments'), subtitle: 'Review payment proofs and track upgrade revenue' },
-      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: 'Admin configuration and controls' }
+      { match: '/app/admin/role-requests', title: t('nav_role_requests', 'Role Requests'), subtitle: t('page_role_requests_subtitle', 'Review captain and field owner access requests') },
+      { match: '/app/admin/payments', title: t('nav_payments', 'Payments'), subtitle: t('page_payments_subtitle', 'Review payment proofs and track upgrade revenue') },
+      { match: '/app/admin/settings', title: t('nav_settings', 'Settings'), subtitle: t('page_settings_subtitle', 'Admin configuration and controls') }
     ];
     const current = entries.find((entry) => path.startsWith(entry.match));
     return current || { title: APP_CONFIG.brand.displayName, subtitle: t('workspace_player', 'Player & Captain Panel') };
@@ -1175,6 +1182,5 @@ const AppLayout = () => {
 };
 
 export default AppLayout;
-
 
 

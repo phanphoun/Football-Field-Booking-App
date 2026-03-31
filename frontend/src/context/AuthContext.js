@@ -108,6 +108,22 @@ const authReducer = (state, action) => {
 // Create context
 const AuthContext = createContext();
 
+const normalizeLoginError = (message, field) => {
+  if (field !== 'password') return message;
+
+  const normalized = String(message || '').toLowerCase();
+  if (
+    normalized.includes('did not match stored password') ||
+    normalized.includes('invalid password') ||
+    normalized.includes('wrong password') ||
+    normalized.includes('incorrect password')
+  ) {
+    return 'Incorrect password.';
+  }
+
+  return message;
+};
+
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
@@ -165,12 +181,13 @@ export const AuthProvider = ({ children }) => {
         throw new Error(response.message || 'Login failed');
       }
     } catch (error) {
-      const errorMessage = error.error || error.message || 'Login failed';
+      const errorField = error.data?.field || null;
+      const errorMessage = normalizeLoginError(error.error || error.message || 'Login failed', errorField);
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: errorMessage
       });
-      return { success: false, error: errorMessage };
+      return { success: false, error: errorMessage, field: errorField };
     }
   };
 

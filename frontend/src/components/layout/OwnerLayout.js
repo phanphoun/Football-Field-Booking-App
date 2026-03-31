@@ -26,6 +26,7 @@ import ThemeToggle from '../common/ThemeToggle';
 import { useLanguage } from '../../context/LanguageContext';
 import { APP_CONFIG, buildAssetUrl } from '../../config/appConfig';
 import { formatRoleLabel } from '../../utils/formatters';
+import brandLogo from '../../pages/img/logo.png';
 
 const BRAND_NAME = APP_CONFIG.brand.displayName;
 const topControlButtonClass =
@@ -35,10 +36,11 @@ const backButtonClass =
 
 const SidebarBrand = ({ collapsed = false }) => (
   <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
-    <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 via-green-600 to-teal-500 text-lg font-black tracking-wide text-white shadow-[0_14px_28px_rgba(22,163,74,0.28)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),_transparent_55%)]" />
-      {APP_CONFIG.brand.shortName}
-    </div>
+    <img
+      src={brandLogo}
+      alt={`${APP_CONFIG.brand.displayName} logo`}
+      className="h-12 w-12 rounded-2xl object-cover shadow-[0_14px_28px_rgba(22,163,74,0.22)]"
+    />
     {!collapsed && (
       <div className="min-w-0 py-0.5">
         <div className="khmer-brand-font text-[20px] font-extrabold leading-[1.2] text-slate-950">
@@ -674,6 +676,5 @@ const OwnerLayout = () => {
 };
 
 export default OwnerLayout;
-
 
 
