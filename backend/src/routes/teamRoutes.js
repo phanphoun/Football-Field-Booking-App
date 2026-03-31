@@ -9,6 +9,7 @@ const { teamValidation, idValidation } = require('../middleware/validation');
 router.get('/my-teams', auth, teamController.getMyTeams);
 router.get('/my-invitations', auth, teamController.getMyInvitations);
 router.get('/captained', auth, checkRole(['player', 'captain', 'field_owner', 'admin']), teamController.getCaptainedTeams);
+router.get('/search', auth, teamController.searchTeams);
 
 router.get('/', auth, teamController.getAllTeams);
 router.get('/:id', auth, ...idValidation, teamController.getTeamById);

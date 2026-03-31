@@ -169,6 +169,85 @@ const syncFieldReviewSummary = async (fieldId) => {
   return summary;
 };
 
+// Search fields by name, city, or other criteria
+const searchFields = async (req, res) => {
+  try {
+    const { q, city, fieldType, surfaceType, minPrice, maxPrice, page = 1, limit = 10 } = req.query;
+    
+    const where = { isArchived: false };
+    const includeOptions = [
+      {
+        association: 'owner',
+        attributes: ['id', 'username', 'firstName', 'lastName'],
+        required: false
+      }
+    ];
+
+    // Search query - search in name, description, address, city
+    if (q && q.trim()) {
+      const searchTerm = q.trim();
+      where[Op.or] = [
+        { name: { [Op.like]: `%${searchTerm}%` } },
+        { description: { [Op.like]: `%${searchTerm}%` } },
+        { address: { [Op.like]: `%${searchTerm}%` } },
+        { city: { [Op.like]: `%${searchTerm}%` } }
+      ];
+    }
+
+    // Filter by city
+    if (city && city.trim()) {
+      where.city = { [Op.like]: `%${city.trim()}%` };
+    }
+
+    // Filter by field type
+    if (fieldType && fieldType.trim()) {
+      where.fieldType = fieldType.trim();
+    }
+
+    // Filter by surface type
+    if (surfaceType && surfaceType.trim()) {
+      where.surfaceType = surfaceType.trim();
+    }
+
+    // Filter by price range
+    if (minPrice && !isNaN(parseFloat(minPrice))) {
+      where.pricePerHour = { [Op.gte]: parseFloat(minPrice) };
+    }
+    if (maxPrice && !isNaN(parseFloat(maxPrice))) {
+      where.pricePerHour = { ...where.pricePerHour, [Op.lte]: parseFloat(maxPrice) };
+    }
+
+    const fields = await Field.findAndCountAll({
+      where,
+      include: includeOptions,
+      limit: parseInt(limit),
+      offset: (parseInt(page) - 1) * parseInt(limit),
+      order: [['name', 'ASC']]
+    });
+
+    const bookedFieldIds = await getBookedFieldIds(fields.rows.map((field) => field.id));
+    const effectiveFields = fields.rows.map((field) => attachEffectiveFieldStatus(field, bookedFieldIds));
+
+    res.json({
+      success: true,
+      data: effectiveFields,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: fields.count,
+        totalPages: Math.ceil(fields.count / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Search fields error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search fields',
+      error: error.message
+    });
+  }
+};
+
 // Get fields for the current flow.
 const getFields = async (req, res) => {
   try {
@@ -851,6 +930,267 @@ const setFieldCoverImage = async (req, res) => {
   }
 };
 
+// Get field availability for a specific date
+const getFieldAvailability = async (req, res) => {
+  try {
+    const field = await Field.findOne({
+      where: {
+        id: req.params.id,
+        isArchived: false
+      }
+    });
+
+    if (!field) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field not found'
+      });
+    }
+
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date parameter is required'
+      });
+    }
+
+    const targetDate = new Date(date);
+    if (isNaN(targetDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format'
+      });
+    }
+
+    // Get all bookings for the field on the specified date
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const bookings = await Booking.findAll({
+      where: {
+        fieldId: field.id,
+        status: ['confirmed', 'pending'],
+        startTime: {
+          [Op.gte]: startOfDay
+        },
+        endTime: {
+          [Op.lte]: endOfDay
+        }
+      },
+      order: [['startTime', 'ASC']]
+    });
+
+    // Generate available time slots (assuming operating hours are 6:00 - 22:00)
+    const operatingHours = field.operatingHours || { open: '06:00', close: '22:00' };
+    const [openHour, openMinute] = operatingHours.open.split(':').map(Number);
+    const [closeHour, closeMinute] = operatingHours.close.split(':').map(Number);
+    
+    const slots = [];
+    const currentTime = new Date(startOfDay);
+    currentTime.setHours(openHour, openMinute, 0, 0);
+    
+    const endTime = new Date(startOfDay);
+    endTime.setHours(closeHour, closeMinute, 0, 0);
+
+    for (const booking of bookings) {
+      const bookingStart = new Date(booking.startTime);
+      const bookingEnd = new Date(booking.endTime);
+      
+      // Add available slot before this booking
+      if (currentTime < bookingStart) {
+        slots.push({
+          startTime: new Date(currentTime),
+          endTime: bookingStart,
+          available: true
+        });
+      }
+      
+      // Add booked slot
+      slots.push({
+        startTime: bookingStart,
+        endTime: bookingEnd,
+        available: false,
+        bookingId: booking.id,
+        status: booking.status
+      });
+      
+      currentTime = bookingEnd;
+    }
+
+    // Add remaining available slot after last booking
+    if (currentTime < endTime) {
+      slots.push({
+        startTime: new Date(currentTime),
+        endTime: endTime,
+        available: true
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        fieldId: field.id,
+        date: date,
+        operatingHours,
+        slots
+      }
+    });
+  } catch (error) {
+    console.error('Get field availability error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch field availability',
+      error: error.message
+    });
+  }
+};
+
+// Get field statistics for owners
+const getFieldStats = async (req, res) => {
+  try {
+    const field = await Field.findOne({
+      where: {
+        id: req.params.id,
+        isArchived: false
+      }
+    });
+
+    if (!field) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field not found'
+      });
+    }
+
+    // Check authorization
+    if (field.ownerId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view field statistics'
+      });
+    }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    // Total bookings count
+    const totalBookings = await Booking.count({
+      where: { fieldId: field.id }
+    });
+
+    // Monthly bookings
+    const monthlyBookings = await Booking.count({
+      where: {
+        fieldId: field.id,
+        createdAt: { [Op.gte]: startOfMonth }
+      }
+    });
+
+    // Yearly bookings
+    const yearlyBookings = await Booking.count({
+      where: {
+        fieldId: field.id,
+        createdAt: { [Op.gte]: startOfYear }
+      }
+    });
+
+    // Total revenue
+    const revenueResult = await Booking.findAll({
+      where: { fieldId: field.id },
+      attributes: [
+        [fn('SUM', col('totalPrice')), 'totalRevenue']
+      ],
+      raw: true
+    });
+
+    // Monthly revenue
+    const monthlyRevenueResult = await Booking.findAll({
+      where: {
+        fieldId: field.id,
+        createdAt: { [Op.gte]: startOfMonth }
+      },
+      attributes: [
+        [fn('SUM', col('totalPrice')), 'monthlyRevenue']
+      ],
+      raw: true
+    });
+
+    // Yearly revenue
+    const yearlyRevenueResult = await Booking.findAll({
+      where: {
+        fieldId: field.id,
+        createdAt: { [Op.gte]: startOfYear }
+      },
+      attributes: [
+        [fn('SUM', col('totalPrice')), 'yearlyRevenue']
+      ],
+      raw: true
+    });
+
+    // Recent bookings (last 10)
+    const recentBookings = await Booking.findAll({
+      where: { fieldId: field.id },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username', 'firstName', 'lastName']
+        },
+        {
+          model: require('../models').Team,
+          as: 'team',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    const stats = {
+      fieldId: field.id,
+      fieldName: field.name,
+      bookings: {
+        total: totalBookings,
+        monthly: monthlyBookings,
+        yearly: yearlyBookings
+      },
+      revenue: {
+        total: parseFloat(revenueResult[0]?.totalRevenue || 0),
+        monthly: parseFloat(monthlyRevenueResult[0]?.monthlyRevenue || 0),
+        yearly: parseFloat(yearlyRevenueResult[0]?.yearlyRevenue || 0)
+      },
+      averageRating: field.rating || 0,
+      totalRatings: field.totalRatings || 0,
+      recentBookings: recentBookings.map(booking => ({
+        id: booking.id,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        status: booking.status,
+        totalPrice: booking.totalPrice,
+        user: booking.user,
+        team: booking.team
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get field stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch field statistics',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getFields,
   getField,
@@ -862,6 +1202,9 @@ module.exports = {
   deleteFieldImage,
   setFieldCoverImage,
   getFieldRatings,
-  rateField
+  rateField,
+  searchFields,
+  getFieldAvailability,
+  getFieldStats
 };
 

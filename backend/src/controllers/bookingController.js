@@ -1,5 +1,5 @@
 const { Booking, Field, User, Team, TeamMember, BookingJoinRequest, MatchResult, Notification, sequelize } = require('../models');
-const { Op } = require('sequelize');
+const { Op, fn, col } = require('sequelize');
 
 const BOOKING_BASE_INCLUDE = [
   {
@@ -1816,6 +1816,276 @@ const getPublicBookingStats = async (req, res) => {
   }
 };
 
+// Check booking availability for a field
+const checkAvailability = async (req, res) => {
+  try {
+    const { fieldId, startTime, endTime } = req.query;
+
+    if (!fieldId || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'fieldId, startTime, and endTime are required'
+      });
+    }
+
+    // Validate field exists
+    const field = await Field.findOne({
+      where: { id: fieldId, isArchived: false }
+    });
+
+    if (!field) {
+      return res.status(404).json({
+        success: false,
+        message: 'Field not found'
+      });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format'
+      });
+    }
+
+    if (start >= end) {
+      return res.status(400).json({
+        success: false,
+        message: 'End time must be after start time'
+      });
+    }
+
+    // Check for conflicting bookings
+    const conflictingBookings = await Booking.findAll({
+      where: {
+        fieldId,
+        status: ['confirmed', 'pending'],
+        [Op.or]: [
+          {
+            startTime: { [Op.lt]: end },
+            endTime: { [Op.gt]: start }
+          }
+        ]
+      }
+    });
+
+    const isAvailable = conflictingBookings.length === 0;
+
+    res.json({
+      success: true,
+      data: {
+        fieldId,
+        startTime,
+        endTime,
+        isAvailable,
+        conflictingBookings: conflictingBookings.map(booking => ({
+          id: booking.id,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          status: booking.status
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Check availability error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check availability',
+      error: error.message
+    });
+  }
+};
+
+// Get booking conflicts for a field
+const getBookingConflicts = async (req, res) => {
+  try {
+    const { fieldId, startTime, endTime, excludeBookingId } = req.query;
+
+    if (!fieldId || !startTime || !endTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'fieldId, startTime, and endTime are required'
+      });
+    }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format'
+      });
+    }
+
+    const whereClause = {
+      fieldId,
+      status: ['confirmed', 'pending'],
+      [Op.or]: [
+        {
+          startTime: { [Op.lt]: end },
+          endTime: { [Op.gt]: start }
+        }
+      ]
+    };
+
+    // Exclude specific booking if provided
+    if (excludeBookingId) {
+      whereClause.id = { [Op.ne]: excludeBookingId };
+    }
+
+    const conflicts = await Booking.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: Team,
+          as: 'team',
+          attributes: ['id', 'name']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username', 'firstName', 'lastName']
+        }
+      ],
+      order: [['startTime', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        fieldId,
+        startTime,
+        endTime,
+        conflicts: conflicts.map(booking => ({
+          id: booking.id,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          status: booking.status,
+          team: booking.team,
+          creator: booking.creator
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Get booking conflicts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get booking conflicts',
+      error: error.message
+    });
+  }
+};
+
+// Get booking statistics
+const getBookingStats = async (req, res) => {
+  try {
+    const { startDate, endDate, fieldId, teamId } = req.query;
+    
+    const whereClause = {};
+    
+    if (fieldId) {
+      whereClause.fieldId = fieldId;
+    }
+    
+    if (teamId) {
+      whereClause.teamId = teamId;
+    }
+    
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) {
+        whereClause.createdAt[Op.gte] = new Date(startDate);
+      }
+      if (endDate) {
+        whereClause.createdAt[Op.lte] = new Date(endDate);
+      }
+    }
+
+    // Total bookings count
+    const totalBookings = await Booking.count({ where: whereClause });
+
+    // Bookings by status
+    const bookingsByStatus = await Booking.findAll({
+      where: whereClause,
+      attributes: [
+        'status',
+        [fn('COUNT', col('id')), 'count']
+      ],
+      group: ['status'],
+      raw: true
+    });
+
+    // Total revenue
+    const revenueResult = await Booking.findAll({
+      where: whereClause,
+      attributes: [
+        [fn('SUM', col('totalPrice')), 'totalRevenue']
+      ],
+      raw: true
+    });
+
+    // Average booking duration
+    const durationResult = await Booking.findAll({
+      where: whereClause,
+      attributes: [
+        [sequelize.fn('AVG', sequelize.fn('TIMESTAMPDIFF', 'HOUR', sequelize.col('startTime'), sequelize.col('endTime'))), 'avgDurationHours']
+      ],
+      raw: true
+    });
+
+    // Monthly trends (last 12 months)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const monthlyTrends = await Booking.findAll({
+      where: {
+        ...whereClause,
+        createdAt: { [Op.gte]: twelveMonthsAgo }
+      },
+      attributes: [
+        [sequelize.fn('DATE_FORMAT', sequelize.col('createdAt'), '%Y-%m'), 'month'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'bookings'],
+        [sequelize.fn('SUM', sequelize.col('totalPrice')), 'revenue']
+      ],
+      group: [sequelize.fn('DATE_FORMAT', sequelize.col('createdAt'), '%Y-%m')],
+      order: [[sequelize.fn('DATE_FORMAT', sequelize.col('createdAt'), '%Y-%m'), 'ASC']],
+      raw: true
+    });
+
+    const stats = {
+      summary: {
+        totalBookings,
+        totalRevenue: parseFloat(revenueResult[0]?.totalRevenue || 0),
+        avgDurationHours: parseFloat(durationResult[0]?.avgDurationHours || 0)
+      },
+      byStatus: bookingsByStatus.map(item => ({
+        status: item.status,
+        count: parseInt(item.count)
+      })),
+      monthlyTrends: monthlyTrends.map(item => ({
+        month: item.month,
+        bookings: parseInt(item.bookings),
+        revenue: parseFloat(item.revenue)
+      }))
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get booking stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch booking statistics',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getBookings,
@@ -1830,5 +2100,8 @@ module.exports = {
   getBookingJoinRequests,
   respondToJoinRequest,
   cancelMatchedOpponent,
-  getPublicBookingStats
+  getPublicBookingStats,
+  checkAvailability,
+  getBookingConflicts,
+  getBookingStats
 };

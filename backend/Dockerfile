@@ -9,8 +9,8 @@ RUN apk add --no-cache python3 make g++
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (production only)
-RUN npm ci --omit=dev
+# Install dependencies
+RUN npm install
 
 # ================== RUNTIME STAGE ==================
 FROM node:20-alpine
@@ -26,7 +26,8 @@ RUN mkdir -p uploads logs && chmod 777 uploads logs
 # Copy from builder
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy application files
+# Copy application files (excluding .env)
+COPY .env.docker .env
 COPY . .
 
 # Copy startup script

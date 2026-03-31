@@ -10,6 +10,11 @@ const { bookingValidation, idValidation } = require('../middleware/validation');
 router.get('/public/stats', bookingController.getPublicBookingStats);
 router.get('/public/schedule', bookingController.getPublicBookingSchedule);
 
+// Booking utility endpoints
+router.get('/check-availability', bookingController.checkAvailability);
+router.get('/conflicts', bookingController.getBookingConflicts);
+router.get('/stats', auth, bookingController.getBookingStats);
+
 router.post('/', auth, checkRole(['captain']), ...bookingValidation.create, bookingController.createBooking);
 router.get('/', auth, bookingController.getBookings);
 router.get('/schedule', auth, bookingController.getBookingSchedule);

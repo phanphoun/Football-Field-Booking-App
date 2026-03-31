@@ -143,6 +143,68 @@ const getAllTeams = asyncHandler(async (req, res) => {
   res.json({ success: true, data: teamsWithMemberCounts });
 });
 
+// Search teams by name, city, or other criteria
+const searchTeams = asyncHandler(async (req, res) => {
+  const { q, city, skillLevel, page = 1, limit = 10 } = req.query;
+  
+  const where = {};
+  const includeOptions = [
+    {
+      model: User,
+      as: 'captain',
+      attributes: ['id', 'username', 'firstName', 'lastName'],
+      required: false
+    },
+    {
+      model: Field,
+      as: 'homeField',
+      attributes: ['id', 'name', 'address', 'city'],
+      required: false
+    }
+  ];
+
+  // Search query - search in name, description, home field location
+  if (q && q.trim()) {
+    const searchTerm = q.trim();
+    where[Op.or] = [
+      { name: { [Op.like]: `%${searchTerm}%` } },
+      { description: { [Op.like]: `%${searchTerm}%` } },
+      { homeFieldLocation: { [Op.like]: `%${searchTerm}%` } }
+    ];
+  }
+
+  // Filter by city
+  if (city && city.trim()) {
+    where.homeFieldLocation = { [Op.like]: `%${city.trim()}%` };
+  }
+
+  // Filter by skill level
+  if (skillLevel && skillLevel.trim()) {
+    where.skillLevel = skillLevel.trim();
+  }
+
+  const teams = await Team.findAndCountAll({
+    where,
+    include: includeOptions,
+    limit: parseInt(limit),
+    offset: (parseInt(page) - 1) * parseInt(limit),
+    order: [['name', 'ASC']]
+  });
+
+  const teamsWithMemberCounts = await attachMemberCounts(teams.rows);
+
+  res.json({
+    success: true,
+    data: teamsWithMemberCounts,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: teams.count,
+      totalPages: Math.ceil(teams.count / parseInt(limit))
+    }
+  });
+});
+
 const getTeamById = asyncHandler(async (req, res) => {
   const team = await Team.findByPk(req.params.id, {
     include: getTeamDetailsIncludes()
@@ -1233,6 +1295,7 @@ const declineInvite = asyncHandler(async (req, res) => {
 
 module.exports = {
   getAllTeams,
+  searchTeams,
   getTeamById,
   getMyTeams,
   getMyInvitations,
