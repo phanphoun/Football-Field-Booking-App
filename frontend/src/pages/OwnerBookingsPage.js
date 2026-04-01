@@ -14,7 +14,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmationModal, EmptyState, Spinner, useDialog } from '../components/ui';
 import MemberDetailsModal from '../components/ui/MemberDetailsModal';
 import { getTeamJerseyColors } from '../utils/teamColors';
-import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
+import { API_ORIGIN_URL } from '../config/appConfig';
 
 const API_ORIGIN = API_ORIGIN_URL;
 const DEFAULT_PROFILE_PATH = '/uploads/profile/default_profile.jpg';

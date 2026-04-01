@@ -121,7 +121,7 @@ api.interceptors.response.use(
         type: 'error',
         title: 'Server Issue',
         message,
-        duration: 5000
+        duration: 3000
       });
     }
 

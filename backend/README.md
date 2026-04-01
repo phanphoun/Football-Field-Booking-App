@@ -11,7 +11,7 @@ Backend API for the Football Field Booking Application.
 ✅ **Database models and associations**  
 ✅ **Team management with member operations**  
 ✅ **Public team access endpoints**  
-✅ **Database seeding utility**  
+✅ **Real MySQL database integration**  
 ✅ **Enhanced validation and security**  
 
 ---
@@ -229,13 +229,19 @@ npm run dev
 
 ## 🧪 **Testing**
 
-### **Seed Data**
-Run the seed script to populate the database:
+### **Database Setup**
+Ensure MySQL is running and environment variables are configured in `.env` file.
+
+### **Start Development Server**
 ```bash
-npm run seed
+npm run dev
 ```
 
-### **Test Credentials**
+### **Start Production Server**
+```bash
+npm start
+```
+
 - **Admin**: `admin@example.com` / `Password123`
 - **Field Owner**: `owner@example.com` / `Password123`
 - **Player**: `player@example.com` / `Password123`

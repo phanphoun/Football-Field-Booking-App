@@ -478,4 +478,5 @@ const seedDatabase = async () => {
   }
 };
 
-seedDatabase();
+// DISABLED - No more mock data seeding
+// seedDatabase();

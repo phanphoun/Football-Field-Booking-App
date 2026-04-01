@@ -3,11 +3,11 @@ const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
 const fs = require('fs');
 
-// Create logs directory
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
+// File logging disabled - logs folder removed
+// const logsDir = path.join(__dirname, '../../logs');
+// if (!fs.existsSync(logsDir)) {
+//   fs.mkdirSync(logsDir, { recursive: true });
+// }
 
 // Custom format for production
 const productionFormat = winston.format.combine(
@@ -32,24 +32,23 @@ const logger = winston.createLogger({
   format: process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat,
   defaultMeta: { service: 'football-booking-api' },
   transports: [
-    // Error logs - only errors and above
-    new DailyRotateFile({
-      filename: path.join(logsDir, 'error-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '14d',
-      level: 'error',
-      format: productionFormat
-    }),
+    // File logging disabled - no more logs folder
+    // new DailyRotateFile({
+    //   filename: path.join(logsDir, 'error-%DATE%.log'),
+    //   datePattern: 'YYYY-MM-DD',
+    //   maxSize: '20m',
+    //   maxFiles: '14d',
+    //   level: 'error',
+    //   format: productionFormat
+    // }),
 
-    // Combined logs - all levels
-    new DailyRotateFile({
-      filename: path.join(logsDir, 'combined-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxSize: '20m',
-      maxFiles: '30d',
-      format: productionFormat
-    })
+    // new DailyRotateFile({
+    //   filename: path.join(logsDir, 'combined-%DATE%.log'),
+    //   datePattern: 'YYYY-MM-DD',
+    //   maxSize: '20m',
+    //   maxFiles: '30d',
+    //   format: productionFormat
+    // })
   ]
 });
 

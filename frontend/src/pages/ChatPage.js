@@ -146,26 +146,27 @@ const ChatPage = () => {
         if (!silent) {
           setLoadingConversations(true);
         }
-        setError('');
         const response = await chatService.getConversations();
-        const nextConversations = sortConversations(Array.isArray(response.data) ? response.data : []);
-
+        const nextConversations = Array.isArray(response.data) ? response.data : [];
         setConversations(nextConversations);
-        setActiveConversationId((current) => {
-          if (preserveSelection && current && nextConversations.some((item) => Number(item.id) === Number(current))) {
-            return current;
-          }
-          return nextConversations[0]?.id || null;
-        });
+
+        if (preserveSelection && activeConversationId) {
+          return;
+        }
+
+        const firstConversation = nextConversations[0];
+        if (firstConversation) {
+          setActiveConversationId(firstConversation.id);
+        }
       } catch (loadError) {
-        setError(loadError.error || t('chat_load_failed', 'Failed to load chats.'));
+        console.error('Failed to load conversations:', loadError);
       } finally {
         if (!silent) {
           setLoadingConversations(false);
         }
       }
     },
-    [t]
+    [activeConversationId]
   );
 
   const loadMessages = useCallback(
@@ -228,6 +229,7 @@ const ChatPage = () => {
 
   const loadDirectoryUsers = useCallback(
     async (searchValue = '') => {
+      if (searchValue === '') return;
       try {
         setSearchingUsers(true);
         const response = await chatService.searchUsers(searchValue, {

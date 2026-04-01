@@ -18,7 +18,7 @@ import fieldService from '../services/fieldService';
 import bookingService from '../services/bookingService';
 import { Badge, Button, Card, CardBody, EmptyState, Spinner, useToast } from '../components/ui';
 import { buildGoogleMapsLocationUrl, buildLocationLabel } from '../utils/googleMaps';
-import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
+import { API_ORIGIN_URL } from '../config/appConfig';
 
 const API_ORIGIN = API_ORIGIN_URL;
 const DEFAULT_FIELD_IMAGE =

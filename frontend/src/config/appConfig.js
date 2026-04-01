@@ -1,4 +1,4 @@
-const RAW_API_BASE_URL = (process.env.REACT_APP_API_URL || '/api').replace(/\/+$/, '');
+const RAW_API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 const API_ORIGIN =
   typeof window !== 'undefined' && RAW_API_BASE_URL.startsWith('/')
     ? window.location.origin

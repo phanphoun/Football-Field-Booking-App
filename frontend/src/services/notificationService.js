@@ -74,7 +74,7 @@ const notificationService = {
     const hasFilters = Object.keys(filters || {}).length > 0;
 
     if (!hasFilters) {
-      const shouldUseCache = cachedNotifications.length > 0 && Date.now() - cacheLoadedAt < 5000;
+      const shouldUseCache = cachedNotifications.length > 0 && Date.now() - cacheLoadedAt < 3000;
       if (shouldUseCache) {
         return { success: true, data: [...cachedNotifications] };
       }

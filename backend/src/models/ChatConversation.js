@@ -1,4 +1,3 @@
-
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
@@ -22,6 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         as: 'creator',
         onDelete: 'CASCADE'
       });
+
       ChatConversation.hasMany(models.ChatMessage, {
         foreignKey: 'conversationId',
         as: 'messages',

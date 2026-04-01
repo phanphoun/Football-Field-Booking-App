@@ -15,7 +15,7 @@ import fieldService from '../services/fieldService';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDialog, useToast } from '../components/ui';
-import { API_BASE_URL, API_ORIGIN_URL } from '../config/appConfig';
+import { API_ORIGIN_URL } from '../config/appConfig';
 
 const API_ORIGIN = API_ORIGIN_URL;
 const CLOSURE_DAY_PRESETS = [1, 3, 7, 14];

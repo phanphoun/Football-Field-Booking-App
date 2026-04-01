@@ -10,7 +10,6 @@
     "dev:simple": "nodemon server-simple.js",
     "start:mock": "node mock-server.js",
     "dev:mock": "nodemon mock-server.js",
-    "seed": "node src/utils/seed.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "db:create": "node src/utils/createDb.js"

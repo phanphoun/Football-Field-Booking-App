@@ -6,10 +6,7 @@ const validateEnvironment = () => {
   const requiredEnvVars = [
     'NODE_ENV',
     'PORT',
-    'JWT_SECRET',
-    'DB_HOST',
-    'DB_NAME',
-    'DB_USER'
+    'JWT_SECRET'
   ];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -62,84 +59,55 @@ const serverConfig = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   
-  // Database configuration
-  database: {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 3306,
-    name: process.env.DB_NAME,
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    dialect: 'mysql',
-    
-    // Environment-specific database options
-    get options() {
-      const isDbLoggingEnabled = process.env.DB_LOGGING === 'true';
-      const baseOptions = {
-        logging: isDbLoggingEnabled ? console.log : false,
-        pool: {
-          max: 10,
-          min: 0,
-          acquire: 30000,
-          idle: 10000
-        }
-      };
+  // Database connection is now handled by config/database.js
+  // This section removed to avoid duplication
 
-      if (serverConfig.nodeEnv === 'production') {
-        return {
-          ...baseOptions,
-          dialectOptions: {
-            ssl: process.env.DB_SSL === 'true' ? {
-              require: true,
-              rejectUnauthorized: true,  // ✅ FIXED: Now enforces certificate validation
-              ca: process.env.DB_SSL_CA_CERT ? [process.env.DB_SSL_CA_CERT] : undefined,
-              // Verify certificate hostname matches RDS endpoint
-              checkServerIdentity: (servername, cert) => {
-                if (!cert.subjectaltname?.includes(servername)) {
-                  throw new Error(`Certificate CN mismatch: expected ${servername}, got ${cert.subjectaltname}`);
-                }
-              }
-            } : false
-          }
-        };
-      }
-
-      return baseOptions;
-    }
-  },
-
-  // CORS configuration
+  // Enhanced CORS configuration
   cors: {
     origin: process.env.CORS_ORIGIN 
       ? process.env.CORS_ORIGIN.split(',') 
       : ['http://localhost:3000', 'http://localhost:3001'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400 // 24 hours
   },
 
-  // Security configuration
+  // Enhanced security configuration
   security: {
     helmet: {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          scriptSrc: ["'self'", "'unsafe-eval'", "https://accounts.google.com", "https://apis.google.com"],
+          imgSrc: ["'self'", "data:", "https:", "blob:"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          connectSrc: ["'self'", "https:", "https://accounts.google.com", "https://oauth2.googleapis.com"],
+          frameSrc: ["https://accounts.google.com"],
         },
       },
-      crossOriginEmbedderPolicy: false
+      crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: false,
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+      }
     },
     rateLimiting: {
-      enabled: process.env.RATE_LIMITING !== 'false'
+      enabled: process.env.RATE_LIMITING !== 'false',
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100 // limit each IP to 100 requests per windowMs
     }
   },
 
-  // Logging configuration
+  // Enhanced logging configuration
   logging: {
     enabled: process.env.HTTP_LOGGING !== 'false',
     level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'dev'),
-    format: process.env.NODE_ENV === 'production' ? 'combined' : 'dev'
+    format: process.env.NODE_ENV === 'production' ? 'combined' : 'dev',
+    colorize: process.env.NODE_ENV !== 'production'
   },
 
   // File upload configuration
